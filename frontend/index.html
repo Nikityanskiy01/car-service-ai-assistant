@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Fox Motors — автосервис</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container">
+      <section class="hero">
+        <h1>ИИ-консультация перед визитом в сервис</h1>
+        <p class="lead">
+          Опишите симптомы — ассистент уточнит марку, модель, пробег и условия, выдаст предварительные
+          гипотезы и ориентир по стоимости. Затем вы сможете оформить заявку, с которой свяжется менеджер.
+        </p>
+        <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Начать консультацию</a>
+      </section>
+      <div class="grid-2" style="margin-top: 2rem">
+        <div class="card">
+          <h2>Для клиентов</h2>
+          <p>Личный кабинет: история диалогов, заявки, переписка с сервисом, запись на визит.</p>
+          <a href="/register.html">Регистрация</a>
+        </div>
+        <div class="card">
+          <h2>Контакты</h2>
+          <p><a href="/location.html">Как добраться</a> и режим работы.</p>
+        </div>
+      </div>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      mountHeaderFooter({ active: 'home' });
+    </script>
+  </body>
+</html>

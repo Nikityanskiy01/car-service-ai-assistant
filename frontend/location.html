@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Контакты и карта — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container">
+      <h1>Как нас найти</h1>
+      <p>Адрес и часы работы уточняйте у администратора (демо-проект).</p>
+      <div class="card" style="padding: 0; overflow: hidden; min-height: 320px">
+        <iframe
+          title="Карта"
+          width="100%"
+          height="320"
+          style="border: 0"
+          loading="lazy"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=37.5%2C55.7%2C37.8%2C55.9&amp;layer=mapnik"
+        ></iframe>
+      </div>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      mountHeaderFooter();
+    </script>
+  </body>
+</html>

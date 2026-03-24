@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ИИ-консультация — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container">
+      <h1>ИИ-консультация</h1>
+      <p class="lead">
+        Вход только для зарегистрированных клиентов. Система соберёт шесть обязательных полей, затем можно
+        оформить заявку.
+      </p>
+      <button type="button" class="btn btn--ghost" id="btnNewSession">Новая сессия</button>
+      <div class="progress" aria-hidden="true">
+        <div class="progress__bar" id="progressBar" style="width: 0%"></div>
+      </div>
+      <p id="progressLabel" aria-live="polite">Готовность данных: 0%</p>
+      <div id="consultError" class="alert" role="alert"></div>
+      <div id="preliminarySlot"></div>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <form id="chatForm" class="stack" style="margin-top: 1rem">
+        <div class="form-field" style="margin-bottom: 0">
+          <label for="messageInput">Ваше сообщение</label>
+          <textarea id="messageInput" rows="3" required placeholder="Опишите симптомы…"></textarea>
+        </div>
+        <button type="submit" class="btn btn--primary">Отправить</button>
+      </form>
+      <div id="consultActions" class="stack" style="margin-top: 1.5rem"></div>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      import { initConsultPage } from '/js/consult.js';
+      mountHeaderFooter();
+      initConsultPage();
+    </script>
+  </body>
+</html>

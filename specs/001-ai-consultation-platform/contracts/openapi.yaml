@@ -1,0 +1,563 @@
+openapi: 3.0.3
+info:
+  title: AI Fox Motors API
+  description: >
+    REST JSON API for the car service consultation IS. Backend: Node.js + Express (JavaScript).
+    Consumers: HTML/CSS/JS frontend via fetch. JWT Bearer auth; roles CLIENT, MANAGER, ADMINISTRATOR.
+  version: 0.3.0
+servers:
+  - url: http://localhost:3000/api
+    description: Express dev
+tags:
+  - name: Auth
+  - name: Consultations
+  - name: ServiceRequests
+  - name: RequestMessages
+  - name: Admin
+  - name: Analytics
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDto'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /users/me:
+    get:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      summary: Current user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    patch:
+      tags: [Auth]
+      security: [{ bearerAuth: [] }]
+      summary: Update profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdate'
+      responses:
+        '200':
+          description: OK
+  /consultations:
+    post:
+      tags: [Consultations]
+      security: [{ bearerAuth: [] }]
+      summary: Start session
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultationSession'
+    get:
+      tags: [Consultations]
+      security: [{ bearerAuth: [] }]
+      summary: List my sessions
+      responses:
+        '200':
+          description: OK
+  /consultations/{sessionId}:
+    get:
+      tags: [Consultations]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '200':
+          description: Detail
+  /consultations/{sessionId}/messages:
+    post:
+      tags: [Consultations]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Turn result
+  /consultations/{sessionId}/report:
+    post:
+      tags: [Consultations]
+      security: [{ bearerAuth: [] }]
+      summary: Save server-side consultation report snapshot (FR-012)
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+      responses:
+        '201':
+          description: Report saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultationReport'
+        '403':
+          description: Not session owner
+  /users/me/consultation-reports:
+    get:
+      tags: [Consultations]
+      security: [{ bearerAuth: [] }]
+      summary: List saved reports for current client
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConsultationReport'
+  /consultations/{sessionId}/service-request:
+    post:
+      tags: [ServiceRequests]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/sessionId'
+      responses:
+        '201':
+          description: Request created
+  /bookings:
+    post:
+      tags: [Bookings]
+      security: [{ bearerAuth: [] }]
+      summary: Create service visit booking (CLIENT)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceBookingCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceBooking'
+    get:
+      tags: [Bookings]
+      security: [{ bearerAuth: [] }]
+      summary: List bookings (CLIENT own rows; MANAGER all)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceBooking'
+  /bookings/{bookingId}:
+    patch:
+      tags: [Bookings]
+      security: [{ bearerAuth: [] }]
+      summary: Update booking status (MANAGER)
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [PENDING, CONFIRMED, CANCELLED]
+      responses:
+        '200':
+          description: OK
+  /service-requests:
+    get:
+      tags: [ServiceRequests]
+      security: [{ bearerAuth: [] }]
+      summary: Manager list
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ServiceRequestStatus'
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceRequest'
+  /service-requests/{requestId}:
+    get:
+      tags: [ServiceRequests]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/requestId'
+      responses:
+        '200':
+          description: Detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+    patch:
+      tags: [ServiceRequests]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/requestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: '#/components/schemas/ServiceRequestStatus'
+                expectedVersion:
+                  type: integer
+                  description: Row version for optimistic locking; mismatch returns 409
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+        '409':
+          description: Version conflict
+  /service-requests/{requestId}/messages:
+    get:
+      tags: [RequestMessages]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/requestId'
+      responses:
+        '200':
+          description: Thread
+    post:
+      tags: [RequestMessages]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/requestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+      responses:
+        '201':
+          description: Created
+  /admin/users:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+  /admin/users/{userId}/role:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [CLIENT, MANAGER, ADMINISTRATOR]
+      responses:
+        '200':
+          description: OK
+  /admin/users/{userId}/block:
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Block user (FR-017)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Blocked
+  /admin/users/{userId}/unblock:
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Restore user access (FR-017)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Unblocked
+  /admin/reference/service-categories:
+    get:
+      tags: [AdminReference]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List
+    post:
+      tags: [AdminReference]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: Created
+  /admin/reference/scenarios:
+    get:
+      tags: [AdminReference]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List
+    post:
+      tags: [AdminReference]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: Created
+  /analytics/summary:
+    get:
+      tags: [Analytics]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    sessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    requestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    RegisterDto:
+      type: object
+      required: [email, password, fullName, phone]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+        fullName:
+          type: string
+        phone:
+          type: string
+    LoginDto:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserProfile'
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        fullName:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [CLIENT, MANAGER, ADMINISTRATOR]
+    UserProfileUpdate:
+      type: object
+      properties:
+        fullName:
+          type: string
+        phone:
+          type: string
+        emailProfile:
+          type: string
+    ConsultationSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        progressPercent:
+          type: integer
+    ServiceRequestStatus:
+      type: string
+      enum: [NEW, IN_PROGRESS, SCHEDULED, COMPLETED, CANCELLED]
+    ServiceRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ServiceRequestStatus'
+        version:
+          type: integer
+          description: Incremented on status change; send as expectedVersion on PATCH
+    ConsultationReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        consultationSessionId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        label:
+          type: string
+          nullable: true
+        snapshotJson:
+          type: object
+          additionalProperties: true
+          description: Frozen consultation summary for client history (FR-012)
+    ServiceBookingCreate:
+      type: object
+      required: [preferredAt]
+      properties:
+        preferredAt:
+          type: string
+          format: date-time
+          description: Preferred visit window start (ISO-8601)
+        serviceRequestId:
+          type: string
+          format: uuid
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    ServiceBooking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientId:
+          type: string
+          format: uuid
+        serviceRequestId:
+          type: string
+          format: uuid
+          nullable: true
+        preferredAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, CANCELLED]
+        notes:
+          type: string
+          nullable: true

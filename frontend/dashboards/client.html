@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Кабинет клиента — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container" id="clientRoot">
+      <h1>Личный кабинет</h1>
+      <p><a href="/consult.html">Новая ИИ-консультация</a></p>
+      <div class="grid-2">
+        <section class="card">
+          <h2>Консультации</h2>
+          <ul id="sessList" class="stack" style="list-style: none; padding: 0; margin: 0"></ul>
+        </section>
+        <section class="card">
+          <h2>Заявки</h2>
+          <div class="table-wrap">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Авто</th>
+                  <th>Статус</th>
+                </tr>
+              </thead>
+              <tbody id="reqList"></tbody>
+            </table>
+          </div>
+          <h3>Переписка</h3>
+          <p id="threadTitle" class="muted">Выберите заявку в таблице</p>
+          <div id="threadBody" class="stack"></div>
+          <form id="threadForm" class="stack" style="margin-top: 1rem">
+            <textarea id="threadInput" rows="2" placeholder="Сообщение менеджеру"></textarea>
+            <button type="submit" class="btn btn--primary">Отправить</button>
+          </form>
+        </section>
+      </div>
+      <section class="card" style="margin-top: 1.5rem">
+        <h2>Сохранённые отчёты</h2>
+        <ul id="repList" style="list-style: none; padding: 0; margin: 0"></ul>
+      </section>
+      <section class="card" style="margin-top: 1.5rem">
+        <h2>Запись на визит</h2>
+        <form id="bookingForm" class="stack" style="max-width: 420px">
+          <div class="form-field">
+            <label for="preferredAt">Желаемая дата и время</label>
+            <input id="preferredAt" name="preferredAt" type="datetime-local" required />
+          </div>
+          <div class="form-field">
+            <label for="bookingServiceRequestId">Связать с заявкой</label>
+            <select id="bookingServiceRequestId" name="serviceRequestId"></select>
+          </div>
+          <div class="form-field">
+            <label for="notes">Комментарий</label>
+            <textarea id="notes" name="notes" rows="2"></textarea>
+          </div>
+          <button type="submit" class="btn btn--primary">Отправить запись</button>
+        </form>
+        <h3>Мои записи</h3>
+        <ul id="bookList" style="list-style: none; padding: 0; margin: 0"></ul>
+      </section>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      import { initClientDashboard } from '/js/dashboards/client.js';
+      mountHeaderFooter();
+      initClientDashboard();
+    </script>
+  </body>
+</html>

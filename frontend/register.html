@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Регистрация — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container" style="max-width: 480px">
+      <h1>Регистрация клиента</h1>
+      <div id="formError" class="alert" role="alert"></div>
+      <form id="registerForm" class="card">
+        <div class="form-field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required />
+        </div>
+        <div class="form-field">
+          <label for="password">Пароль (мин. 8 символов)</label>
+          <input id="password" name="password" type="password" minlength="8" required />
+        </div>
+        <div class="form-field">
+          <label for="fullName">ФИО</label>
+          <input id="fullName" name="fullName" required />
+        </div>
+        <div class="form-field">
+          <label for="phone">Телефон</label>
+          <input id="phone" name="phone" type="tel" required />
+        </div>
+        <button type="submit" class="btn btn--primary" style="width: 100%">Зарегистрироваться</button>
+      </form>
+      <p><a href="/login.html">Уже есть аккаунт</a></p>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      import { initRegister } from '/js/auth.js';
+      mountHeaderFooter();
+      initRegister();
+    </script>
+  </body>
+</html>

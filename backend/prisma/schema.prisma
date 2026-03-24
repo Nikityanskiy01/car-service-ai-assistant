@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  MANAGER
+  ADMINISTRATOR
+}
+
+enum ServiceRequestStatus {
+  NEW
+  IN_PROGRESS
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum ConsultationSessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+  AI_ERROR
+}
+
+enum ConsultationMessageSender {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  phone        String
+  emailProfile String?  @map("email_profile")
+  role         Role     @default(CLIENT)
+  blocked      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  consultationSessions ConsultationSession[]
+  serviceRequests      ServiceRequest[]      @relation("ClientRequests")
+  followUpMessages     RequestFollowUpMessage[]
+  consultationReports  ConsultationReport[]
+  serviceBookings      ServiceBooking[]
+
+  @@map("users")
+}
+
+model ServiceCategory {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  sessions           ConsultationSession[]
+  referenceMaterials ReferenceMaterial[]
+
+  @@map("service_categories")
+}
+
+model ConsultationScenario {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  questions ConsultationQuestion[]
+  hints     Hint[]
+
+  @@map("consultation_scenarios")
+}
+
+model ConsultationQuestion {
+  id         String   @id @default(uuid())
+  scenarioId String   @map("scenario_id")
+  order      Int      @default(0)
+  text       String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  scenario ConsultationScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@map("consultation_questions")
+}
+
+model Hint {
+  id         String   @id @default(uuid())
+  scenarioId String?  @map("scenario_id")
+  text       String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  scenario ConsultationScenario? @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+
+  @@map("hints")
+}
+
+model ReferenceMaterial {
+  id         String   @id @default(uuid())
+  title      String
+  body       String   @db.Text
+  categoryId String?  @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  category ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@map("reference_materials")
+}
+
+model ConsultationSession {
+  id                String                    @id @default(uuid())
+  clientId          String                    @map("client_id")
+  serviceCategoryId String?                   @map("service_category_id")
+  status            ConsultationSessionStatus @default(IN_PROGRESS)
+  progressPercent   Int                       @default(0) @map("progress_percent")
+  confidencePercent Int?                      @map("confidence_percent")
+  costFromMinor     Int?                      @map("cost_from_minor")
+  preliminaryNote   String?                   @map("preliminary_note") @db.Text
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  client          User                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceCategory ServiceCategory?       @relation(fields: [serviceCategoryId], references: [id], onDelete: SetNull)
+  messages        Message[]
+  extracted       ExtractedDiagnosticData?
+  recommendations DiagnosticRecommendation[]
+  serviceRequest  ServiceRequest?
+  reports         ConsultationReport[]
+
+  @@map("consultation_sessions")
+}
+
+model Message {
+  id        String                    @id @default(uuid())
+  sessionId String                    @map("session_id")
+  sender    ConsultationMessageSender
+  content   String                    @db.Text
+  createdAt DateTime                  @default(now()) @map("created_at")
+
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("messages")
+}
+
+model ExtractedDiagnosticData {
+  sessionId         String  @id @map("session_id")
+  make              String?
+  model             String?
+  year              Int?
+  mileage           Int?
+  symptoms          String? @db.Text
+  problemConditions String? @map("problem_conditions") @db.Text
+
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("extracted_diagnostic_data")
+}
+
+model DiagnosticRecommendation {
+  id                 String   @id @default(uuid())
+  sessionId          String   @map("session_id")
+  title              String
+  probabilityPercent Int      @map("probability_percent")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("diagnostic_recommendations")
+}
+
+model ServiceRequest {
+  id                    String                 @id @default(uuid())
+  clientId              String                 @map("client_id")
+  consultationSessionId String                 @unique @map("consultation_session_id")
+  status                ServiceRequestStatus   @default(NEW)
+  version               Int                    @default(1)
+  snapshotMake          String?                @map("snapshot_make")
+  snapshotModel         String?                @map("snapshot_model")
+  snapshotSymptoms      String?                @map("snapshot_symptoms") @db.Text
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+
+  client              User                     @relation("ClientRequests", fields: [clientId], references: [id], onDelete: Cascade)
+  consultationSession ConsultationSession      @relation(fields: [consultationSessionId], references: [id], onDelete: Cascade)
+  followUpMessages    RequestFollowUpMessage[]
+  notifications       Notification[]
+  bookings            ServiceBooking[]
+
+  @@index([clientId])
+  @@index([status])
+  @@map("service_requests")
+}
+
+model RequestFollowUpMessage {
+  id        String   @id @default(uuid())
+  requestId String   @map("request_id")
+  authorId  String   @map("author_id")
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author  User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("request_follow_up_messages")
+}
+
+model Notification {
+  id              String             @id @default(uuid())
+  serviceRequestId String            @map("service_request_id")
+  payload         String             @db.Text
+  status          NotificationStatus @default(PENDING)
+  attempts        Int                @default(0)
+  lastError       String?            @map("last_error") @db.Text
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([serviceRequestId])
+  @@map("notifications")
+}
+
+model ConsultationReport {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id")
+  consultationSessionId String   @map("consultation_session_id")
+  snapshotJson          Json     @map("snapshot_json")
+  label                 String?
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session ConsultationSession @relation(fields: [consultationSessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("consultation_reports")
+}
+
+model ServiceBooking {
+  id               String        @id @default(uuid())
+  clientId         String        @map("client_id")
+  serviceRequestId String?       @map("service_request_id")
+  preferredAt      DateTime      @map("preferred_at")
+  status           BookingStatus @default(PENDING)
+  notes            String?       @db.Text
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  client         User            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceRequest ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@map("service_bookings")
+}

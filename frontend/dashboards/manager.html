@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Кабинет менеджера — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container">
+      <h1>Менеджер: заявки</h1>
+      <div class="card stack" style="margin-bottom: 1rem">
+        <div class="form-field" style="margin: 0">
+          <label for="filterStatus">Статус</label>
+          <select id="filterStatus">
+            <option value="">Все</option>
+            <option>NEW</option>
+            <option>IN_PROGRESS</option>
+            <option>SCHEDULED</option>
+            <option>COMPLETED</option>
+            <option>CANCELLED</option>
+          </select>
+        </div>
+        <div class="form-field" style="margin: 0">
+          <label for="filterQ">Поиск</label>
+          <input id="filterQ" type="search" placeholder="марка, модель, текст" />
+        </div>
+        <button type="button" class="btn btn--primary" id="filterBtn">Применить</button>
+      </div>
+      <div class="grid-2">
+        <div class="table-wrap card" style="padding: 0">
+          <table class="data" id="mgrTable">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Клиент</th>
+                <th>Авто</th>
+                <th>Статус</th>
+                <th>Ver</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="stack">
+          <div class="card" id="detailPanel"><p>Выберите строку таблицы</p></div>
+          <div class="card">
+            <h3>Переписка с клиентом</h3>
+            <div id="mgrThread" class="stack"></div>
+            <form id="mgrThreadForm" class="stack" style="margin-top: 0.5rem">
+              <textarea id="mgrThreadInput" rows="2" placeholder="Ответ клиенту"></textarea>
+              <button type="submit" class="btn btn--primary">Отправить</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <section class="card" style="margin-top: 2rem">
+        <h2>Записи на визит</h2>
+        <ul id="bookingsMgr" style="list-style: none; padding: 0"></ul>
+      </section>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      import { initManagerDashboard } from '/js/dashboards/manager.js';
+      mountHeaderFooter();
+      initManagerDashboard();
+    </script>
+  </body>
+</html>
