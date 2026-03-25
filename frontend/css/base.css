@@ -1,4 +1,30 @@
 :root {
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Focus */
+  --focus-ring: 0 0 0 4px rgba(232, 93, 4, 0.22);
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
   --color-bg: #ffffff;
   --color-text: #1a1a1a;
   --color-muted: #5c5c5c;
@@ -6,7 +32,6 @@
   --color-accent-dark: #c2410c;
   --color-black: #0d0d0d;
   --color-surface: #f7f7f7;
-  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, sans-serif;
   --radius: 10px;
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
@@ -19,6 +44,7 @@
 
 html {
   font-size: 16px;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -26,8 +52,10 @@ body {
   font-family: var(--font-sans);
   color: var(--color-text);
   background: var(--color-bg);
-  line-height: 1.5;
+  line-height: 1.55;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -48,9 +76,42 @@ img {
 h1,
 h2,
 h3 {
-  line-height: 1.2;
+  line-height: 1.18;
   margin-top: 0;
 }
+
+h1 {
+  font-size: clamp(1.75rem, 3.5vw, 2.4rem);
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 1.1rem;
+}
+
+p {
+  margin: 0 0 0.9rem;
+}
+
+small {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  box-shadow: var(--focus-ring);
+  border-radius: 10px;
+}
+
 
 .sr-only {
   position: absolute;

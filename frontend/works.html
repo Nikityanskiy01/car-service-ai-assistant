@@ -12,16 +12,38 @@
     <div id="header-placeholder"></div>
     <main class="page container">
       <h1>Наши работы</h1>
-      <ul class="stack">
-        <li class="card">Замена цепи ГРМ — VW Golf</li>
-        <li class="card">Диагностика подвески — Toyota Camry</li>
-        <li class="card">Обслуживание тормозной системы — Kia Rio</li>
-      </ul>
+      <p class="lead">Несколько примеров задач, которые мы регулярно делаем. Если у вас похожая ситуация — начните с консультации.</p>
+      <div class="grid-2" style="margin-top: 1.25rem">
+        <div class="card">
+          <h2>Двигатель</h2>
+          <ul style="margin: 0.5rem 0 0; padding-left: 1.1rem">
+            <li>Троит / пропуски зажигания</li>
+            <li>Горит Check Engine</li>
+            <li>Не заводится</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Подвеска и тормоза</h2>
+          <ul style="margin: 0.5rem 0 0; padding-left: 1.1rem">
+            <li>Стук в подвеске</li>
+            <li>Вибрация при торможении</li>
+            <li>Скрип / шум тормозов</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap">
+        <div>
+          <strong>Не уверены, с чего начать?</strong>
+          <div class="muted">Опишите симптомы — ассистент соберёт данные и предложит план действий.</div>
+        </div>
+        <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
+      </div>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'works' });
     </script>
   </body>
 </html>

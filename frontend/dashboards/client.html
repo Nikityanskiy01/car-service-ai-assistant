@@ -11,66 +11,139 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container" id="clientRoot">
-      <h1>Личный кабинет</h1>
-      <p><a href="/consult.html">Новая ИИ-консультация</a></p>
-      <div class="grid-2">
-        <section class="card">
-          <h2>Консультации</h2>
-          <ul id="sessList" class="stack" style="list-style: none; padding: 0; margin: 0"></ul>
-        </section>
-        <section class="card">
-          <h2>Заявки</h2>
-          <div class="table-wrap">
-            <table class="data">
-              <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Авто</th>
-                  <th>Статус</th>
-                </tr>
-              </thead>
-              <tbody id="reqList"></tbody>
-            </table>
+      <div class="dash">
+        <aside class="dash__side">
+          <div class="dash__head">
+            <h1 style="margin:0">Личный кабинет</h1>
+            <p class="muted" style="margin:0.25rem 0 0">
+              <a href="/consult.html">Новая ИИ-консультация</a>
+            </p>
           </div>
-          <h3>Переписка</h3>
-          <p id="threadTitle" class="muted">Выберите заявку в таблице</p>
-          <div id="threadBody" class="stack"></div>
-          <form id="threadForm" class="stack" style="margin-top: 1rem">
-            <textarea id="threadInput" rows="2" placeholder="Сообщение менеджеру"></textarea>
-            <button type="submit" class="btn btn--primary">Отправить</button>
-          </form>
+          <nav class="dash__nav" aria-label="Разделы кабинета">
+            <button type="button" class="dash__tab is-active" data-tab="profile">Мой профиль</button>
+            <button type="button" class="dash__tab" data-tab="consults">Консультации</button>
+            <button type="button" class="dash__tab" data-tab="requests">Заявки</button>
+            <button type="button" class="dash__tab" data-tab="reports">Отчёты</button>
+            <button type="button" class="dash__tab" data-tab="bookings">Записи</button>
+          </nav>
+        </aside>
+
+        <section class="dash__main">
+          <section class="dash__panel" data-panel="profile">
+            <div class="card stack">
+              <h2 style="margin:0">Мой профиль</h2>
+              <p class="muted" style="margin:0">Данные для связи с автосервисом.</p>
+              <form id="profileForm" class="stack" style="max-width:520px">
+                <div class="form-field">
+                  <label for="pfFullName">Имя</label>
+                  <input id="pfFullName" name="fullName" required />
+                </div>
+                <div class="form-field">
+                  <label for="pfPhone">Телефон</label>
+                  <input id="pfPhone" name="phone" required />
+                </div>
+                <div class="form-field">
+                  <label for="pfEmailProfile">Email для связи</label>
+                  <input id="pfEmailProfile" name="emailProfile" type="email" />
+                </div>
+                <button type="submit" class="btn btn--primary">Сохранить изменения</button>
+                <p id="profileMsg" class="muted" style="margin:0"></p>
+              </form>
+            </div>
+          </section>
+
+          <section class="dash__panel" data-panel="consults" hidden>
+            <div class="card">
+              <h2>Консультации</h2>
+              <div class="grid-2" style="gap: 1rem">
+                <div>
+                  <p class="muted" style="margin-top: 0">История обращений к ассистенту.</p>
+                  <ul id="sessList" class="stack" style="list-style: none; padding: 0; margin: 0"></ul>
+                </div>
+                <div>
+                  <p class="muted" style="margin-top: 0">Выберите консультацию, чтобы увидеть переписку.</p>
+                  <div id="sessDetail" class="card" style="background: var(--color-surface)">
+                    <p class="muted" style="margin: 0">Консультация не выбрана</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dash__panel" data-panel="requests" hidden>
+            <div class="card">
+              <h2>Заявки</h2>
+              <div class="table-wrap">
+                <table class="data">
+                  <thead>
+                    <tr>
+                      <th>Дата</th>
+                      <th>Авто</th>
+                      <th>Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reqList"></tbody>
+                </table>
+              </div>
+              <div id="reqDetail" class="card" style="margin-top: 1rem; background: var(--color-surface)">
+                <p class="muted" style="margin: 0">Выберите заявку в таблице</p>
+              </div>
+              <h3>Переписка</h3>
+              <p id="threadTitle" class="muted">Выберите заявку в таблице</p>
+              <div id="threadBody" class="stack"></div>
+              <form id="threadForm" class="stack" style="margin-top: 1rem">
+                <textarea id="threadInput" rows="2" placeholder="Сообщение менеджеру"></textarea>
+                <button type="submit" class="btn btn--primary">Отправить</button>
+              </form>
+            </div>
+          </section>
+
+          <section class="dash__panel" data-panel="reports" hidden>
+            <div class="card">
+              <h2>Сохранённые отчёты</h2>
+              <div class="grid-2" style="gap: 1rem">
+                <div>
+                  <ul id="repList" style="list-style: none; padding: 0; margin: 0"></ul>
+                </div>
+                <div>
+                  <div id="repDetail" class="card" style="background: var(--color-surface)">
+                    <p class="muted" style="margin: 0">Отчёт не выбран</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dash__panel" data-panel="bookings" hidden>
+            <div class="card">
+              <h2>Запись на визит</h2>
+              <form id="bookingForm" class="stack" style="max-width: 420px">
+                <div class="form-field">
+                  <label for="preferredAt">Желаемая дата и время</label>
+                  <input id="preferredAt" name="preferredAt" type="datetime-local" required />
+                </div>
+                <div class="form-field">
+                  <label for="bookingServiceRequestId">Связать с заявкой</label>
+                  <select id="bookingServiceRequestId" name="serviceRequestId"></select>
+                </div>
+                <div class="form-field">
+                  <label for="notes">Комментарий</label>
+                  <textarea id="notes" name="notes" rows="2"></textarea>
+                </div>
+                <button type="submit" class="btn btn--primary">Отправить запись</button>
+              </form>
+              <h3>Мои записи</h3>
+              <ul id="bookList" style="list-style: none; padding: 0; margin: 0"></ul>
+            </div>
+          </section>
         </section>
       </div>
-      <section class="card" style="margin-top: 1.5rem">
-        <h2>Сохранённые отчёты</h2>
-        <ul id="repList" style="list-style: none; padding: 0; margin: 0"></ul>
-      </section>
-      <section class="card" style="margin-top: 1.5rem">
-        <h2>Запись на визит</h2>
-        <form id="bookingForm" class="stack" style="max-width: 420px">
-          <div class="form-field">
-            <label for="preferredAt">Желаемая дата и время</label>
-            <input id="preferredAt" name="preferredAt" type="datetime-local" required />
-          </div>
-          <div class="form-field">
-            <label for="bookingServiceRequestId">Связать с заявкой</label>
-            <select id="bookingServiceRequestId" name="serviceRequestId"></select>
-          </div>
-          <div class="form-field">
-            <label for="notes">Комментарий</label>
-            <textarea id="notes" name="notes" rows="2"></textarea>
-          </div>
-          <button type="submit" class="btn btn--primary">Отправить запись</button>
-        </form>
-        <h3>Мои записи</h3>
-        <ul id="bookList" style="list-style: none; padding: 0; margin: 0"></ul>
-      </section>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
       import { initClientDashboard } from '/js/dashboards/client.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'home' });
       initClientDashboard();
     </script>
   </body>

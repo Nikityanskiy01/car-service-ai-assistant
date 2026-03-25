@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { requireAuth } from '../router-guard.js';
 import { $, escapeHtml, formatDate } from '../utils.js';
+import { uiAlert } from '../ui/dialogs.js';
 
 export async function initManagerDashboard() {
   const user = requireAuth(['MANAGER', 'ADMINISTRATOR']);
@@ -68,12 +69,12 @@ export async function initManagerDashboard() {
         });
         selected.version = out.version;
         selected.status = status;
-        alert('Статус обновлён');
+        await uiAlert({ title: 'Готово', message: 'Статус обновлён.' });
         await loadList();
         await selectRow(id);
       } catch (e) {
-        if (e.status === 409) alert('Конфликт версий — обновите страницу и повторите.');
-        else alert(e.message);
+        if (e.status === 409) await uiAlert({ title: 'Конфликт', message: 'Конфликт версий — обновите страницу и повторите.' });
+        else await uiAlert({ title: 'Ошибка', message: e.message });
       }
     };
 

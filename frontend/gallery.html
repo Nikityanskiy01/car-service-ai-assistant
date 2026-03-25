@@ -12,18 +12,23 @@
     <div id="header-placeholder"></div>
     <main class="page container">
       <h1>Галерея</h1>
-      <p class="lead">Примеры работ и зоны сервиса (заглушки — замените фотографиями).</p>
+      <p class="lead">Здесь будут фото зоны приёма, постов и примеров работ. Пока — аккуратные заглушки.</p>
       <div class="gallery-grid">
         <div class="card">Зона приёма</div>
-        <div class="card">Подъёмник</div>
+        <div class="card">Посты ремонта</div>
         <div class="card">Диагностика</div>
-        <div class="card">Шиномонтаж</div>
+        <div class="card">Тормоза / подвеска</div>
+      </div>
+      <div class="card" style="margin-top: 1.25rem">
+        <strong>Хотите оценку по вашей проблеме?</strong>
+        <p class="muted" style="margin: 0.35rem 0 0.75rem">Начните с консультации — можно без регистрации.</p>
+        <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
       </div>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'gallery' });
     </script>
   </body>
 </html>

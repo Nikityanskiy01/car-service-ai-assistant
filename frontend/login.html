@@ -11,7 +11,8 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container" style="max-width: 420px">
-      <h1>Вход</h1>
+      <h1>С возвращением</h1>
+      <p class="muted">Войдите, чтобы отслеживать заявки, сохранять отчёты и переписываться с менеджером.</p>
       <div id="formError" class="alert" role="alert"></div>
       <form id="loginForm" class="card">
         <div class="form-field">
@@ -24,13 +25,15 @@
         </div>
         <button type="submit" class="btn btn--primary" style="width: 100%">Войти</button>
       </form>
-      <p><a href="/register.html">Нет аккаунта — регистрация</a></p>
+      <p class="muted" style="margin-top: 0.75rem">
+        Нет аккаунта? <a href="/register.html">Зарегистрироваться</a>
+      </p>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
       import { initLogin } from '/js/auth.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'home' });
       initLogin();
     </script>
   </body>

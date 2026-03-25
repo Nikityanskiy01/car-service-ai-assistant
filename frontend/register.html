@@ -11,7 +11,8 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container" style="max-width: 480px">
-      <h1>Регистрация клиента</h1>
+      <h1>Создадим аккаунт за минуту</h1>
+      <p class="muted">Аккаунт нужен, чтобы хранить историю консультаций, отчёты и отслеживать статусы заявок.</p>
       <div id="formError" class="alert" role="alert"></div>
       <form id="registerForm" class="card">
         <div class="form-field">
@@ -23,22 +24,24 @@
           <input id="password" name="password" type="password" minlength="8" required />
         </div>
         <div class="form-field">
-          <label for="fullName">ФИО</label>
-          <input id="fullName" name="fullName" required />
+          <label for="fullName">Имя и фамилия</label>
+          <input id="fullName" name="fullName" required placeholder="Например: Никита Пойманов" />
         </div>
         <div class="form-field">
           <label for="phone">Телефон</label>
-          <input id="phone" name="phone" type="tel" required />
+          <input id="phone" name="phone" type="tel" required placeholder="+7..." />
         </div>
         <button type="submit" class="btn btn--primary" style="width: 100%">Зарегистрироваться</button>
       </form>
-      <p><a href="/login.html">Уже есть аккаунт</a></p>
+      <p class="muted" style="margin-top: 0.75rem">
+        Уже есть аккаунт? <a id="registerLoginLink" href="/login.html">Войти</a>
+      </p>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
       import { initRegister } from '/js/auth.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'home' });
       initRegister();
     </script>
   </body>

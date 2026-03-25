@@ -35,13 +35,43 @@
 
 ### Учётные записи после seed
 
+- `user@example.com` / `1q2w3e4r` — клиент  
+- `manager@example.com` / `1q2w3e4r5t` — менеджер  
+- `admin@example.com` / `1q2w3e4r5t6y` — администратор  
+
+Дополнительно (e2e / старые сценарии):
+
 - `admin@fox.local` / `Admin12345!` — администратор  
 - `manager@fox.local` / `Admin12345!` — менеджер  
 
 ### LLM
 
-- В `.env`: `LLM_BASE_URL`, `LLM_MODEL` (например Ollama `http://127.0.0.1:11434/v1`, модель `llama3.2`).
-- Для разработки и тестов: `LLM_MOCK=1` — ответы без реального LLM (заполнение полей по шагам).
+- **В `.env`**: `LLM_BASE_URL`, `LLM_MODEL` (поддерживается любой **OpenAI-compatible** сервер с `POST /v1/chat/completions`).
+- **Для разработки и тестов**: `LLM_MOCK=1` — ответы без реального LLM (заполнение полей по шагам).
+
+#### Вариант A (рекомендуется): Ollama (Windows) + OpenAI-compatible API
+
+1. Установите Ollama и запустите (после установки обычно стартует как сервис).
+2. Скачайте модель (пример):
+
+   ```bash
+   ollama pull llama3.2
+   ```
+
+3. Проверьте, что OpenAI-compatible API доступен:
+
+   - `LLM_BASE_URL=http://127.0.0.1:11434/v1`
+   - `LLM_MODEL=llama3.2`
+   - `LLM_MOCK=0`
+
+4. Быстрая проверка из backend:
+
+   ```bash
+   cd backend
+   npm run llm:check
+   ```
+
+Если проверка проходит, консультации будут ходить в локальную модель.
 
 ### Telegram
 

@@ -11,19 +11,36 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container">
-      <h1>О автосервисе</h1>
-      <p>
-        Мы совмещаем классическую диагностику на подъёмнике с цифровым сервисом: первичный приём проблемы
-        через ИИ-помощника снижает время ожидания и помогает структурировать симптомы до визита.
+      <h1>О сервисе</h1>
+      <p class="lead">
+        Мы сделали приём в автосервис проще: сначала короткая ИИ‑консультация, потом заявка, и менеджер связывается
+        с вами, чтобы подтвердить визит.
       </p>
-      <p class="alert alert--info">
-        ИИ выдаёт <strong>предварительные</strong> рекомендации и не заменяет осмотр механика (FR-025).
-      </p>
+
+      <div class="grid-2" style="margin-top: 1.25rem">
+        <div class="card">
+          <h2>Как это работает</h2>
+          <ol style="margin: 0.5rem 0 0; padding-left: 1.1rem">
+            <li>Вы описываете проблему (можно без регистрации).</li>
+            <li>Ассистент уточняет детали и собирает данные.</li>
+            <li>Вы создаёте заявку — мы связываемся и записываем на диагностику.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h2>Важно</h2>
+          <p class="muted" style="margin: 0">
+            ИИ даёт предварительный итог и список проверок, но окончательный диагноз ставится после осмотра.
+          </p>
+          <p style="margin: 0.75rem 0 0">
+            <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Начать консультацию</a>
+          </p>
+        </div>
+      </div>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'about' });
     </script>
   </body>
 </html>

@@ -4,7 +4,12 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash('Admin12345!', 10);
+  const [hashLegacy, hashUserDemo, hashManagerDemo, hashAdminDemo] = await Promise.all([
+    bcrypt.hash('Admin12345!', 10),
+    bcrypt.hash('1q2w3e4r', 10),
+    bcrypt.hash('1q2w3e4r5t', 10),
+    bcrypt.hash('1q2w3e4r5t6y', 10),
+  ]);
 
   await prisma.serviceCategory.upsert({
     where: { slug: 'diagnostics' },
@@ -32,7 +37,7 @@ async function main() {
     update: {},
     create: {
       email: 'admin@fox.local',
-      passwordHash,
+      passwordHash: hashLegacy,
       fullName: 'Администратор',
       phone: '+70000000001',
       role: 'ADMINISTRATOR',
@@ -44,14 +49,71 @@ async function main() {
     update: {},
     create: {
       email: 'manager@fox.local',
-      passwordHash,
+      passwordHash: hashLegacy,
       fullName: 'Менеджер',
       phone: '+70000000002',
       role: 'MANAGER',
     },
   });
 
-  console.log('Seed OK: admin@fox.local / manager@fox.local — пароль Admin12345!');
+  await prisma.user.upsert({
+    where: { email: 'user@example.com' },
+    update: {
+      passwordHash: hashUserDemo,
+      fullName: 'Тестовый клиент',
+      phone: '+70000000100',
+      role: 'CLIENT',
+    },
+    create: {
+      email: 'user@example.com',
+      passwordHash: hashUserDemo,
+      fullName: 'Тестовый клиент',
+      phone: '+70000000100',
+      role: 'CLIENT',
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'manager@example.com' },
+    update: {
+      passwordHash: hashManagerDemo,
+      fullName: 'Менеджер (demo)',
+      phone: '+70000000101',
+      role: 'MANAGER',
+    },
+    create: {
+      email: 'manager@example.com',
+      passwordHash: hashManagerDemo,
+      fullName: 'Менеджер (demo)',
+      phone: '+70000000101',
+      role: 'MANAGER',
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: 'admin@example.com' },
+    update: {
+      passwordHash: hashAdminDemo,
+      fullName: 'Администратор (demo)',
+      phone: '+70000000102',
+      role: 'ADMINISTRATOR',
+    },
+    create: {
+      email: 'admin@example.com',
+      passwordHash: hashAdminDemo,
+      fullName: 'Администратор (demo)',
+      phone: '+70000000102',
+      role: 'ADMINISTRATOR',
+    },
+  });
+
+  console.log(
+    'Seed OK:\n' +
+      '  user@example.com / 1q2w3e4r (клиент)\n' +
+      '  manager@example.com / 1q2w3e4r5t (менеджер)\n' +
+      '  admin@example.com / 1q2w3e4r5t6y (админ)\n' +
+      '  admin@fox.local, manager@fox.local / Admin12345! (как раньше)',
+  );
 }
 
 main()

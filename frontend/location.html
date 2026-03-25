@@ -11,23 +11,38 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container">
-      <h1>Как нас найти</h1>
-      <p>Адрес и часы работы уточняйте у администратора (демо-проект).</p>
-      <div class="card" style="padding: 0; overflow: hidden; min-height: 320px">
-        <iframe
-          title="Карта"
-          width="100%"
-          height="320"
-          style="border: 0"
-          loading="lazy"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=37.5%2C55.7%2C37.8%2C55.9&amp;layer=mapnik"
-        ></iframe>
+      <h1>Контакты</h1>
+      <p class="lead">Напишите, позвоните или создайте заявку — менеджер свяжется с вами и подтвердит время визита.</p>
+
+      <div class="grid-2" style="margin-top: 1.25rem">
+        <div class="card">
+          <h2>Связаться</h2>
+          <p class="muted">В демо-проекте контакты примерные — замените на реальные.</p>
+          <ul style="margin: 0.5rem 0 0; padding-left: 1.1rem">
+            <li>Телефон: <strong>+7 (999) 000‑00‑00</strong></li>
+            <li>Email: <strong>service@foxmotors.local</strong></li>
+            <li>Часы: <strong>пн–сб 10:00–20:00</strong></li>
+          </ul>
+          <p style="margin: 0.9rem 0 0">
+            <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Создать заявку</a>
+          </p>
+        </div>
+        <div class="card" style="padding: 0; overflow: hidden; min-height: 320px">
+          <iframe
+            title="Карта"
+            width="100%"
+            height="320"
+            style="border: 0"
+            loading="lazy"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=37.5%2C55.7%2C37.8%2C55.9&amp;layer=mapnik"
+          ></iframe>
+        </div>
       </div>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'location' });
     </script>
   </body>
 </html>

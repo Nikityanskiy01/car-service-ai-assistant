@@ -13,31 +13,190 @@
     <main class="page container">
       <h1>ИИ-консультация</h1>
       <p class="lead">
-        Вход только для зарегистрированных клиентов. Система соберёт шесть обязательных полей, затем можно
-        оформить заявку.
+        Опишите проблему простыми словами. Ассистент уточнит детали и подготовит предварительный итог.
+        Заявку можно создать в гостевом режиме — просто оставьте имя и телефон.
       </p>
-      <button type="button" class="btn btn--ghost" id="btnNewSession">Новая сессия</button>
-      <div class="progress" aria-hidden="true">
-        <div class="progress__bar" id="progressBar" style="width: 0%"></div>
+      <div id="guestConsultBanner" class="alert alert--info" hidden>
+        Вы в гостевом режиме. Для истории консультаций, отчётов и отслеживания статуса заявки нужно войти или
+        зарегистрироваться.
       </div>
-      <p id="progressLabel" aria-live="polite">Готовность данных: 0%</p>
-      <div id="consultError" class="alert" role="alert"></div>
-      <div id="preliminarySlot"></div>
-      <div class="chat" id="chat" aria-live="polite"></div>
-      <form id="chatForm" class="stack" style="margin-top: 1rem">
-        <div class="form-field" style="margin-bottom: 0">
-          <label for="messageInput">Ваше сообщение</label>
-          <textarea id="messageInput" rows="3" required placeholder="Опишите симптомы…"></textarea>
-        </div>
-        <button type="submit" class="btn btn--primary">Отправить</button>
-      </form>
-      <div id="consultActions" class="stack" style="margin-top: 1.5rem"></div>
+      <button type="button" class="btn btn--ghost" id="btnNewSession">Новая сессия</button>
+
+      <div class="consult-grid">
+        <section class="consult-main">
+          <div id="consultChatPanel">
+            <div class="progress" aria-hidden="true">
+              <div class="progress__bar" id="progressBar" style="width: 0%"></div>
+            </div>
+            <p id="progressLabel" aria-live="polite">Готовность данных: 0%</p>
+            <div id="consultError" class="alert" role="alert"></div>
+            <div id="preliminarySlot"></div>
+            <div class="chat" id="chat" aria-live="polite"></div>
+            <form id="chatForm" class="stack" style="margin-top: 1rem">
+              <div class="form-field" style="margin-bottom: 0">
+                <label for="messageInput">Ваше сообщение</label>
+                <textarea id="messageInput" rows="3" required placeholder="Опишите симптомы…"></textarea>
+              </div>
+              <button type="submit" class="btn btn--primary">Отправить</button>
+            </form>
+            <div id="consultActions" class="stack" style="margin-top: 1.5rem"></div>
+          </div>
+
+          <section id="consultResultPanel" class="result-grid" hidden aria-label="Результаты консультации">
+            <div class="card">
+              <div class="side-head" style="margin-bottom: 0.75rem">
+                <div>
+                  <h2 style="margin: 0">Предварительные результаты консультации</h2>
+                  <p class="muted" style="margin: 0.25rem 0 0">Итоги анализа симптомов и ответов клиента</p>
+                </div>
+                <span class="pill pill--ghost" id="resultConfidencePill">Уверенность ИИ: —</span>
+              </div>
+
+              <div class="result-kpis">
+                <div class="mini-kpi">
+                  <div class="mini-kpi__label muted">Предварительно определённый вид услуги</div>
+                  <div class="mini-kpi__value" id="resultServiceValue">—</div>
+                  <div class="mini-kpi__hint muted" id="resultServiceHint">—</div>
+                </div>
+                <div class="mini-kpi">
+                  <div class="mini-kpi__label muted">Ориентировочная стоимость</div>
+                  <div class="mini-kpi__value" id="resultCostValue">—</div>
+                  <div class="mini-kpi__hint muted" id="resultCostHint">—</div>
+                </div>
+                <div class="mini-kpi">
+                  <div class="mini-kpi__label muted">Рекомендуемый срок визита</div>
+                  <div class="mini-kpi__value" id="resultVisitValue">—</div>
+                  <div class="mini-kpi__hint muted" id="resultVisitHint">—</div>
+                </div>
+              </div>
+
+              <h3 style="margin: 1rem 0 0.5rem">Вероятные причины неисправности</h3>
+              <div class="table-wrap">
+                <table class="data">
+                  <thead>
+                    <tr>
+                      <th>Гипотеза</th>
+                      <th style="width: 45%">Вероятность</th>
+                    </tr>
+                  </thead>
+                  <tbody id="resultHypothesesBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="side-head" style="margin-bottom: 0.75rem">
+                <div>
+                  <h2 style="margin: 0">Сводка по консультации</h2>
+                  <p class="muted" style="margin: 0.25rem 0 0">Результаты передаются менеджеру автосервиса</p>
+                </div>
+                <span class="pill pill--ghost" id="resultRequestPill">Заявка: —</span>
+              </div>
+
+              <div class="table-wrap">
+                <table class="data">
+                  <tbody id="resultSummaryBody"></tbody>
+                </table>
+              </div>
+
+              <h3 style="margin: 1rem 0 0.5rem">Рекомендации ИИ-ассистента</h3>
+              <ul id="resultAdviceList" class="list-muted" style="margin: 0; padding-left: 1.1rem"></ul>
+
+              <p class="muted" style="margin: 1rem 0 0.5rem">Дальнейшие действия</p>
+              <ul class="list-muted" style="margin: 0; padding-left: 1.1rem">
+                <li>Формирование предварительной заявки</li>
+                <li>Передача данных в систему автосервиса</li>
+              </ul>
+
+              <p style="margin: 1rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap">
+                <button type="button" class="btn btn--ghost" id="resultBtnSave" hidden>Сохранить отчёт</button>
+                <button type="button" class="btn btn--primary" id="resultBtnRequest" hidden>Создать заявку</button>
+                <a class="btn btn--primary" id="resultBtnLogin" hidden href="/login.html?next=/consult.html" style="text-decoration:none">Войти</a>
+                <a class="btn btn--ghost" id="resultBtnRegister" hidden href="/register.html?next=/consult.html" style="text-decoration:none">Регистрация</a>
+              </p>
+            </div>
+          </section>
+        </section>
+
+        <aside class="consult-side stack" aria-label="Панель подсказок">
+          <div class="card" id="sideRecommendationsCard" hidden>
+            <h3 style="margin: 0 0 0.75rem">Рекомендации ИИ</h3>
+            <div id="sideRecommendations" class="stack" style="gap: 0.5rem"></div>
+          </div>
+
+          <div class="card" id="sideResultCard">
+            <div class="side-head">
+              <h3 style="margin: 0">Предварительный результат</h3>
+              <span class="pill pill--ghost" id="sideConfidencePill">Уверенность: —</span>
+            </div>
+            <div class="grid-2" style="gap: 0.75rem; margin-top: 0.75rem">
+              <div class="mini-kpi">
+                <div class="mini-kpi__label muted">Ориентировочная стоимость</div>
+                <div class="mini-kpi__value" id="sideCostValue">—</div>
+                <div class="mini-kpi__hint muted" id="sideCostHint">Зависит от объёма работ и диагностики</div>
+              </div>
+              <div class="mini-kpi">
+                <div class="mini-kpi__label muted">Рекомендуемый срок визита</div>
+                <div class="mini-kpi__value" id="sideVisitValue">—</div>
+                <div class="mini-kpi__hint muted" id="sideVisitHint">После уточнения симптомов оценка станет точнее</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <p class="muted" style="margin: 0 0 0.5rem">Подсказка от ассистента</p>
+            <h3 style="margin: 0 0 0.5rem">Почему задаются уточняющие вопросы?</h3>
+            <ul class="list-muted" style="margin: 0; padding-left: 1.1rem">
+              <li>Чтобы сузить круг вероятных неисправностей.</li>
+              <li>Чтобы точнее оценить срочность и риски эксплуатации.</li>
+              <li>Чтобы подготовить предварительные рекомендации по услуге.</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <div class="side-head">
+              <h3 style="margin: 0">Этап консультации</h3>
+              <span class="pill" id="stagePill">Сбор данных</span>
+            </div>
+            <div class="steps" id="stageSteps" aria-hidden="true">
+              <div class="step is-active">1</div>
+              <div class="step">2</div>
+              <div class="step">3</div>
+            </div>
+            <p class="muted" id="stageLabel" style="margin: 0.5rem 0 0.75rem">
+              Уточняем автомобиль и симптомы
+            </p>
+            <div class="progress" aria-hidden="true" style="margin: 0">
+              <div class="progress__bar" id="sideProgressBar" style="width: 0%"></div>
+            </div>
+            <p class="muted" id="sideProgressLabel" style="margin: 0.5rem 0 0">Прогресс: 0%</p>
+          </div>
+
+          <div class="card">
+            <div class="side-head">
+              <h3 style="margin: 0">Сводка собранных данных</h3>
+              <span class="pill pill--ghost">Обновляется</span>
+            </div>
+            <div class="table-wrap" style="margin-top: 0.75rem">
+              <table class="data">
+                <thead>
+                  <tr>
+                    <th>Параметр</th>
+                    <th>Значение</th>
+                  </tr>
+                </thead>
+                <tbody id="summaryTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </aside>
+      </div>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
       import { initConsultPage } from '/js/consult.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'consult' });
       initConsultPage();
     </script>
   </body>

@@ -9,7 +9,41 @@ export function parseLlmJson(text) {
   let s = text.trim();
   const fence = s.match(/^```(?:json)?\s*([\s\S]*?)```$/im);
   if (fence) s = fence[1].trim();
-  const parsed = JSON.parse(s);
+  // Some local LLMs occasionally append a trailing comment/text after valid JSON.
+  // We attempt to extract the first top-level JSON object.
+  const firstBrace = s.indexOf('{');
+  if (firstBrace > 0) s = s.slice(firstBrace).trim();
+  let candidate = s;
+  if (!candidate.startsWith('{')) {
+    throw new Error('LLM JSON must start with {');
+  }
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let end = -1;
+  for (let i = 0; i < candidate.length; i++) {
+    const ch = candidate[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\\\') esc = true;
+      else if (ch === '\"') inStr = false;
+      continue;
+    }
+    if (ch === '\"') {
+      inStr = true;
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        end = i + 1;
+        break;
+      }
+    }
+  }
+  if (end > 0) candidate = candidate.slice(0, end);
+  const parsed = JSON.parse(candidate);
   if (typeof parsed !== 'object' || parsed === null) {
     throw new Error('LLM JSON must be an object');
   }

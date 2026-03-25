@@ -7,11 +7,13 @@ import { logger } from '../../lib/logger.js';
  * @param {import('@prisma/client').ServiceRequest & { client: object, consultationSession?: object }} sr
  */
 export async function notifyNewServiceRequest(sr) {
+  const name = sr.client?.fullName || sr.guestName || '—';
+  const phone = sr.client?.phone || sr.guestPhone || '—';
   const payload = {
     type: 'NEW_SERVICE_REQUEST',
     serviceRequestId: sr.id,
-    clientName: sr.client?.fullName,
-    phone: sr.client?.phone,
+    clientName: name,
+    phone,
     make: sr.snapshotMake,
     model: sr.snapshotModel,
   };
@@ -51,8 +53,8 @@ export async function notifyNewServiceRequest(sr) {
   const text = [
     '📋 Новая заявка',
     `ID: ${sr.id}`,
-    `Клиент: ${sr.client?.fullName || '—'}`,
-    `Тел.: ${sr.client?.phone || '—'}`,
+    `Клиент: ${name}`,
+    `Тел.: ${phone}`,
     `Авто: ${sr.snapshotMake || '—'} ${sr.snapshotModel || '—'}`,
   ].join('\n');
 

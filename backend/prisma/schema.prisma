@@ -2,8 +2,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Для продакшена: provider = "postgresql" и DATABASE_URL на PostgreSQL (docker-compose / облако).
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -123,7 +124,7 @@ model Hint {
 model ReferenceMaterial {
   id         String   @id @default(uuid())
   title      String
-  body       String   @db.Text
+  body       String
   categoryId String?  @map("category_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -135,17 +136,20 @@ model ReferenceMaterial {
 
 model ConsultationSession {
   id                String                    @id @default(uuid())
-  clientId          String                    @map("client_id")
+  clientId          String?                   @map("client_id")
+  guestToken        String?                   @unique @map("guest_token")
+  guestName         String?                   @map("guest_name")
+  guestPhone        String?                   @map("guest_phone")
   serviceCategoryId String?                   @map("service_category_id")
   status            ConsultationSessionStatus @default(IN_PROGRESS)
   progressPercent   Int                       @default(0) @map("progress_percent")
   confidencePercent Int?                      @map("confidence_percent")
   costFromMinor     Int?                      @map("cost_from_minor")
-  preliminaryNote   String?                   @map("preliminary_note") @db.Text
+  preliminaryNote   String?                   @map("preliminary_note")
   createdAt         DateTime                  @default(now()) @map("created_at")
   updatedAt         DateTime                  @updatedAt @map("updated_at")
 
-  client          User                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client          User?                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   serviceCategory ServiceCategory?       @relation(fields: [serviceCategoryId], references: [id], onDelete: SetNull)
   messages        Message[]
   extracted       ExtractedDiagnosticData?
@@ -160,7 +164,7 @@ model Message {
   id        String                    @id @default(uuid())
   sessionId String                    @map("session_id")
   sender    ConsultationMessageSender
-  content   String                    @db.Text
+  content   String
   createdAt DateTime                  @default(now()) @map("created_at")
 
   session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -175,9 +179,8 @@ model ExtractedDiagnosticData {
   model             String?
   year              Int?
   mileage           Int?
-  symptoms          String? @db.Text
-  problemConditions String? @map("problem_conditions") @db.Text
-
+  symptoms          String?
+  problemConditions String? @map("problem_conditions")
   session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("extracted_diagnostic_data")
@@ -198,17 +201,20 @@ model DiagnosticRecommendation {
 
 model ServiceRequest {
   id                    String                 @id @default(uuid())
-  clientId              String                 @map("client_id")
+  clientId              String?                @map("client_id")
+  guestName             String?                @map("guest_name")
+  guestPhone            String?                @map("guest_phone")
+  guestEmail            String?                @map("guest_email")
   consultationSessionId String                 @unique @map("consultation_session_id")
   status                ServiceRequestStatus   @default(NEW)
   version               Int                    @default(1)
   snapshotMake          String?                @map("snapshot_make")
   snapshotModel         String?                @map("snapshot_model")
-  snapshotSymptoms      String?                @map("snapshot_symptoms") @db.Text
+  snapshotSymptoms      String?                @map("snapshot_symptoms")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
 
-  client              User                     @relation("ClientRequests", fields: [clientId], references: [id], onDelete: Cascade)
+  client              User?                    @relation("ClientRequests", fields: [clientId], references: [id], onDelete: SetNull)
   consultationSession ConsultationSession      @relation(fields: [consultationSessionId], references: [id], onDelete: Cascade)
   followUpMessages    RequestFollowUpMessage[]
   notifications       Notification[]
@@ -223,7 +229,7 @@ model RequestFollowUpMessage {
   id        String   @id @default(uuid())
   requestId String   @map("request_id")
   authorId  String   @map("author_id")
-  body      String   @db.Text
+  body      String
   createdAt DateTime @default(now()) @map("created_at")
 
   request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -236,10 +242,10 @@ model RequestFollowUpMessage {
 model Notification {
   id              String             @id @default(uuid())
   serviceRequestId String            @map("service_request_id")
-  payload         String             @db.Text
+  payload         String
   status          NotificationStatus @default(PENDING)
   attempts        Int                @default(0)
-  lastError       String?            @map("last_error") @db.Text
+  lastError       String?            @map("last_error")
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
 
@@ -270,7 +276,7 @@ model ServiceBooking {
   serviceRequestId String?       @map("service_request_id")
   preferredAt      DateTime      @map("preferred_at")
   status           BookingStatus @default(PENDING)
-  notes            String?       @db.Text
+  notes            String?
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 

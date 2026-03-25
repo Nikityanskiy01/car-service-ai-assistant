@@ -51,4 +51,40 @@ describe('consultation lifecycle', () => {
     expect(reports.status).toBe(200);
     expect(reports.body.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('guest starts consultation without JWT; claim links session after register', async () => {
+    const guestStart = await request(app).post('/api/consultations').send({});
+    expect(guestStart.status).toBe(201);
+    expect(guestStart.body.guestToken).toBeTruthy();
+    expect(guestStart.body.isGuest).toBe(true);
+    const sid = guestStart.body.id;
+    const gt = guestStart.body.guestToken;
+
+    const g0 = await request(app).get(`/api/consultations/${sid}`).set('X-Consultation-Guest-Token', gt);
+    expect(g0.status).toBe(200);
+    expect(g0.body.messages?.length).toBeGreaterThanOrEqual(1);
+
+    const m1 = await request(app)
+      .post(`/api/consultations/${sid}/messages`)
+      .set('X-Consultation-Guest-Token', gt)
+      .send({ content: 'Тестовое сообщение гостя' });
+    expect(m1.status).toBe(201);
+
+    const { token } = await registerClient();
+    const badClaim = await request(app)
+      .post(`/api/consultations/${sid}/claim`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ guestToken: 'wrong-token' });
+    expect(badClaim.status).toBe(403);
+
+    const claim = await request(app)
+      .post(`/api/consultations/${sid}/claim`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ guestToken: gt });
+    expect(claim.status).toBe(200);
+    expect(claim.body.isGuest).toBe(false);
+
+    const owned = await request(app).get(`/api/consultations/${sid}`).set('Authorization', `Bearer ${token}`);
+    expect(owned.status).toBe(200);
+  });
 });

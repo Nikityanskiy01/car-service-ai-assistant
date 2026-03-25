@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { requireAuth } from '../router-guard.js';
 import { $, escapeHtml } from '../utils.js';
+import { uiAlert } from '../ui/dialogs.js';
 
 export async function initAdminDashboard() {
   const user = requireAuth(['ADMINISTRATOR']);
@@ -58,7 +59,7 @@ export async function initAdminDashboard() {
       method: 'POST',
       body: { name: fd.get('name'), description: fd.get('description') || undefined },
     });
-    alert('Категория создана');
+    await uiAlert({ title: 'Готово', message: 'Категория создана.' });
     e.target.reset();
   });
 
@@ -69,7 +70,7 @@ export async function initAdminDashboard() {
       method: 'POST',
       body: { title: fd.get('title'), description: fd.get('description') || undefined },
     });
-    alert('Сценарий создан');
+    await uiAlert({ title: 'Готово', message: 'Сценарий создан.' });
     e.target.reset();
   });
 

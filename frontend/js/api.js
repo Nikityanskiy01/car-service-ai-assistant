@@ -29,7 +29,10 @@ export async function api(path, opts = {}) {
     headers['Content-Type'] = 'application/json';
   }
   const t = getToken();
-  if (t) headers.Authorization = `Bearer ${t}`;
+  if (t && !opts.skipAuth) headers.Authorization = `Bearer ${t}`;
+  if (opts.guestToken) {
+    headers['X-Consultation-Guest-Token'] = opts.guestToken;
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     ...opts,
     headers,

@@ -11,6 +11,12 @@ export function initRegister() {
   const form = $('#registerForm');
   if (!form) return;
   const err = $('#formError');
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next');
+  const loginLink = document.getElementById('registerLoginLink');
+  if (loginLink && next) {
+    loginLink.href = `/login.html?next=${encodeURIComponent(next)}`;
+  }
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     err.textContent = '';
@@ -26,7 +32,7 @@ export function initRegister() {
       const data = await api('/auth/register', { method: 'POST', body });
       setToken(data.accessToken);
       setUser(data.user);
-      window.location.href = dashboardForRole(data.user.role);
+      window.location.href = next || dashboardForRole(data.user.role);
     } catch (ex) {
       err.textContent = ex.message || 'Ошибка регистрации';
       err.className = 'alert alert--error';

@@ -91,7 +91,7 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 - [X] T031 [P] [US2] **Integration** `backend/tests/integration/service-requests-manager.test.js` (list, filter, get detail, PATCH status)
 - [X] T032 [P] [US2] **Integration** `backend/tests/integration/telegram-notification.test.js` — mock Telegram sender; assert Notification row + payload after request creation (FR-029–030)
 - [X] T033 [P] [US2] **Integration** `backend/tests/integration/request-messages.test.js` — post/list thread; 409 when status Completed/Cancelled (FR-016c)
-- [ ] T034 [P] [US2] **E2E** Playwright `tests/e2e/us2-manager-dashboard.spec.js` — manager login, open request, change status, send follow-up (seed data or prior US1 flow)
+- [X] T034 [P] [US2] **E2E** Playwright `tests/e2e/us2-manager-dashboard.spec.js` — manager login, open request, change status, send follow-up (seed data or prior US1 flow)
 
 ### Implementation for User Story 2
 
@@ -112,12 +112,12 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 ### Tests for User Story 3 (MANDATORY) ⚠️
 
 - [X] T040 [P] [US3] **Integration** `backend/tests/integration/admin-users.test.js` — role change, block, forbidden for non-admin
-- [ ] T041 [P] [US3] **Integration** `backend/tests/integration/admin-content.test.js` — CRUD scenario/question/hint/category/reference; assert new consultation reads active content (smoke)
+- [X] T041 [P] [US3] **Integration** `backend/tests/integration/admin-content.test.js` — CRUD scenario/question/hint/category/reference; assert new consultation reads active content (smoke)
 
 ### Implementation for User Story 3
 
 - [X] T042 [US3] `backend/src/modules/admin/` routes: list users, PATCH role, POST block/unblock per FR-017
-- [ ] T043 [US3] `backend/src/modules/reference/` (or under admin) CRUD for ConsultationScenario, ConsultationQuestion, Hint, ServiceCategory, ReferenceMaterial (FR-018)
+- [X] T043 [US3] `backend/src/modules/reference/` (or under admin) CRUD for ConsultationScenario, ConsultationQuestion, Hint, ServiceCategory, ReferenceMaterial (FR-018)
 - [X] T044 [US3] `backend/src/modules/analytics/` GET `/api/analytics/summary` for admin dashboard (FR-019)
 - [X] T045 [US3] `frontend/dashboards/admin.html` + `frontend/js/dashboards/admin.js` — users table, content editors (minimal viable forms), analytics widgets
 
@@ -202,7 +202,6 @@ Registration/login, RBAC, consultation workflow + completion gate, result genera
 
 | ID | Причина |
 |----|---------|
-| **T034** | E2E менеджера — только вход и таблица; нет сценария «открыть заявку → сменить статус → переписка». |
-| **T041** | Интеграция справочников — созданы категория/сценарий; нет полного CRUD и smoke «новая консультация читает активный контент». |
-| **T043** | В REST вынесены POST/GET категорий и сценариев под админом; вопросы, подсказки, материалы БЗ — сервисные функции без полного HTTP CRUD. |
 | **T055** | Ручная приёмка TR-007 — выполняет автор ВКР, не автоматизируется. |
+
+Закрыто позже: **T034** (E2E менеджера с API-сидом заявки), **T041/T043** (REST CRUD справочников под `/api/admin/reference/*`, `GET /api/consultations/context/active-templates` для клиента).
