@@ -17,6 +17,34 @@ function sixComplete(ext) {
   );
 }
 
+function isMaintenanceRecommendations(recs) {
+  if (!Array.isArray(recs) || recs.length === 0) return false;
+  return recs.some((r) => /планов.*то|техобслуж/i.test(String(r?.title || '')));
+}
+
+function formatCarDisplay(ext) {
+  const make = String(ext?.make || '').trim();
+  let model = String(ext?.model || '').trim();
+  const yearNum = Number(ext?.year);
+  const year = Number.isFinite(yearNum) ? String(yearNum) : '';
+  const mileageNum = Number(ext?.mileage);
+  const mileage = Number.isFinite(mileageNum) ? String(Math.round(mileageNum)) : '';
+
+  // Remove noisy numeric tails from model like "Октавия 2020 114".
+  model = model.replace(/\s+/g, ' ').trim();
+  if (year) {
+    model = model.replace(new RegExp(`(?:^|\\s)${year}(?=\\s|$)`, 'g'), ' ').replace(/\s+/g, ' ').trim();
+  }
+  if (mileage) {
+    model = model.replace(new RegExp(`(?:^|\\s)${mileage}(?=\\s|$)`, 'g'), ' ').replace(/\s+/g, ' ').trim();
+  }
+  model = model.replace(/\s+\d{2,6}$/g, '').trim();
+
+  const base = [make, model].filter(Boolean).join(' ').trim();
+  if (!base && year) return `${year} г.`;
+  return year ? `${base}, ${year} г.` : base || '—';
+}
+
 function fmtMoneyRub(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return '—';
@@ -83,6 +111,7 @@ export async function initConsultPage() {
   const form = $('#chatForm');
   const input = $('#messageInput');
   const chatPanel = $('#consultChatPanel');
+  const progressWrap = $('#progressWrap');
   const progressBar = $('#progressBar');
   const progressLabel = $('#progressLabel');
   const errBox = $('#consultError');
@@ -130,9 +159,13 @@ export async function initConsultPage() {
   function renderSession(data) {
     errBox.textContent = '';
     errBox.className = 'alert';
+    errBox.hidden = true;
     const p = data.progressPercent ?? 0;
     progressBar.style.width = `${p}%`;
     progressLabel.textContent = `Готовность данных: ${p}%`;
+    const showProgress = p > 0;
+    if (progressWrap) progressWrap.hidden = !showProgress;
+    if (progressLabel) progressLabel.hidden = !showProgress;
 
     if (sideProgressBar) sideProgressBar.style.width = `${p}%`;
     if (sideProgressLabel) sideProgressLabel.textContent = `Прогресс: ${p}%`;
@@ -149,8 +182,13 @@ export async function initConsultPage() {
     chatEl.scrollTop = chatEl.scrollHeight;
 
     const ext = data.extracted;
-    const done = sixComplete(ext) || data.serviceRequest;
+    const done =
+      data.status === 'COMPLETED' ||
+      Number(data.progressPercent) >= 100 ||
+      sixComplete(ext) ||
+      !!data.serviceRequest;
     const hasSym = hasSymptoms(ext);
+    const isMaintenance = isMaintenanceRecommendations(data.recommendations);
 
     // Result big panel (like the reference UI) appears when data is ready
     if (resultPanel) resultPanel.hidden = !done;
@@ -162,7 +200,11 @@ export async function initConsultPage() {
     document.body.classList.toggle('is-result-mode', !!done);
 
     const user = getUser();
-    const visit = hasSym ? recommendVisitWindow(ext) : { value: '—', hint: 'Опишите симптомы, чтобы оценить срочность' };
+    const visit = isMaintenance
+      ? { value: 'в течение 3-7 дней', hint: 'Плановое ТО можно выполнить в удобное для вас время' }
+      : hasSym
+        ? recommendVisitWindow(ext)
+        : { value: '—', hint: 'Опишите симптомы, чтобы оценить срочность' };
     const confLabel =
       data.confidencePercent != null && Number.isFinite(Number(data.confidencePercent))
         ? `Уверенность ИИ: ${Math.round(Number(data.confidencePercent))}`
@@ -172,24 +214,30 @@ export async function initConsultPage() {
     // Service type heuristic
     const t = `${ext?.symptoms || ''} ${ext?.problemConditions || ''}`.toLowerCase();
     const checkEngine = ['check engine', 'чек', 'ошибк', 'пропуск', 'троит'].some((k) => t.includes(k));
-    const serviceName = hasSym
+    const serviceName = isMaintenance
+      ? 'Плановое ТО'
+      : hasSym
       ? checkEngine
         ? 'Комплексная диагностика двигателя'
         : 'Комплексная диагностика'
       : '—';
     if (resultServiceValue) resultServiceValue.textContent = serviceName;
     if (resultServiceHint)
-      resultServiceHint.textContent = hasSym
+      resultServiceHint.textContent = isMaintenance
+        ? 'Регламентные работы по пробегу и состоянию расходников'
+        : hasSym
         ? checkEngine
           ? 'Компьютерная диагностика + проверка системы зажигания/топлива'
           : 'Первичная диагностика + проверка узлов по симптомам'
         : 'Станет доступно после описания проблемы';
 
-    const costOk = hasSym && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor));
+    const costOk = (hasSym || isMaintenance) && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor));
     if (resultCostValue) resultCostValue.textContent = costOk ? `от ${fmtMoneyRub(data.costFromMinor)}` : '—';
     if (resultCostHint)
       resultCostHint.textContent = costOk
-        ? 'Диапазон зависит от марки/объёма работ и результатов диагностики'
+        ? isMaintenance
+          ? 'Минимальная стоимость базового регламентного ТО'
+          : 'Диапазон зависит от марки/объёма работ и результатов диагностики'
         : 'Станет доступно после уточнения данных';
 
     if (resultVisitValue) resultVisitValue.textContent = visit.value;
@@ -198,7 +246,7 @@ export async function initConsultPage() {
     // Hypotheses table from recommendations
     if (resultHypothesesBody) {
       const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
-      const top = hasSym ? recs.slice(0, 5) : [];
+      const top = isMaintenance ? recs.slice(0, 5) : hasSym ? recs.slice(0, 5) : [];
       resultHypothesesBody.innerHTML =
         top.length === 0
           ? `<tr><td class="muted">—</td><td class="muted">—</td></tr>`
@@ -220,14 +268,14 @@ export async function initConsultPage() {
 
     // Summary table (client/car/problem)
     if (resultSummaryBody) {
-      const car = `${ext?.make || ''} ${ext?.model || ''}${ext?.year ? `, ${ext.year} г.` : ''}`.trim();
+      const car = formatCarDisplay(ext);
       const prob = ext?.symptoms ? String(ext.symptoms) : '';
       const condition = ext?.problemConditions ? String(ext.problemConditions) : '';
       const rows = [
         ['Клиент', user?.email || 'гость'],
         ['Автомобиль', car || '—'],
-        ['Симптомы', prob || '—'],
-        ['Условия', condition || '—'],
+        ['Симптомы', isMaintenance ? 'Не требуется для планового ТО' : prob || '—'],
+        ['Условия', isMaintenance ? 'Не требуется для планового ТО' : condition || '—'],
       ];
       resultSummaryBody.innerHTML = rows
         .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`)
@@ -237,7 +285,7 @@ export async function initConsultPage() {
     if (resultAdviceList) {
       const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
       const bullets =
-        hasSym && recs.length > 0
+        (hasSym || isMaintenance) && recs.length > 0
           ? recs.slice(0, 4).map((r) => r.title).filter(Boolean)
           : [
               'Опишите симптомы и условия проявления, чтобы сузить круг причин',
@@ -254,7 +302,10 @@ export async function initConsultPage() {
     // Result panel actions
     const isGuest = !!data.isGuest;
     if (resultBtnSave) resultBtnSave.hidden = true;
-    if (resultBtnRequest) resultBtnRequest.hidden = true;
+    if (resultBtnRequest) {
+      resultBtnRequest.hidden = true;
+      resultBtnRequest.textContent = 'Оставить заявку';
+    }
     if (resultBtnLogin) resultBtnLogin.hidden = true;
     if (resultBtnRegister) resultBtnRegister.hidden = true;
 
@@ -290,12 +341,17 @@ export async function initConsultPage() {
           }
           await uiAlert({
             title: 'Заявка создана',
-            message: 'Заявка создана. Для отслеживания статуса войдите или зарегистрируйтесь.',
+            message: isGuest
+              ? 'Заявка создана. Чтобы отслеживать статус и переписку в личном кабинете, войдите или зарегистрируйтесь — текущий диалог привяжется к аккаунту.'
+              : 'Заявка создана. Смотрите статус в личном кабинете.',
           });
-          window.location.href = '/dashboards/client.html';
+          window.location.href = isGuest
+            ? `/login.html?next=${encodeURIComponent('/dashboards/client.html#tab=requests')}`
+            : '/dashboards/client.html';
         } catch (e) {
           errBox.textContent = e.message;
           errBox.className = 'alert alert--error';
+          errBox.hidden = false;
         }
       });
     }
@@ -312,6 +368,7 @@ export async function initConsultPage() {
         } catch (e) {
           errBox.textContent = e.message;
           errBox.className = 'alert alert--error';
+          errBox.hidden = false;
         }
       });
     }
@@ -324,18 +381,24 @@ export async function initConsultPage() {
     }
     if (sideCostValue) {
       sideCostValue.textContent =
-        hasSym && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor))
+        (hasSym || isMaintenance) && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor))
           ? `от ${fmtMoneyRub(data.costFromMinor)}`
           : '—';
     }
     if (sideCostHint) {
       sideCostHint.textContent =
-        hasSym && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor))
-          ? 'Оценка по статистике сервиса и текущим данным'
+        (hasSym || isMaintenance) && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor))
+          ? isMaintenance
+            ? 'Минимальная стоимость базового регламентного ТО'
+            : 'Оценка по статистике сервиса и текущим данным'
           : 'Опишите симптомы, чтобы появилась оценка';
     }
     if (sideVisitValue && sideVisitHint) {
-      const visit = hasSym ? recommendVisitWindow(ext) : { value: '—', hint: 'Опишите симптомы, чтобы оценить срочность' };
+      const visit = isMaintenance
+        ? { value: 'в течение 3-7 дней', hint: 'Для планового ТО можно выбрать удобный слот' }
+        : hasSym
+          ? recommendVisitWindow(ext)
+          : { value: '—', hint: 'Опишите симптомы, чтобы оценить срочность' };
       sideVisitValue.textContent = visit.value;
       sideVisitHint.textContent = visit.hint;
     }
@@ -410,13 +473,19 @@ export async function initConsultPage() {
       const wrap = document.createElement('div');
       wrap.className = 'alert alert--info';
       wrap.innerHTML = `
-        <p style="margin:0 0 0.75rem">Данные для предварительной оценки собраны. Чтобы <strong>сохранить отчёт</strong> в личном кабинете и <strong>оформить заявку</strong> в сервис, войдите или зарегистрируйтесь — текущий диалог будет привязан к аккаунту.</p>
+        <p style="margin:0 0 0.75rem">
+          Данные для предварительной оценки собраны. Вы можете <strong>создать заявку как гость</strong> (мы свяжемся по телефону)
+          или <strong>войти/зарегистрироваться</strong>, чтобы отслеживать статус и переписку в личном кабинете.
+        </p>
         <p style="margin:0;display:flex;flex-wrap:wrap;gap:0.5rem">
-          <a class="btn btn--primary" href="/login.html?next=${encodeURIComponent(CONSULT_NEXT)}" style="text-decoration:none">Войти и создать заявку</a>
-          <a class="btn btn--ghost" href="/login.html?next=${encodeURIComponent(CONSULT_NEXT)}" style="text-decoration:none">Войти и сохранить отчёт</a>
+          <button type="button" class="btn btn--primary" id="${guestRequestFormId}">Создать заявку (гость)</button>
+          <a class="btn btn--ghost" href="/login.html?next=${encodeURIComponent(CONSULT_NEXT)}" style="text-decoration:none">Войти</a>
           <a class="btn btn--ghost" href="/register.html?next=${encodeURIComponent(CONSULT_NEXT)}" style="text-decoration:none">Регистрация</a>
         </p>`;
       actions.appendChild(wrap);
+
+      // Bind guest CTA (reuse existing handler)
+      wrap.querySelector(`#${guestRequestFormId}`)?.addEventListener('click', () => resultBtnRequest?.click());
     } else if (done && !data.isGuest && !data.serviceRequest) {
       const b1 = document.createElement('button');
       b1.className = 'btn btn--primary';
@@ -430,6 +499,7 @@ export async function initConsultPage() {
         } catch (e) {
           errBox.textContent = e.message;
           errBox.className = 'alert alert--error';
+          errBox.hidden = false;
         }
       });
       const b2 = document.createElement('button');
@@ -496,11 +566,14 @@ export async function initConsultPage() {
     chatEl.innerHTML = '';
     progressBar.style.width = '0%';
     progressLabel.textContent = 'Готовность данных: 0%';
+    if (progressWrap) progressWrap.hidden = true;
+    progressLabel.hidden = true;
     actions.innerHTML = '';
     updateGuestBanner(false);
     startSession().catch((e) => {
       errBox.textContent = e.message;
       errBox.className = 'alert alert--error';
+      errBox.hidden = false;
     });
   });
 
@@ -530,6 +603,7 @@ export async function initConsultPage() {
         errBox.textContent =
           e.data?.error || 'Модуль ИИ временно недоступен. Сообщение сохранено, попробуйте позже.';
         errBox.className = 'alert alert--error';
+        errBox.hidden = false;
         if (sessionId) await loadSession().catch(() => {});
       } else if (e.status === 401 && e.data?.code === 'GUEST_TOKEN_REQUIRED') {
         // Guest token lost (e.g., sessionStorage cleared). Start a new guest session.
@@ -537,6 +611,7 @@ export async function initConsultPage() {
       } else {
         errBox.textContent = e.message;
         errBox.className = 'alert alert--error';
+        errBox.hidden = false;
       }
     }
   });
@@ -549,5 +624,6 @@ export async function initConsultPage() {
   } catch (e) {
     errBox.textContent = e.message;
     errBox.className = 'alert alert--error';
+    errBox.hidden = false;
   }
 }

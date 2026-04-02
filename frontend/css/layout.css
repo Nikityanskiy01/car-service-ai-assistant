@@ -41,7 +41,7 @@
   position: sticky;
   top: 84px;
   background: var(--color-surface);
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 1rem;
 }
@@ -54,7 +54,7 @@
 
 .dash__head {
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 0.75rem;
 }
 
@@ -67,24 +67,28 @@
 .dash__tab {
   width: 100%;
   text-align: left;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.02);
   padding: 0.65rem 0.75rem;
   border-radius: 12px;
   cursor: pointer;
   font-weight: 700;
   color: var(--color-text);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 }
 
 .dash__tab:hover {
-  background: #fff;
-  border-color: #e8e8e8;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-border-2);
 }
 
 .dash__tab.is-active {
-  background: #fff;
-  border-color: #ffd9c2;
-  box-shadow: var(--shadow);
+  color: rgba(255, 255, 255, 0.97);
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-2));
+  box-shadow:
+    0 8px 18px rgba(255, 122, 26, 0.22),
+    0 6px 14px rgba(255, 61, 129, 0.16);
 }
 
 .dash__main {

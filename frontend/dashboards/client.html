@@ -55,6 +55,9 @@
           <section class="dash__panel" data-panel="consults" hidden>
             <div class="card">
               <h2>Консультации</h2>
+              <p class="muted" style="margin-top:-0.25rem">
+                Здесь хранится история переписки с ассистентом и предварительные итоги по вашим обращениям.
+              </p>
               <div class="grid-2" style="gap: 1rem">
                 <div>
                   <p class="muted" style="margin-top: 0">История обращений к ассистенту.</p>
@@ -63,7 +66,7 @@
                 <div>
                   <p class="muted" style="margin-top: 0">Выберите консультацию, чтобы увидеть переписку.</p>
                   <div id="sessDetail" class="card" style="background: var(--color-surface)">
-                    <p class="muted" style="margin: 0">Консультация не выбрана</p>
+                    <div class="empty">Выберите консультацию слева, чтобы открыть детали.</div>
                   </div>
                 </div>
               </div>
@@ -73,6 +76,9 @@
           <section class="dash__panel" data-panel="requests" hidden>
             <div class="card">
               <h2>Заявки</h2>
+              <p class="muted" style="margin-top:-0.25rem">
+                Заявка — это обращение в сервис. Менеджер обновляет статус и может написать вам прямо здесь.
+              </p>
               <div class="table-wrap">
                 <table class="data">
                   <thead>
@@ -86,12 +92,14 @@
                 </table>
               </div>
               <div id="reqDetail" class="card" style="margin-top: 1rem; background: var(--color-surface)">
-                <p class="muted" style="margin: 0">Выберите заявку в таблице</p>
+                <div class="empty">Выберите заявку в таблице, чтобы увидеть детали и переписку.</div>
               </div>
               <h3>Переписка</h3>
               <p id="threadTitle" class="muted">Выберите заявку в таблице</p>
-              <div id="threadBody" class="stack"></div>
-              <form id="threadForm" class="stack" style="margin-top: 1rem">
+              <div id="threadBody" class="stack">
+                <div class="empty">Пока переписка не открыта. Выберите заявку выше.</div>
+              </div>
+              <form id="threadForm" class="stack" style="margin-top: 1rem; display: none">
                 <textarea id="threadInput" rows="2" placeholder="Сообщение менеджеру"></textarea>
                 <button type="submit" class="btn btn--primary">Отправить</button>
               </form>
@@ -101,13 +109,16 @@
           <section class="dash__panel" data-panel="reports" hidden>
             <div class="card">
               <h2>Сохранённые отчёты</h2>
+              <p class="muted" style="margin-top:-0.25rem">
+                Сохраняйте результаты консультации — удобно переслать менеджеру или вернуться к ним позже.
+              </p>
               <div class="grid-2" style="gap: 1rem">
                 <div>
                   <ul id="repList" style="list-style: none; padding: 0; margin: 0"></ul>
                 </div>
                 <div>
                   <div id="repDetail" class="card" style="background: var(--color-surface)">
-                    <p class="muted" style="margin: 0">Отчёт не выбран</p>
+                    <div class="empty">Выберите отчёт слева, чтобы открыть детали.</div>
                   </div>
                 </div>
               </div>
@@ -117,6 +128,9 @@
           <section class="dash__panel" data-panel="bookings" hidden>
             <div class="card">
               <h2>Запись на визит</h2>
+              <p class="muted" style="margin-top:-0.25rem">
+                Оставьте удобное время — менеджер подтвердит запись и при необходимости уточнит детали.
+              </p>
               <form id="bookingForm" class="stack" style="max-width: 420px">
                 <div class="form-field">
                   <label for="preferredAt">Желаемая дата и время</label>
@@ -143,7 +157,7 @@
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
       import { initClientDashboard } from '/js/dashboards/client.js';
-      mountHeaderFooter({ active: 'home' });
+      mountHeaderFooter({ active: 'dash' });
       initClientDashboard();
     </script>
   </body>

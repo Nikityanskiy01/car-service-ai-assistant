@@ -11,8 +11,9 @@ export function mountHeaderFooter({ active = '' } = {}) {
         ? '/dashboards/admin.html'
         : '/dashboards/client.html';
 
+  const dashClass = active === 'dash' ? 'is-active' : '';
   const authBlock = authed
-    ? `<a href="${dash}">Кабинет</a>
+    ? `<a href="${dash}" class="${dashClass}">Кабинет</a>
        <button type="button" class="btn btn--ghost" id="logoutBtn">Выход</button>`
     : `<a href="/login.html">Вход</a>
        <a href="/register.html" class="btn btn--primary" style="text-decoration:none">Регистрация</a>`;

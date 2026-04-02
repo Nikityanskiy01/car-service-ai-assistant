@@ -143,3 +143,103 @@ export function uiPromptContact({ title = 'Контакты для заявки'
   });
 }
 
+export function uiConfirm({
+  title = 'Подтвердите действие',
+  message = '',
+  confirmText = 'Подтвердить',
+  cancelText = 'Отмена',
+} = {}) {
+  return new Promise((resolve) => {
+    const bodyHtml = `<p style="margin:0">${escapeHtml(message)}</p>`;
+    const actionsHtml = `
+      <button type="button" class="btn btn--ghost" id="uiCancelBtn">${escapeHtml(cancelText)}</button>
+      <button type="button" class="btn btn--primary" id="uiConfirmBtn">${escapeHtml(confirmText)}</button>
+    `;
+    const root = mountModal({ title, bodyHtml, actionsHtml });
+    const backdrop = root.querySelector('.ui-modal__backdrop');
+    const modal = root.querySelector('.ui-modal');
+    const cleanupFocus = trapFocus(modal);
+
+    function cancel() {
+      cleanupFocus?.();
+      closeModal();
+      resolve(false);
+    }
+
+    function confirm() {
+      cleanupFocus?.();
+      closeModal();
+      resolve(true);
+    }
+
+    root.querySelector('#uiCancelBtn')?.addEventListener('click', cancel);
+    root.querySelector('#uiConfirmBtn')?.addEventListener('click', confirm);
+    backdrop?.addEventListener('click', (e) => {
+      if (e.target?.dataset?.uiClose === '1') cancel();
+    });
+    root.querySelectorAll('[data-ui-close="1"]').forEach((el) => el.addEventListener('click', cancel));
+  });
+}
+
+export function uiPromptText({
+  title = 'Введите значение',
+  label = 'Значение',
+  placeholder = '',
+  initialValue = '',
+  submitText = 'Сохранить',
+  cancelText = 'Отмена',
+  multiline = false,
+} = {}) {
+  return new Promise((resolve) => {
+    const inputId = 'uiPromptValue';
+    const field =
+      multiline
+        ? `<textarea id="${inputId}" rows="4" placeholder="${escapeHtml(placeholder)}">${escapeHtml(initialValue)}</textarea>`
+        : `<input id="${inputId}" value="${escapeHtml(initialValue)}" placeholder="${escapeHtml(placeholder)}" />`;
+    const bodyHtml = `
+      <div class="stack" style="gap:0.75rem">
+        <div class="form-field" style="margin:0">
+          <label for="${inputId}">${escapeHtml(label)}</label>
+          ${field}
+        </div>
+      </div>
+    `;
+    const actionsHtml = `
+      <button type="button" class="btn btn--ghost" id="uiCancelBtn">${escapeHtml(cancelText)}</button>
+      <button type="button" class="btn btn--primary" id="uiSubmitBtn">${escapeHtml(submitText)}</button>
+    `;
+    const root = mountModal({ title, bodyHtml, actionsHtml });
+    const backdrop = root.querySelector('.ui-modal__backdrop');
+    const modal = root.querySelector('.ui-modal');
+    const cleanupFocus = trapFocus(modal);
+    const input = root.querySelector(`#${inputId}`);
+
+    function cancel() {
+      cleanupFocus?.();
+      closeModal();
+      resolve(null);
+    }
+
+    function submit() {
+      const v = String(input?.value || '');
+      cleanupFocus?.();
+      closeModal();
+      resolve(v);
+    }
+
+    root.querySelector('#uiCancelBtn')?.addEventListener('click', cancel);
+    root.querySelector('#uiSubmitBtn')?.addEventListener('click', submit);
+    backdrop?.addEventListener('click', (e) => {
+      if (e.target?.dataset?.uiClose === '1') cancel();
+    });
+    root.querySelectorAll('[data-ui-close="1"]').forEach((el) => el.addEventListener('click', cancel));
+
+    modal?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !multiline) {
+        e.preventDefault();
+        submit();
+      }
+    });
+  });
+}
+

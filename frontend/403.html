@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Доступ ограничен — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container">
+      <section class="card" style="max-width: 760px; margin: 1.5rem auto 0">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap">
+          <div>
+            <h1 style="margin: 0">Доступ ограничен</h1>
+            <p class="lead" style="margin: 0.35rem 0 0">
+              Эта страница доступна только после входа или с другой ролью.
+            </p>
+          </div>
+          <div class="pill pill--bad">403</div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 1.25rem; gap: 1rem">
+          <div>
+            <p class="muted" style="margin-top: 0">
+              Если вы только что вошли — обновите страницу. Если вы открыли ссылку на кабинет менеджера/админа, войдите
+              под нужной учётной записью.
+            </p>
+            <div class="empty" id="err403Box" style="margin-top: 0.75rem"></div>
+          </div>
+          <div>
+            <strong>Быстрые действия</strong>
+            <div style="margin-top: 0.6rem; display: flex; gap: 0.5rem; flex-wrap: wrap">
+              <a class="btn btn--primary" href="/login.html" style="text-decoration: none">Войти</a>
+              <a class="btn btn--ghost" href="/register.html" style="text-decoration: none">Регистрация</a>
+              <a class="btn btn--ghost" href="/index.html" style="text-decoration: none">На главную</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      mountHeaderFooter();
+      const box = document.getElementById('err403Box');
+      if (box) {
+        const p = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        box.textContent = `Запрошенный адрес: ${p}`;
+      }
+    </script>
+  </body>
+</html>

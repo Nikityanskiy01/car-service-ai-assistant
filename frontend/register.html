@@ -13,15 +13,18 @@
     <main class="page container" style="max-width: 480px">
       <h1>Создадим аккаунт за минуту</h1>
       <p class="muted">Аккаунт нужен, чтобы хранить историю консультаций, отчёты и отслеживать статусы заявок.</p>
-      <div id="formError" class="alert" role="alert"></div>
-      <form id="registerForm" class="card">
+      <form id="registerForm" class="card" novalidate>
         <div class="form-field">
           <label for="email">Email</label>
-          <input id="email" name="email" type="email" required />
+          <input id="email" name="email" type="email" required placeholder="name@example.com" />
         </div>
         <div class="form-field">
           <label for="password">Пароль (мин. 8 символов)</label>
           <input id="password" name="password" type="password" minlength="8" required />
+          <div id="passwordStrength" class="pw-meter" aria-live="polite">
+            <div class="pw-meter__bar"><div id="passwordStrengthBar"></div></div>
+            <small id="passwordStrengthText" class="muted">Надёжность: —</small>
+          </div>
         </div>
         <div class="form-field">
           <label for="fullName">Имя и фамилия</label>
@@ -29,10 +32,12 @@
         </div>
         <div class="form-field">
           <label for="phone">Телефон</label>
-          <input id="phone" name="phone" type="tel" required placeholder="+7..." />
+          <input id="phone" name="phone" type="tel" required placeholder="8-999-999-99-99" />
+          <small class="muted">Формат: 8-999-999-99-99</small>
         </div>
         <button type="submit" class="btn btn--primary" style="width: 100%">Зарегистрироваться</button>
       </form>
+      <div id="formError" class="alert" role="alert" hidden></div>
       <p class="muted" style="margin-top: 0.75rem">
         Уже есть аккаунт? <a id="registerLoginLink" href="/login.html">Войти</a>
       </p>

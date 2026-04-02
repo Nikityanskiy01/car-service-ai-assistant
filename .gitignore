@@ -4,6 +4,9 @@ backend/node_modules/
 backend/.env
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
+backend/prisma/test.db
+backend/prisma/test.db-journal
+backend/prisma/prisma/
 # не игнорировать шаблоны для репозитория
 !.env.example
 !**/.env.example

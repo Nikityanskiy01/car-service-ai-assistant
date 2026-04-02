@@ -13,11 +13,10 @@
     <main class="page container" style="max-width: 420px">
       <h1>С возвращением</h1>
       <p class="muted">Войдите, чтобы отслеживать заявки, сохранять отчёты и переписываться с менеджером.</p>
-      <div id="formError" class="alert" role="alert"></div>
-      <form id="loginForm" class="card">
+      <form id="loginForm" class="card" novalidate>
         <div class="form-field">
           <label for="email">Email</label>
-          <input id="email" name="email" type="email" autocomplete="username" required />
+          <input id="email" name="email" type="email" autocomplete="username" required placeholder="name@example.com" />
         </div>
         <div class="form-field">
           <label for="password">Пароль</label>
@@ -25,6 +24,7 @@
         </div>
         <button type="submit" class="btn btn--primary" style="width: 100%">Войти</button>
       </form>
+      <div id="formError" class="alert" role="alert" hidden></div>
       <p class="muted" style="margin-top: 0.75rem">
         Нет аккаунта? <a href="/register.html">Зарегистрироваться</a>
       </p>

@@ -19,21 +19,28 @@
   --space-8: 2rem;
 
   /* Focus */
-  --focus-ring: 0 0 0 4px rgba(232, 93, 4, 0.22);
+  --focus-ring: 0 0 0 4px rgba(255, 143, 74, 0.25);
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  --color-bg: #ffffff;
-  --color-text: #1a1a1a;
-  --color-muted: #5c5c5c;
-  --color-accent: #e85d04;
-  --color-accent-dark: #c2410c;
-  --color-black: #0d0d0d;
-  --color-surface: #f7f7f7;
+  /* Dark theme (default) */
+  --color-bg: #07080b;
+  --color-surface: #0f1117;
+  --color-surface-2: #141824;
+  --color-text: rgba(255, 255, 255, 0.92);
+  --color-muted: rgba(255, 255, 255, 0.66);
+  --color-border: rgba(255, 255, 255, 0.10);
+  --color-border-2: rgba(255, 255, 255, 0.16);
+
+  --color-accent: #ff7a1a;
+  --color-accent-2: #ff3d81;
+  --color-accent-dark: #ff8f4a;
+
+  --color-black: #07080b;
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.35);
   --radius: 10px;
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 *,
@@ -51,7 +58,11 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-text);
-  background: var(--color-bg);
+  background:
+    radial-gradient(900px 420px at 18% -10%, rgba(255, 122, 26, 0.12), transparent 60%),
+    radial-gradient(820px 520px at 90% -10%, rgba(255, 61, 129, 0.10), transparent 62%),
+    radial-gradient(700px 420px at 80% 110%, rgba(255, 122, 26, 0.08), transparent 60%),
+    var(--color-bg);
   line-height: 1.55;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -65,6 +76,10 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+a:visited {
+  color: rgba(255, 143, 74, 0.92);
 }
 
 img {
@@ -96,6 +111,16 @@ h3 {
 
 p {
   margin: 0 0 0.9rem;
+}
+
+ul,
+ol {
+  margin: 0 0 0.9rem;
+  padding-left: 1.1rem;
+}
+
+li {
+  margin: 0.25rem 0;
 }
 
 small {

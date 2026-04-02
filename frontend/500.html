@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ошибка сервера — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container">
+      <section class="card" style="max-width: 760px; margin: 1.5rem auto 0">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap">
+          <div>
+            <h1 style="margin: 0">Что-то пошло не так</h1>
+            <p class="lead" style="margin: 0.35rem 0 0">Это ошибка сервера. Мы уже “видим” проблему в логах.</p>
+          </div>
+          <div class="pill pill--warn">500</div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 1.25rem; gap: 1rem">
+          <div>
+            <strong>Попробуйте так</strong>
+            <ul style="margin: 0.35rem 0 0">
+              <li>Обновите страницу через 10–20 секунд</li>
+              <li>Если вы в консультации — попробуйте отправить сообщение ещё раз</li>
+              <li>Если проблема повторяется — создайте заявку и мы перезвоним</li>
+            </ul>
+          </div>
+          <div>
+            <div class="empty" id="errMetaBox"></div>
+            <p class="muted" style="margin: 0.75rem 0 0">
+              Подсказка для техподдержки: сделайте скрин и пришлите “Запрошенный адрес” и время.
+            </p>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap">
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">В консультацию</a>
+          <a class="btn btn--ghost" href="/index.html" style="text-decoration: none">На главную</a>
+          <a class="btn btn--ghost" href="/location.html" style="text-decoration: none">Контакты</a>
+        </div>
+      </section>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      mountHeaderFooter();
+      const box = document.getElementById('errMetaBox');
+      if (box) {
+        const p = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        box.textContent = `Запрошенный адрес: ${p}`;
+      }
+    </script>
+  </body>
+</html>

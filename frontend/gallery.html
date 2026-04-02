@@ -11,19 +11,38 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container">
-      <h1>Галерея</h1>
-      <p class="lead">Здесь будут фото зоны приёма, постов и примеров работ. Пока — аккуратные заглушки.</p>
-      <div class="gallery-grid">
-        <div class="card">Зона приёма</div>
-        <div class="card">Посты ремонта</div>
-        <div class="card">Диагностика</div>
-        <div class="card">Тормоза / подвеска</div>
-      </div>
-      <div class="card" style="margin-top: 1.25rem">
-        <strong>Хотите оценку по вашей проблеме?</strong>
-        <p class="muted" style="margin: 0.35rem 0 0.75rem">Начните с консультации — можно без регистрации.</p>
-        <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
-      </div>
+      <section class="inner-hero">
+        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Галерея сервиса</p>
+        <h1>Как выглядит AI Fox Motors изнутри</h1>
+        <p class="lead">Зона приёма, посты диагностики и реальные рабочие процессы, чтобы вы заранее понимали уровень сервиса.</p>
+      </section>
+
+      <section class="gallery-grid gallery-grid--media">
+        <img src="https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&w=1200&q=80" alt="Зона приема клиентов" loading="lazy" />
+        <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Пост диагностики автомобиля" loading="lazy" />
+        <img src="https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=1200&q=80" alt="Работа механика в сервисной зоне" loading="lazy" />
+        <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Технический осмотр подвески" loading="lazy" />
+        <img src="https://images.unsplash.com/photo-1619642751327-d0f2f8f9f2ad?auto=format&fit=crop&w=1200&q=80" alt="Оборудование автосервиса" loading="lazy" />
+        <img src="https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80" alt="Автомобиль в зоне ремонта" loading="lazy" />
+      </section>
+
+      <section class="grid-2" style="margin-top: 1rem">
+        <article class="card glass">
+          <h2>Что важно для клиента</h2>
+          <ul class="list-muted">
+            <li>Чистая и понятная зона приема.</li>
+            <li>Прозрачный процесс диагностики и ремонта.</li>
+            <li>Коммуникация по каждому этапу работ.</li>
+          </ul>
+        </article>
+        <article class="card home-cta">
+          <h2>Хотите оценку вашей ситуации?</h2>
+          <p class="muted" style="margin-top: 0">
+            Начните консультацию сейчас — можно без регистрации и без звонка.
+          </p>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
+        </article>
+      </section>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">

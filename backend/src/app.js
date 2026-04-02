@@ -13,6 +13,8 @@ import api from './routes/api.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..', '..');
 const frontendRoot = path.join(projectRoot, 'frontend');
+const frontend404 = path.join(frontendRoot, '404.html');
+const frontend500 = path.join(frontendRoot, '500.html');
 
 export function createApp() {
   const app = express();
@@ -51,10 +53,18 @@ export function createApp() {
     if (req.path.startsWith('/api')) {
       return res.status(404).json({ error: 'Not found' });
     }
-    return res.status(404).send('Not found');
+    return res.status(404).sendFile(frontend404);
   });
 
-  app.use(errorHandler);
+  // Keep JSON errors for API, nice page for frontend.
+  app.use((err, req, res, next) => {
+    if (req.path?.startsWith?.('/api')) return errorHandler(err, req, res, next);
+    try {
+      return res.status(500).sendFile(frontend500);
+    } catch {
+      return errorHandler(err, req, res, next);
+    }
+  });
 
   return app;
 }

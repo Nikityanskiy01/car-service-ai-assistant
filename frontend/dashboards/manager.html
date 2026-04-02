@@ -12,7 +12,10 @@
     <div id="header-placeholder"></div>
     <main class="page container">
       <h1>Заявки клиентов</h1>
-      <p class="muted" style="margin-top: -0.25rem">Фильтруйте список, открывайте детали и отвечайте клиенту.</p>
+      <p class="muted" style="margin-top: -0.25rem">
+        Фильтруйте список, открывайте детали и отвечайте клиенту. Если клиент был гостем — контакты будут показаны как
+        “гость”.
+      </p>
       <div class="card stack" style="margin-bottom: 1rem">
         <div class="form-field" style="margin: 0">
           <label for="filterStatus">Статус</label>
@@ -47,11 +50,13 @@
           </table>
         </div>
         <div class="stack">
-          <div class="card" id="detailPanel"><p>Выберите строку таблицы</p></div>
+          <div class="card" id="detailPanel"><div class="empty">Выберите заявку в таблице слева, чтобы увидеть детали.</div></div>
           <div class="card">
             <h3>Переписка с клиентом</h3>
-            <div id="mgrThread" class="stack"></div>
-            <form id="mgrThreadForm" class="stack" style="margin-top: 0.5rem">
+            <div id="mgrThread" class="stack">
+              <div class="empty">Выберите заявку слева, чтобы открыть переписку.</div>
+            </div>
+            <form id="mgrThreadForm" class="stack" style="margin-top: 0.5rem; display: none">
               <textarea id="mgrThreadInput" rows="2" placeholder="Ответ клиенту"></textarea>
               <button type="submit" class="btn btn--primary">Отправить</button>
             </form>
@@ -60,6 +65,7 @@
       </div>
       <section class="card" style="margin-top: 2rem">
         <h2>Записи на визит</h2>
+        <p class="muted" style="margin-top:-0.25rem">Подтверждайте время визита или отменяйте запись при необходимости.</p>
         <ul id="bookingsMgr" style="list-style: none; padding: 0"></ul>
       </section>
     </main>
@@ -67,7 +73,7 @@
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
       import { initManagerDashboard } from '/js/dashboards/manager.js';
-      mountHeaderFooter();
+      mountHeaderFooter({ active: 'dash' });
       initManagerDashboard();
     </script>
   </body>

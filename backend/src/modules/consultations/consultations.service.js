@@ -421,8 +421,36 @@ export async function postMessage(sessionId, actor, content) {
     sanitizeExtractedFromUserText(trimmed, aiPayload.extracted),
   );
 
+  function hasMaintenanceIntent(text) {
+    const s = String(text || '').toLowerCase();
+    if (!s) return false;
+    const hasToWord = /(^|[\s,.;:!?()\-])то(?=($|[\s,.;:!?()\-]))/.test(s) || /\bто-\d+/.test(s);
+    return (
+      /техобслуж|тех\s*обслуж|техническ(?:ое|ого)\s*обслуж/.test(s) ||
+      /планов(?:ое|ого)\s*то/.test(s) ||
+      /(?:сделать|пройти|записать(?:ся)?|запись)\s+то/.test(s) ||
+      (hasToWord && /(?:хочу|нужно|надо|пора|сделать|пройти|записать(?:ся)?)/.test(s))
+    );
+  }
+
+  function isMaintenanceFlow(sessionWithMessages, userText) {
+    if (hasMaintenanceIntent(userText)) return true;
+    return (sessionWithMessages?.messages || []).some(
+      (m) => m.sender === 'USER' && hasMaintenanceIntent(m.content),
+    );
+  }
+
+  const maintenanceFlow = isMaintenanceFlow(afterUser, trimmed);
+  const hasCoreVehicleData =
+    !!mergedExtracted.make &&
+    !!mergedExtracted.model &&
+    mergedExtracted.year != null &&
+    Number.isFinite(Number(mergedExtracted.year)) &&
+    mergedExtracted.mileage != null &&
+    Number.isFinite(Number(mergedExtracted.mileage));
+
   const ruleProgress = progressFromExtracted(mergedExtracted);
-  const complete = isExtractedComplete(mergedExtracted);
+  const complete = maintenanceFlow ? hasCoreVehicleData : isExtractedComplete(mergedExtracted);
 
   // Progress is deterministic: only from actually extracted fields.
   let progressPercent = complete ? 100 : ruleProgress;
@@ -433,9 +461,11 @@ export async function postMessage(sessionId, actor, content) {
   if (!(mergedExtracted.year != null && Number.isFinite(Number(mergedExtracted.year)))) missing.push('год выпуска');
   if (!(mergedExtracted.mileage != null && Number.isFinite(Number(mergedExtracted.mileage))))
     missing.push('пробег');
-  if (!mergedExtracted.symptoms) missing.push('симптомы (что именно происходит)');
-  if (!mergedExtracted.problemConditions)
-    missing.push('условия проявления (на холодную/на горячую, скорость, дорога и т.д.)');
+  if (!maintenanceFlow) {
+    if (!mergedExtracted.symptoms) missing.push('симптомы (что именно происходит)');
+    if (!mergedExtracted.problemConditions)
+      missing.push('условия проявления (на холодную/на горячую, скорость, дорога и т.д.)');
+  }
 
   // If LLM "thinks" it's done but required fields are missing, force a deterministic follow-up.
   if (!complete) {
@@ -446,23 +476,42 @@ export async function postMessage(sessionId, actor, content) {
       aiPayload.recommendations = [];
     }
     if (missing.length > 0) {
-      aiPayload.reply =
-        'Чтобы подготовить итог и рекомендации, уточните, пожалуйста: ' +
-        missing.join(', ') +
-        '. Можно одним сообщением.';
+      aiPayload.reply = maintenanceFlow
+        ? 'Для записи на ТО уточните, пожалуйста: ' + missing.join(', ') + '. Можно одним сообщением.'
+        : 'Чтобы подготовить итог и рекомендации, уточните, пожалуйста: ' +
+          missing.join(', ') +
+          '. Можно одним сообщением.';
     }
   }
 
   // When mandatory fields are collected, we force a deterministic "final" turn
   // so the UX doesn't depend on the LLM being smart enough to finish.
   if (complete) {
-    aiPayload.reply =
-      'Все обязательные данные собраны. Я подготовил предварительный итог по симптомам и условиям проявления.';
-    if (!Array.isArray(aiPayload.recommendations) || aiPayload.recommendations.length === 0) {
-      const pb = pickPlaybook(mergedExtracted, trimmed);
-      aiPayload.recommendations = pb
-        ? pb.hypotheses.slice(0, 5).map((t, i) => ({ title: t, probabilityPercent: Math.max(10, 60 - i * 10) }))
-        : [{ title: 'Диагностика в сервисе (подтверждение причины)', probabilityPercent: 60 }];
+    if (maintenanceFlow) {
+      aiPayload.reply =
+        'Понял, вы хотите плановое ТО. Для неисправностей уточнять не нужно: подготовим стандартное техническое обслуживание по данным авто и пробегу. Можете сразу оформлять заявку на ТО.';
+      aiPayload.recommendations = [
+        { title: 'Плановое ТО по регламенту (масло + фильтры)', probabilityPercent: 90 },
+        { title: 'Проверка тормозной системы и уровней жидкостей', probabilityPercent: 70 },
+        { title: 'Базовая проверка подвески и ходовой части', probabilityPercent: 55 },
+      ];
+      if (aiPayload.costFromMinor == null || !Number.isFinite(Number(aiPayload.costFromMinor))) {
+        aiPayload.costFromMinor = 3500;
+      }
+      if (aiPayload.confidencePercent == null || !Number.isFinite(Number(aiPayload.confidencePercent))) {
+        aiPayload.confidencePercent = 80;
+      }
+    } else {
+      aiPayload.reply =
+        'Все обязательные данные собраны. Я подготовил предварительный итог по симптомам и условиям проявления.';
+      if (!Array.isArray(aiPayload.recommendations) || aiPayload.recommendations.length === 0) {
+        const pb = pickPlaybook(mergedExtracted, trimmed);
+        aiPayload.recommendations = pb
+          ? pb.hypotheses
+              .slice(0, 5)
+              .map((t, i) => ({ title: t, probabilityPercent: Math.max(10, 60 - i * 10) }))
+          : [{ title: 'Диагностика в сервисе (подтверждение причины)', probabilityPercent: 60 }];
+      }
     }
     if (aiPayload.preliminaryNote == null) {
       aiPayload.preliminaryNote =
@@ -476,28 +525,30 @@ export async function postMessage(sessionId, actor, content) {
     }
 
     // Add service-statistics hint (real works) to the final message to reduce "LLM fantasy".
-    const pb = pickPlaybook(mergedExtracted, trimmed);
-    const catId =
-      pb?.id === 'engine-misfire' || pb?.id === 'engine-no-start' || pb?.id === 'engine-check-engine'
-        ? 'engine'
-        : pb?.id === 'cooling-overheat'
-          ? 'cooling'
-          : pb?.id === 'brakes-vibration'
-            ? 'brakes'
-            : pb?.id === 'suspension-knock'
-              ? 'suspension'
-              : pb?.id === 'at-shift'
-                ? 'transmission'
-                : null;
-    const works =
-      catId && mergedExtracted.make
-        ? topWorksForCategoryAndMake(catId, mergedExtracted.make, 5)
-        : catId
-          ? topWorksForCategory(catId, 5)
-          : [];
-    if (works.length) {
-      aiPayload.reply +=
-        '\n\nПо статистике сервиса в похожих случаях часто выполняют:\n- ' + works.join('\n- ');
+    if (!maintenanceFlow) {
+      const pb = pickPlaybook(mergedExtracted, trimmed);
+      const catId =
+        pb?.id === 'engine-misfire' || pb?.id === 'engine-no-start' || pb?.id === 'engine-check-engine'
+          ? 'engine'
+          : pb?.id === 'cooling-overheat'
+            ? 'cooling'
+            : pb?.id === 'brakes-vibration'
+              ? 'brakes'
+              : pb?.id === 'suspension-knock'
+                ? 'suspension'
+                : pb?.id === 'at-shift'
+                  ? 'transmission'
+                  : null;
+      const works =
+        catId && mergedExtracted.make
+          ? topWorksForCategoryAndMake(catId, mergedExtracted.make, 5)
+          : catId
+            ? topWorksForCategory(catId, 5)
+            : [];
+      if (works.length) {
+        aiPayload.reply +=
+          '\n\nПо статистике сервиса в похожих случаях часто выполняют:\n- ' + works.join('\n- ');
+      }
     }
     aiPayload.reply += '\n\nВы можете сохранить отчёт и оформить заявку в сервис.';
   }

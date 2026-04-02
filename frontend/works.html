@@ -11,34 +11,60 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container">
-      <h1>Наши работы</h1>
-      <p class="lead">Несколько примеров задач, которые мы регулярно делаем. Если у вас похожая ситуация — начните с консультации.</p>
-      <div class="grid-2" style="margin-top: 1.25rem">
-        <div class="card">
-          <h2>Двигатель</h2>
-          <ul style="margin: 0.5rem 0 0; padding-left: 1.1rem">
-            <li>Троит / пропуски зажигания</li>
-            <li>Горит Check Engine</li>
-            <li>Не заводится</li>
-          </ul>
-        </div>
-        <div class="card">
-          <h2>Подвеска и тормоза</h2>
-          <ul style="margin: 0.5rem 0 0; padding-left: 1.1rem">
-            <li>Стук в подвеске</li>
-            <li>Вибрация при торможении</li>
-            <li>Скрип / шум тормозов</li>
-          </ul>
-        </div>
-      </div>
+      <section class="inner-hero">
+        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Практика и кейсы</p>
+        <h1>Работы, которые мы выполняем каждый день</h1>
+        <p class="lead">От первичной диагностики до ремонта и финальной проверки: ниже типовые направления и частые задачи.</p>
+      </section>
 
-      <div class="card" style="margin-top: 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap">
-        <div>
-          <strong>Не уверены, с чего начать?</strong>
-          <div class="muted">Опишите симптомы — ассистент соберёт данные и предложит план действий.</div>
-        </div>
-        <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
-      </div>
+      <section class="work-cases">
+        <article class="card">
+          <h2>Двигатель и запуск</h2>
+          <ul class="list-muted">
+            <li>Пропуски зажигания, нестабильный холостой ход.</li>
+            <li>Ошибки `Check Engine` и диагностика кодов.</li>
+            <li>Проблемы запуска в холодную/после прогрева.</li>
+            <li>Падение тяги и увеличенный расход топлива.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h2>Тормоза и подвеска</h2>
+          <ul class="list-muted">
+            <li>Вибрация при торможении и биение в руль.</li>
+            <li>Скрипы и посторонние шумы тормозной системы.</li>
+            <li>Стук подвески на неровностях.</li>
+            <li>Износ амортизаторов и опорных элементов.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h2>Электрика и электроника</h2>
+          <ul class="list-muted">
+            <li>Неисправности датчиков и исполнительных узлов.</li>
+            <li>Проблемы с зарядкой, АКБ, утечками тока.</li>
+            <li>Сбои систем комфорта и освещения.</li>
+            <li>Диагностика после “плавающих” ошибок.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="grid-2" style="margin-top: 1rem">
+        <article class="card glass">
+          <h2>Как мы работаем с каждой заявкой</h2>
+          <ol class="list-muted">
+            <li>Фиксируем симптомы и входные данные клиента.</li>
+            <li>Формируем план проверки по приоритетам.</li>
+            <li>Согласовываем работы и сроки перед началом.</li>
+            <li>Обновляем статус до завершения работ.</li>
+          </ol>
+        </article>
+        <article class="card home-cta">
+          <h2>Есть похожая проблема?</h2>
+          <p class="muted" style="margin-top: 0">
+            Опишите симптомы, а ассистент подготовит предварительный сценарий обращения в сервис.
+          </p>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
+        </article>
+      </section>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">

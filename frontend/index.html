@@ -11,34 +11,130 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container">
-      <section class="hero">
-        <h1>Быстрая диагностика до визита</h1>
-        <p class="lead">
-          Опишите проблему простыми словами. ИИ уточнит детали, предложит план проверок и ориентир по стоимости.
-          Заявку в сервис можно создать даже в гостевом режиме — без регистрации.
-        </p>
+      <section class="hero hero-premium">
+        <div class="hero-premium__content">
+          <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Первый автосервис с ИИ‑ассистентом</p>
+          <h1>Быстрая консультация и запись в сервис</h1>
+          <p class="lead">
+            Короткий диалог с ассистентом, понятный предварительный итог и сразу переход к заявке без лишних шагов.
+          </p>
+          <p style="margin: 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
+            <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Начать консультацию</a>
+            <a class="btn btn--ghost" href="/location.html" style="text-decoration: none">Контакты</a>
+          </p>
+        </div>
+        <aside class="hero-premium__panel">
+          <article class="card glass">
+            <p class="muted" style="margin: 0 0 0.4rem">Как это работает</p>
+            <div class="home-flow">
+              <span>1. Описываете ситуацию</span>
+              <span>2. Получаете предварительный итог</span>
+              <span>3. Оставляете заявку в сервис</span>
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="home-kpis">
+        <div class="mini-kpi">
+          <div class="mini-kpi__label muted">Ответ ассистента</div>
+          <div class="mini-kpi__value">до 60 сек</div>
+        </div>
+        <div class="mini-kpi">
+          <div class="mini-kpi__label muted">Гостевой режим</div>
+          <div class="mini-kpi__value">без регистрации</div>
+        </div>
+        <div class="mini-kpi">
+          <div class="mini-kpi__label muted">Статус заявки</div>
+          <div class="mini-kpi__value">в кабинете</div>
+        </div>
+      </section>
+
+      <section class="card home-services">
+        <div class="side-head" style="margin-bottom: 0.75rem">
+          <h2 style="margin: 0">Основные услуги</h2>
+          <a class="btn btn--ghost" href="/works.html" style="text-decoration:none">Все услуги</a>
+        </div>
+        <div class="service-tags">
+          <span class="tag">Техническое обслуживание (ТО)</span>
+          <span class="tag">Компьютерная диагностика</span>
+          <span class="tag">Диагностика подвески и тормозов</span>
+          <span class="tag">Ремонт двигателя и трансмиссии</span>
+          <span class="tag">Автоэлектрика</span>
+          <span class="tag">Подготовка к дальней поездке</span>
+        </div>
+      </section>
+
+      <section class="home-trust">
+        <article class="card">
+          <h2>Понятно</h2>
+          <p class="muted" style="margin: 0">Без сложных формулировок: только нужные вопросы и четкие шаги.</p>
+        </article>
+        <article class="card">
+          <h2>Быстро</h2>
+          <p class="muted" style="margin: 0">Консультация занимает пару минут, заявку можно оставить сразу.</p>
+        </article>
+        <article class="card">
+          <h2>Прозрачно</h2>
+          <p class="muted" style="margin: 0">Видно историю консультаций и статус обращения в личном кабинете.</p>
+        </article>
+      </section>
+
+      <section class="grid-2" style="margin-top: 1.5rem">
+        <article class="card">
+          <h2>Почему это удобно</h2>
+          <ul class="list-muted">
+            <li>Можно начать в гостевом режиме, без регистрации.</li>
+            <li>История консультаций и заявок хранится в кабинете.</li>
+            <li>Реальный менеджер подтверждает запись после заявки.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h2>Сервис вживую</h2>
+          <div class="home-gallery">
+            <img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80" alt="Автосервис AI Fox Motors" loading="lazy" />
+          </div>
+        </article>
+      </section>
+
+      <section class="home-reviews">
+        <article class="card review">
+          <p class="muted" style="margin:0 0 0.45rem">Отзыв</p>
+          <p style="margin:0">"Приняли в тот же день, заранее понимал примерный объем работ. Все спокойно и по делу."</p>
+          <p class="muted" style="margin:0.6rem 0 0">— Алексей, Volkswagen Tiguan</p>
+        </article>
+        <article class="card review">
+          <p class="muted" style="margin:0 0 0.45rem">Отзыв</p>
+          <p style="margin:0">"Удобно, что можно начать как гость. Оформил заявку сразу, без долгих звонков."</p>
+          <p class="muted" style="margin:0.6rem 0 0">— Марина, Kia Sportage</p>
+        </article>
+        <article class="card review">
+          <p class="muted" style="margin:0 0 0.45rem">Отзыв</p>
+          <p style="margin:0">"Нравится прозрачность: в кабинете видно историю консультаций и статус обращения."</p>
+          <p class="muted" style="margin:0.6rem 0 0">— Сергей, Skoda Octavia</p>
+        </article>
+      </section>
+
+      <section class="card quick-book">
+        <div class="side-head" style="margin-bottom:0.8rem">
+          <h2 style="margin:0">Быстрая запись</h2>
+          <span class="pill pill--ghost">Ответ за 5-10 минут</span>
+        </div>
+        <p class="muted" style="margin:0 0 0.8rem">Оставьте заявку через ассистента: марка/модель, пробег и контакт.</p>
         <p style="margin: 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Начать консультацию</a>
-          <a class="btn btn--ghost" href="/location.html" style="text-decoration: none">Контакты</a>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Записаться через ИИ</a>
+          <a class="btn btn--ghost" href="/works.html" style="text-decoration: none">Выбрать услугу</a>
         </p>
       </section>
-      <div class="grid-2" style="margin-top: 2rem">
-        <div class="card">
-          <h2>Личный кабинет</h2>
-          <p class="muted">История консультаций, заявки, переписка, записи на визит — всё в одном месте.</p>
-          <p style="margin: 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
-            <a class="btn btn--primary" href="/register.html" style="text-decoration: none">Регистрация</a>
-            <a class="btn btn--ghost" href="/login.html" style="text-decoration: none">Вход</a>
-          </p>
-        </div>
-        <div class="card">
-          <h2>Как мы работаем</h2>
-          <p class="muted">Сначала консультация → затем заявка → менеджер связывается и подтверждает визит.</p>
-          <p style="margin: 0">
-            <a href="/works.html">Посмотреть примеры работ</a>
-          </p>
-        </div>
-      </div>
+
+      <section class="card home-cta" style="margin-top: 2rem">
+        <h2>Записаться в сервис за 1 минуту</h2>
+        <p class="muted" style="margin-bottom: 0.8rem">ИИ соберет данные, а менеджер подтвердит время визита.</p>
+        <p style="margin: 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Записаться</a>
+          <a class="btn btn--ghost" href="/location.html" style="text-decoration: none">Москва, Фармацевтический проезд, 3</a>
+        </p>
+      </section>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">

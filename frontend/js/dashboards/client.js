@@ -1,4 +1,4 @@
-import { api } from '../api.js';
+import { api, setToken, setUser } from '../api.js';
 import { requireAuth } from '../router-guard.js';
 import { $, escapeHtml, formatDate } from '../utils.js';
 import { uiAlert } from '../ui/dialogs.js';
@@ -14,6 +14,14 @@ export async function initClientDashboard() {
   let reportsCache = [];
   let activeTab = 'profile';
 
+  // Ensure initial placeholders are consistent even before any selection.
+  try {
+    const tf = $('#threadForm');
+    if (tf) tf.style.display = 'none';
+  } catch {
+    /* ignore */
+  }
+
   async function tryClaimPendingGuest() {
     const sid = sessionStorage.getItem('consultSessionId');
     const gt = sessionStorage.getItem('consultGuestToken');
@@ -21,7 +29,13 @@ export async function initClientDashboard() {
     try {
       await api(`/consultations/${sid}/claim`, { method: 'POST', body: { guestToken: gt } });
       sessionStorage.removeItem('consultGuestToken');
+      sessionStorage.removeItem('consultSessionId');
       sessionStorage.setItem('consultMode', 'auth');
+      await uiAlert({
+        title: 'Готово',
+        message:
+          'Мы привязали вашу гостевую консультацию к аккаунту. Теперь статус заявки и переписка доступны в личном кабинете.',
+      });
     } catch {
       /* ignore */
     }
@@ -56,7 +70,14 @@ export async function initClientDashboard() {
   }
 
   function badge(text, tone = 'ghost') {
-    const cls = tone === 'warn' ? 'pill' : tone === 'ok' ? 'pill' : 'pill pill--ghost';
+    const cls =
+      tone === 'ok'
+        ? 'pill pill--ok'
+        : tone === 'warn'
+          ? 'pill pill--warn'
+          : tone === 'bad'
+            ? 'pill pill--bad'
+            : 'pill pill--ghost';
     return `<span class="${cls}">${escapeHtml(text)}</span>`;
   }
 
@@ -70,7 +91,7 @@ export async function initClientDashboard() {
     const box = $('#sessDetail');
     if (!box) return;
     if (!s) {
-      box.innerHTML = `<p class="muted" style="margin:0">Консультация не выбрана</p>`;
+      box.innerHTML = `<div class="empty">Выберите консультацию слева, чтобы увидеть детали и переписку.</div>`;
       return;
     }
     const chat = (s.messages || [])
@@ -88,7 +109,7 @@ export async function initClientDashboard() {
     box.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
         <strong>${formatDate(s.createdAt)}</strong>
-        ${badge(`${s.status}`, s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'warn' : 'ghost')}
+        ${badge(`${s.status}`, s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'bad' : 'ghost')}
       </div>
       <p class="muted" style="margin:0.5rem 0 0.75rem">Прогресс: ${s.progressPercent ?? 0}% · Уверенность: ${
         s.confidencePercent != null ? `${s.confidencePercent}%` : '—'
@@ -114,7 +135,7 @@ export async function initClientDashboard() {
           : ''
       }
       ${s.preliminaryNote ? `<p class="alert alert--info">${escapeHtml(s.preliminaryNote)}</p>` : ''}
-      <div class="chat" style="max-height:260px">${chat || '<p class="muted">Нет сообщений</p>'}</div>
+      <div class="chat" style="max-height:260px">${chat || '<div class="empty">Сообщений пока нет.</div>'}</div>
       <p style="margin:0.75rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap">
         <a class="btn btn--ghost" href="/consult.html" style="text-decoration:none">Продолжить в чате</a>
         ${!s.serviceRequest ? `<button type="button" class="btn btn--primary" id="btnCreateSr">Создать заявку</button>` : ''}
@@ -136,7 +157,7 @@ export async function initClientDashboard() {
     const box = $('#repDetail');
     if (!box) return;
     if (!r) {
-      box.innerHTML = `<p class="muted" style="margin:0">Отчёт не выбран</p>`;
+      box.innerHTML = `<div class="empty">Выберите отчёт слева, чтобы открыть детали.</div>`;
       return;
     }
     const snap = r.snapshotJson || {};
@@ -183,7 +204,7 @@ export async function initClientDashboard() {
         ? `<li class="muted">Пока нет консультаций. <a href="/consult.html">Начать консультацию</a></li>`
         : sessions
             .map((s) => {
-              const tone = s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'warn' : 'ghost';
+              const tone = s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'bad' : 'ghost';
               return `<li class="card" data-sid="${s.id}" style="margin-bottom:0.5rem;cursor:pointer">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
                   <strong>${formatDate(s.createdAt)}</strong>
@@ -203,19 +224,24 @@ export async function initClientDashboard() {
       });
     });
 
-    $('#reqList').innerHTML = requests
-      .map(
-        (r) => `<tr data-id="${r.id}" style="cursor:pointer">
+    $('#reqList').innerHTML =
+      requests.length === 0
+        ? `<tr><td colspan="3"><div class="empty">Пока нет заявок. Завершите консультацию и создайте заявку — менеджер свяжется с вами.</div></td></tr>`
+        : requests
+            .map((r) => {
+              const tone = r.status === 'COMPLETED' ? 'ok' : r.status === 'CANCELLED' ? 'bad' : 'ghost';
+              return `<tr data-id="${r.id}" style="cursor:pointer">
         <td>${formatDate(r.createdAt)}</td>
         <td>${escapeHtml(r.snapshotMake || '')} ${escapeHtml(r.snapshotModel || '')}</td>
-        <td>${r.status}</td>
-      </tr>`,
-      )
-      .join('');
+        <td>${badge(r.status, tone)}</td>
+      </tr>`;
+            })
+            .join('');
 
     $('#reqList')
-      .querySelectorAll('tr')
+      .querySelectorAll('tr[data-id]')
       .forEach((tr) => {
+        if (tr.dataset.id === selectedRequestId) tr.classList.add('is-selected');
         tr.addEventListener('click', () => openThread(tr.dataset.id));
       });
 
@@ -248,30 +274,39 @@ export async function initClientDashboard() {
     });
 
     $('#bookList').innerHTML = bookings
-      .map(
-        (b) => `<li class="card" style="margin-bottom:0.5rem">
-        ${formatDate(b.preferredAt)} — ${b.status}${b.notes ? `<br><small>${escapeHtml(b.notes)}</small>` : ''}
-      </li>`,
-      )
+      .map((b) => {
+        const tone = b.status === 'CONFIRMED' ? 'ok' : b.status === 'CANCELLED' ? 'bad' : 'ghost';
+        return `<li class="card" style="margin-bottom:0.5rem">
+        ${formatDate(b.preferredAt)} — ${badge(b.status, tone)}${b.notes ? `<br><small>${escapeHtml(b.notes)}</small>` : ''}
+      </li>`;
+      })
       .join('');
+    if (!bookings.length) {
+      $('#bookList').innerHTML = `<li class="empty" style="list-style:none">Пока нет записей. Оставьте удобное время выше — менеджер подтвердит визит.</li>`;
+    }
   }
 
   async function openThread(requestId) {
     selectedRequestId = requestId;
     const msgs = await api(`/service-requests/${requestId}/messages`);
-    $('#threadTitle').textContent = `Переписка по заявке`;
-    $('#threadBody').innerHTML = msgs
-      .map(
-        (m) => `<div class="bubble bubble--assistant" style="margin-bottom:0.5rem">
+    $('#threadBody').innerHTML = msgs.length
+      ? msgs
+          .map(
+            (m) => `<div class="bubble bubble--assistant" style="margin-bottom:0.5rem">
         <small>${escapeHtml(m.author?.fullName || '')} (${m.author?.role}) — ${formatDate(m.createdAt)}</small><br>
         ${escapeHtml(m.body)}
       </div>`,
-      )
-      .join('');
+          )
+          .join('')
+      : `<div class="empty">Сообщений пока нет. Напишите менеджеру — он увидит сообщение в своём кабинете.</div>`;
 
     const detail = await api(`/service-requests/${requestId}`);
     const closed = detail.status === 'COMPLETED' || detail.status === 'CANCELLED';
     $('#threadForm').style.display = closed ? 'none' : 'block';
+    $('#threadTitle').innerHTML = `Переписка по заявке <strong>${escapeHtml(detail.id.slice(0, 8))}…</strong> ${badge(
+      detail.status,
+      detail.status === 'COMPLETED' ? 'ok' : detail.status === 'CANCELLED' ? 'bad' : 'ghost',
+    )}`;
 
     const d = $('#reqDetail');
     if (d) {
@@ -296,6 +331,10 @@ export async function initClientDashboard() {
         }
       `;
     }
+
+    document.querySelectorAll('#reqList tr[data-id]').forEach((tr) => {
+      tr.classList.toggle('is-selected', tr.dataset.id === selectedRequestId);
+    });
   }
 
   $('#threadForm')?.addEventListener('submit', async (e) => {
@@ -366,6 +405,63 @@ export async function initClientDashboard() {
     renderReportDetail(null);
     await loadProfile();
   } catch (e) {
-    root.innerHTML = `<p class="alert alert--error">${escapeHtml(e.message)}</p>`;
+    if (e?.status === 401 || /unauthorized/i.test(String(e?.message || ''))) {
+      root.innerHTML = `
+        <section class="card" style="max-width:760px;margin:1rem auto">
+          <h2 style="margin:0">Сессия завершилась</h2>
+          <p class="muted" style="margin:0.5rem 0 1rem">
+            Войдите снова, чтобы открыть личный кабинет. Можно сделать это прямо здесь.
+          </p>
+          <div id="inlineLoginError" class="alert" role="alert" hidden></div>
+          <form id="inlineLoginForm" class="stack" style="max-width:420px">
+            <div class="form-field" style="margin:0">
+              <label for="inlineEmail">Email</label>
+              <input id="inlineEmail" name="email" type="email" autocomplete="username" required />
+            </div>
+            <div class="form-field" style="margin:0">
+              <label for="inlinePassword">Пароль</label>
+              <input id="inlinePassword" name="password" type="password" autocomplete="current-password" required />
+            </div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+              <button type="submit" class="btn btn--primary">Войти</button>
+              <a class="btn btn--ghost" href="/register.html?next=${encodeURIComponent('/dashboards/client.html')}" style="text-decoration:none">Регистрация</a>
+              <a class="btn btn--ghost" href="/index.html" style="text-decoration:none">На главную</a>
+            </div>
+          </form>
+          <div class="muted" style="margin-top:0.75rem">
+            Если забыли пароль, попробуйте другой аккаунт или обратитесь к администратору.
+          </div>
+        </section>
+      `;
+      const form = document.getElementById('inlineLoginForm');
+      const err = document.getElementById('inlineLoginError');
+      form?.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const fd = new FormData(form);
+        if (err) {
+          err.textContent = '';
+          err.className = 'alert';
+          err.hidden = true;
+        }
+        try {
+          const data = await api('/auth/login', {
+            method: 'POST',
+            body: { email: fd.get('email'), password: fd.get('password') },
+            skipAuth: true,
+          });
+          setToken(data.accessToken);
+          setUser(data.user);
+          window.location.href = '/dashboards/client.html';
+        } catch (loginErr) {
+          if (err) {
+            err.textContent = loginErr.message || 'Не удалось войти.';
+            err.className = 'alert alert--error';
+            err.hidden = false;
+          }
+        }
+      });
+      return;
+    }
+    root.innerHTML = `<p class="alert alert--error">${escapeHtml(e.message || 'Ошибка загрузки кабинета')}</p>`;
   }
 }

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Страница не найдена — AI Fox Motors</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container">
+      <section class="card" style="max-width: 760px; margin: 1.5rem auto 0">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap">
+          <div>
+            <h1 style="margin: 0">404</h1>
+            <p class="lead" style="margin: 0.35rem 0 0">Похоже, этой страницы нет.</p>
+          </div>
+          <div class="pill pill--ghost">AI Fox Motors</div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 1.25rem; gap: 1rem">
+          <div>
+            <p class="muted" style="margin-top: 0">
+              Проверьте ссылку или вернитесь на главную. Если вы ожидали увидеть кабинет или консультацию — скорее всего,
+              вы открыли устаревшую ссылку.
+            </p>
+            <div class="empty" id="errPathBox" style="margin-top: 0.75rem"></div>
+          </div>
+          <div>
+            <strong>Куда дальше</strong>
+            <ul style="margin: 0.35rem 0 0">
+              <li><a href="/index.html">На главную</a></li>
+              <li><a href="/consult.html">ИИ‑консультация</a></li>
+              <li><a href="/dashboards/client.html">Личный кабинет</a></li>
+              <li><a href="/location.html">Контакты</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap">
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Начать консультацию</a>
+          <a class="btn btn--ghost" href="/index.html" style="text-decoration: none">На главную</a>
+        </div>
+      </section>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module">
+      import { mountHeaderFooter } from '/js/layout.js';
+      mountHeaderFooter();
+      const box = document.getElementById('errPathBox');
+      if (box) {
+        const p = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        box.textContent = `Запрошенный адрес: ${p}`;
+      }
+    </script>
+  </body>
+</html>

@@ -13,11 +13,12 @@ export default async function globalSetup() {
     DATABASE_URL:
       process.env.TEST_DATABASE_URL ||
       process.env.DATABASE_URL ||
-      'postgresql://fox:fox@localhost:5432/foxmotors_test',
+      'file:./prisma/test.db',
   };
   try {
-    execSync('npx prisma migrate deploy', { cwd: root, env, stdio: 'pipe' });
+    // For SQLite tests, prefer db push to avoid migration-provider mismatches.
+    execSync('npx prisma db push --force-reset', { cwd: root, env, stdio: 'pipe' });
   } catch (e) {
-    console.warn('global-setup: migrate deploy failed (PostgreSQL running?)', e.message);
+    console.warn('global-setup: prisma db setup failed', e.message);
   }
 }

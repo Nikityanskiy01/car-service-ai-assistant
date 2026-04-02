@@ -10,11 +10,10 @@
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container">
+    <main class="page container page-consult">
       <h1>ИИ-консультация</h1>
       <p class="lead">
-        Опишите проблему простыми словами. Ассистент уточнит детали и подготовит предварительный итог.
-        Заявку можно создать в гостевом режиме — просто оставьте имя и телефон.
+        Коротко опишите проблему. Ассистент задаст только нужные вопросы и поможет оформить заявку.
       </p>
       <div id="guestConsultBanner" class="alert alert--info" hidden>
         Вы в гостевом режиме. Для истории консультаций, отчётов и отслеживания статуса заявки нужно войти или
@@ -25,11 +24,11 @@
       <div class="consult-grid">
         <section class="consult-main">
           <div id="consultChatPanel">
-            <div class="progress" aria-hidden="true">
+            <div class="progress" id="progressWrap" aria-hidden="true" hidden>
               <div class="progress__bar" id="progressBar" style="width: 0%"></div>
             </div>
-            <p id="progressLabel" aria-live="polite">Готовность данных: 0%</p>
-            <div id="consultError" class="alert" role="alert"></div>
+            <p id="progressLabel" aria-live="polite" hidden>Готовность данных: 0%</p>
+            <div id="consultError" class="alert" role="alert" hidden></div>
             <div id="preliminarySlot"></div>
             <div class="chat" id="chat" aria-live="polite"></div>
             <form id="chatForm" class="stack" style="margin-top: 1rem">
@@ -70,13 +69,13 @@
                 </div>
               </div>
 
-              <h3 style="margin: 1rem 0 0.5rem">Вероятные причины неисправности</h3>
+              <h3 style="margin: 1rem 0 0.5rem">Что проверить в сервисе</h3>
               <div class="table-wrap">
                 <table class="data">
                   <thead>
                     <tr>
-                      <th>Гипотеза</th>
-                      <th style="width: 45%">Вероятность</th>
+                      <th>Рекомендация</th>
+                      <th style="width: 45%">Приоритет</th>
                     </tr>
                   </thead>
                   <tbody id="resultHypothesesBody"></tbody>
@@ -99,14 +98,8 @@
                 </table>
               </div>
 
-              <h3 style="margin: 1rem 0 0.5rem">Рекомендации ИИ-ассистента</h3>
+              <h3 style="margin: 1rem 0 0.5rem">Краткие рекомендации</h3>
               <ul id="resultAdviceList" class="list-muted" style="margin: 0; padding-left: 1.1rem"></ul>
-
-              <p class="muted" style="margin: 1rem 0 0.5rem">Дальнейшие действия</p>
-              <ul class="list-muted" style="margin: 0; padding-left: 1.1rem">
-                <li>Формирование предварительной заявки</li>
-                <li>Передача данных в систему автосервиса</li>
-              </ul>
 
               <p style="margin: 1rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap">
                 <button type="button" class="btn btn--ghost" id="resultBtnSave" hidden>Сохранить отчёт</button>
@@ -140,53 +133,6 @@
                 <div class="mini-kpi__value" id="sideVisitValue">—</div>
                 <div class="mini-kpi__hint muted" id="sideVisitHint">После уточнения симптомов оценка станет точнее</div>
               </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <p class="muted" style="margin: 0 0 0.5rem">Подсказка от ассистента</p>
-            <h3 style="margin: 0 0 0.5rem">Почему задаются уточняющие вопросы?</h3>
-            <ul class="list-muted" style="margin: 0; padding-left: 1.1rem">
-              <li>Чтобы сузить круг вероятных неисправностей.</li>
-              <li>Чтобы точнее оценить срочность и риски эксплуатации.</li>
-              <li>Чтобы подготовить предварительные рекомендации по услуге.</li>
-            </ul>
-          </div>
-
-          <div class="card">
-            <div class="side-head">
-              <h3 style="margin: 0">Этап консультации</h3>
-              <span class="pill" id="stagePill">Сбор данных</span>
-            </div>
-            <div class="steps" id="stageSteps" aria-hidden="true">
-              <div class="step is-active">1</div>
-              <div class="step">2</div>
-              <div class="step">3</div>
-            </div>
-            <p class="muted" id="stageLabel" style="margin: 0.5rem 0 0.75rem">
-              Уточняем автомобиль и симптомы
-            </p>
-            <div class="progress" aria-hidden="true" style="margin: 0">
-              <div class="progress__bar" id="sideProgressBar" style="width: 0%"></div>
-            </div>
-            <p class="muted" id="sideProgressLabel" style="margin: 0.5rem 0 0">Прогресс: 0%</p>
-          </div>
-
-          <div class="card">
-            <div class="side-head">
-              <h3 style="margin: 0">Сводка собранных данных</h3>
-              <span class="pill pill--ghost">Обновляется</span>
-            </div>
-            <div class="table-wrap" style="margin-top: 0.75rem">
-              <table class="data">
-                <thead>
-                  <tr>
-                    <th>Параметр</th>
-                    <th>Значение</th>
-                  </tr>
-                </thead>
-                <tbody id="summaryTableBody"></tbody>
-              </table>
             </div>
           </div>
         </aside>

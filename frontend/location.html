@@ -11,38 +11,62 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container">
-      <h1>Контакты</h1>
-      <p class="lead">Напишите, позвоните или создайте заявку — менеджер свяжется с вами и подтвердит время визита.</p>
+      <section class="inner-hero">
+        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Контакты и локация</p>
+        <h1>Приезжайте в AI Fox Motors</h1>
+        <p class="lead">Напишите, позвоните или создайте заявку онлайн — менеджер согласует удобное время визита.</p>
+      </section>
 
-      <div class="grid-2" style="margin-top: 1.25rem">
-        <div class="card">
-          <h2>Связаться</h2>
-          <p class="muted">В демо-проекте контакты примерные — замените на реальные.</p>
-          <ul style="margin: 0.5rem 0 0; padding-left: 1.1rem">
-            <li>Телефон: <strong>+7 (999) 000‑00‑00</strong></li>
-            <li>Email: <strong>service@foxmotors.local</strong></li>
-            <li>Часы: <strong>пн–сб 10:00–20:00</strong></li>
+      <section class="grid-2" style="margin-top: 1.25rem">
+        <article class="card">
+          <h2>Как с нами связаться</h2>
+          <ul class="list-muted">
+            <li>Адрес: <strong>Москва, Фармацевтический проезд, 3</strong></li>
+            <li>Телефон: <strong>+7 (999) 000-00-00</strong></li>
+            <li>Email: <strong>service@aifoxmotors.ru</strong></li>
+            <li>Режим работы: <strong>пн-сб 10:00-20:00</strong></li>
           </ul>
-          <p style="margin: 0.9rem 0 0">
-            <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Создать заявку</a>
+          <p class="muted" style="margin: 0.9rem 0 0">
+            Перед визитом рекомендуем создать заявку через ИИ‑консультацию, чтобы ускорить прием.
           </p>
-        </div>
-        <div class="card" style="padding: 0; overflow: hidden; min-height: 320px">
-          <iframe
-            title="Карта"
-            width="100%"
-            height="320"
-            style="border: 0"
-            loading="lazy"
-            src="https://www.openstreetmap.org/export/embed.html?bbox=37.5%2C55.7%2C37.8%2C55.9&amp;layer=mapnik"
-          ></iframe>
-        </div>
-      </div>
+          <p style="margin: 0.9rem 0 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
+            <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Создать заявку</a>
+            <a class="btn btn--ghost" href="https://yandex.ru/maps/?text=Москва%2C%20Фармацевтический%20проезд%2C%203" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Открыть в картах</a>
+          </p>
+        </article>
+        <article class="card" style="padding: 0; overflow: hidden; min-height: 360px; position: relative">
+          <div id="yandexMap" style="width: 100%; height: 360px"></div>
+          <div id="yandexMapFallback" class="muted" style="position:absolute; inset:auto 0 0 0; padding:0.6rem 0.8rem; background:rgba(7,8,11,0.7)" hidden>
+            Если карта не загрузилась, используйте кнопку "Открыть в картах".
+          </div>
+        </article>
+      </section>
+
+      <section class="grid-2" style="margin-top: 1rem">
+        <article class="card glass">
+          <h2>Как добраться</h2>
+          <p class="muted" style="margin: 0">
+            Мы находимся в Москве, в районе Фармацевтического проезда. Удобный подъезд на автомобиле, рядом городская
+            инфраструктура и общественный транспорт.
+          </p>
+        </article>
+        <article class="card">
+          <h2>Перед приездом</h2>
+          <ul class="list-muted">
+            <li>Подготовьте краткое описание симптомов.</li>
+            <li>Укажите марку, модель и пробег автомобиля.</li>
+            <li>Выберите удобное окно времени для визита.</li>
+          </ul>
+        </article>
+      </section>
     </main>
     <div id="footer-placeholder"></div>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" defer></script>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
+      import { initLocationMap } from '/js/location.js';
       mountHeaderFooter({ active: 'location' });
+      initLocationMap();
     </script>
   </body>
 </html>
