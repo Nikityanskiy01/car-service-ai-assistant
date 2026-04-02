@@ -40,9 +40,10 @@
 .dash__side {
   position: sticky;
   top: 84px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  background: rgba(15, 18, 26, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.30);
   padding: 1rem;
 }
 
@@ -54,7 +55,7 @@
 
 .dash__head {
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   margin-bottom: 0.75rem;
 }
 
@@ -67,8 +68,8 @@
 .dash__tab {
   width: 100%;
   text-align: left;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
   padding: 0.65rem 0.75rem;
   border-radius: 12px;
   cursor: pointer;
@@ -78,8 +79,8 @@
 }
 
 .dash__tab:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: var(--color-border-2);
+  background: rgba(255, 122, 26, 0.08);
+  border-color: rgba(255, 122, 26, 0.28);
 }
 
 .dash__tab.is-active {
@@ -93,6 +94,23 @@
 
 .dash__main {
   min-width: 0;
+}
+
+.dash__menu-toggle {
+  display: none !important;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 979px) {
+  .dash__menu-toggle {
+    display: inline-flex !important;
+  }
+  .dash__nav {
+    display: none;
+  }
+  .dash__side.is-open .dash__nav {
+    display: flex;
+  }
 }
 
 .dash__panel + .dash__panel {

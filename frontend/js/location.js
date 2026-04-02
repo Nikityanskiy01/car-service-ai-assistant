@@ -70,3 +70,20 @@ export function initLocationMap() {
   }, 150);
 }
 
+export function initLocationPage() {
+  const form = document.getElementById('contactForm');
+  const note = document.getElementById('contactFormNote');
+  const nameEl = document.getElementById('contactName');
+  const phoneEl = document.getElementById('contactPhone');
+  if (!form || !nameEl || !phoneEl) return;
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = String(nameEl.value || '').trim();
+    const phone = String(phoneEl.value || '').trim();
+    if (!name || !phone) return;
+    if (note) note.hidden = false;
+    form.reset();
+  });
+}
+

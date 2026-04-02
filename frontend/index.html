@@ -10,130 +10,113 @@
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container">
-      <section class="hero hero-premium">
-        <div class="hero-premium__content">
-          <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Первый автосервис с ИИ‑ассистентом</p>
-          <h1>Быстрая консультация и запись в сервис</h1>
+    <main class="page container home-pro">
+      <section class="home-pro__hero">
+        <div class="home-pro__hero-main">
+          <p class="home-pro__badge">AI Fox Motors</p>
+          <h1>Интеллектуальная диагностика автомобиля онлайн за несколько минут</h1>
           <p class="lead">
-            Короткий диалог с ассистентом, понятный предварительный итог и сразу переход к заявке без лишних шагов.
+            Опишите проблему автомобиля — система определит возможные причины неисправности, предложит проверки и
+            рассчитает предварительную стоимость ремонта.
           </p>
-          <p style="margin: 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
-            <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Начать консультацию</a>
-            <a class="btn btn--ghost" href="/location.html" style="text-decoration: none">Контакты</a>
+          <p class="home-pro__actions">
+            <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать диагностику</a>
+            <a class="btn btn--ghost" href="/works.html" style="text-decoration:none">Наши работы</a>
           </p>
         </div>
-        <aside class="hero-premium__panel">
-          <article class="card glass">
-            <p class="muted" style="margin: 0 0 0.4rem">Как это работает</p>
-            <div class="home-flow">
-              <span>1. Описываете ситуацию</span>
-              <span>2. Получаете предварительный итог</span>
-              <span>3. Оставляете заявку в сервис</span>
+        <aside class="home-pro__hero-chat">
+          <div class="home-chat card">
+            <p class="home-chat__title">ИИ-ассистент диагностики</p>
+            <div class="home-chat__bubble home-chat__bubble--user">Skoda Octavia 2020, пробег 114000. Появилась вибрация при торможении.</div>
+            <div class="home-chat__bubble">Понял. Уточните, вибрация появляется на любой скорости или после 80 км/ч?</div>
+            <div class="home-chat__bubble home-chat__bubble--user">Сильнее после 80 км/ч.</div>
+            <div class="home-chat__result">
+              <strong>Предварительно:</strong> проверка тормозных дисков и суппортов.<br />
+              <strong>Оценка:</strong> от 2 800 ₽
             </div>
-          </article>
+          </div>
         </aside>
       </section>
 
-      <section class="home-kpis">
-        <div class="mini-kpi">
-          <div class="mini-kpi__label muted">Ответ ассистента</div>
-          <div class="mini-kpi__value">до 60 сек</div>
-        </div>
-        <div class="mini-kpi">
-          <div class="mini-kpi__label muted">Гостевой режим</div>
-          <div class="mini-kpi__value">без регистрации</div>
-        </div>
-        <div class="mini-kpi">
-          <div class="mini-kpi__label muted">Статус заявки</div>
-          <div class="mini-kpi__value">в кабинете</div>
+      <section class="home-pro__section">
+        <h2>Преимущества ИИ-ассистента</h2>
+        <div class="home-pro__grid home-pro__grid--5">
+          <article class="card home-pro__feature"><h3>Определение возможных причин неисправности</h3></article>
+          <article class="card home-pro__feature"><h3>Расчет вероятности поломки</h3></article>
+          <article class="card home-pro__feature"><h3>Рекомендации по дальнейшей диагностике</h3></article>
+          <article class="card home-pro__feature"><h3>Предварительная оценка стоимости ремонта</h3></article>
+          <article class="card home-pro__feature"><h3>Создание заявки в автосервис автоматически</h3></article>
         </div>
       </section>
 
-      <section class="card home-services">
-        <div class="side-head" style="margin-bottom: 0.75rem">
-          <h2 style="margin: 0">Основные услуги</h2>
+      <section class="home-pro__section">
+        <h2>Как работает система</h2>
+        <div class="home-pro__steps">
+          <div class="home-pro__step"><span>Шаг 1</span><p>Клиент описывает проблему автомобиля</p></div>
+          <div class="home-pro__step"><span>Шаг 2</span><p>ИИ задает уточняющие вопросы</p></div>
+          <div class="home-pro__step"><span>Шаг 3</span><p>Формируется предварительный результат диагностики</p></div>
+          <div class="home-pro__step"><span>Шаг 4</span><p>Создается заявка на обслуживание</p></div>
+        </div>
+      </section>
+
+      <section class="home-pro__section">
+        <div class="side-head">
+          <h2 style="margin:0">Услуги автосервиса</h2>
           <a class="btn btn--ghost" href="/works.html" style="text-decoration:none">Все услуги</a>
         </div>
-        <div class="service-tags">
-          <span class="tag">Техническое обслуживание (ТО)</span>
-          <span class="tag">Компьютерная диагностика</span>
-          <span class="tag">Диагностика подвески и тормозов</span>
-          <span class="tag">Ремонт двигателя и трансмиссии</span>
-          <span class="tag">Автоэлектрика</span>
-          <span class="tag">Подготовка к дальней поездке</span>
+        <div class="home-pro__grid home-pro__grid--3">
+          <article class="card home-pro__service">Диагностика двигателя</article>
+          <article class="card home-pro__service">Ремонт подвески</article>
+          <article class="card home-pro__service">Ремонт тормозной системы</article>
+          <article class="card home-pro__service">Ремонт трансмиссии</article>
+          <article class="card home-pro__service">Электрика автомобиля</article>
+          <article class="card home-pro__service">Техническое обслуживание</article>
         </div>
       </section>
 
-      <section class="home-trust">
-        <article class="card">
-          <h2>Понятно</h2>
-          <p class="muted" style="margin: 0">Без сложных формулировок: только нужные вопросы и четкие шаги.</p>
-        </article>
-        <article class="card">
-          <h2>Быстро</h2>
-          <p class="muted" style="margin: 0">Консультация занимает пару минут, заявку можно оставить сразу.</p>
-        </article>
-        <article class="card">
-          <h2>Прозрачно</h2>
-          <p class="muted" style="margin: 0">Видно историю консультаций и статус обращения в личном кабинете.</p>
-        </article>
-      </section>
-
-      <section class="grid-2" style="margin-top: 1.5rem">
-        <article class="card">
-          <h2>Почему это удобно</h2>
-          <ul class="list-muted">
-            <li>Можно начать в гостевом режиме, без регистрации.</li>
-            <li>История консультаций и заявок хранится в кабинете.</li>
-            <li>Реальный менеджер подтверждает запись после заявки.</li>
-          </ul>
-        </article>
-        <article class="card">
-          <h2>Сервис вживую</h2>
-          <div class="home-gallery">
-            <img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80" alt="Автосервис AI Fox Motors" loading="lazy" />
-          </div>
-        </article>
-      </section>
-
-      <section class="home-reviews">
-        <article class="card review">
-          <p class="muted" style="margin:0 0 0.45rem">Отзыв</p>
-          <p style="margin:0">"Приняли в тот же день, заранее понимал примерный объем работ. Все спокойно и по делу."</p>
-          <p class="muted" style="margin:0.6rem 0 0">— Алексей, Volkswagen Tiguan</p>
-        </article>
-        <article class="card review">
-          <p class="muted" style="margin:0 0 0.45rem">Отзыв</p>
-          <p style="margin:0">"Удобно, что можно начать как гость. Оформил заявку сразу, без долгих звонков."</p>
-          <p class="muted" style="margin:0.6rem 0 0">— Марина, Kia Sportage</p>
-        </article>
-        <article class="card review">
-          <p class="muted" style="margin:0 0 0.45rem">Отзыв</p>
-          <p style="margin:0">"Нравится прозрачность: в кабинете видно историю консультаций и статус обращения."</p>
-          <p class="muted" style="margin:0.6rem 0 0">— Сергей, Skoda Octavia</p>
-        </article>
-      </section>
-
-      <section class="card quick-book">
-        <div class="side-head" style="margin-bottom:0.8rem">
-          <h2 style="margin:0">Быстрая запись</h2>
-          <span class="pill pill--ghost">Ответ за 5-10 минут</span>
+      <section class="home-pro__section">
+        <h2>Примеры выполненных работ</h2>
+        <div class="home-pro__grid home-pro__grid--3">
+          <article class="card home-pro__work">
+            <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Диагностика тормозной системы" loading="lazy" />
+            <p>Диагностика и восстановление тормозной системы</p>
+          </article>
+          <article class="card home-pro__work">
+            <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Ремонт подвески" loading="lazy" />
+            <p>Ремонт подвески с последующей проверкой геометрии</p>
+          </article>
+          <article class="card home-pro__work">
+            <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=1200&q=80" alt="Техническое обслуживание" loading="lazy" />
+            <p>Плановое ТО: масла, фильтры, технические жидкости</p>
+          </article>
         </div>
-        <p class="muted" style="margin:0 0 0.8rem">Оставьте заявку через ассистента: марка/модель, пробег и контакт.</p>
-        <p style="margin: 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Записаться через ИИ</a>
-          <a class="btn btn--ghost" href="/works.html" style="text-decoration: none">Выбрать услугу</a>
-        </p>
       </section>
 
-      <section class="card home-cta" style="margin-top: 2rem">
-        <h2>Записаться в сервис за 1 минуту</h2>
-        <p class="muted" style="margin-bottom: 0.8rem">ИИ соберет данные, а менеджер подтвердит время визита.</p>
-        <p style="margin: 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Записаться</a>
-          <a class="btn btn--ghost" href="/location.html" style="text-decoration: none">Москва, Фармацевтический проезд, 3</a>
-        </p>
+      <section class="home-pro__section">
+        <h2>Расположение сервиса</h2>
+        <div class="home-pro__location">
+          <article class="card">
+            <p><strong>Адрес:</strong><br />Москва, Фармацевтический проезд, 3</p>
+            <p><strong>Телефон:</strong><br />+7 (999) 000-00-00</p>
+            <p><strong>Режим работы:</strong><br />пн-сб 10:00-20:00</p>
+            <a class="btn btn--ghost" href="/location.html" style="text-decoration:none">Открыть контакты</a>
+          </article>
+          <article class="card home-pro__map">
+            <iframe
+              title="Карта AI Fox Motors"
+              width="100%"
+              height="320"
+              style="border:0"
+              loading="lazy"
+              src="https://yandex.ru/map-widget/v1/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%A4%D0%B0%D1%80%D0%BC%D0%B0%D1%86%D0%B5%D0%B2%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9%20%D0%BF%D1%80%D0%BE%D0%B5%D0%B7%D0%B4%2C%203&z=16"
+            ></iframe>
+          </article>
+        </div>
+      </section>
+
+      <section class="card home-pro__cta">
+        <h2>Получите предварительную диагностику прямо сейчас</h2>
+        <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Перейти к ИИ-консультации</a>
       </section>
     </main>
     <div id="footer-placeholder"></div>

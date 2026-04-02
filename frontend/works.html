@@ -10,66 +10,108 @@
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container">
-      <section class="inner-hero">
-        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Практика и кейсы</p>
-        <h1>Работы, которые мы выполняем каждый день</h1>
-        <p class="lead">От первичной диагностики до ремонта и финальной проверки: ниже типовые направления и частые задачи.</p>
+    <main class="page container works-pro">
+      <section class="works-pro__hero">
+        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Наши работы</p>
+        <h1>Примеры выполненных работ</h1>
+        <p class="lead">Реальные случаи диагностики и ремонта автомобилей в нашем сервисе.</p>
       </section>
 
-      <section class="work-cases">
-        <article class="card">
-          <h2>Двигатель и запуск</h2>
-          <ul class="list-muted">
-            <li>Пропуски зажигания, нестабильный холостой ход.</li>
-            <li>Ошибки `Check Engine` и диагностика кодов.</li>
-            <li>Проблемы запуска в холодную/после прогрева.</li>
-            <li>Падение тяги и увеличенный расход топлива.</li>
-          </ul>
+      <section class="works-pro__filters" aria-label="Фильтрация работ">
+        <button class="btn btn--ghost is-active" type="button" data-filter="engine">Двигатель</button>
+        <button class="btn btn--ghost" type="button" data-filter="suspension">Подвеска</button>
+        <button class="btn btn--ghost" type="button" data-filter="brakes">Тормозная система</button>
+        <button class="btn btn--ghost" type="button" data-filter="electric">Электрика</button>
+        <button class="btn btn--ghost" type="button" data-filter="transmission">Трансмиссия</button>
+        <button class="btn btn--ghost" type="button" data-filter="to">Техническое обслуживание</button>
+      </section>
+
+      <section class="works-pro__grid" id="worksGrid">
+        <article class="card work-item" data-category="engine">
+          <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=1200&q=80" alt="Volkswagen Tiguan на диагностике двигателя" loading="lazy" />
+          <h3>Volkswagen Tiguan</h3>
+          <p><strong>Проблема:</strong> нестабильная работа двигателя и ошибка Check Engine.</p>
+          <p><strong>Работы:</strong> компьютерная диагностика, проверка катушек, замена свечей.</p>
+          <p><strong>Результат:</strong> восстановлена стабильная работа мотора.</p>
+          <p><strong>Стоимость:</strong> от 9 500 ₽</p>
+          <button type="button" class="btn btn--ghost">Подробнее</button>
         </article>
-        <article class="card">
-          <h2>Тормоза и подвеска</h2>
-          <ul class="list-muted">
-            <li>Вибрация при торможении и биение в руль.</li>
-            <li>Скрипы и посторонние шумы тормозной системы.</li>
-            <li>Стук подвески на неровностях.</li>
-            <li>Износ амортизаторов и опорных элементов.</li>
-          </ul>
+
+        <article class="card work-item" data-category="suspension">
+          <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Skoda Octavia ремонт подвески" loading="lazy" />
+          <h3>Skoda Octavia</h3>
+          <p><strong>Проблема:</strong> стук спереди на неровностях.</p>
+          <p><strong>Работы:</strong> диагностика подвески, замена стоек стабилизатора и втулок.</p>
+          <p><strong>Результат:</strong> устранены шумы и люфты ходовой.</p>
+          <p><strong>Стоимость:</strong> от 7 800 ₽</p>
+          <button type="button" class="btn btn--ghost">Подробнее</button>
         </article>
-        <article class="card">
-          <h2>Электрика и электроника</h2>
-          <ul class="list-muted">
-            <li>Неисправности датчиков и исполнительных узлов.</li>
-            <li>Проблемы с зарядкой, АКБ, утечками тока.</li>
-            <li>Сбои систем комфорта и освещения.</li>
-            <li>Диагностика после “плавающих” ошибок.</li>
-          </ul>
+
+        <article class="card work-item" data-category="brakes">
+          <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Kia Sportage обслуживание тормозной системы" loading="lazy" />
+          <h3>Kia Sportage</h3>
+          <p><strong>Проблема:</strong> вибрация при торможении на скорости.</p>
+          <p><strong>Работы:</strong> проточка дисков, обслуживание суппортов, замена колодок.</p>
+          <p><strong>Результат:</strong> торможение плавное и безопасное.</p>
+          <p><strong>Стоимость:</strong> от 8 900 ₽</p>
+          <button type="button" class="btn btn--ghost">Подробнее</button>
+        </article>
+
+        <article class="card work-item" data-category="electric">
+          <img src="https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1200&q=80" alt="BMW диагностика электрики" loading="lazy" />
+          <h3>BMW 5 Series</h3>
+          <p><strong>Проблема:</strong> периодический сбой электрооборудования.</p>
+          <p><strong>Работы:</strong> поиск утечки тока, восстановление цепи питания блока.</p>
+          <p><strong>Результат:</strong> стабилизирована работа бортовой сети.</p>
+          <p><strong>Стоимость:</strong> от 11 000 ₽</p>
+          <button type="button" class="btn btn--ghost">Подробнее</button>
+        </article>
+
+        <article class="card work-item" data-category="transmission">
+          <img src="https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=1200&q=80" alt="Audi A6 диагностика трансмиссии" loading="lazy" />
+          <h3>Audi A6</h3>
+          <p><strong>Проблема:</strong> рывки при переключении передач.</p>
+          <p><strong>Работы:</strong> адаптация АКПП, замена масла и фильтра трансмиссии.</p>
+          <p><strong>Результат:</strong> переключения стали плавными.</p>
+          <p><strong>Стоимость:</strong> от 14 500 ₽</p>
+          <button type="button" class="btn btn--ghost">Подробнее</button>
+        </article>
+
+        <article class="card work-item" data-category="to">
+          <img src="https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80" alt="Toyota Camry плановое ТО" loading="lazy" />
+          <h3>Toyota Camry</h3>
+          <p><strong>Проблема:</strong> плановое ТО по пробегу 120 000 км.</p>
+          <p><strong>Работы:</strong> замена масел, фильтров, проверка тормозов и подвески.</p>
+          <p><strong>Результат:</strong> автомобиль подготовлен к дальнейшей эксплуатации.</p>
+          <p><strong>Стоимость:</strong> от 6 200 ₽</p>
+          <button type="button" class="btn btn--ghost">Подробнее</button>
         </article>
       </section>
 
-      <section class="grid-2" style="margin-top: 1rem">
-        <article class="card glass">
-          <h2>Как мы работаем с каждой заявкой</h2>
-          <ol class="list-muted">
-            <li>Фиксируем симптомы и входные данные клиента.</li>
-            <li>Формируем план проверки по приоритетам.</li>
-            <li>Согласовываем работы и сроки перед началом.</li>
-            <li>Обновляем статус до завершения работ.</li>
-          </ol>
-        </article>
-        <article class="card home-cta">
-          <h2>Есть похожая проблема?</h2>
-          <p class="muted" style="margin-top: 0">
-            Опишите симптомы, а ассистент подготовит предварительный сценарий обращения в сервис.
+      <section class="works-pro__section">
+        <article class="card works-pro__ai">
+          <h2>Роль ИИ-ассистента</h2>
+          <p class="muted">
+            Перед обращением в сервис вы можете пройти интеллектуальную диагностику и получить предварительный
+            результат.
           </p>
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Перейти к ИИ-консультации</a>
+        </article>
+      </section>
+
+      <section class="works-pro__section">
+        <article class="card works-pro__bottom-cta">
+          <h2>Опишите симптомы автомобиля и получите предварительный результат диагностики</h2>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать диагностику</a>
         </article>
       </section>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
+      import { initWorksPage } from '/js/works.js';
       mountHeaderFooter({ active: 'works' });
+      initWorksPage();
     </script>
   </body>
 </html>

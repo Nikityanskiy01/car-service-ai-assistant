@@ -17,6 +17,7 @@
             <h1 style="margin:0">Админ‑панель</h1>
             <p class="muted" style="margin:0.25rem 0 0">Пользователи, справочники, сценарии консультаций.</p>
           </div>
+          <button type="button" class="btn btn--ghost dash__menu-toggle" id="dashMenuToggle">Разделы кабинета</button>
           <nav class="dash__nav" aria-label="Разделы админ-панели">
             <button type="button" class="dash__tab is-active" data-tab="overview">Сводка</button>
             <button type="button" class="dash__tab" data-tab="users">Пользователи</button>
@@ -24,6 +25,7 @@
             <button type="button" class="dash__tab" data-tab="scenarios">Сценарии</button>
             <button type="button" class="dash__tab" data-tab="materials">Материалы</button>
           </nav>
+          <a class="btn btn--primary" href="/consult.html" style="margin-top:0.8rem; text-decoration:none">Начать диагностику</a>
         </aside>
 
         <section class="dash__main">
@@ -210,6 +212,9 @@
       import { initAdminDashboard } from '/js/dashboards/admin.js';
       mountHeaderFooter({ active: 'dash' });
       initAdminDashboard();
+      const side = document.querySelector('.dash__side');
+      const t = document.getElementById('dashMenuToggle');
+      t?.addEventListener('click', () => side?.classList.toggle('is-open'));
     </script>
   </body>
 </html>

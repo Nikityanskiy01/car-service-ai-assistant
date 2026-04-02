@@ -2,6 +2,10 @@ export function $(sel, root = document) {
   return root.querySelector(sel);
 }
 
+export function $$(sel, root = document) {
+  return Array.from(root.querySelectorAll(sel));
+}
+
 export function escapeHtml(s) {
   const d = document.createElement('div');
   d.textContent = s;

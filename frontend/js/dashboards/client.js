@@ -81,6 +81,20 @@ export async function initClientDashboard() {
     return `<span class="${cls}">${escapeHtml(text)}</span>`;
   }
 
+  function statusRu(status) {
+    const map = {
+      NEW: 'Новая',
+      IN_PROGRESS: 'В работе',
+      SCHEDULED: 'Запланирована',
+      COMPLETED: 'Завершена',
+      CANCELLED: 'Отменена',
+      AI_ERROR: 'Ошибка ИИ',
+      PENDING: 'Ожидает',
+      CONFIRMED: 'Подтверждена',
+    };
+    return map[String(status || '').toUpperCase()] || status || '—';
+  }
+
   function fmtMoney(rub) {
     const n = Number(rub);
     if (!Number.isFinite(n)) return '—';
@@ -109,7 +123,7 @@ export async function initClientDashboard() {
     box.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
         <strong>${formatDate(s.createdAt)}</strong>
-        ${badge(`${s.status}`, s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'bad' : 'ghost')}
+        ${badge(`${statusRu(s.status)}`, s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'bad' : 'ghost')}
       </div>
       <p class="muted" style="margin:0.5rem 0 0.75rem">Прогресс: ${s.progressPercent ?? 0}% · Уверенность: ${
         s.confidencePercent != null ? `${s.confidencePercent}%` : '—'
@@ -169,7 +183,7 @@ export async function initClientDashboard() {
     box.innerHTML = `
       <strong>${escapeHtml(r.label || 'Отчёт')}</strong>
       <p class="muted" style="margin:0.5rem 0 0.75rem">${formatDate(r.createdAt)} · Статус: ${escapeHtml(
-        snap.status || '—',
+        statusRu(snap.status) || '—',
       )}</p>
       <div class="table-wrap">
         <table class="data">
@@ -208,10 +222,10 @@ export async function initClientDashboard() {
               return `<li class="card" data-sid="${s.id}" style="margin-bottom:0.5rem;cursor:pointer">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
                   <strong>${formatDate(s.createdAt)}</strong>
-                  ${badge(`${s.status} · ${s.progressPercent ?? 0}%`, tone)}
+                  ${badge(`${statusRu(s.status)} · ${s.progressPercent ?? 0}%`, tone)}
                 </div>
                 ${s.extracted?.make || s.extracted?.model ? `<div class="muted">${escapeHtml(s.extracted?.make || '')} ${escapeHtml(s.extracted?.model || '')}</div>` : ''}
-                ${s.serviceRequest ? `<div class="muted">Заявка: ${escapeHtml(s.serviceRequest.status)}</div>` : ''}
+                ${s.serviceRequest ? `<div class="muted">Заявка: ${escapeHtml(statusRu(s.serviceRequest.status))}</div>` : ''}
               </li>`;
             })
             .join('');
@@ -233,7 +247,7 @@ export async function initClientDashboard() {
               return `<tr data-id="${r.id}" style="cursor:pointer">
         <td>${formatDate(r.createdAt)}</td>
         <td>${escapeHtml(r.snapshotMake || '')} ${escapeHtml(r.snapshotModel || '')}</td>
-        <td>${badge(r.status, tone)}</td>
+        <td>${badge(statusRu(r.status), tone)}</td>
       </tr>`;
             })
             .join('');
@@ -249,7 +263,7 @@ export async function initClientDashboard() {
     if (srSel) {
       srSel.innerHTML =
         `<option value="">— не привязывать к заявке —</option>` +
-        requests.map((r) => `<option value="${r.id}">${r.id.slice(0, 8)}… ${r.status}</option>`).join('');
+        requests.map((r) => `<option value="${r.id}">${r.id.slice(0, 8)}… ${statusRu(r.status)}</option>`).join('');
     }
 
     reportsCache = reports || [];
@@ -277,7 +291,7 @@ export async function initClientDashboard() {
       .map((b) => {
         const tone = b.status === 'CONFIRMED' ? 'ok' : b.status === 'CANCELLED' ? 'bad' : 'ghost';
         return `<li class="card" style="margin-bottom:0.5rem">
-        ${formatDate(b.preferredAt)} — ${badge(b.status, tone)}${b.notes ? `<br><small>${escapeHtml(b.notes)}</small>` : ''}
+        ${formatDate(b.preferredAt)} — ${badge(statusRu(b.status), tone)}${b.notes ? `<br><small>${escapeHtml(b.notes)}</small>` : ''}
       </li>`;
       })
       .join('');
@@ -304,7 +318,7 @@ export async function initClientDashboard() {
     const closed = detail.status === 'COMPLETED' || detail.status === 'CANCELLED';
     $('#threadForm').style.display = closed ? 'none' : 'block';
     $('#threadTitle').innerHTML = `Переписка по заявке <strong>${escapeHtml(detail.id.slice(0, 8))}…</strong> ${badge(
-      detail.status,
+      statusRu(detail.status),
       detail.status === 'COMPLETED' ? 'ok' : detail.status === 'CANCELLED' ? 'bad' : 'ghost',
     )}`;
 
@@ -313,7 +327,7 @@ export async function initClientDashboard() {
       d.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
           <strong>Заявка ${escapeHtml(detail.id.slice(0, 8))}…</strong>
-          ${badge(detail.status, detail.status === 'COMPLETED' ? 'ok' : detail.status === 'CANCELLED' ? 'warn' : 'ghost')}
+          ${badge(statusRu(detail.status), detail.status === 'COMPLETED' ? 'ok' : detail.status === 'CANCELLED' ? 'warn' : 'ghost')}
         </div>
         <p class="muted" style="margin:0.5rem 0 0.75rem">${formatDate(detail.createdAt)}</p>
         <div class="table-wrap">

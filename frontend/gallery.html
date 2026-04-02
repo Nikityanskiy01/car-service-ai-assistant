@@ -10,44 +10,96 @@
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container">
-      <section class="inner-hero">
-        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Галерея сервиса</p>
-        <h1>Как выглядит AI Fox Motors изнутри</h1>
-        <p class="lead">Зона приёма, посты диагностики и реальные рабочие процессы, чтобы вы заранее понимали уровень сервиса.</p>
+    <main class="page container gallery-pro gallery-pro--dark">
+      <section class="gallery-pro__hero">
+        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Галерея</p>
+        <h1>Галерея автосервиса</h1>
+        <p class="lead">Фотографии сервиса, оборудования и результатов выполненных работ.</p>
       </section>
 
-      <section class="gallery-grid gallery-grid--media">
-        <img src="https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&w=1200&q=80" alt="Зона приема клиентов" loading="lazy" />
-        <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Пост диагностики автомобиля" loading="lazy" />
-        <img src="https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=1200&q=80" alt="Работа механика в сервисной зоне" loading="lazy" />
-        <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Технический осмотр подвески" loading="lazy" />
-        <img src="https://images.unsplash.com/photo-1619642751327-d0f2f8f9f2ad?auto=format&fit=crop&w=1200&q=80" alt="Оборудование автосервиса" loading="lazy" />
-        <img src="https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80" alt="Автомобиль в зоне ремонта" loading="lazy" />
+      <section class="gallery-pro__filters" aria-label="Фильтрация галереи">
+        <button class="btn btn--ghost is-active" type="button" data-filter="all">Все</button>
+        <button class="btn btn--ghost" type="button" data-filter="service">Сервис</button>
+        <button class="btn btn--ghost" type="button" data-filter="equipment">Оборудование</button>
+        <button class="btn btn--ghost" type="button" data-filter="zones">Ремонтные зоны</button>
+        <button class="btn btn--ghost" type="button" data-filter="cars">Автомобили</button>
+        <button class="btn btn--ghost" type="button" data-filter="results">Результаты работ</button>
       </section>
 
-      <section class="grid-2" style="margin-top: 1rem">
-        <article class="card glass">
-          <h2>Что важно для клиента</h2>
-          <ul class="list-muted">
-            <li>Чистая и понятная зона приема.</li>
-            <li>Прозрачный процесс диагностики и ремонта.</li>
-            <li>Коммуникация по каждому этапу работ.</li>
-          </ul>
+      <section class="gallery-pro__grid" id="galleryGrid">
+        <article class="gallery-item card" data-category="service">
+          <img src="https://images.unsplash.com/photo-1625047509248-ec889cbff17f?auto=format&fit=crop&w=1200&q=80" alt="Зона приема клиентов" loading="lazy" />
+          <p>Зона приема клиентов</p>
         </article>
-        <article class="card home-cta">
-          <h2>Хотите оценку вашей ситуации?</h2>
-          <p class="muted" style="margin-top: 0">
-            Начните консультацию сейчас — можно без регистрации и без звонка.
+        <article class="gallery-item card" data-category="zones">
+          <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Пост первичной диагностики" loading="lazy" />
+          <p>Пост первичной диагностики</p>
+        </article>
+        <article class="gallery-item card" data-category="equipment">
+          <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=1200&q=80" alt="Профессиональное диагностическое оборудование" loading="lazy" />
+          <p>Профессиональное оборудование</p>
+        </article>
+        <article class="gallery-item card" data-category="cars">
+          <img src="https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80" alt="Автомобиль после технического обслуживания" loading="lazy" />
+          <p>Автомобиль после ТО</p>
+        </article>
+        <article class="gallery-item card" data-category="results">
+          <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Результат ремонта подвески" loading="lazy" />
+          <p>Результат ремонта подвески</p>
+        </article>
+        <article class="gallery-item card" data-category="equipment">
+          <img src="https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1200&q=80" alt="Стенд проверки и инструментальная зона" loading="lazy" />
+          <p>Стенд проверки и инструментальная зона</p>
+        </article>
+        <article class="gallery-item card" data-category="zones">
+          <img src="https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=1200&q=80" alt="Ремонтная зона автосервиса" loading="lazy" />
+          <p>Ремонтная зона</p>
+        </article>
+        <article class="gallery-item card" data-category="results">
+          <img src="https://images.unsplash.com/photo-1580273916550-e323be2ae537?auto=format&fit=crop&w=1200&q=80" alt="Автомобиль после комплексной диагностики" loading="lazy" />
+          <p>Автомобиль после комплексной диагностики</p>
+        </article>
+      </section>
+
+      <section class="gallery-pro__section">
+        <article class="card gallery-pro__trust">
+          <h2>О качестве сервиса</h2>
+          <p class="muted" style="margin:0">
+            Мы показываем реальные зоны обслуживания, оборудование и результаты работ, чтобы клиент заранее видел
+            условия сервиса, уровень подготовки команды и подход к автомобилю на каждом этапе.
           </p>
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
+        </article>
+      </section>
+
+      <section class="gallery-pro__section">
+        <article class="card gallery-pro__ai-link">
+          <h2>Связь с ИИ-ассистентом</h2>
+          <p class="muted" style="margin-top:0">
+            Опишите проблему автомобиля и получите предварительный результат диагностики перед визитом в сервис.
+          </p>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Перейти к ИИ-консультации</a>
+        </article>
+      </section>
+
+      <section class="gallery-pro__section">
+        <article class="card gallery-pro__bottom-cta">
+          <h2>Оцените сервис и начните диагностику онлайн</h2>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать ИИ-диагностику</a>
         </article>
       </section>
     </main>
+
+    <div class="gallery-lightbox" id="galleryLightbox" hidden>
+      <button type="button" class="gallery-lightbox__close" id="galleryLightboxClose" aria-label="Закрыть">×</button>
+      <img id="galleryLightboxImage" alt="Увеличенное изображение" />
+      <p id="galleryLightboxCaption"></p>
+    </div>
     <div id="footer-placeholder"></div>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
+      import { initGalleryPage } from '/js/gallery.js';
       mountHeaderFooter({ active: 'gallery' });
+      initGalleryPage();
     </script>
   </body>
 </html>

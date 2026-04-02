@@ -163,9 +163,8 @@ export async function initConsultPage() {
     const p = data.progressPercent ?? 0;
     progressBar.style.width = `${p}%`;
     progressLabel.textContent = `Готовность данных: ${p}%`;
-    const showProgress = p > 0;
-    if (progressWrap) progressWrap.hidden = !showProgress;
-    if (progressLabel) progressLabel.hidden = !showProgress;
+    if (progressWrap) progressWrap.hidden = false;
+    if (progressLabel) progressLabel.hidden = false;
 
     if (sideProgressBar) sideProgressBar.style.width = `${p}%`;
     if (sideProgressLabel) sideProgressLabel.textContent = `Прогресс: ${p}%`;
@@ -566,8 +565,8 @@ export async function initConsultPage() {
     chatEl.innerHTML = '';
     progressBar.style.width = '0%';
     progressLabel.textContent = 'Готовность данных: 0%';
-    if (progressWrap) progressWrap.hidden = true;
-    progressLabel.hidden = true;
+    if (progressWrap) progressWrap.hidden = false;
+    progressLabel.hidden = false;
     actions.innerHTML = '';
     updateGuestBanner(false);
     startSession().catch((e) => {

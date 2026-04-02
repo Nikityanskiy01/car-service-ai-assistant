@@ -10,53 +10,69 @@
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container">
-      <section class="inner-hero">
-        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Контакты и локация</p>
-        <h1>Приезжайте в AI Fox Motors</h1>
-        <p class="lead">Напишите, позвоните или создайте заявку онлайн — менеджер согласует удобное время визита.</p>
+    <main class="page container location-pro">
+      <section class="location-pro__hero">
+        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Контакты</p>
+        <h1>Контакты автосервиса</h1>
+        <p class="lead">Свяжитесь с нами или получите предварительную диагностику через ИИ.</p>
       </section>
 
-      <section class="grid-2" style="margin-top: 1.25rem">
-        <article class="card">
-          <h2>Как с нами связаться</h2>
-          <ul class="list-muted">
-            <li>Адрес: <strong>Москва, Фармацевтический проезд, 3</strong></li>
-            <li>Телефон: <strong>+7 (999) 000-00-00</strong></li>
-            <li>Email: <strong>service@aifoxmotors.ru</strong></li>
-            <li>Режим работы: <strong>пн-сб 10:00-20:00</strong></li>
-          </ul>
-          <p class="muted" style="margin: 0.9rem 0 0">
-            Перед визитом рекомендуем создать заявку через ИИ‑консультацию, чтобы ускорить прием.
-          </p>
-          <p style="margin: 0.9rem 0 0; display: flex; gap: 0.5rem; flex-wrap: wrap">
-            <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Создать заявку</a>
-            <a class="btn btn--ghost" href="https://yandex.ru/maps/?text=Москва%2C%20Фармацевтический%20проезд%2C%203" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Открыть в картах</a>
-          </p>
-        </article>
-        <article class="card" style="padding: 0; overflow: hidden; min-height: 360px; position: relative">
+      <section class="location-pro__contacts">
+        <article class="card location-pro__contact-card"><h3>Адрес</h3><p>Москва, Фармацевтический проезд, 3</p></article>
+        <article class="card location-pro__contact-card"><h3>Телефон</h3><p>+7 (999) 000-00-00</p></article>
+        <article class="card location-pro__contact-card"><h3>Email</h3><p>service@aifoxmotors.ru</p></article>
+        <article class="card location-pro__contact-card"><h3>Режим работы</h3><p>пн-сб 10:00-20:00</p></article>
+      </section>
+
+      <section class="location-pro__section">
+        <article class="card location-pro__map-wrap">
           <div id="yandexMap" style="width: 100%; height: 360px"></div>
-          <div id="yandexMapFallback" class="muted" style="position:absolute; inset:auto 0 0 0; padding:0.6rem 0.8rem; background:rgba(7,8,11,0.7)" hidden>
+          <div id="yandexMapFallback" class="muted location-pro__map-fallback" hidden>
             Если карта не загрузилась, используйте кнопку "Открыть в картах".
           </div>
         </article>
+        <article class="card location-pro__map-meta">
+          <h2>Где мы находимся</h2>
+          <p><strong>Адрес:</strong> Москва, Фармацевтический проезд, 3</p>
+          <p><strong>Ориентир:</strong> рядом с промышленной зоной и удобным въездом с основной магистрали.</p>
+          <p class="muted">Перед приездом можно пройти ИИ-диагностику и сократить время на первичный прием.</p>
+        </article>
       </section>
 
-      <section class="grid-2" style="margin-top: 1rem">
-        <article class="card glass">
-          <h2>Как добраться</h2>
-          <p class="muted" style="margin: 0">
-            Мы находимся в Москве, в районе Фармацевтического проезда. Удобный подъезд на автомобиле, рядом городская
-            инфраструктура и общественный транспорт.
-          </p>
+      <section class="location-pro__section">
+        <div class="location-pro__actions">
+          <a class="card location-pro__action" href="tel:+79990000000"><h3>Позвонить</h3><p class="muted">+7 (999) 000-00-00</p></a>
+          <a class="card location-pro__action" href="mailto:service@aifoxmotors.ru"><h3>Написать</h3><p class="muted">service@aifoxmotors.ru</p></a>
+          <a class="card location-pro__action location-pro__action--accent" href="/consult.html"><h3>Перейти к ИИ-консультации</h3><p class="muted">Предварительный результат до визита</p></a>
+        </div>
+      </section>
+
+      <section class="location-pro__section">
+        <article class="card location-pro__form-card">
+          <h2>Форма обратной связи</h2>
+          <form id="contactForm" class="stack" novalidate>
+            <label class="form-field">
+              <span>Имя</span>
+              <input id="contactName" type="text" placeholder="Ваше имя" required />
+            </label>
+            <label class="form-field">
+              <span>Телефон</span>
+              <input id="contactPhone" type="tel" placeholder="+7 (999) 000-00-00" required />
+            </label>
+            <label class="form-field">
+              <span>Сообщение</span>
+              <textarea id="contactMessage" rows="4" placeholder="Опишите ваш вопрос"></textarea>
+            </label>
+            <button type="submit" class="btn btn--primary">Отправить</button>
+            <div id="contactFormNote" class="alert alert--info" hidden>Спасибо! Мы получили сообщение и свяжемся с вами.</div>
+          </form>
         </article>
-        <article class="card">
-          <h2>Перед приездом</h2>
-          <ul class="list-muted">
-            <li>Подготовьте краткое описание симптомов.</li>
-            <li>Укажите марку, модель и пробег автомобиля.</li>
-            <li>Выберите удобное окно времени для визита.</li>
-          </ul>
+      </section>
+
+      <section class="location-pro__section">
+        <article class="card location-pro__bottom-cta">
+          <h2>Получите предварительный результат диагностики перед визитом в сервис</h2>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать диагностику</a>
         </article>
       </section>
     </main>
@@ -64,9 +80,10 @@
     <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" defer></script>
     <script type="module">
       import { mountHeaderFooter } from '/js/layout.js';
-      import { initLocationMap } from '/js/location.js';
+      import { initLocationMap, initLocationPage } from '/js/location.js';
       mountHeaderFooter({ active: 'location' });
       initLocationMap();
+      initLocationPage();
     </script>
   </body>
 </html>

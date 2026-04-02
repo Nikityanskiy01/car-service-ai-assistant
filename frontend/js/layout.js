@@ -12,6 +12,9 @@ export function mountHeaderFooter({ active = '' } = {}) {
         : '/dashboards/client.html';
 
   const dashClass = active === 'dash' ? 'is-active' : '';
+  const navCta = (active === 'gallery' || active === 'works' || active === 'location' || active === 'dash')
+    ? `<a href="/consult.html" class="btn btn--primary nav-cta" style="text-decoration:none">Начать диагностику</a>`
+    : '';
   const authBlock = authed
     ? `<a href="${dash}" class="${dashClass}">Кабинет</a>
        <button type="button" class="btn btn--ghost" id="logoutBtn">Выход</button>`
@@ -40,6 +43,7 @@ export function mountHeaderFooter({ active = '' } = {}) {
         <a href="/works.html" class="${active === 'works' ? 'is-active' : ''}">Работы</a>
         <a href="/location.html" class="${active === 'location' ? 'is-active' : ''}">Контакты</a>
         <a href="/consult.html" class="${active === 'consult' ? 'is-active' : ''}">ИИ-консультация</a>
+        ${navCta}
         ${authBlock}
       </nav>
     </div>

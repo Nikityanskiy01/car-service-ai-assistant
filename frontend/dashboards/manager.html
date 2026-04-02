@@ -11,63 +11,88 @@
   <body>
     <div id="header-placeholder"></div>
     <main class="page container">
-      <h1>Заявки клиентов</h1>
-      <p class="muted" style="margin-top: -0.25rem">
-        Фильтруйте список, открывайте детали и отвечайте клиенту. Если клиент был гостем — контакты будут показаны как
-        “гость”.
-      </p>
-      <div class="card stack" style="margin-bottom: 1rem">
-        <div class="form-field" style="margin: 0">
-          <label for="filterStatus">Статус</label>
-          <select id="filterStatus">
-            <option value="">Все</option>
-            <option>NEW</option>
-            <option>IN_PROGRESS</option>
-            <option>SCHEDULED</option>
-            <option>COMPLETED</option>
-            <option>CANCELLED</option>
-          </select>
-        </div>
-        <div class="form-field" style="margin: 0">
-          <label for="filterQ">Поиск</label>
-          <input id="filterQ" type="search" placeholder="марка, модель, текст" />
-        </div>
-        <button type="button" class="btn btn--primary" id="filterBtn">Применить</button>
-      </div>
-      <div class="grid-2">
-        <div class="table-wrap card" style="padding: 0">
-          <table class="data" id="mgrTable">
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>Клиент</th>
-                <th>Авто</th>
-                <th>Статус</th>
-                <th>Ver</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="stack">
-          <div class="card" id="detailPanel"><div class="empty">Выберите заявку в таблице слева, чтобы увидеть детали.</div></div>
-          <div class="card">
-            <h3>Переписка с клиентом</h3>
-            <div id="mgrThread" class="stack">
-              <div class="empty">Выберите заявку слева, чтобы открыть переписку.</div>
-            </div>
-            <form id="mgrThreadForm" class="stack" style="margin-top: 0.5rem; display: none">
-              <textarea id="mgrThreadInput" rows="2" placeholder="Ответ клиенту"></textarea>
-              <button type="submit" class="btn btn--primary">Отправить</button>
-            </form>
+      <div class="dash">
+        <aside class="dash__side">
+          <div class="dash__head">
+            <h1 style="margin:0">Личный кабинет</h1>
+            <p class="muted" style="margin:0.25rem 0 0">Роль: менеджер</p>
           </div>
-        </div>
+          <button type="button" class="btn btn--ghost dash__menu-toggle" id="dashMenuToggle">Разделы кабинета</button>
+          <nav class="dash__nav" aria-label="Разделы кабинета менеджера">
+            <button type="button" class="dash__tab">Профиль</button>
+            <button type="button" class="dash__tab">История консультаций</button>
+            <button type="button" class="dash__tab">Отчеты диагностики</button>
+            <button type="button" class="dash__tab is-active">Заявки</button>
+            <button type="button" class="dash__tab">Запись в сервис</button>
+            <button type="button" class="dash__tab">Настройки</button>
+          </nav>
+          <a class="btn btn--primary" href="/consult.html" style="margin-top:0.8rem; text-decoration:none">Начать диагностику</a>
+        </aside>
+
+        <section class="dash__main">
+          <section class="card stack" style="margin-bottom: 1rem">
+            <h2 style="margin:0">Заявки клиентов</h2>
+            <p class="muted" style="margin-top:-0.25rem">
+              Фильтруйте список, открывайте детали и отвечайте клиенту. Если клиент был гостем — контакты будут
+              показаны как “гость”.
+            </p>
+            <div class="grid-2">
+              <div class="form-field" style="margin: 0">
+                <label for="filterStatus">Статус</label>
+                <select id="filterStatus">
+                  <option value="">Все</option>
+                  <option>NEW</option>
+                  <option>IN_PROGRESS</option>
+                  <option>SCHEDULED</option>
+                  <option>COMPLETED</option>
+                  <option>CANCELLED</option>
+                </select>
+              </div>
+              <div class="form-field" style="margin: 0">
+                <label for="filterQ">Поиск</label>
+                <input id="filterQ" type="search" placeholder="марка, модель, текст" />
+              </div>
+            </div>
+            <button type="button" class="btn btn--primary" id="filterBtn">Применить</button>
+          </section>
+
+          <div class="grid-2">
+            <div class="table-wrap card" style="padding: 0">
+              <table class="data" id="mgrTable">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Клиент</th>
+                    <th>Авто</th>
+                    <th>Статус</th>
+                    <th>Ver</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="stack">
+              <div class="card" id="detailPanel"><div class="empty">Выберите заявку в таблице слева, чтобы увидеть детали.</div></div>
+              <div class="card">
+                <h3>Переписка с клиентом</h3>
+                <div id="mgrThread" class="stack">
+                  <div class="empty">Выберите заявку слева, чтобы открыть переписку.</div>
+                </div>
+                <form id="mgrThreadForm" class="thread-compose" style="margin-top: 0.5rem; display: none">
+                  <textarea id="mgrThreadInput" class="thread-compose__input" rows="2" placeholder="Ответ клиенту"></textarea>
+                  <button type="submit" class="btn btn--primary thread-compose__btn">Отправить</button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <section class="card" style="margin-top: 1rem">
+            <h2>Запись в сервис</h2>
+            <p class="muted" style="margin-top:-0.25rem">Подтверждайте время визита или отменяйте запись при необходимости.</p>
+            <ul id="bookingsMgr" style="list-style: none; padding: 0"></ul>
+          </section>
+        </section>
       </div>
-      <section class="card" style="margin-top: 2rem">
-        <h2>Записи на визит</h2>
-        <p class="muted" style="margin-top:-0.25rem">Подтверждайте время визита или отменяйте запись при необходимости.</p>
-        <ul id="bookingsMgr" style="list-style: none; padding: 0"></ul>
-      </section>
     </main>
     <div id="footer-placeholder"></div>
     <script type="module">
@@ -75,6 +100,9 @@
       import { initManagerDashboard } from '/js/dashboards/manager.js';
       mountHeaderFooter({ active: 'dash' });
       initManagerDashboard();
+      const side = document.querySelector('.dash__side');
+      const t = document.getElementById('dashMenuToggle');
+      t?.addEventListener('click', () => side?.classList.toggle('is-open'));
     </script>
   </body>
 </html>

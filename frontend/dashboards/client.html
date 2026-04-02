@@ -19,12 +19,13 @@
               <a href="/consult.html">Новая ИИ-консультация</a>
             </p>
           </div>
+          <button type="button" class="btn btn--ghost dash__menu-toggle" id="dashMenuToggle">Разделы кабинета</button>
           <nav class="dash__nav" aria-label="Разделы кабинета">
-            <button type="button" class="dash__tab is-active" data-tab="profile">Мой профиль</button>
-            <button type="button" class="dash__tab" data-tab="consults">Консультации</button>
+            <button type="button" class="dash__tab is-active" data-tab="profile">Профиль</button>
+            <button type="button" class="dash__tab" data-tab="consults">История консультаций</button>
+            <button type="button" class="dash__tab" data-tab="reports">Отчёты диагностики</button>
             <button type="button" class="dash__tab" data-tab="requests">Заявки</button>
-            <button type="button" class="dash__tab" data-tab="reports">Отчёты</button>
-            <button type="button" class="dash__tab" data-tab="bookings">Записи</button>
+            <button type="button" class="dash__tab" data-tab="bookings">Запись в сервис</button>
           </nav>
         </aside>
 
@@ -99,9 +100,9 @@
               <div id="threadBody" class="stack">
                 <div class="empty">Пока переписка не открыта. Выберите заявку выше.</div>
               </div>
-              <form id="threadForm" class="stack" style="margin-top: 1rem; display: none">
-                <textarea id="threadInput" rows="2" placeholder="Сообщение менеджеру"></textarea>
-                <button type="submit" class="btn btn--primary">Отправить</button>
+              <form id="threadForm" class="thread-compose" style="margin-top: 1rem; display: none">
+                <textarea id="threadInput" class="thread-compose__input" rows="2" placeholder="Сообщение менеджеру"></textarea>
+                <button type="submit" class="btn btn--primary thread-compose__btn">Отправить</button>
               </form>
             </div>
           </section>
@@ -159,6 +160,9 @@
       import { initClientDashboard } from '/js/dashboards/client.js';
       mountHeaderFooter({ active: 'dash' });
       initClientDashboard();
+      const side = document.querySelector('.dash__side');
+      const t = document.getElementById('dashMenuToggle');
+      t?.addEventListener('click', () => side?.classList.toggle('is-open'));
     </script>
   </body>
 </html>
