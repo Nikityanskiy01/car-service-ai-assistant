@@ -1,4 +1,5 @@
-# AI Fox Motors — Render Blueprint (Node backend + PostgreSQL)
+# AI Fox Motors — Render Blueprint (backend + static frontend + PostgreSQL)
+# Статический сайт: в спецификации Render — type: web + runtime: static + staticPublishPath
 services:
   - type: web
     name: ai-fox-motors-backend
@@ -24,6 +25,15 @@ services:
         generateValue: true
       - key: LLM_MOCK
         value: "true"
+
+  - type: web
+    name: ai-fox-motors-frontend
+    runtime: static
+    plan: free
+    rootDir: frontend
+    autoDeploy: true
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
 
 databases:
   - name: ai-fox-motors-db
