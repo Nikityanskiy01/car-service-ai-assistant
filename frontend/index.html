@@ -13,49 +13,94 @@
     <main class="page container home-pro">
       <section class="home-pro__hero">
         <div class="home-pro__hero-main">
-          <p class="home-pro__badge">AI Fox Motors</p>
-          <h1>Интеллектуальная диагностика автомобиля онлайн за несколько минут</h1>
-          <p class="lead">
-            Опишите проблему автомобиля — система определит возможные причины неисправности, предложит проверки и
-            рассчитает предварительную стоимость ремонта.
-          </p>
+          <p class="home-pro__badge">ИИ-ассистент диагностики автомобиля</p>
+          <h1>Узнайте причину неисправности автомобиля за 2-4 минуты</h1>
+          <p class="lead">ИИ-консультация помогает определить вероятные причины неисправности, подсказывает что проверить, оценивает срочность обращения и дает предварительную стоимость ремонта.</p>
+          <ul class="home-pro__hero-list" aria-label="Что дает ИИ-консультация">
+            <li>Вероятные причины неисправности</li>
+            <li>Список проверок перед ремонтом</li>
+            <li>Оценка срочности обращения</li>
+            <li>Предварительная стоимость работ</li>
+          </ul>
           <p class="home-pro__actions">
             <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать диагностику</a>
-            <a class="btn btn--ghost" href="/works.html" style="text-decoration:none">Наши работы</a>
           </p>
+          <p class="home-pro__cta-note">Без регистрации · результат за 2-4 минуты · сохранение отчета</p>
+          <a class="home-pro__link" href="/works.html">Посмотреть реальные кейсы</a>
         </div>
         <aside class="home-pro__hero-chat">
           <div class="home-chat card">
-            <p class="home-chat__title">ИИ-ассистент диагностики</p>
-            <div class="home-chat__bubble home-chat__bubble--user">Skoda Octavia 2020, пробег 114000. Появилась вибрация при торможении.</div>
-            <div class="home-chat__bubble">Понял. Уточните, вибрация появляется на любой скорости или после 80 км/ч?</div>
-            <div class="home-chat__bubble home-chat__bubble--user">Сильнее после 80 км/ч.</div>
+            <p class="home-chat__title">Как проходит консультация</p>
+            <div class="home-chat__bubble">Ассистент: Опишите марку, модель, пробег и симптомы.</div>
+            <div class="home-chat__bubble home-chat__bubble--user">Kia Rio 2018, 132000 км. При торможении идет вибрация в руль.</div>
+            <div class="home-chat__bubble">Ассистент: Вибрация появляется на высокой скорости или в любом режиме?</div>
             <div class="home-chat__result">
-              <strong>Предварительно:</strong> проверка тормозных дисков и суппортов.<br />
-              <strong>Оценка:</strong> от 2 800 ₽
+              <strong>Мини-результат:</strong> вероятен износ тормозных дисков, нужна проверка суппортов.<br />
+              <strong>Срочность:</strong> записаться на диагностику в ближайшие 1-2 дня.
             </div>
           </div>
         </aside>
       </section>
 
-      <section class="home-pro__section">
-        <h2>Преимущества ИИ-ассистента</h2>
-        <div class="home-pro__grid home-pro__grid--5">
-          <article class="card home-pro__feature"><h3>Определение возможных причин неисправности</h3></article>
-          <article class="card home-pro__feature"><h3>Расчет вероятности поломки</h3></article>
-          <article class="card home-pro__feature"><h3>Рекомендации по дальнейшей диагностике</h3></article>
-          <article class="card home-pro__feature"><h3>Предварительная оценка стоимости ремонта</h3></article>
-          <article class="card home-pro__feature"><h3>Создание заявки в автосервис автоматически</h3></article>
+      <section class="home-pro__section home-pro__section--compact">
+        <h2>Что вы получаете после консультации</h2>
+        <div class="home-pro__grid home-pro__grid--4">
+          <article class="card home-pro__feature"><h3>Вероятные причины неисправности</h3></article>
+          <article class="card home-pro__feature"><h3>Приоритет и срочность обращения</h3></article>
+          <article class="card home-pro__feature"><h3>Список проверок перед ремонтом</h3></article>
+          <article class="card home-pro__feature"><h3>Предварительную оценку стоимости</h3></article>
         </div>
       </section>
 
       <section class="home-pro__section">
-        <h2>Как работает система</h2>
+        <div class="side-head">
+          <h2 style="margin:0">Как работает система</h2>
+          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
+        </div>
         <div class="home-pro__steps">
-          <div class="home-pro__step"><span>Шаг 1</span><p>Клиент описывает проблему автомобиля</p></div>
-          <div class="home-pro__step"><span>Шаг 2</span><p>ИИ задает уточняющие вопросы</p></div>
-          <div class="home-pro__step"><span>Шаг 3</span><p>Формируется предварительный результат диагностики</p></div>
-          <div class="home-pro__step"><span>Шаг 4</span><p>Создается заявка на обслуживание</p></div>
+          <div class="home-pro__step"><span>Шаг 1</span><p>Вы описываете авто и проблему</p></div>
+          <div class="home-pro__step"><span>Шаг 2</span><p>ИИ задает точные уточнения</p></div>
+          <div class="home-pro__step"><span>Шаг 3</span><p>Формирует предварительный результат</p></div>
+          <div class="home-pro__step"><span>Шаг 4</span><p>Создается заявка в сервис при желании</p></div>
+        </div>
+      </section>
+
+      <section class="home-pro__section">
+        <h2>Почему нам доверяют</h2>
+        <div class="home-pro__grid home-pro__grid--3">
+          <article class="card home-pro__trust">
+            <h3>Прозрачный результат</h3>
+            <p class="muted">Показываем причины, вероятности и следующий шаг, а не абстрактные советы.</p>
+          </article>
+          <article class="card home-pro__trust">
+            <h3>Связка ИИ + мастера</h3>
+            <p class="muted">ИИ ускоряет первичную оценку, а окончательный вывод делает специалист на диагностике.</p>
+          </article>
+          <article class="card home-pro__trust">
+            <h3>Единая история обращения</h3>
+            <p class="muted">Диалог, отчет и заявка сохраняются в кабинете для понятного сопровождения ремонта.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="home-pro__section">
+        <div class="side-head">
+          <h2 style="margin:0">Примеры выполненных работ</h2>
+          <a class="btn btn--ghost" href="/works.html" style="text-decoration:none">Все кейсы</a>
+        </div>
+        <div class="home-pro__grid home-pro__grid--3">
+          <article class="card home-pro__work">
+            <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Диагностика тормозной системы" loading="lazy" />
+            <p>Диагностика и восстановление тормозной системы</p>
+          </article>
+          <article class="card home-pro__work">
+            <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Ремонт подвески" loading="lazy" />
+            <p>Ремонт подвески с последующей проверкой геометрии</p>
+          </article>
+          <article class="card home-pro__work">
+            <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=1200&q=80" alt="Техническое обслуживание" loading="lazy" />
+            <p>Плановое ТО: масла, фильтры, технические жидкости</p>
+          </article>
         </div>
       </section>
 
@@ -71,24 +116,6 @@
           <article class="card home-pro__service">Ремонт трансмиссии</article>
           <article class="card home-pro__service">Электрика автомобиля</article>
           <article class="card home-pro__service">Техническое обслуживание</article>
-        </div>
-      </section>
-
-      <section class="home-pro__section">
-        <h2>Примеры выполненных работ</h2>
-        <div class="home-pro__grid home-pro__grid--3">
-          <article class="card home-pro__work">
-            <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Диагностика тормозной системы" loading="lazy" />
-            <p>Диагностика и восстановление тормозной системы</p>
-          </article>
-          <article class="card home-pro__work">
-            <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Ремонт подвески" loading="lazy" />
-            <p>Ремонт подвески с последующей проверкой геометрии</p>
-          </article>
-          <article class="card home-pro__work">
-            <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=1200&q=80" alt="Техническое обслуживание" loading="lazy" />
-            <p>Плановое ТО: масла, фильтры, технические жидкости</p>
-          </article>
         </div>
       </section>
 
@@ -115,7 +142,8 @@
       </section>
 
       <section class="card home-pro__cta">
-        <h2>Получите предварительную диагностику прямо сейчас</h2>
+        <h2>Получите предварительный результат диагностики прямо сейчас</h2>
+        <p class="muted">Опишите проблему автомобиля и получите понятный план действий до визита в сервис.</p>
         <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Перейти к ИИ-консультации</a>
       </section>
     </main>

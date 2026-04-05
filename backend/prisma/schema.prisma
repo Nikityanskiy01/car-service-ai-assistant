@@ -147,6 +147,8 @@ model ConsultationSession {
   confidencePercent Int?                      @map("confidence_percent")
   costFromMinor     Int?                      @map("cost_from_minor")
   preliminaryNote   String?                   @map("preliminary_note")
+  /** JSON: { asked_questions: { field, question }[], stage: "clarification" | "result" } */
+  flowState           Json?                     @map("flow_state")
   createdAt         DateTime                  @default(now()) @map("created_at")
   updatedAt         DateTime                  @updatedAt @map("updated_at")
 

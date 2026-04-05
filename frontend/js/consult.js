@@ -4,6 +4,21 @@ import { uiAlert, uiPromptContact } from './ui/dialogs.js';
 
 const CONSULT_NEXT = '/consult.html';
 
+/** Если с бэка пришёл объект вместо строки — не показывать "[object Object]". */
+function diagLineText(raw) {
+  if (raw == null) return '';
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (t === '[object Object]') return '';
+    return t;
+  }
+  if (typeof raw === 'object') {
+    const v = raw.title ?? raw.name ?? raw.text;
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+}
+
 function sixComplete(ext) {
   if (!ext) return false;
   const t = (s) => typeof s === 'string' && s.trim().length > 0;
@@ -78,6 +93,51 @@ function recommendVisitWindow(ext, lastUserText = '') {
   return { value: 'в течение 1–3 дней', hint: 'Долго откладывать не стоит при регулярных симптомах' };
 }
 
+function roundToHundreds(n) {
+  return Math.ceil(Number(n) / 100) * 100;
+}
+
+function buildCostRange(costFromMinor) {
+  const base = Number(costFromMinor);
+  if (!Number.isFinite(base)) return null;
+  const min = Math.max(0, roundToHundreds(base));
+  const max = Math.max(min, roundToHundreds(base * 2.3));
+  return { min, max };
+}
+
+function determineUrgency(ext, isMaintenance) {
+  if (isMaintenance) {
+    return {
+      level: 'low',
+      value: 'Можно продолжать эксплуатацию',
+      hint: 'Плановое ТО можно выполнить в удобное время',
+    };
+  }
+  const t = `${ext?.symptoms || ''} ${ext?.problemConditions || ''}`.toLowerCase();
+  const high = ['перегрев', 'дым', 'течь топлива', 'проваливается педаль', 'не едет', 'мигает', 'check engine'].some((k) =>
+    t.includes(k),
+  );
+  if (high) {
+    return {
+      level: 'high',
+      value: 'Требуется срочная диагностика',
+      hint: 'Лучше не откладывать визит в сервис',
+    };
+  }
+  if (hasSymptoms(ext)) {
+    return {
+      level: 'medium',
+      value: 'Желательно записаться в сервис в течение 2-3 дней',
+      hint: 'Эксплуатация возможна, но проблему лучше проверить в ближайшее время',
+    };
+  }
+  return {
+    level: 'wait',
+    value: 'Ожидаем уточнение',
+    hint: 'Ожидаем дополнительные симптомы для уточнения оценки',
+  };
+}
+
 function hasSymptoms(ext) {
   return typeof ext?.symptoms === 'string' && ext.symptoms.trim().length > 0;
 }
@@ -126,22 +186,27 @@ export async function initConsultPage() {
   const summaryTbody = $('#summaryTableBody');
   const sideRecsCard = $('#sideRecommendationsCard');
   const sideRecs = $('#sideRecommendations');
+  const sideResultCard = $('#sideResultCard');
   const sideConfidencePill = $('#sideConfidencePill');
   const sideCostValue = $('#sideCostValue');
   const sideCostHint = $('#sideCostHint');
   const sideVisitValue = $('#sideVisitValue');
   const sideVisitHint = $('#sideVisitHint');
   const resultPanel = $('#consultResultPanel');
-  const resultConfidencePill = $('#resultConfidencePill');
+  const resultConfidenceValue = $('#resultConfidenceValue');
+  const resultConfidencePercent = $('#resultConfidencePercent');
+  const resultConfidenceBar = $('#resultConfidenceBar');
+  const resultConfidenceHint = $('#resultConfidenceHint');
   const resultServiceValue = $('#resultServiceValue');
   const resultServiceHint = $('#resultServiceHint');
-  const resultCostValue = $('#resultCostValue');
-  const resultCostHint = $('#resultCostHint');
-  const resultVisitValue = $('#resultVisitValue');
-  const resultVisitHint = $('#resultVisitHint');
-  const resultHypothesesBody = $('#resultHypothesesBody');
-  const resultSummaryBody = $('#resultSummaryBody');
-  const resultAdviceList = $('#resultAdviceList');
+  const resultCostRange = $('#resultCostRange');
+  const resultCostNote = $('#resultCostNote');
+  const resultUrgencyCard = $('#resultUrgencyCard');
+  const resultUrgencyValue = $('#resultUrgencyValue');
+  const resultUrgencyHint = $('#resultUrgencyHint');
+  const resultHypothesesList = $('#resultHypothesesList');
+  const resultChecksList = $('#resultChecksList');
+  const resultPendingState = $('#resultPendingState');
   const resultRequestPill = $('#resultRequestPill');
   const resultBtnSave = $('#resultBtnSave');
   const resultBtnRequest = $('#resultBtnRequest');
@@ -189,7 +254,7 @@ export async function initConsultPage() {
     const hasSym = hasSymptoms(ext);
     const isMaintenance = isMaintenanceRecommendations(data.recommendations);
 
-    // Result big panel (like the reference UI) appears when data is ready
+    // Show full diagnostic result only after consultation completion
     if (resultPanel) resultPanel.hidden = !done;
     // After completion hide chat input and side widgets to avoid duplicate info
     if (chatPanel) chatPanel.hidden = !!done;
@@ -198,17 +263,18 @@ export async function initConsultPage() {
     if (side) side.hidden = !!done;
     document.body.classList.toggle('is-result-mode', !!done);
 
-    const user = getUser();
-    const visit = isMaintenance
-      ? { value: 'в течение 3-7 дней', hint: 'Плановое ТО можно выполнить в удобное для вас время' }
-      : hasSym
-        ? recommendVisitWindow(ext)
-        : { value: '—', hint: 'Опишите симптомы, чтобы оценить срочность' };
-    const confLabel =
-      data.confidencePercent != null && Number.isFinite(Number(data.confidencePercent))
-        ? `Уверенность ИИ: ${Math.round(Number(data.confidencePercent))}`
-        : 'Уверенность ИИ: —';
-    if (resultConfidencePill) resultConfidencePill.textContent = confLabel;
+    const confNum = data.confidencePercent != null && Number.isFinite(Number(data.confidencePercent))
+      ? Math.max(0, Math.min(100, Math.round(Number(data.confidencePercent))))
+      : null;
+    if (resultConfidenceValue) resultConfidenceValue.textContent = `Уверенность оценки: ${confNum != null ? `${confNum}%` : '—'}`;
+    if (resultConfidencePercent) resultConfidencePercent.textContent = confNum != null ? `${confNum}%` : '—';
+    if (resultConfidenceBar) resultConfidenceBar.style.width = `${confNum ?? 0}%`;
+    if (resultConfidenceHint) {
+      resultConfidenceHint.textContent =
+        confNum != null
+          ? 'Оценка основана на введенных симптомах и статистике типовых неисправностей.'
+          : 'Оценка станет точнее после уточнения симптомов и условий проявления.';
+    }
 
     // Service type heuristic
     const t = `${ext?.symptoms || ''} ${ext?.problemConditions || ''}`.toLowerCase();
@@ -230,68 +296,54 @@ export async function initConsultPage() {
           : 'Первичная диагностика + проверка узлов по симптомам'
         : 'Станет доступно после описания проблемы';
 
-    const costOk = (hasSym || isMaintenance) && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor));
-    if (resultCostValue) resultCostValue.textContent = costOk ? `от ${fmtMoneyRub(data.costFromMinor)}` : '—';
-    if (resultCostHint)
-      resultCostHint.textContent = costOk
-        ? isMaintenance
-          ? 'Минимальная стоимость базового регламентного ТО'
-          : 'Диапазон зависит от марки/объёма работ и результатов диагностики'
-        : 'Станет доступно после уточнения данных';
+    const costRange = (hasSym || isMaintenance) ? buildCostRange(data.costFromMinor) : null;
+    if (resultCostRange) {
+      resultCostRange.textContent = costRange ? `от ${fmtMoneyRub(costRange.min)} до ${fmtMoneyRub(costRange.max)}` : '—';
+    }
+    if (resultCostNote) {
+      resultCostNote.textContent = costRange
+        ? 'Стоимость уточняется после осмотра автомобиля'
+        : 'Ожидаем дополнительные симптомы для расчета диапазона стоимости';
+    }
 
-    if (resultVisitValue) resultVisitValue.textContent = visit.value;
-    if (resultVisitHint) resultVisitHint.textContent = visit.hint;
+    const urgency = determineUrgency(ext, isMaintenance);
+    if (resultUrgencyValue) resultUrgencyValue.textContent = urgency.value;
+    if (resultUrgencyHint) resultUrgencyHint.textContent = urgency.hint;
+    if (resultUrgencyCard) {
+      resultUrgencyCard.classList.remove('urgency--low', 'urgency--medium', 'urgency--high', 'urgency--wait');
+      resultUrgencyCard.classList.add(`urgency--${urgency.level}`);
+    }
 
-    // Hypotheses table from recommendations
-    if (resultHypothesesBody) {
-      const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
-      const top = isMaintenance ? recs.slice(0, 5) : hasSym ? recs.slice(0, 5) : [];
-      resultHypothesesBody.innerHTML =
-        top.length === 0
-          ? `<tr><td class="muted">—</td><td class="muted">—</td></tr>`
-          : top
+    const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+    const top = (isMaintenance || hasSym) ? recs.slice(0, 5) : [];
+    if (resultHypothesesList) {
+      resultHypothesesList.innerHTML =
+        top.length > 0
+          ? top
               .map((r) => {
                 const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
-                return `<tr>
-                  <td>${escapeHtml(r.title || 'Гипотеза')}</td>
-                  <td>
-                    <div class="prob" aria-hidden="true">
-                      <div class="prob__bar"><div style="width:${pct}%"></div></div>
-                      <div class="prob__val">${pct}%</div>
-                    </div>
-                  </td>
-                </tr>`;
+                return `<div class="diag-hyp">
+                  <div class="diag-hyp__top">
+                    <span>${escapeHtml(diagLineText(r.title) || 'Гипотеза')}</span>
+                    <strong>${pct}%</strong>
+                  </div>
+                  <div class="diag-hyp__bar" aria-hidden="true"><div style="width:${pct}%"></div></div>
+                </div>`;
               })
-              .join('');
+              .join('')
+          : `<div class="diag-state muted"><span class="diag-spinner" aria-hidden="true"></span>Ожидаем дополнительные симптомы для уточнения оценки</div>`;
     }
 
-    // Summary table (client/car/problem)
-    if (resultSummaryBody) {
-      const car = formatCarDisplay(ext);
-      const prob = ext?.symptoms ? String(ext.symptoms) : '';
-      const condition = ext?.problemConditions ? String(ext.problemConditions) : '';
-      const rows = [
-        ['Клиент', user?.email || 'гость'],
-        ['Автомобиль', car || '—'],
-        ['Симптомы', isMaintenance ? 'Не требуется для планового ТО' : prob || '—'],
-        ['Условия', isMaintenance ? 'Не требуется для планового ТО' : condition || '—'],
-      ];
-      resultSummaryBody.innerHTML = rows
-        .map(([k, v]) => `<tr><th>${escapeHtml(k)}</th><td>${escapeHtml(v)}</td></tr>`)
-        .join('');
+    if (resultChecksList) {
+      const checks = top.map((r) => diagLineText(r.title)).filter(Boolean).slice(0, 4);
+      resultChecksList.innerHTML =
+        checks.length > 0
+          ? checks.map((x) => `<li>${escapeHtml(x)}</li>`).join('')
+          : `<li class="muted">Ожидаем дополнительные симптомы для уточнения оценки</li>`;
     }
 
-    if (resultAdviceList) {
-      const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
-      const bullets =
-        (hasSym || isMaintenance) && recs.length > 0
-          ? recs.slice(0, 4).map((r) => r.title).filter(Boolean)
-          : [
-              'Опишите симптомы и условия проявления, чтобы сузить круг причин',
-              'Если горят лампы ошибок или есть потеря мощности — лучше не откладывать визит',
-              'Если есть посторонние звуки/запахи/дым — прекратите движение и вызовите помощь',
-            ];
-      resultAdviceList.innerHTML = bullets.map((x) => `<li>${escapeHtml(x)}</li>`).join('');
+    if (resultPendingState) {
+      resultPendingState.hidden = hasSym || isMaintenance;
     }
 
     if (resultRequestPill) {
@@ -303,7 +355,7 @@ export async function initConsultPage() {
     if (resultBtnSave) resultBtnSave.hidden = true;
     if (resultBtnRequest) {
       resultBtnRequest.hidden = true;
-      resultBtnRequest.textContent = 'Оставить заявку';
+      resultBtnRequest.textContent = 'Записаться в сервис';
     }
     if (resultBtnLogin) resultBtnLogin.hidden = true;
     if (resultBtnRegister) resultBtnRegister.hidden = true;
@@ -374,6 +426,7 @@ export async function initConsultPage() {
 
     // Sidebar: result KPI (cost / visit window / confidence)
     const conf = data.confidencePercent;
+    if (sideResultCard) sideResultCard.hidden = !done;
     if (sideConfidencePill) {
       sideConfidencePill.textContent =
         conf != null && Number.isFinite(Number(conf)) ? `Уверенность: ${Math.round(Number(conf))}%` : 'Уверенность: —';
@@ -448,7 +501,7 @@ export async function initConsultPage() {
     // Sidebar: recommendations (if present)
     if (sideRecsCard && sideRecs) {
       const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
-      if (recs.length > 0) {
+      if (done && recs.length > 0) {
         sideRecsCard.hidden = false;
         sideRecs.innerHTML = recs
           .slice(0, 5)

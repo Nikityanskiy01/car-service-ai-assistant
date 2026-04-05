@@ -1,15 +1,12 @@
 /**
- * Six mandatory fields: make, model, year, mileage, symptoms, problemConditions (FR-025a).
+ * Обязательные для завершения консультации и заявки: пробег, симптомы, условия.
+ * Марка, модель и год желательны, но не блокируют результат.
  * @param {import('@prisma/client').ExtractedDiagnosticData | null | undefined} ext
  */
 export function isExtractedComplete(ext) {
   if (!ext) return false;
   const t = (s) => typeof s === 'string' && s.trim().length > 0;
   return (
-    t(ext.make) &&
-    t(ext.model) &&
-    ext.year != null &&
-    Number.isFinite(ext.year) &&
     ext.mileage != null &&
     Number.isFinite(ext.mileage) &&
     t(ext.symptoms) &&
@@ -23,14 +20,17 @@ export function isExtractedComplete(ext) {
 export function progressFromExtracted(ext) {
   if (!ext) return 0;
   const t = (s) => typeof s === 'string' && s.trim().length > 0;
-  let n = 0;
-  if (t(ext.make)) n++;
-  if (t(ext.model)) n++;
-  if (ext.year != null && Number.isFinite(ext.year)) n++;
-  if (ext.mileage != null && Number.isFinite(ext.mileage)) n++;
-  if (t(ext.symptoms)) n++;
-  if (t(ext.problemConditions)) n++;
-  return Math.min(100, Math.round((n / 6) * 100));
+  let mandatory = 0;
+  if (ext.mileage != null && Number.isFinite(ext.mileage)) mandatory++;
+  if (t(ext.symptoms)) mandatory++;
+  if (t(ext.problemConditions)) mandatory++;
+  const mandatoryPct = (mandatory / 3) * 85;
+  let opt = 0;
+  if (t(ext.make)) opt++;
+  if (t(ext.model)) opt++;
+  if (ext.year != null && Number.isFinite(ext.year)) opt++;
+  const optPct = (opt / 3) * 15;
+  return Math.min(100, Math.round(mandatoryPct + optPct));
 }
 
 /**

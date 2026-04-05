@@ -12,11 +12,13 @@
     <div id="header-placeholder"></div>
     <main class="page container page-consult consult-pro">
       <section class="consult-pro__hero">
-        <div>
+        <div class="consult-pro__hero-main">
           <h1>Интеллектуальная диагностика автомобиля</h1>
-          <p class="lead">Опишите проблему автомобиля и получите предварительный результат анализа.</p>
         </div>
-        <button type="button" class="btn btn--ghost" id="btnNewSession">Новая сессия</button>
+        <div class="consult-pro__hero-actions">
+          <a class="btn btn--ghost" href="/about.html" style="text-decoration:none">Как это работает</a>
+          <button type="button" class="btn btn--ghost" id="btnNewSession">Новая сессия</button>
+        </div>
       </section>
 
       <div id="guestConsultBanner" class="alert alert--info" hidden>
@@ -26,16 +28,9 @@
 
       <div class="consult-grid consult-pro__grid">
         <aside class="consult-side stack consult-pro__info" aria-label="Возможности системы">
-          <article class="card glass">
-            <h3 style="margin:0 0 0.6rem">Возможности системы</h3>
-            <ul class="list-muted" style="margin:0; padding-left:1.1rem">
-              <li>Определение причин неисправности</li>
-              <li>Уточняющие вопросы по симптомам</li>
-              <li>Оценка вероятности поломки</li>
-              <li>Рекомендации диагностики</li>
-              <li>Предварительная стоимость</li>
-              <li>Создание заявки в сервис</li>
-            </ul>
+          <article class="card" id="sideRecommendationsCard" hidden>
+            <h3 style="margin: 0 0 0.75rem">Возможные причины неисправности</h3>
+            <div id="sideRecommendations" class="stack" style="gap:0.5rem"></div>
           </article>
 
           <article class="card">
@@ -75,11 +70,6 @@
             </div>
           </article>
 
-          <article class="card" id="sideRecommendationsCard" hidden>
-            <h3 style="margin: 0 0 0.75rem">Возможные причины неисправности</h3>
-            <div id="sideRecommendations" class="stack" style="gap:0.5rem"></div>
-          </article>
-
           <table hidden><tbody id="summaryTableBody"></tbody></table>
         </aside>
 
@@ -98,7 +88,7 @@
             <form id="chatForm" class="stack" style="margin-top:1rem">
               <div class="form-field" style="margin-bottom:0">
                 <label for="messageInput">Ваше сообщение</label>
-                <textarea id="messageInput" rows="3" required placeholder="Опишите марку, модель, пробег и симптомы..."></textarea>
+                <textarea id="messageInput" rows="3" required placeholder="Марка, модель, пробег, затем неисправность или плановая работа…"></textarea>
               </div>
               <button type="submit" class="btn btn--primary">Отправить</button>
             </form>
@@ -106,58 +96,72 @@
           </div>
 
           <section id="consultResultPanel" class="result-grid" hidden aria-label="Результаты консультации">
-            <div class="card">
+            <div class="card diag-card">
               <div class="side-head" style="margin-bottom: 0.75rem">
                 <div>
-                  <h2 style="margin: 0">Результат консультации</h2>
-                  <p class="muted" style="margin: 0.25rem 0 0">Предварительный анализ по введенным данным</p>
-                </div>
-                <span class="pill pill--ghost" id="resultConfidencePill">Уверенность ИИ: —</span>
-              </div>
-              <div class="result-kpis">
-                <div class="mini-kpi">
-                  <div class="mini-kpi__label muted">Вид услуги</div>
-                  <div class="mini-kpi__value" id="resultServiceValue">—</div>
-                  <div class="mini-kpi__hint muted" id="resultServiceHint">—</div>
-                </div>
-                <div class="mini-kpi">
-                  <div class="mini-kpi__label muted">Предварительная стоимость</div>
-                  <div class="mini-kpi__value" id="resultCostValue">—</div>
-                  <div class="mini-kpi__hint muted" id="resultCostHint">—</div>
-                </div>
-                <div class="mini-kpi">
-                  <div class="mini-kpi__label muted">Рекомендуемый срок визита</div>
-                  <div class="mini-kpi__value" id="resultVisitValue">—</div>
-                  <div class="mini-kpi__hint muted" id="resultVisitHint">—</div>
-                </div>
-              </div>
-              <h3 style="margin: 1rem 0 0.5rem">Возможные причины и приоритет</h3>
-              <div class="table-wrap">
-                <table class="data">
-                  <thead><tr><th>Причина</th><th style="width:45%">Вероятность</th></tr></thead>
-                  <tbody id="resultHypothesesBody"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="side-head" style="margin-bottom: 0.75rem">
-                <div>
-                  <h2 style="margin: 0">Что проверить и что делать дальше</h2>
-                  <p class="muted" style="margin: 0.25rem 0 0">Результаты передаются менеджеру автосервиса</p>
+                  <h2 style="margin: 0">Диагностический результат</h2>
+                  <p class="muted" style="margin: 0.25rem 0 0">Предварительная экспертная оценка по симптомам</p>
                 </div>
                 <span class="pill pill--ghost" id="resultRequestPill">Заявка: —</span>
               </div>
-              <div class="table-wrap">
-                <table class="data"><tbody id="resultSummaryBody"></tbody></table>
+
+              <article class="diag-confidence">
+                <div class="diag-confidence__head">
+                  <strong id="resultConfidenceValue">Уверенность оценки: —</strong>
+                  <span class="muted" id="resultConfidencePercent">—</span>
+                </div>
+                <div class="diag-confidence__bar" aria-hidden="true">
+                  <div id="resultConfidenceBar" style="width:0%"></div>
+                </div>
+                <p class="diag-note muted" id="resultConfidenceHint">
+                  Оценка основана на введенных симптомах и статистике типовых неисправностей.
+                </p>
+              </article>
+
+              <article class="diag-block" id="resultHypothesesBlock">
+                <h3 style="margin: 0 0 0.55rem">Наиболее вероятные причины</h3>
+                <div id="resultHypothesesList" class="stack" style="gap:0.5rem"></div>
+              </article>
+
+              <article class="diag-block" id="resultChecksBlock">
+                <h3 style="margin: 0 0 0.55rem">Рекомендуемые проверки</h3>
+                <ul id="resultChecksList" class="diag-checks"></ul>
+              </article>
+            </div>
+
+            <div class="card diag-card">
+              <div class="result-kpis">
+                <div class="mini-kpi">
+                  <div class="mini-kpi__label muted">Тип обращения</div>
+                  <div class="mini-kpi__value" id="resultServiceValue">—</div>
+                  <div class="mini-kpi__hint muted" id="resultServiceHint">—</div>
+                </div>
+                <div class="mini-kpi" id="resultUrgencyCard">
+                  <div class="mini-kpi__label muted">Срочность обращения</div>
+                  <div class="mini-kpi__value" id="resultUrgencyValue">Ожидаем уточнение</div>
+                  <div class="mini-kpi__hint muted" id="resultUrgencyHint">Ожидаем дополнительные симптомы для уточнения оценки</div>
+                </div>
+                <div class="mini-kpi">
+                  <div class="mini-kpi__label muted">Ориентировочная стоимость</div>
+                  <div class="mini-kpi__value" id="resultCostRange">—</div>
+                  <div class="mini-kpi__hint muted" id="resultCostNote">Стоимость уточняется после осмотра автомобиля</div>
+                </div>
               </div>
-              <h3 style="margin: 1rem 0 0.5rem">Рекомендации диагностики</h3>
-              <ul id="resultAdviceList" class="list-muted" style="margin:0; padding-left:1.1rem"></ul>
+
+              <div class="diag-state muted" id="resultPendingState">
+                <span class="diag-spinner" aria-hidden="true"></span>
+                Ожидаем дополнительные симптомы для уточнения оценки
+              </div>
+
               <p style="margin: 1rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap">
-                <button type="button" class="btn btn--ghost" id="resultBtnSave" hidden>Сохранить отчет</button>
-                <button type="button" class="btn btn--primary" id="resultBtnRequest" hidden>Создать заявку</button>
+                <button type="button" class="btn btn--primary" id="resultBtnRequest" hidden>Записаться в сервис</button>
+                <button type="button" class="btn btn--ghost" id="resultBtnSave" hidden>Сохранить отчет в личный кабинет</button>
                 <a class="btn btn--primary" id="resultBtnLogin" hidden href="/login.html?next=/consult.html" style="text-decoration:none">Войти</a>
                 <a class="btn btn--ghost" id="resultBtnRegister" hidden href="/register.html?next=/consult.html" style="text-decoration:none">Записаться в сервис</a>
+              </p>
+
+              <p class="diag-note muted" style="margin-top: 1rem">
+                Результат носит предварительный характер и не заменяет очную диагностику автомобиля специалистом.
               </p>
             </div>
           </section>

@@ -1,15 +1,14 @@
 import { randomBytes } from 'crypto';
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
-import {
-  isExtractedComplete,
-  mergeExtracted,
-  progressFromExtracted,
-} from '../../lib/consultationProgress.js';
+import { isExtractedComplete, mergeExtracted } from '../../lib/consultationProgress.js';
 import { estimateCostFromMinor } from '../../lib/pricing.js';
-import { pickPlaybook } from '../../lib/diagnosticPlaybooks.js';
-import { topWorksForCategory, topWorksForCategoryAndMake } from '../../lib/workStats.js';
-import { runLlmTurn } from '../ai/llm.js';
+import { coerceDiagnosisLine } from './consultationAi.service.js';
+import {
+  BOOTSTRAP_ASSISTANT_MESSAGE,
+  buildConsultationState,
+  progressFromConsultationSteps,
+} from '../../services/consultationFlowService.js';
 
 const sessionDetailInclude = {
   extracted: true,
@@ -96,32 +95,20 @@ export async function createGuestSession({ serviceCategoryId } = {}) {
 }
 
 export async function bootstrapOpeningTurn(sessionId) {
-  try {
-    const session = await prisma.consultationSession.findUnique({
+  const preliminaryNote =
+    'Ответ носит информационный характер и не заменяет осмотр автомобиля в сервисе.';
+  await prisma.$transaction([
+    prisma.message.create({
+      data: { sessionId, sender: 'ASSISTANT', content: BOOTSTRAP_ASSISTANT_MESSAGE },
+    }),
+    prisma.consultationSession.update({
       where: { id: sessionId },
-      include: { extracted: true, messages: { orderBy: { createdAt: 'asc' } } },
-    });
-    if (!session) return;
-    const aiPayload = await runLlmTurn(session, '__SESSION_START__');
-    await prisma.$transaction([
-      prisma.message.create({
-        data: { sessionId, sender: 'ASSISTANT', content: aiPayload.reply },
-      }),
-      prisma.consultationSession.update({
-        where: { id: sessionId },
-        data: { preliminaryNote: aiPayload.preliminaryNote || null },
-      }),
-    ]);
-  } catch {
-    await prisma.message.create({
       data: {
-        sessionId,
-        sender: 'ASSISTANT',
-        content:
-          'Здравствуйте! Я виртуальный консультант автосервиса. Расскажите, пожалуйста: марку и модель автомобиля, год выпуска, пробег, что вас беспокоит и при каких условиях это проявляется.',
+        preliminaryNote,
+        flowState: { asked_questions: [], stage: 'clarification', intent: null, service_type: null },
       },
-    });
-  }
+    }),
+  ]);
 }
 
 export async function claimSession(sessionId, clientId, guestToken) {
@@ -205,210 +192,7 @@ export async function postMessage(sessionId, actor, content) {
     },
   });
 
-  let aiPayload;
-  try {
-    aiPayload = await runLlmTurn(afterUser, trimmed);
-  } catch (e) {
-    // Don't break UX if local LLM returns non-JSON or is temporarily flaky.
-    // We keep the session usable and ask for missing fields deterministically.
-    aiPayload = {
-      reply:
-        'Я не смог обработать ответ ИИ-модуля, но консультация продолжится. ' +
-        'Пожалуйста, уточните марку и модель, год выпуска, пробег, что беспокоит и при каких условиях это проявляется.',
-      extracted: {},
-      recommendations: [],
-      progressPercent: progressFromExtracted(afterUser.extracted),
-      confidencePercent: null,
-      costFromMinor: null,
-      preliminaryNote:
-        'Ответ носит информационный характер и не заменяет осмотр автомобиля в сервисе.',
-    };
-  }
-
-  // LLM can hallucinate missing facts. We only accept some extracted fields
-  // when there is evidence in the user's latest message.
-  function sanitizeExtractedFromUserText(userText, partial) {
-    const p = partial && typeof partial === 'object' ? { ...partial } : {};
-    const t = String(userText || '');
-    const tl = t.toLowerCase();
-    const hasAny = (arr) => arr.some((k) => tl.includes(k));
-
-    function parseMakeModelFromText() {
-      const s = t
-        .replace(/[,.;:]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      const makeMap = new Map([
-        ['шкода', 'Skoda'],
-        ['skoda', 'Skoda'],
-        ['фольксваген', 'Volkswagen'],
-        ['volkswagen', 'Volkswagen'],
-        ['vw', 'Volkswagen'],
-        ['ауди', 'Audi'],
-        ['audi', 'Audi'],
-        ['тойота', 'Toyota'],
-        ['toyota', 'Toyota'],
-        ['хендай', 'Hyundai'],
-        ['hyundai', 'Hyundai'],
-        ['киа', 'Kia'],
-        ['kia', 'Kia'],
-        ['лада', 'Lada'],
-        ['ваз', 'VAZ'],
-        ['vaz', 'VAZ'],
-        ['рено', 'Renault'],
-        ['renault', 'Renault'],
-        ['ниссан', 'Nissan'],
-        ['nissan', 'Nissan'],
-        ['бмв', 'BMW'],
-        ['bmw', 'BMW'],
-        ['мерседес', 'Mercedes-Benz'],
-        ['mercedes', 'Mercedes-Benz'],
-        ['mercedes-benz', 'Mercedes-Benz'],
-        ['опель', 'Opel'],
-        ['opel', 'Opel'],
-        ['пежо', 'Peugeot'],
-        ['peugeot', 'Peugeot'],
-        ['ситроен', 'Citroen'],
-        ['citroen', 'Citroen'],
-        ['мазда', 'Mazda'],
-        ['mazda', 'Mazda'],
-        ['хонда', 'Honda'],
-        ['honda', 'Honda'],
-        ['митсубиси', 'Mitsubishi'],
-        ['mitsubishi', 'Mitsubishi'],
-        ['субару', 'Subaru'],
-        ['subaru', 'Subaru'],
-        ['лексус', 'Lexus'],
-        ['lexus', 'Lexus'],
-        ['вольво', 'Volvo'],
-        ['volvo', 'Volvo'],
-        ['чери', 'Chery'],
-        ['chery', 'Chery'],
-        ['джили', 'Geely'],
-        ['geely', 'Geely'],
-        ['порше', 'Porsche'],
-        ['porsche', 'Porsche'],
-        ['сузуки', 'Suzuki'],
-        ['suzuki', 'Suzuki'],
-        ['шевроле', 'Chevrolet'],
-        ['chevrolet', 'Chevrolet'],
-        ['форд', 'Ford'],
-        ['ford', 'Ford'],
-        ['джип', 'Jeep'],
-        ['jeep', 'Jeep'],
-      ]);
-
-      const titleize = (word) => {
-        const w = String(word || '').trim();
-        if (!w) return '';
-        // Keep numeric/alphanumeric (e.g., X5, A8) readable.
-        if (/^[a-z0-9]+$/i.test(w) && /[a-z]/i.test(w)) return w.toUpperCase().startsWith('X') ? w.toUpperCase() : w;
-        const first = w.slice(0, 1).toUpperCase();
-        const rest = w.slice(1).toLowerCase();
-        return first + rest;
-      };
-
-      const parts = s.split(' ').filter(Boolean);
-      if (parts.length < 1) return null;
-      const mk = makeMap.get(parts[0].toLowerCase()) || null;
-      if (!mk) return null;
-      const model = parts
-        .slice(1, 4)
-        .map(titleize)
-        .join(' ')
-        .trim();
-      return { make: mk, model: model || null };
-    }
-
-    const symptomKeywords = [
-      'стук',
-      'скрип',
-      'вибрац',
-      'увод',
-      'тормоз',
-      'троит',
-      'пропуск',
-      'не завод',
-      'не запуска',
-      'check engine',
-      'чек',
-      'перегрев',
-      'дым',
-      'расход',
-      'пинки',
-      'рывки',
-      'акпп',
-      'сцеплен',
-      'шум',
-      'кондиц',
-      'печк',
-      'утечк',
-      'масл',
-      'антифриз',
-      'пинает',
-      'пинается',
-      'пинк',
-    ];
-    const conditionKeywords = ['на холод', 'на горяч', 'при ', 'когда', 'после', 'только', 'в пробке', 'на трассе'];
-
-    const yearMatch = t.match(/\b(19[7-9]\d|20[0-2]\d)\b/);
-    const mileageMatch =
-      // Most reliable: explicit "пробег 110000" / "пробег: 110" / "пробег 110 тыс"
-      t.match(/пробег\D{0,10}(\d{2,7})/i) ||
-      // "110 тыс"
-      t.match(/(\d{2,3})\s*тыс/i) ||
-      // "120 000"
-      t.match(/\b(\d{2,3}\s?\d{3})\b/) ||
-      // "120000 км"
-      t.match(/(\d{3,7})\s*км\b/i);
-
-    const isCarOnly =
-      t.length <= 40 &&
-      !hasAny(symptomKeywords) &&
-      !/\bпробег\b/i.test(t) &&
-      !/\bкм\b/i.test(t) &&
-      !/\bуслов/i.test(t) &&
-      !/\bна холод|на горяч|при\b/i.test(t);
-
-    // Allow deterministic make/model parsing from "car-only" messages.
-    const car = parseMakeModelFromText();
-    if (car && isCarOnly) {
-      p.make = car.make;
-      if (car.model) p.model = car.model;
-    }
-
-    if (!yearMatch) {
-      delete p.year;
-    }
-    if (!mileageMatch) {
-      delete p.mileage;
-    } else {
-      // Normalize short mileage like "пробег 110" => 110000, or "110 тыс" => 110000
-      const raw = String(mileageMatch[1] || mileageMatch[0] || '').replace(/\s+/g, '');
-      const n = Number(raw);
-      if (Number.isFinite(n)) {
-        const hasThousandWord = /тыс/i.test(t);
-        const hasProbegWord = /пробег/i.test(t);
-        if ((hasProbegWord || hasThousandWord) && n > 0 && n < 1000) {
-          p.mileage = n * 1000;
-        } else if (hasThousandWord && n >= 10 && n < 10000) {
-          p.mileage = n * 1000;
-        } else {
-          p.mileage = n;
-        }
-      }
-    }
-
-    if (isCarOnly || !hasAny(symptomKeywords)) {
-      delete p.symptoms;
-    }
-    if (isCarOnly || !hasAny(conditionKeywords)) {
-      delete p.problemConditions;
-    }
-
-    return p;
-  }
-
+  const ai = await buildConsultationState(afterUser, trimmed);
   const mergedExtracted = mergeExtracted(
     {
       make: afterUser.extracted?.make ?? null,
@@ -418,144 +202,53 @@ export async function postMessage(sessionId, actor, content) {
       symptoms: afterUser.extracted?.symptoms ?? null,
       problemConditions: afterUser.extracted?.problemConditions ?? null,
     },
-    sanitizeExtractedFromUserText(trimmed, aiPayload.extracted),
+    {
+      make: ai.extracted_data.car_make,
+      model: ai.extracted_data.car_model,
+      year: ai.extracted_data.year,
+      mileage: ai.extracted_data.mileage,
+      symptoms: ai.extracted_data.symptoms,
+      problemConditions: ai.extracted_data.conditions,
+    },
   );
 
-  function hasMaintenanceIntent(text) {
-    const s = String(text || '').toLowerCase();
-    if (!s) return false;
-    const hasToWord = /(^|[\s,.;:!?()\-])то(?=($|[\s,.;:!?()\-]))/.test(s) || /\bто-\d+/.test(s);
-    return (
-      /техобслуж|тех\s*обслуж|техническ(?:ое|ого)\s*обслуж/.test(s) ||
-      /планов(?:ое|ого)\s*то/.test(s) ||
-      /(?:сделать|пройти|записать(?:ся)?|запись)\s+то/.test(s) ||
-      (hasToWord && /(?:хочу|нужно|надо|пора|сделать|пройти|записать(?:ся)?)/.test(s))
-    );
-  }
+  const complete = ai.stage === 'result' || ai.stage === 'service_result';
 
-  function isMaintenanceFlow(sessionWithMessages, userText) {
-    if (hasMaintenanceIntent(userText)) return true;
-    return (sessionWithMessages?.messages || []).some(
-      (m) => m.sender === 'USER' && hasMaintenanceIntent(m.content),
-    );
-  }
-
-  const maintenanceFlow = isMaintenanceFlow(afterUser, trimmed);
-  const hasCoreVehicleData =
-    !!mergedExtracted.make &&
-    !!mergedExtracted.model &&
-    mergedExtracted.year != null &&
-    Number.isFinite(Number(mergedExtracted.year)) &&
-    mergedExtracted.mileage != null &&
-    Number.isFinite(Number(mergedExtracted.mileage));
-
-  const ruleProgress = progressFromExtracted(mergedExtracted);
-  const complete = maintenanceFlow ? hasCoreVehicleData : isExtractedComplete(mergedExtracted);
-
-  // Progress is deterministic: only from actually extracted fields.
-  let progressPercent = complete ? 100 : ruleProgress;
-
-  const missing = [];
-  if (!mergedExtracted.make) missing.push('марку');
-  if (!mergedExtracted.model) missing.push('модель');
-  if (!(mergedExtracted.year != null && Number.isFinite(Number(mergedExtracted.year)))) missing.push('год выпуска');
-  if (!(mergedExtracted.mileage != null && Number.isFinite(Number(mergedExtracted.mileage))))
-    missing.push('пробег');
-  if (!maintenanceFlow) {
-    if (!mergedExtracted.symptoms) missing.push('симптомы (что именно происходит)');
-    if (!mergedExtracted.problemConditions)
-      missing.push('условия проявления (на холодную/на горячую, скорость, дорога и т.д.)');
-  }
-
-  // If LLM "thinks" it's done but required fields are missing, force a deterministic follow-up.
-  if (!complete) {
-    aiPayload.progressPercent = ruleProgress;
-    aiPayload.confidencePercent = null;
-    aiPayload.costFromMinor = null;
-    if (!Array.isArray(aiPayload.recommendations) || aiPayload.recommendations.length === 0) {
-      aiPayload.recommendations = [];
-    }
-    if (missing.length > 0) {
-      aiPayload.reply = maintenanceFlow
-        ? 'Для записи на ТО уточните, пожалуйста: ' + missing.join(', ') + '. Можно одним сообщением.'
-        : 'Чтобы подготовить итог и рекомендации, уточните, пожалуйста: ' +
-          missing.join(', ') +
-          '. Можно одним сообщением.';
-    }
-  }
-
-  // When mandatory fields are collected, we force a deterministic "final" turn
-  // so the UX doesn't depend on the LLM being smart enough to finish.
-  if (complete) {
-    if (maintenanceFlow) {
-      aiPayload.reply =
-        'Понял, вы хотите плановое ТО. Для неисправностей уточнять не нужно: подготовим стандартное техническое обслуживание по данным авто и пробегу. Можете сразу оформлять заявку на ТО.';
-      aiPayload.recommendations = [
-        { title: 'Плановое ТО по регламенту (масло + фильтры)', probabilityPercent: 90 },
-        { title: 'Проверка тормозной системы и уровней жидкостей', probabilityPercent: 70 },
-        { title: 'Базовая проверка подвески и ходовой части', probabilityPercent: 55 },
-      ];
-      if (aiPayload.costFromMinor == null || !Number.isFinite(Number(aiPayload.costFromMinor))) {
-        aiPayload.costFromMinor = 3500;
-      }
-      if (aiPayload.confidencePercent == null || !Number.isFinite(Number(aiPayload.confidencePercent))) {
-        aiPayload.confidencePercent = 80;
-      }
-    } else {
-      aiPayload.reply =
-        'Все обязательные данные собраны. Я подготовил предварительный итог по симптомам и условиям проявления.';
-      if (!Array.isArray(aiPayload.recommendations) || aiPayload.recommendations.length === 0) {
-        const pb = pickPlaybook(mergedExtracted, trimmed);
-        aiPayload.recommendations = pb
-          ? pb.hypotheses
-              .slice(0, 5)
-              .map((t, i) => ({ title: t, probabilityPercent: Math.max(10, 60 - i * 10) }))
-          : [{ title: 'Диагностика в сервисе (подтверждение причины)', probabilityPercent: 60 }];
-      }
-    }
-    if (aiPayload.preliminaryNote == null) {
-      aiPayload.preliminaryNote =
-        'Результат предварительный и не заменяет осмотр автомобиля в сервисе.';
-    }
-    if (aiPayload.costFromMinor == null || !Number.isFinite(Number(aiPayload.costFromMinor))) {
-      aiPayload.costFromMinor = estimateCostFromMinor(mergedExtracted, aiPayload);
-    }
-    if (aiPayload.confidencePercent == null || !Number.isFinite(Number(aiPayload.confidencePercent))) {
-      aiPayload.confidencePercent = 70;
-    }
-
-    // Add service-statistics hint (real works) to the final message to reduce "LLM fantasy".
-    if (!maintenanceFlow) {
-      const pb = pickPlaybook(mergedExtracted, trimmed);
-      const catId =
-        pb?.id === 'engine-misfire' || pb?.id === 'engine-no-start' || pb?.id === 'engine-check-engine'
-          ? 'engine'
-          : pb?.id === 'cooling-overheat'
-            ? 'cooling'
-            : pb?.id === 'brakes-vibration'
-              ? 'brakes'
-              : pb?.id === 'suspension-knock'
-                ? 'suspension'
-                : pb?.id === 'at-shift'
-                  ? 'transmission'
-                  : null;
-      const works =
-        catId && mergedExtracted.make
-          ? topWorksForCategoryAndMake(catId, mergedExtracted.make, 5)
-          : catId
-            ? topWorksForCategory(catId, 5)
-            : [];
-      if (works.length) {
-        aiPayload.reply +=
-          '\n\nПо статистике сервиса в похожих случаях часто выполняют:\n- ' + works.join('\n- ');
-      }
-    }
-    aiPayload.reply += '\n\nВы можете сохранить отчёт и оформить заявку в сервис.';
-  }
+  const progressPercent = complete
+    ? 100
+    : Math.min(100, progressFromConsultationSteps(ai.extracted_data));
+  const diagnosis = ai.diagnosis;
+  const recommendations =
+    ai.stage === 'service_result'
+      ? []
+      : diagnosis?.probable_causes?.length > 0
+        ? diagnosis.probable_causes
+            .map((title, i) => ({
+              title: coerceDiagnosisLine(title),
+              probabilityPercent: Math.max(15, Math.round(75 - i * 12)),
+            }))
+            .filter((r) => r.title)
+        : [];
+  const aiReply =
+    complete && ai.stage === 'service_result'
+      ? ai.assistant_message
+      : complete
+        ? `${ai.assistant_message}\n\nВы можете сохранить отчёт и оформить заявку в сервис.`
+        : ai.assistant_message;
+  const confidencePercent =
+    diagnosis && Number.isFinite(Number(diagnosis.confidence))
+      ? Math.max(0, Math.min(100, Math.round(Number(diagnosis.confidence) * 100)))
+      : null;
+  const costFromMinor =
+    diagnosis?.estimated_cost_from != null
+      ? Math.round(Number(diagnosis.estimated_cost_from))
+      : complete && ai.stage !== 'service_result'
+        ? estimateCostFromMinor(mergedExtracted, { recommendations })
+        : null;
 
   await prisma.$transaction([
     prisma.message.create({
-      data: { sessionId, sender: 'ASSISTANT', content: aiPayload.reply },
+      data: { sessionId, sender: 'ASSISTANT', content: aiReply },
     }),
     prisma.extractedDiagnosticData.update({
       where: { sessionId },
@@ -569,7 +262,7 @@ export async function postMessage(sessionId, actor, content) {
       },
     }),
     prisma.diagnosticRecommendation.deleteMany({ where: { sessionId } }),
-    ...aiPayload.recommendations.map((r) =>
+    ...recommendations.map((r) =>
       prisma.diagnosticRecommendation.create({
         data: {
           sessionId,
@@ -583,12 +276,13 @@ export async function postMessage(sessionId, actor, content) {
       data: {
         status: complete ? 'COMPLETED' : 'IN_PROGRESS',
         progressPercent: Math.min(100, progressPercent),
-        confidencePercent: aiPayload.confidencePercent,
-        costFromMinor:
-          aiPayload.costFromMinor != null && Number.isFinite(aiPayload.costFromMinor)
-            ? Math.round(aiPayload.costFromMinor)
-            : null,
-        preliminaryNote: aiPayload.preliminaryNote,
+        confidencePercent,
+        costFromMinor: costFromMinor != null && Number.isFinite(costFromMinor) ? Math.round(costFromMinor) : null,
+        preliminaryNote:
+          ai.stage === 'service_result'
+            ? 'Плановые работы; оценка без диагностики неисправностей.'
+            : 'Результат предварительный и не заменяет очную диагностику автомобиля специалистом.',
+        flowState: ai.flowState ?? undefined,
       },
     }),
   ]);

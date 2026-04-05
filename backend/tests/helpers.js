@@ -4,26 +4,25 @@ import prisma from '../src/lib/prisma.js';
 
 export const app = createApp();
 
+/** Очистка БД: совместимо с SQLite и PostgreSQL (без TRUNCATE … CASCADE). */
 export async function truncateAll() {
-  await prisma.$executeRawUnsafe(`
-    TRUNCATE TABLE
-      notifications,
-      request_follow_up_messages,
-      service_bookings,
-      consultation_reports,
-      service_requests,
-      diagnostic_recommendations,
-      messages,
-      extracted_diagnostic_data,
-      consultation_sessions,
-      reference_materials,
-      consultation_questions,
-      hints,
-      consultation_scenarios,
-      service_categories,
-      users
-    RESTART IDENTITY CASCADE;
-  `);
+  await prisma.$transaction([
+    prisma.notification.deleteMany(),
+    prisma.requestFollowUpMessage.deleteMany(),
+    prisma.serviceBooking.deleteMany(),
+    prisma.consultationReport.deleteMany(),
+    prisma.diagnosticRecommendation.deleteMany(),
+    prisma.message.deleteMany(),
+    prisma.extractedDiagnosticData.deleteMany(),
+    prisma.serviceRequest.deleteMany(),
+    prisma.consultationSession.deleteMany(),
+    prisma.referenceMaterial.deleteMany(),
+    prisma.consultationQuestion.deleteMany(),
+    prisma.hint.deleteMany(),
+    prisma.consultationScenario.deleteMany(),
+    prisma.serviceCategory.deleteMany(),
+    prisma.user.deleteMany(),
+  ]);
 }
 
 export async function registerClient(overrides = {}) {

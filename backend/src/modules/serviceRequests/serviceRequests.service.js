@@ -1,3 +1,4 @@
+import { apiMessages } from '../../config/apiMessages.js';
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { isExtractedComplete } from '../../lib/consultationProgress.js';
@@ -12,7 +13,7 @@ export async function createFromSession(sessionId, user) {
   if (session.clientId !== user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
   if (session.serviceRequest) throw new AppError(409, 'Request already exists', 'CONFLICT');
   if (!isExtractedComplete(session.extracted)) {
-    throw new AppError(400, 'All six diagnostic fields must be filled', 'INCOMPLETE');
+    throw new AppError(400, apiMessages.serviceRequest.incompleteConsultation, 'INCOMPLETE');
   }
 
   const ext = session.extracted;
@@ -73,11 +74,11 @@ export async function createFromGuestSession(sessionId, actor, { fullName, phone
   if (session.clientId != null) throw new AppError(409, 'Session already linked to account', 'CONFLICT');
   if (session.serviceRequest) throw new AppError(409, 'Request already exists', 'CONFLICT');
   if (!isExtractedComplete(session.extracted)) {
-    throw new AppError(400, 'All six diagnostic fields must be filled', 'INCOMPLETE');
+    throw new AppError(400, apiMessages.serviceRequest.incompleteConsultation, 'INCOMPLETE');
   }
   const name = String(fullName || '').trim();
   const ph = String(phone || '').trim();
-  if (!name || !ph) throw new AppError(400, 'fullName and phone required', 'BAD_REQUEST');
+  if (!name || !ph) throw new AppError(400, apiMessages.serviceRequest.guestNamePhoneRequired, 'BAD_REQUEST');
 
   const ext = session.extracted;
   const sr = await prisma.$transaction(async (tx) => {
@@ -190,7 +191,7 @@ export async function patchRequestStatus(requestId, user, { status, expectedVers
     throw new AppError(403, 'Forbidden', 'FORBIDDEN');
   }
   if (expectedVersion == null || !Number.isInteger(expectedVersion)) {
-    throw new AppError(400, 'expectedVersion required', 'BAD_REQUEST');
+    throw new AppError(400, apiMessages.serviceRequest.expectedVersionRequired, 'BAD_REQUEST');
   }
 
   const result = await prisma.serviceRequest.updateMany({

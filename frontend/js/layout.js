@@ -12,7 +12,7 @@ export function mountHeaderFooter({ active = '' } = {}) {
         : '/dashboards/client.html';
 
   const dashClass = active === 'dash' ? 'is-active' : '';
-  const navCta = (active === 'gallery' || active === 'works' || active === 'location' || active === 'dash')
+  const navCta = (active === 'about' || active === 'gallery' || active === 'works' || active === 'location' || active === 'dash')
     ? `<a href="/consult.html" class="btn btn--primary nav-cta" style="text-decoration:none">Начать диагностику</a>`
     : '';
   const authBlock = authed

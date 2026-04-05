@@ -4,7 +4,7 @@ import { app, registerClient, truncateAll } from '../helpers.js';
 describe('consultation lifecycle', () => {
   beforeEach(() => truncateAll());
 
-  it('blocks service request until six fields; completes after mock turns', async () => {
+  it('blocks service request until mandatory fields; completes after rule+extraction turns', async () => {
     const { token } = await registerClient();
 
     const start = await request(app)
@@ -19,19 +19,22 @@ describe('consultation lifecycle', () => {
       .set('Authorization', `Bearer ${token}`);
     expect(early.status).toBe(400);
 
-    for (let i = 0; i < 6; i++) {
+    const steps = ['Пробег 120000', 'Плавают обороты', 'При движении'];
+    for (const content of steps) {
       const m = await request(app)
         .post(`/api/consultations/${sid}/messages`)
         .set('Authorization', `Bearer ${token}`)
-        .send({ content: `msg ${i}` });
+        .send({ content });
       expect(m.status).toBe(201);
     }
 
     const done = await request(app)
       .get(`/api/consultations/${sid}`)
       .set('Authorization', `Bearer ${token}`);
-    expect(done.body.extracted?.make).toBeTruthy();
-    expect(done.body.extracted?.model).toBeTruthy();
+    expect(done.body.extracted?.mileage).toBeTruthy();
+    expect(done.body.extracted?.symptoms).toBeTruthy();
+    expect(done.body.extracted?.problemConditions).toBeTruthy();
+    expect(done.body.status).toBe('COMPLETED');
 
     const req = await request(app)
       .post(`/api/consultations/${sid}/service-request`)

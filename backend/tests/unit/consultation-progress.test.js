@@ -5,13 +5,10 @@ import {
 } from '../../src/lib/consultationProgress.js';
 
 describe('consultationProgress', () => {
-  it('isExtractedComplete requires all six', () => {
+  it('isExtractedComplete requires mileage, symptoms, problemConditions', () => {
     expect(isExtractedComplete(null)).toBe(false);
     expect(
       isExtractedComplete({
-        make: 'Toyota',
-        model: 'Camry',
-        year: 2018,
         mileage: 100000,
         symptoms: 'стук',
         problemConditions: 'холодный',
@@ -26,12 +23,21 @@ describe('consultationProgress', () => {
         symptoms: 'x',
         problemConditions: 'y',
       }),
+    ).toBe(true);
+    expect(
+      isExtractedComplete({
+        make: 'Toyota',
+        model: 'Camry',
+        year: 2018,
+        symptoms: 'x',
+        problemConditions: 'y',
+      }),
     ).toBe(false);
   });
 
   it('progressFromExtracted scales 0–100', () => {
     expect(progressFromExtracted({})).toBe(0);
-    expect(progressFromExtracted({ make: 'a', model: 'b', year: 1, mileage: 2, symptoms: 's', problemConditions: 'p' })).toBe(100);
+    expect(progressFromExtracted({ mileage: 2, symptoms: 's', problemConditions: 'p', make: 'a', model: 'b', year: 1 })).toBe(100);
   });
 
   it('mergeExtracted merges partial', () => {
