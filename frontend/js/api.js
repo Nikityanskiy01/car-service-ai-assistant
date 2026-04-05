@@ -30,7 +30,11 @@ function localizeApiError(status, data, fallbackStatusText) {
   ]);
   if (englishMap.has(raw)) return englishMap.get(raw);
 
-  if (status >= 500) return 'Временная ошибка сервера. Попробуйте еще раз чуть позже.';
+  // 500: в development бэкенд часто отдаёт текст Prisma (нет колонки и т.д.) — показываем, а не общую фразу
+  if (status >= 500) {
+    if (raw && raw !== 'Internal server error') return raw;
+    return 'Временная ошибка сервера. Попробуйте еще раз чуть позже.';
+  }
   if (!raw) return 'Не удалось выполнить запрос. Попробуйте еще раз.';
   return raw;
 }

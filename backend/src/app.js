@@ -25,9 +25,12 @@ export function createApp() {
       contentSecurityPolicy: false,
     }),
   );
+  // В development запросы с того же ПК по LAN-IP (192.168.x.x) иначе не проходят CORS при origin=localhost только
+  const corsOrigin =
+    env.NODE_ENV === 'development' ? true : env.CORS_ORIGIN || true;
   app.use(
     cors({
-      origin: env.CORS_ORIGIN || true,
+      origin: corsOrigin,
       credentials: true,
     }),
   );
