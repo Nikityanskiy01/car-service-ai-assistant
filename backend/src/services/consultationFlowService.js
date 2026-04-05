@@ -355,6 +355,14 @@ export function preExtractFromRules(message, base = {}) {
     }
   }
 
+  // Плановое ТО / замены: фразы вроде «замена масла» не попадают под SYMPTOM_HINTS, а LLM может не вернуть поле
+  if (!out.symptoms && t.length >= 2 && t.length < 300) {
+    const intent = detectConsultationIntent(t);
+    if (intent === 'service') {
+      out.symptoms = normalizeSymptoms(t);
+    }
+  }
+
   return out;
 }
 
@@ -364,6 +372,21 @@ function postProcessMerged(merged) {
   if (out.conditions) out.conditions = normalizeConditions(String(out.conditions));
   if (out.symptoms) out.category = detectSymptomCategory(String(out.symptoms));
   return out;
+}
+
+/**
+ * LLM часто сжимает фразу до «ДВС» / одного слова — теряется «замена масла», и поток уходит в диагностику.
+ * Если rule-based уже распознал плановое ТО, не даём ответу LLM это сломать.
+ * @param {Record<string, unknown>} pre
+ * @param {Record<string, unknown>} merged
+ */
+export function preferPreExtractedServiceSymptoms(pre, merged) {
+  const p = pre?.symptoms != null ? String(pre.symptoms).trim() : '';
+  if (!p || detectConsultationIntent(p) !== 'service') return merged;
+  const m = merged?.symptoms != null ? String(merged.symptoms).trim() : '';
+  if (!m) return { ...merged, symptoms: pre.symptoms };
+  if (detectConsultationIntent(m) === 'service') return merged;
+  return { ...merged, symptoms: pre.symptoms };
 }
 
 /**
@@ -386,7 +409,7 @@ export async function extractConsultationData(message, currentState = {}) {
     });
     const parsed = safeJsonParse(raw);
     const normalized = normalizeExtractedFromLlm(parsed || {});
-    const mergedLlm = mergeExtractedData(pre, normalized);
+    const mergedLlm = preferPreExtractedServiceSymptoms(pre, mergeExtractedData(pre, normalized));
     return postProcessMerged(mergedLlm);
   } catch {
     return postProcessMerged(pre);

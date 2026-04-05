@@ -37,6 +37,39 @@ function isMaintenanceRecommendations(recs) {
   return recs.some((r) => /планов.*то|техобслуж/i.test(String(r?.title || '')));
 }
 
+/** Завершение по плановому ТО (бэкенд: flowState + preliminaryNote), не по диагностике неисправности */
+function isPlannedServiceResult(data) {
+  const fs = data?.flowState;
+  if (fs && fs.intent === 'service' && fs.stage === 'service_result') return true;
+  return String(data?.preliminaryNote || '').includes('Плановые работы');
+}
+
+function plannedServiceCard(flowState) {
+  const st = flowState?.service_type;
+  const map = {
+    oil_change: {
+      title: 'Замена масла ДВС',
+      hint: 'Слив, замена моторного масла и масляного фильтра по регламенту производителя',
+    },
+    brake_pads: {
+      title: 'Замена тормозных колодок',
+      hint: 'Подбор накладок и работы на подъёмнике',
+    },
+    filters: { title: 'Замена фильтров', hint: 'Воздушный, салонный, топливный — по состоянию' },
+    timing_belt: { title: 'Замена ремня ГРМ', hint: 'Регламент по пробегу/сроку' },
+    tire_service: { title: 'Шиномонтаж', hint: 'Сезонная смена, балансировка' },
+    maintenance: {
+      title: 'Плановое ТО',
+      hint: 'Регламентные работы по пробегу и состоянию расходников',
+    },
+    unknown: {
+      title: 'Плановое обслуживание',
+      hint: 'Работы по вашему запросу без поиска неисправностей',
+    },
+  };
+  return map[st] || map.unknown;
+}
+
 function formatCarDisplay(ext) {
   const make = String(ext?.make || '').trim();
   let model = String(ext?.model || '').trim();
@@ -252,7 +285,9 @@ export async function initConsultPage() {
       sixComplete(ext) ||
       !!data.serviceRequest;
     const hasSym = hasSymptoms(ext);
-    const isMaintenance = isMaintenanceRecommendations(data.recommendations);
+    const plannedService = isPlannedServiceResult(data);
+    const isMaintenance = isMaintenanceRecommendations(data.recommendations) || plannedService;
+    const serviceCard = plannedService ? plannedServiceCard(data.flowState) : null;
 
     // Show full diagnostic result only after consultation completion
     if (resultPanel) resultPanel.hidden = !done;
@@ -270,8 +305,11 @@ export async function initConsultPage() {
     if (resultConfidencePercent) resultConfidencePercent.textContent = confNum != null ? `${confNum}%` : '—';
     if (resultConfidenceBar) resultConfidenceBar.style.width = `${confNum ?? 0}%`;
     if (resultConfidenceHint) {
-      resultConfidenceHint.textContent =
-        confNum != null
+      resultConfidenceHint.textContent = plannedService
+        ? confNum != null
+          ? 'Для плановых работ оценка неисправностей не требуется; блок ниже — справочно.'
+          : 'Для планового визита оценка «неисправности» не применяется — ориентир по смете после осмотра.'
+        : confNum != null
           ? 'Оценка основана на введенных симптомах и статистике типовых неисправностей.'
           : 'Оценка станет точнее после уточнения симптомов и условий проявления.';
     }
@@ -279,16 +317,20 @@ export async function initConsultPage() {
     // Service type heuristic
     const t = `${ext?.symptoms || ''} ${ext?.problemConditions || ''}`.toLowerCase();
     const checkEngine = ['check engine', 'чек', 'ошибк', 'пропуск', 'троит'].some((k) => t.includes(k));
-    const serviceName = isMaintenance
-      ? 'Плановое ТО'
-      : hasSym
-      ? checkEngine
-        ? 'Комплексная диагностика двигателя'
-        : 'Комплексная диагностика'
-      : '—';
+    const serviceName = plannedService && serviceCard
+      ? serviceCard.title
+      : isMaintenance
+        ? 'Плановое ТО'
+        : hasSym
+        ? checkEngine
+          ? 'Комплексная диагностика двигателя'
+          : 'Комплексная диагностика'
+        : '—';
     if (resultServiceValue) resultServiceValue.textContent = serviceName;
     if (resultServiceHint)
-      resultServiceHint.textContent = isMaintenance
+      resultServiceHint.textContent = plannedService && serviceCard
+        ? serviceCard.hint
+        : isMaintenance
         ? 'Регламентные работы по пробегу и состоянию расходников'
         : hasSym
         ? checkEngine
@@ -331,6 +373,8 @@ export async function initConsultPage() {
                 </div>`;
               })
               .join('')
+          : plannedService
+          ? `<div class="diag-state muted">Плановые работы: поиск неисправности не требуется. Итоговый перечень и цена — после осмотра автомобиля в сервисе.</div>`
           : `<div class="diag-state muted"><span class="diag-spinner" aria-hidden="true"></span>Ожидаем дополнительные симптомы для уточнения оценки</div>`;
     }
 
@@ -339,6 +383,8 @@ export async function initConsultPage() {
       resultChecksList.innerHTML =
         checks.length > 0
           ? checks.map((x) => `<li>${escapeHtml(x)}</li>`).join('')
+          : plannedService
+          ? `<li class="muted">Контроль уровня жидкостей, визуальный осмотр на подъёмнике — по стандарту сервиса перед записью на работы.</li>`
           : `<li class="muted">Ожидаем дополнительные симптомы для уточнения оценки</li>`;
     }
 

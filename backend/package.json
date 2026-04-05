@@ -13,10 +13,14 @@
     "smoke:consultation": "node scripts/smoke-consultation.js",
     "prices:build": "node scripts/build-price-catalog.js",
     "stats:build": "node scripts/build-work-stats.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:ensure-test": "node scripts/ensure-test-database.mjs",
+    "db:setup": "node scripts/db-setup.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

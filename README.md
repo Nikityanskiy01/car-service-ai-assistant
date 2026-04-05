@@ -23,11 +23,12 @@
    ```bash
    cd backend
    cp .env.example .env
-   # отредактируйте DATABASE_URL
-   npx prisma migrate deploy
-   npm run db:seed
+   # DATABASE_URL по умолчанию — PostgreSQL из docker-compose (см. корень репозитория)
+   npm run db:setup
    npm run dev
    ```
+
+   Либо вручную: в корне репозитория `docker compose up -d`, затем в `backend/` — `npx prisma migrate deploy`, `npm run db:seed`.
 
    Сервер слушает `PORT` (по умолчанию 3000) и раздаёт статику из `../frontend`.
 

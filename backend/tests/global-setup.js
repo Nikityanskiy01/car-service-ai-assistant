@@ -6,6 +6,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 
 export default async function globalSetup() {
+  try {
+    execSync('node scripts/ensure-test-database.mjs', { cwd: root, stdio: 'pipe' });
+  } catch {
+    /* optional */
+  }
+
   const env = {
     ...process.env,
     NODE_ENV: 'test',
@@ -13,11 +19,10 @@ export default async function globalSetup() {
     DATABASE_URL:
       process.env.TEST_DATABASE_URL ||
       process.env.DATABASE_URL ||
-      'file:./prisma/test.db',
+      'postgresql://fox:fox@localhost:5432/foxmotors_test',
   };
   try {
-    // For SQLite tests, prefer db push to avoid migration-provider mismatches.
-    execSync('npx prisma db push --force-reset', { cwd: root, env, stdio: 'pipe' });
+    execSync('npx prisma migrate reset --force --skip-seed', { cwd: root, env, stdio: 'pipe' });
   } catch (e) {
     console.warn('global-setup: prisma db setup failed', e.message);
   }

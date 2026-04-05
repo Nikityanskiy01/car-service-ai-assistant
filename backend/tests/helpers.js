@@ -4,7 +4,7 @@ import prisma from '../src/lib/prisma.js';
 
 export const app = createApp();
 
-/** Очистка БД: совместимо с SQLite и PostgreSQL (без TRUNCATE … CASCADE). */
+/** Очистка БД (PostgreSQL): удаление в порядке FK. */
 export async function truncateAll() {
   await prisma.$transaction([
     prisma.notification.deleteMany(),

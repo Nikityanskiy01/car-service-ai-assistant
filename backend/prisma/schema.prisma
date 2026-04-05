@@ -2,10 +2,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// SQLite для локальной разработки (без поднятого Postgres).
-// Для сервера/продакшена можно переключить на PostgreSQL и прогнать миграции заново.
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
