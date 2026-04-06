@@ -1,4 +1,6 @@
 import request from 'supertest';
+import bcrypt from 'bcrypt';
+import prisma from '../../src/lib/prisma.js';
 import { app, registerClient, truncateAll } from '../helpers.js';
 
 describe('consultation lifecycle', () => {
@@ -89,5 +91,40 @@ describe('consultation lifecycle', () => {
 
     const owned = await request(app).get(`/api/consultations/${sid}`).set('Authorization', `Bearer ${token}`);
     expect(owned.status).toBe(200);
+  });
+
+  it('manager can GET /consultations/staff and see sessions without guest token', async () => {
+    const hash = await bcrypt.hash('password123', 8);
+    await prisma.user.create({
+      data: {
+        email: 'mgr_staff_list@test.local',
+        passwordHash: hash,
+        fullName: 'Менеджер',
+        phone: '+70000000001',
+        role: 'MANAGER',
+      },
+    });
+    const { token: clientTok } = await registerClient({ email: 'cl_staff@t.test' });
+    const start = await request(app)
+      .post('/api/consultations')
+      .set('Authorization', `Bearer ${clientTok}`)
+      .send({});
+    expect(start.status).toBe(201);
+    const sid = start.body.id;
+
+    const mgrLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'mgr_staff_list@test.local', password: 'password123' });
+    expect(mgrLogin.status).toBe(200);
+    const mt = mgrLogin.body.accessToken;
+
+    const denied = await request(app).get('/api/consultations/staff').set('Authorization', `Bearer ${clientTok}`);
+    expect(denied.status).toBe(403);
+
+    const list = await request(app).get('/api/consultations/staff').set('Authorization', `Bearer ${mt}`);
+    expect(list.status).toBe(200);
+    expect(Array.isArray(list.body.items)).toBe(true);
+    expect(list.body.items.some((row) => row.id === sid)).toBe(true);
+    expect(list.body.items.find((row) => row.id === sid).guestToken).toBeUndefined();
   });
 });

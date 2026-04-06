@@ -8,7 +8,7 @@ test.describe('US1 client consultation', () => {
     for (let i = 0; i < 6; i++) {
       await page.fill('#messageInput', `Сообщение ${i}`);
       await page.click('#chatForm button[type="submit"]');
-      await page.waitForTimeout(400);
+      await page.locator('.bubble--assistant').nth(i + 1).waitFor({ timeout: 30_000 });
     }
     await expect(page.getByRole('link', { name: 'Регистрация' })).toBeVisible({ timeout: 30_000 });
 

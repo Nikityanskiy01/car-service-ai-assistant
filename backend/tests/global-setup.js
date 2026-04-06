@@ -19,7 +19,7 @@ export default async function globalSetup() {
     DATABASE_URL:
       process.env.TEST_DATABASE_URL ||
       process.env.DATABASE_URL ||
-      'postgresql://fox:fox@localhost:5432/foxmotors_test',
+      'postgresql://fox:fox@localhost:5433/foxmotors_test',
   };
   try {
     execSync('npx prisma migrate reset --force --skip-seed', { cwd: root, env, stdio: 'pipe' });

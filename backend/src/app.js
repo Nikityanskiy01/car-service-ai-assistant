@@ -1,5 +1,7 @@
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
@@ -12,17 +14,60 @@ import api from './routes/api.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..', '..');
-const frontendRoot = path.join(projectRoot, 'frontend');
-const frontend404 = path.join(frontendRoot, '404.html');
-const frontend500 = path.join(frontendRoot, '500.html');
+const frontendSrc = path.join(projectRoot, 'frontend');
+const frontendDist = path.join(projectRoot, 'frontend', 'dist');
+
+/** В production отдаём собранный dist/ (Render, docker), иначе исходники frontend/. */
+function resolveFrontendRoot(env) {
+  if (env.NODE_ENV === 'production' && fs.existsSync(frontendDist)) {
+    return frontendDist;
+  }
+  return frontendSrc;
+}
 
 export function createApp() {
   const app = express();
   const env = getEnv();
+  const frontendRoot = resolveFrontendRoot(env);
+  const frontend404 = path.join(frontendRoot, '404.html');
+  const frontend500 = path.join(frontendRoot, '500.html');
+
+  if (env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
 
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy:
+        env.NODE_ENV === 'production'
+          ? {
+              directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", 'https://unpkg.com', 'https://api-maps.yandex.ru'],
+                styleSrc: ["'self'", 'https://fonts.googleapis.com'],
+                imgSrc: [
+                  "'self'",
+                  'data:',
+                  'https://images.unsplash.com',
+                  'https://*.yandex.net',
+                  'https://*.yandex.ru',
+                ],
+                fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+                connectSrc: [
+                  "'self'",
+                  'https://api-maps.yandex.ru',
+                  'https://suggest-maps.yandex.ru',
+                  'https://geocode-maps.yandex.ru',
+                  'https://*.maps.yandex.net',
+                ],
+                frameSrc: ["'none'"],
+                workerSrc: ["'self'", 'blob:'],
+                objectSrc: ["'none'"],
+                baseUri: ["'self'"],
+                formAction: ["'self'"],
+              },
+            }
+          : false,
     }),
   );
   // В development запросы с того же ПК по LAN-IP (192.168.x.x) иначе не проходят CORS при origin=localhost только
@@ -34,6 +79,7 @@ export function createApp() {
       credentials: true,
     }),
   );
+  app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
 
   if (env.NODE_ENV !== 'test') {

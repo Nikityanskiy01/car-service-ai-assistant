@@ -3,38 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Вход — AI Fox Motors</title>
+    <title>Вход — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/auth.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container" style="max-width: 420px">
+    <main class="page container auth-page">
       <h1>С возвращением</h1>
       <p class="muted">Войдите, чтобы отслеживать заявки, сохранять отчёты и переписываться с менеджером.</p>
       <form id="loginForm" class="card" novalidate>
         <div class="form-field">
           <label for="email">Email</label>
-          <input id="email" name="email" type="email" autocomplete="username" required placeholder="name@example.com" />
+          <input id="email" name="email" type="email" autocomplete="username" required placeholder="name@example.com" aria-describedby="email-hint" />
+          <small id="email-hint" class="form-field__hint">Укажите email, использованный при регистрации</small>
+          <small class="form-field__error" role="alert">Введите корректный email</small>
         </div>
-        <div class="form-field">
+        <div class="form-field form-field--pw">
           <label for="password">Пароль</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <div class="pw-input-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password" required aria-describedby="password-hint" />
+            <button type="button" class="pw-toggle" aria-label="Показать пароль" tabindex="-1">
+              <span class="pw-toggle__icon pw-toggle__icon--show" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              </span>
+              <span class="pw-toggle__icon pw-toggle__icon--hide" aria-hidden="true" hidden>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M1 1l22 22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </span>
+            </button>
+          </div>
+          <small id="password-hint" class="form-field__hint">Пароль от аккаунта; ввод только латиницей (кириллица не используется)</small>
+          <small class="form-field__error" role="alert">Введите пароль</small>
         </div>
-        <button type="submit" class="btn btn--primary" style="width: 100%">Войти</button>
+        <button type="submit" class="btn btn--primary auth-page__submit">Войти</button>
       </form>
       <div id="formError" class="alert" role="alert" hidden></div>
-      <p class="muted" style="margin-top: 0.75rem">
+      <p class="muted auth-page__footer">
         Нет аккаунта? <a href="/register.html">Зарегистрироваться</a>
       </p>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      import { initLogin } from '/js/auth.js';
-      mountHeaderFooter({ active: 'home' });
-      initLogin();
-    </script>
+    <script type="module" src="/js/entry/login.js"></script>
   </body>
 </html>

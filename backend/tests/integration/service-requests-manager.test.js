@@ -46,7 +46,7 @@ describe('service requests manager', () => {
 
     const list = await request(app).get('/api/service-requests').set('Authorization', `Bearer ${mt}`);
     expect(list.status).toBe(200);
-    expect(list.body.some((r) => r.id === rid)).toBe(true);
+    expect(list.body.items.some((r) => r.id === rid)).toBe(true);
 
     const detail = await request(app)
       .get(`/api/service-requests/${rid}`)

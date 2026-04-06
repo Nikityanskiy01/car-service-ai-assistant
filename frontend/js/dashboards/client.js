@@ -1,7 +1,10 @@
-import { api, setToken, setUser } from '../api.js';
+import { api, downloadApiFile, setUser } from '../api.js';
+import { isPreferredAtInMoscowBookingWindow } from '../booking-hours.js';
+import { attachPhoneInputMask, formatPhoneInputDisplay, isValidPhoneInput } from '../phone.js';
 import { requireAuth } from '../router-guard.js';
 import { $, escapeHtml, formatDate } from '../utils.js';
 import { uiAlert } from '../ui/dialogs.js';
+import { consumeBookingPrefill } from '../services-page.js';
 
 export async function initClientDashboard() {
   const user = requireAuth(['CLIENT']);
@@ -69,6 +72,40 @@ export async function initClientDashboard() {
     setActiveTab(initial);
   }
 
+  function applyBookingPrefillFromRoute() {
+    const notes = $('#notes');
+    if (!notes) return;
+    const pre = consumeBookingPrefill();
+    const sp = new URLSearchParams(window.location.search);
+    const fromQuery = sp.get('service');
+    let line = '';
+    if (pre?.serviceTitle) {
+      line = pre.categoryLabel
+        ? `Запись на услугу: ${pre.serviceTitle} (${pre.categoryLabel})`
+        : `Запись на услугу: ${pre.serviceTitle}`;
+    } else if (fromQuery) {
+      line = `Запись на услугу: ${fromQuery}`;
+    }
+    if (!line) return;
+    notes.value = notes.value && notes.value.trim() ? `${notes.value.trim()}\n${line}` : line;
+    setActiveTab('bookings');
+    window.setTimeout(() => notes.focus(), 150);
+  }
+
+  function markField(el, valid) {
+    const field = el?.closest('.form-field');
+    if (!field) return;
+    field.classList.toggle('is-invalid', !valid);
+    field.classList.toggle('is-valid', valid);
+  }
+
+  function setMinDateTimeLocal(input) {
+    if (!input || input.type !== 'datetime-local') return;
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    input.min = now.toISOString().slice(0, 16);
+  }
+
   function badge(text, tone = 'ghost') {
     const cls =
       tone === 'ok'
@@ -121,14 +158,14 @@ export async function initClientDashboard() {
       .join('');
 
     box.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+      <div class="dash__section-head">
         <strong>${formatDate(s.createdAt)}</strong>
         ${badge(`${statusRu(s.status)}`, s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'bad' : 'ghost')}
       </div>
-      <p class="muted" style="margin:0.5rem 0 0.75rem">Прогресс: ${s.progressPercent ?? 0}% · Уверенность: ${
+      <p class="muted dash__stat-line">Прогресс: ${s.progressPercent ?? 0}% · Уверенность: ${
         s.confidencePercent != null ? `${s.confidencePercent}%` : '—'
       } · Ориентир по стоимости: ${s.costFromMinor != null ? `от ${fmtMoney(s.costFromMinor)}` : '—'}</p>
-      <div class="table-wrap" style="margin:0.75rem 0">
+      <div class="table-wrap dash__table-margin">
         <table class="data">
           <tbody>
             <tr><th>Авто</th><td>${escapeHtml(ext.make || '—')} ${escapeHtml(ext.model || '')} ${
@@ -142,19 +179,28 @@ export async function initClientDashboard() {
       </div>
       ${
         recs
-          ? `<div style="margin:0.75rem 0">
+          ? `<div class="dash__recs">
               <strong>Рекомендации</strong>
-              <ul style="margin:0.35rem 0 0; padding-left:1.1rem">${recs}</ul>
+              <ul class="dash__recs-list">${recs}</ul>
             </div>`
           : ''
       }
       ${s.preliminaryNote ? `<p class="alert alert--info">${escapeHtml(s.preliminaryNote)}</p>` : ''}
-      <div class="chat" style="max-height:260px">${chat || '<div class="empty">Сообщений пока нет.</div>'}</div>
-      <p style="margin:0.75rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap">
-        <a class="btn btn--ghost" href="/consult.html" style="text-decoration:none">Продолжить в чате</a>
+      <div class="chat dash__chat--short">${chat || '<div class="empty">Сообщений пока нет.</div>'}</div>
+      <p class="dash__row-actions">
+        <button type="button" class="btn btn--ghost" id="btnExportConsultPdfClient">Скачать PDF</button>
+        <a class="btn btn--ghost" href="/consult.html">Продолжить в чате</a>
         ${!s.serviceRequest ? `<button type="button" class="btn btn--primary" id="btnCreateSr">Создать заявку</button>` : ''}
       </p>
     `;
+
+    box.querySelector('#btnExportConsultPdfClient')?.addEventListener('click', async () => {
+      try {
+        await downloadApiFile(`/consultations/${s.id}/export.pdf`);
+      } catch (e) {
+        await uiAlert({ title: 'Ошибка', message: e.message });
+      }
+    });
 
     box.querySelector('#btnCreateSr')?.addEventListener('click', async () => {
       try {
@@ -182,7 +228,7 @@ export async function initClientDashboard() {
       .join('');
     box.innerHTML = `
       <strong>${escapeHtml(r.label || 'Отчёт')}</strong>
-      <p class="muted" style="margin:0.5rem 0 0.75rem">${formatDate(r.createdAt)} · Статус: ${escapeHtml(
+      <p class="muted dash__stat-line">${formatDate(r.createdAt)} · Статус: ${escapeHtml(
         statusRu(snap.status) || '—',
       )}</p>
       <div class="table-wrap">
@@ -199,19 +245,20 @@ export async function initClientDashboard() {
       </div>
       ${
         recs
-          ? `<div style="margin-top:0.75rem"><strong>Рекомендации</strong><ul style="margin:0.35rem 0 0; padding-left:1.1rem">${recs}</ul></div>`
+          ? `<div class="dash__recs"><strong>Рекомендации</strong><ul class="dash__recs-list">${recs}</ul></div>`
           : ''
       }
     `;
   }
 
   async function refresh() {
-    const [sessions, requests, reports, bookings] = await Promise.all([
+    const [sessions, requestsRes, reports, bookings] = await Promise.all([
       api('/consultations'),
-      api('/service-requests'),
+      api('/service-requests?pageSize=100'),
       api('/users/me/consultation-reports'),
       api('/bookings'),
     ]);
+    const requests = Array.isArray(requestsRes) ? requestsRes : requestsRes.items || [];
 
     $('#sessList').innerHTML =
       sessions.length === 0
@@ -219,8 +266,8 @@ export async function initClientDashboard() {
         : sessions
             .map((s) => {
               const tone = s.status === 'COMPLETED' ? 'ok' : s.status === 'AI_ERROR' ? 'bad' : 'ghost';
-              return `<li class="card" data-sid="${s.id}" style="margin-bottom:0.5rem;cursor:pointer">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+              return `<li class="card dash__consult-item" data-sid="${s.id}">
+                <div class="dash__section-head">
                   <strong>${formatDate(s.createdAt)}</strong>
                   ${badge(`${statusRu(s.status)} · ${s.progressPercent ?? 0}%`, tone)}
                 </div>
@@ -244,7 +291,7 @@ export async function initClientDashboard() {
         : requests
             .map((r) => {
               const tone = r.status === 'COMPLETED' ? 'ok' : r.status === 'CANCELLED' ? 'bad' : 'ghost';
-              return `<tr data-id="${r.id}" style="cursor:pointer">
+              return `<tr data-id="${r.id}" class="u-pointer">
         <td>${formatDate(r.createdAt)}</td>
         <td>${escapeHtml(r.snapshotMake || '')} ${escapeHtml(r.snapshotModel || '')}</td>
         <td>${badge(statusRu(r.status), tone)}</td>
@@ -272,7 +319,7 @@ export async function initClientDashboard() {
         ? `<li class="muted">Пока нет сохранённых отчётов. Завершите консультацию и нажмите «Сохранить отчёт».</li>`
         : reportsCache
             .map(
-              (r) => `<li class="card" data-rid="${r.id}" style="margin-bottom:0.5rem;cursor:pointer">
+              (r) => `<li class="card dash__report-item" data-rid="${r.id}">
         <strong>${formatDate(r.createdAt)}</strong><br>
         ${escapeHtml(r.label || 'без названия')}
       </li>`,
@@ -290,13 +337,13 @@ export async function initClientDashboard() {
     $('#bookList').innerHTML = bookings
       .map((b) => {
         const tone = b.status === 'CONFIRMED' ? 'ok' : b.status === 'CANCELLED' ? 'bad' : 'ghost';
-        return `<li class="card" style="margin-bottom:0.5rem">
+        return `<li class="card dash__booking-simple">
         ${formatDate(b.preferredAt)} — ${badge(statusRu(b.status), tone)}${b.notes ? `<br><small>${escapeHtml(b.notes)}</small>` : ''}
       </li>`;
       })
       .join('');
     if (!bookings.length) {
-      $('#bookList').innerHTML = `<li class="empty" style="list-style:none">Пока нет записей. Оставьте удобное время выше — менеджер подтвердит визит.</li>`;
+      $('#bookList').innerHTML = `<li class="empty">Пока нет записей. Оставьте удобное время выше — менеджер подтвердит визит.</li>`;
     }
   }
 
@@ -306,8 +353,8 @@ export async function initClientDashboard() {
     $('#threadBody').innerHTML = msgs.length
       ? msgs
           .map(
-            (m) => `<div class="bubble bubble--assistant" style="margin-bottom:0.5rem">
-        <small>${escapeHtml(m.author?.fullName || '')} (${m.author?.role}) — ${formatDate(m.createdAt)}</small><br>
+            (m) => `<div class="bubble bubble--assistant dash__thread-msg">
+        <small>${escapeHtml(m.author?.fullName || '')} (${escapeHtml(m.author?.role || '')}) — ${formatDate(m.createdAt)}</small><br>
         ${escapeHtml(m.body)}
       </div>`,
           )
@@ -325,11 +372,11 @@ export async function initClientDashboard() {
     const d = $('#reqDetail');
     if (d) {
       d.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <div class="dash__section-head">
           <strong>Заявка ${escapeHtml(detail.id.slice(0, 8))}…</strong>
           ${badge(statusRu(detail.status), detail.status === 'COMPLETED' ? 'ok' : detail.status === 'CANCELLED' ? 'warn' : 'ghost')}
         </div>
-        <p class="muted" style="margin:0.5rem 0 0.75rem">${formatDate(detail.createdAt)}</p>
+        <p class="muted dash__stat-line">${formatDate(detail.createdAt)}</p>
         <div class="table-wrap">
           <table class="data">
             <tbody>
@@ -340,10 +387,20 @@ export async function initClientDashboard() {
         </div>
         ${
           detail.consultationSession
-            ? `<p class="muted" style="margin:0.75rem 0 0">Есть транскрипт ИИ и заполненные данные из консультации.</p>`
+            ? `<p class="muted dash__sr-note">Есть транскрипт ИИ и заполненные данные из консультации.</p>`
             : ''
         }
+        <p class="dash__row-actions u-mt-sm">
+          <button type="button" class="btn btn--ghost btn-sm" id="btnExportRequestPdfClient">Скачать PDF</button>
+        </p>
       `;
+      d.querySelector('#btnExportRequestPdfClient')?.addEventListener('click', async () => {
+        try {
+          await downloadApiFile(`/service-requests/${requestId}/export.pdf`);
+        } catch (e) {
+          await uiAlert({ title: 'Ошибка', message: e.message });
+        }
+      });
     }
 
     document.querySelectorAll('#reqList tr[data-id]').forEach((tr) => {
@@ -366,9 +423,34 @@ export async function initClientDashboard() {
 
   $('#bookingForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const form = e.target;
+    const preferredEl = $('#preferredAt');
+    const fd = new FormData(form);
     const dt = fd.get('preferredAt');
-    const iso = dt ? new Date(dt).toISOString() : '';
+    form.querySelectorAll('.form-field').forEach((f) => f.classList.remove('is-invalid', 'is-valid'));
+    if (!dt) {
+      markField(preferredEl, false);
+      await uiAlert({
+        title: 'Дата и время',
+        message: 'Укажите желаемое время визита.',
+      });
+      return;
+    }
+    const at = new Date(dt);
+    if (Number.isNaN(at.getTime())) {
+      markField(preferredEl, false);
+      return;
+    }
+    if (!isPreferredAtInMoscowBookingWindow(at)) {
+      markField(preferredEl, false);
+      await uiAlert({
+        title: 'Нерабочее время',
+        message: 'Запись доступна с 9:00 до 21:00 по московскому времени. Выберите другое время.',
+      });
+      return;
+    }
+    markField(preferredEl, true);
+    const iso = at.toISOString();
     await api('/bookings', {
       method: 'POST',
       body: {
@@ -377,25 +459,53 @@ export async function initClientDashboard() {
         serviceRequestId: fd.get('serviceRequestId') || null,
       },
     });
-    e.target.reset();
+    form.reset();
+    setMinDateTimeLocal(preferredEl);
     await refresh();
-    await uiAlert({ title: 'Запись отправлена', message: 'Мы получили вашу запись. Статус можно увидеть в разделе «Записи».' });
+    await uiAlert({
+      title: 'Запись принята',
+      message:
+        'Ваша заявка на визит зарегистрирована. Администратор свяжется с вами для подтверждения; актуальный статус отображается в разделе «Запись в сервис».',
+      footnote: 'Если телефон вдруг молчит — загляните в кабинет: иногда спокойнее, чем ждать гудков.',
+      variant: 'success',
+      okText: 'Понятно',
+    });
   });
 
   async function loadProfile() {
     const me = await api('/users/me');
     $('#pfFullName').value = me.fullName || '';
-    $('#pfPhone').value = me.phone || '';
+    $('#pfPhone').value = formatPhoneInputDisplay(me.phone || '') || '';
     $('#pfEmailProfile').value = me.emailProfile || '';
   }
+
+  attachPhoneInputMask($('#pfPhone'));
 
   $('#profileForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = $('#profileMsg');
+    const fullNameEl = $('#pfFullName');
+    const phoneEl = $('#pfPhone');
+    const emailEl = $('#pfEmailProfile');
+    $('#profileForm')
+      ?.querySelectorAll('.form-field')
+      .forEach((f) => f.classList.remove('is-invalid', 'is-valid'));
+    const fullName = fullNameEl.value.trim();
+    const phone = phoneEl.value.trim();
+    if (!fullName) {
+      markField(fullNameEl, false);
+      if (msg) msg.textContent = 'Укажите имя.';
+      return;
+    }
+    markField(fullNameEl, true);
+    if (!phone || !isValidPhoneInput(phone)) {
+      markField(phoneEl, false);
+      if (msg) msg.textContent = 'Укажите корректный телефон.';
+      return;
+    }
+    markField(phoneEl, true);
     try {
-      const fullName = $('#pfFullName').value.trim();
-      const phone = $('#pfPhone').value.trim();
-      const emailProfile = $('#pfEmailProfile').value.trim();
+      const emailProfile = emailEl.value.trim();
       await api('/users/me', {
         method: 'PATCH',
         body: {
@@ -413,6 +523,8 @@ export async function initClientDashboard() {
 
   try {
     initTabs();
+    setMinDateTimeLocal($('#preferredAt'));
+    applyBookingPrefillFromRoute();
     await tryClaimPendingGuest();
     await refresh();
     renderConsultDetail(null);
@@ -421,28 +533,28 @@ export async function initClientDashboard() {
   } catch (e) {
     if (e?.status === 401 || /unauthorized/i.test(String(e?.message || ''))) {
       root.innerHTML = `
-        <section class="card" style="max-width:760px;margin:1rem auto">
-          <h2 style="margin:0">Сессия завершилась</h2>
-          <p class="muted" style="margin:0.5rem 0 1rem">
+        <section class="card dash__inline-login">
+          <h2 class="dash__title">Сессия завершилась</h2>
+          <p class="muted dash__inline-login-hint">
             Войдите снова, чтобы открыть личный кабинет. Можно сделать это прямо здесь.
           </p>
           <div id="inlineLoginError" class="alert" role="alert" hidden></div>
-          <form id="inlineLoginForm" class="stack" style="max-width:420px">
-            <div class="form-field" style="margin:0">
+          <form id="inlineLoginForm" class="stack dash__inline-login-form">
+            <div class="form-field dash__form-field">
               <label for="inlineEmail">Email</label>
               <input id="inlineEmail" name="email" type="email" autocomplete="username" required />
             </div>
-            <div class="form-field" style="margin:0">
+            <div class="form-field dash__form-field">
               <label for="inlinePassword">Пароль</label>
               <input id="inlinePassword" name="password" type="password" autocomplete="current-password" required />
             </div>
-            <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <div class="u-flex-inline">
               <button type="submit" class="btn btn--primary">Войти</button>
-              <a class="btn btn--ghost" href="/register.html?next=${encodeURIComponent('/dashboards/client.html')}" style="text-decoration:none">Регистрация</a>
-              <a class="btn btn--ghost" href="/index.html" style="text-decoration:none">На главную</a>
+              <a class="btn btn--ghost" href="/register.html?next=${encodeURIComponent('/dashboards/client.html')}">Регистрация</a>
+              <a class="btn btn--ghost" href="/index.html">На главную</a>
             </div>
           </form>
-          <div class="muted" style="margin-top:0.75rem">
+          <div class="muted dash__hint-bottom">
             Если забыли пароль, попробуйте другой аккаунт или обратитесь к администратору.
           </div>
         </section>
@@ -462,8 +574,8 @@ export async function initClientDashboard() {
             method: 'POST',
             body: { email: fd.get('email'), password: fd.get('password') },
             skipAuth: true,
+            skipCsrf: true,
           });
-          setToken(data.accessToken);
           setUser(data.user);
           window.location.href = '/dashboards/client.html';
         } catch (loginErr) {

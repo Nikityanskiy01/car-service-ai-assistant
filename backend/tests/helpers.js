@@ -7,8 +7,10 @@ export const app = createApp();
 /** Очистка БД (PostgreSQL): удаление в порядке FK. */
 export async function truncateAll() {
   await prisma.$transaction([
+    prisma.contactSubmission.deleteMany(),
     prisma.notification.deleteMany(),
     prisma.requestFollowUpMessage.deleteMany(),
+    prisma.serviceBookingAuditLog.deleteMany(),
     prisma.serviceBooking.deleteMany(),
     prisma.consultationReport.deleteMany(),
     prisma.diagnosticRecommendation.deleteMany(),

@@ -1,4 +1,5 @@
-import { api, setToken, setUser } from './api.js';
+import { api, setUser } from './api.js';
+import { attachPhoneInputMask, isValidPhoneInput } from './phone.js';
 import { $ } from './utils.js';
 
 function dashboardForRole(role) {
@@ -7,38 +8,97 @@ function dashboardForRole(role) {
   return '/dashboards/client.html';
 }
 
+function markField(el, valid) {
+  const field = el?.closest('.form-field');
+  if (!field) return;
+  field.classList.toggle('is-invalid', !valid);
+  field.classList.toggle('is-valid', valid);
+}
+
+function resetFields(form) {
+  form.querySelectorAll('.form-field').forEach((f) => {
+    f.classList.remove('is-invalid', 'is-valid');
+  });
+}
+
+function syncPwToggleUi(btn, passwordHidden) {
+  const showIcon = btn.querySelector('.pw-toggle__icon--show');
+  const hideIcon = btn.querySelector('.pw-toggle__icon--hide');
+  if (showIcon && hideIcon) {
+    if (passwordHidden) {
+      showIcon.removeAttribute('hidden');
+      hideIcon.setAttribute('hidden', '');
+    } else {
+      hideIcon.removeAttribute('hidden');
+      showIcon.setAttribute('hidden', '');
+    }
+  }
+  btn.setAttribute('aria-label', passwordHidden ? 'Показать пароль' : 'Скрыть пароль');
+}
+
+function initPwToggles() {
+  document.querySelectorAll('.pw-toggle').forEach((btn) => {
+    const scope = btn.closest('.pw-input-wrap') || btn.closest('.form-field');
+    const input = scope?.querySelector('input');
+    if (input) syncPwToggleUi(btn, input.type === 'password');
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const sc = btn.closest('.pw-input-wrap') || btn.closest('.form-field');
+      const inp = sc?.querySelector('input');
+      if (!inp) return;
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      syncPwToggleUi(btn, inp.type === 'password');
+    });
+  });
+}
+
 function isValidEmail(email) {
   const v = String(email || '').trim();
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(v);
 }
 
-function normalizePhoneRaw(raw) {
-  const digits = String(raw || '').replace(/\D/g, '').slice(0, 11);
-  if (!digits) return '';
-  let d = digits;
-  if (d[0] !== '8') d = `8${d.slice(1)}`;
-  return d.slice(0, 11);
+const PASSWORD_POLICY_HINT =
+  'Пароль: не менее 8 символов, латинские буквы и цифры; кириллица не допускается';
+
+const CYRILLIC_IN_PASSWORD = /[А-Яа-яЁё]/g;
+
+function passwordMeetsRegistrationPolicy(password) {
+  const s = String(password || '');
+  if (s.length < 8) return false;
+  if (/[А-Яа-яЁё]/.test(s)) return false;
+  if (!/[A-Za-z]/.test(s)) return false;
+  if (!/\d/.test(s)) return false;
+  return true;
 }
 
-function formatPhoneMask(raw) {
-  const d = normalizePhoneRaw(raw);
-  if (!d) return '';
-  const parts = [d.slice(0, 1)];
-  if (d.length > 1) parts.push(d.slice(1, 4));
-  if (d.length > 4) parts.push(d.slice(4, 7));
-  if (d.length > 7) parts.push(d.slice(7, 9));
-  if (d.length > 9) parts.push(d.slice(9, 11));
-  return parts.join('-');
+/** Убирает кириллицу из поля пароля (вход и регистрация). */
+function bindLatinPasswordOnly(input) {
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const v = input.value;
+    const next = v.replace(CYRILLIC_IN_PASSWORD, '');
+    if (next === v) return;
+    const start = input.selectionStart ?? v.length;
+    const before = v.slice(0, start);
+    const removedBefore = before.replace(CYRILLIC_IN_PASSWORD, '').length;
+    const diff = before.length - removedBefore;
+    input.value = next;
+    const pos = Math.max(0, start - diff);
+    input.setSelectionRange(pos, pos);
+  });
 }
 
 function passwordStrength(password) {
   const p = String(password || '');
   let score = 0;
   if (p.length >= 8) score += 1;
-  if (/[A-ZА-Я]/.test(p)) score += 1;
-  if (/[a-zа-я]/.test(p)) score += 1;
+  if (/[A-Z]/.test(p)) score += 1;
+  if (/[a-z]/.test(p)) score += 1;
   if (/\d/.test(p)) score += 1;
-  if (/[^A-Za-zА-Яа-я0-9]/.test(p)) score += 1;
+  if (/[^A-Za-z0-9]/.test(p)) score += 1;
   if (p.length >= 12) score += 1;
   if (score <= 2) return { pct: 33, text: 'Надёжность: слабый', color: '#ef4444' };
   if (score <= 4) return { pct: 66, text: 'Надёжность: средний', color: '#f59e0b' };
@@ -51,6 +111,7 @@ export function initRegister() {
   const err = $('#formError');
   const emailEl = $('#email');
   const passwordEl = $('#password');
+  const fullNameEl = $('#fullName');
   const phoneEl = $('#phone');
   const pwBar = $('#passwordStrengthBar');
   const pwText = $('#passwordStrengthText');
@@ -60,6 +121,9 @@ export function initRegister() {
   if (loginLink && next) {
     loginLink.href = `/login.html?next=${encodeURIComponent(next)}`;
   }
+
+  initPwToggles();
+  bindLatinPasswordOnly(passwordEl);
 
   function setError(message) {
     err.textContent = message;
@@ -74,14 +138,18 @@ export function initRegister() {
   }
 
   if (phoneEl) {
-    phoneEl.addEventListener('input', () => {
-      phoneEl.value = formatPhoneMask(phoneEl.value);
-    });
+    attachPhoneInputMask(phoneEl);
     phoneEl.addEventListener('blur', () => {
-      const digits = normalizePhoneRaw(phoneEl.value);
-      if (digits.length > 0 && digits.length !== 11) {
-        setError('Телефон должен быть в формате 8-999-999-99-99 (11 цифр).');
-      }
+      const v = String(phoneEl.value || '').trim();
+      if (!v) return;
+      markField(phoneEl, isValidPhoneInput(v));
+    });
+  }
+
+  if (emailEl) {
+    emailEl.addEventListener('blur', () => {
+      const v = emailEl.value.trim();
+      if (v) markField(emailEl, isValidEmail(v));
     });
   }
 
@@ -97,26 +165,34 @@ export function initRegister() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
+    resetFields(form);
     const email = String(emailEl?.value || '').trim();
     const password = String(passwordEl?.value || '');
-    const phoneMasked = String(phoneEl?.value || '');
-    const phoneDigits = normalizePhoneRaw(phoneMasked);
+    const phoneVal = String(phoneEl?.value || '').trim();
+    const fullName = String(fullNameEl?.value || '').trim();
 
+    let hasErr = false;
     if (!isValidEmail(email)) {
-      setError('Введите корректный email, например: name@example.com');
-      emailEl?.focus();
-      return;
+      markField(emailEl, false);
+      if (!hasErr) { emailEl?.focus(); hasErr = true; }
     }
-    if (phoneDigits.length !== 11) {
-      setError('Телефон должен быть в формате 8-999-999-99-99 (11 цифр).');
-      phoneEl?.focus();
-      return;
+    if (!fullName) {
+      markField(fullNameEl, false);
+      if (!hasErr) { fullNameEl?.focus(); hasErr = true; }
     }
-    if (password.length < 8) {
-      setError('Пароль должен содержать минимум 8 символов.');
-      passwordEl?.focus();
-      return;
+    if (!phoneVal || !isValidPhoneInput(phoneVal)) {
+      markField(phoneEl, false);
+      if (!hasErr) { phoneEl?.focus(); hasErr = true; }
+    } else {
+      markField(phoneEl, true);
     }
+    if (!passwordMeetsRegistrationPolicy(password)) {
+      markField(passwordEl, false);
+      setError(PASSWORD_POLICY_HINT);
+      if (!hasErr) passwordEl?.focus();
+      hasErr = true;
+    }
+    if (hasErr) return;
 
     try {
       const fd = new FormData(form);
@@ -124,10 +200,9 @@ export function initRegister() {
         email,
         password,
         fullName: fd.get('fullName'),
-        phone: formatPhoneMask(phoneDigits),
+        phone: phoneVal,
       };
-      const data = await api('/auth/register', { method: 'POST', body });
-      setToken(data.accessToken);
+      const data = await api('/auth/register', { method: 'POST', body, skipCsrf: true, skipAuth: true });
       setUser(data.user);
       window.location.href = next || dashboardForRole(data.user.role);
     } catch (ex) {
@@ -145,6 +220,9 @@ export function initLogin() {
   const params = new URLSearchParams(window.location.search);
   const next = params.get('next');
 
+  initPwToggles();
+  bindLatinPasswordOnly(passwordEl);
+
   function setError(message) {
     err.textContent = message;
     err.className = 'alert alert--error';
@@ -157,27 +235,38 @@ export function initLogin() {
     err.hidden = true;
   }
 
+  if (emailEl) {
+    emailEl.addEventListener('blur', () => {
+      const v = emailEl.value.trim();
+      if (v) markField(emailEl, isValidEmail(v));
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
+    resetFields(form);
     const email = String(emailEl?.value || '').trim();
     const password = String(passwordEl?.value || '');
+
+    let hasErr = false;
     if (!isValidEmail(email)) {
-      setError('Введите корректный email, например: name@example.com');
-      emailEl?.focus();
-      return;
+      markField(emailEl, false);
+      if (!hasErr) { emailEl?.focus(); hasErr = true; }
     }
     if (!password) {
-      setError('Введите пароль.');
-      passwordEl?.focus();
-      return;
+      markField(passwordEl, false);
+      if (!hasErr) { passwordEl?.focus(); hasErr = true; }
     }
+    if (hasErr) return;
+
     try {
       const data = await api('/auth/login', {
         method: 'POST',
         body: { email, password },
+        skipCsrf: true,
+        skipAuth: true,
       });
-      setToken(data.accessToken);
       setUser(data.user);
       window.location.href = next || dashboardForRole(data.user.role);
     } catch (ex) {

@@ -1,116 +1,65 @@
-# AI Fox Motors
+# Fox Motors — AI Auto Service
 
-Веб-система первичной ИИ-консультации для автосервиса: **Express + Prisma + PostgreSQL** (backend), статический **HTML/CSS/vanilla JS** (frontend), локальный LLM (OpenAI-совместимый), уведомления в Telegram.
+Веб-система первичной ИИ-консультации для автосервиса.
 
-Спецификация и план: `specs/001-ai-consultation-platform/`.
+**Стек:** Express + Prisma + PostgreSQL | HTML/CSS/JS | Ollama + Qwen 2.5 | Telegram  
 
-## Требования
-
-- Node.js 20+
-- PostgreSQL 16+ (удобно через Docker: `docker compose up -d` в корне репозитория)
-- Опционально: Ollama или другой OpenAI-compatible сервер для реального LLM
+Версия Node для разработки: см. [`.nvmrc`](.nvmrc) (рекомендуется **22 LTS**).
 
 ## Быстрый старт
 
-1. Поднимите БД и при необходимости создайте БД для тестов:
-
-   ```sql
-   CREATE DATABASE foxmotors_test;
-   ```
-
-2. Backend:
-
-   ```bash
-   cd backend
-   cp .env.example .env
-   # DATABASE_URL по умолчанию — PostgreSQL из docker-compose (см. корень репозитория)
-   npm run db:setup
-   npm run dev
-   ```
-
-   Либо вручную: в корне репозитория `docker compose up -d`, затем в `backend/` — `npx prisma migrate deploy`, `npm run db:seed`.
-
-   Сервер слушает `PORT` (по умолчанию 3000) и раздаёт статику из `../frontend`.
-
-3. Откройте в браузере `http://127.0.0.1:3000/` (или `http://<ваш-LAN-IP>:3000` с другого устройства в сети).
-
-В режиме **`NODE_ENV=development`** CORS настроен так, чтобы API работало и с `localhost`, и с локальным IP — иначе запросы к `/api` из браузера по IP блокировались бы (нейросеть на сервере при этом вызывается с Node на `LLM_BASE_URL`, обычно Ollama на `127.0.0.1:11434`).
-
-### Учётные записи после seed
-
-- `user@example.com` / `1q2w3e4r` — клиент  
-- `manager@example.com` / `1q2w3e4r5t` — менеджер  
-- `admin@example.com` / `1q2w3e4r5t6y` — администратор  
-
-Дополнительно (e2e / старые сценарии):
-
-- `admin@fox.local` / `Admin12345!` — администратор  
-- `manager@fox.local` / `Admin12345!` — менеджер  
-
-### LLM
-
-- **В `.env`**: `LLM_BASE_URL`, `LLM_MODEL` (поддерживается любой **OpenAI-compatible** сервер с `POST /v1/chat/completions`).
-- **Для разработки и тестов**: `LLM_MOCK=1` — ответы без реального LLM (заполнение полей по шагам).
-
-#### Вариант A (рекомендуется): Ollama (Windows) + OpenAI-compatible API
-
-1. Установите Ollama и запустите (после установки обычно стартует как сервис).
-2. Скачайте модель (пример):
-
-   ```bash
-   ollama pull llama3.2
-   ```
-
-3. Проверьте, что OpenAI-compatible API доступен:
-
-   - `LLM_BASE_URL=http://127.0.0.1:11434/v1`
-   - `LLM_MODEL=llama3.2`
-   - `LLM_MOCK=0`
-
-4. Быстрая проверка из backend:
-
-   ```bash
-   cd backend
-   npm run llm:check
-   ```
-
-Если проверка проходит, консультации будут ходить в локальную модель.
-
-### Telegram
-
-- `TELEGRAM_BOT_TOKEN` — токен бота.
-- `TELEGRAM_MANAGER_CHAT_IDS` — список chat_id через запятую. Без токена уведомление всё равно пишется в таблицу `notifications` со статусом (демо-режим).
-
-## Тесты
-
 ```bash
+docker compose up -d                 # PostgreSQL + Ollama (модель скачается автоматически)
 cd backend
-# задайте TEST_DATABASE_URL или DATABASE_URL на рабочий PostgreSQL
-npm test
-```
-
-E2E (нужен запущенный backend с БД и `LLM_MOCK=1` в `.env` или в окружении):
-
-```bash
 npm install
-cd backend && cp .env.example .env  # при необходимости
-# из корня, при запущенном сервере или с webServer reuseExistingServer:
-npx playwright install
-npm run test:e2e
+cp .env.example .env
+npm run db:setup                     # миграции + seed
+npm run dev                          # http://127.0.0.1:3000
 ```
 
-Нагрузочный скрипт-заготовка: `tests/perf/k6-consultation.js` (нужен установленный [k6](https://k6.io/)).
+### Тестовые аккаунты
 
-## Устранение неполадок
+| Email | Пароль | Роль |
+|-------|--------|------|
+| `user@example.com` | `1q2w3e4r` | Клиент |
+| `manager@example.com` | `1q2w3e4r5t` | Менеджер |
+| `admin@example.com` | `1q2w3e4r5t6y` | Администратор |
 
-- **Ошибка 500 на странице консультации, в логе Prisma про отсутствующую колонку** — схема БД не совпадает с `schema.prisma`. Поднимите PostgreSQL (`docker compose up -d` в корне), затем в `backend/`: `npx prisma migrate deploy`. После обновления кода из git всегда применяйте миграции.
+## Документация
 
-## Структура
+Полная документация находится в папке [`docs/`](docs/):
 
-- `backend/` — API (`/api/...`), Prisma, модули auth, consultations, serviceRequests, bookings, admin, analytics.
-- `frontend/` — страницы, `css/`, `js/`.
-- `specs/001-ai-consultation-platform/contracts/openapi.yaml` — контракт REST.
+| Документ | Описание |
+|----------|----------|
+| [Установка и запуск](docs/setup.md) | Пошаговая инструкция, требования, типичные проблемы |
+| [Архитектура проекта](docs/architecture.md) | Стек, структура папок, дерево файлов с описанием каждого |
+| [Интеграция с ИИ](docs/ai-integration.md) | LLM-пайплайн, промпты, JSON-схемы, SSE-стриминг |
+| [REST API](docs/api.md) | Все эндпоинты, параметры, коды ответов |
+| [Схема БД](docs/database.md) | Модели, enum, связи, миграции |
+| [Переменные окружения](docs/env-variables.md) | Полный справочник .env |
+| [Тестирование](docs/testing.md) | Jest, Playwright, k6 — структура и запуск |
+| [npm-скрипты](docs/scripts.md) | Все команды backend и Docker |
+| [Деплой](docs/deployment.md) | Docker Compose, Render.com, VPS |
+| [Отчёт аудита](docs/audit-report.md) | Безопасность, риски, рекомендации, статус CI |
 
-## Безопасность
+Страницы фронтенда: помимо главной и консультации — [`services.html`](frontend/services.html) (каталог услуг), [`book-service.html`](frontend/book-service.html) (запись без аккаунта).
 
-JWT, RBAC по ролям, валидация Zod, ORM для SQL, Helmet и rate limit на `/api`. Не храните секреты в репозитории — только в `.env`.
+## Спецификации
+
+Проектная документация (ТЗ, план, контракт API):
+
+```
+specs/001-ai-consultation-platform/
+├── spec.md             — спецификация (FR, TR, user stories)
+├── plan.md             — план реализации
+├── tasks.md            — чеклист задач
+├── data-model.md       — модель данных
+├── research.md         — исследование технологий
+├── quickstart.md       — краткий старт
+├── contracts/openapi.yaml  — OpenAPI 3.0.3
+└── checklists/         — чеклисты требований
+```
+
+## Лицензия
+
+Проект создан как ВКР (выпускная квалификационная работа).

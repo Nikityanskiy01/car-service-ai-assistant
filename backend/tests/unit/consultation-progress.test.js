@@ -5,33 +5,20 @@ import {
 } from '../../src/lib/consultationProgress.js';
 
 describe('consultationProgress', () => {
-  it('isExtractedComplete requires mileage, symptoms, problemConditions', () => {
+  it('isExtractedComplete requires symptoms + (mileage or make)', () => {
     expect(isExtractedComplete(null)).toBe(false);
+    expect(isExtractedComplete({})).toBe(false);
     expect(
-      isExtractedComplete({
-        mileage: 100000,
-        symptoms: 'стук',
-        problemConditions: 'холодный',
-      }),
+      isExtractedComplete({ mileage: 100000, symptoms: 'стук' }),
     ).toBe(true);
     expect(
-      isExtractedComplete({
-        make: 'Toyota',
-        model: '',
-        year: 2018,
-        mileage: 1,
-        symptoms: 'x',
-        problemConditions: 'y',
-      }),
+      isExtractedComplete({ make: 'Toyota', symptoms: 'замена колодок' }),
     ).toBe(true);
     expect(
-      isExtractedComplete({
-        make: 'Toyota',
-        model: 'Camry',
-        year: 2018,
-        symptoms: 'x',
-        problemConditions: 'y',
-      }),
+      isExtractedComplete({ symptoms: 'стук' }),
+    ).toBe(false);
+    expect(
+      isExtractedComplete({ make: 'Toyota', mileage: 41000 }),
     ).toBe(false);
   });
 

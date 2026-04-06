@@ -1,0 +1,306 @@
+/* Consultation page as central diagnostic interface */
+.consult-pro {
+  margin-top: 1rem;
+  padding: 1.2rem;
+  border-radius: 16px;
+  background:
+    radial-gradient(980px 360px at 0% 0%, rgba(255, 122, 26, 0.10), transparent 62%),
+    radial-gradient(920px 360px at 100% 0%, rgba(255, 61, 129, 0.10), transparent 65%),
+    rgba(14, 18, 27, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.consult-pro .lead,
+.consult-pro .muted {
+  color: rgba(255, 255, 255, 0.70);
+}
+
+.consult-pro .card {
+  background: rgba(15, 18, 26, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.30);
+}
+
+.consult-pro__hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.consult-pro__hero-main {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.consult-pro__hero-note {
+  margin: 0;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.consult-pro__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Панель действий: одна линия на широких экранах, иерархия по важности */
+.consult-pro__toolbar {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
+.consult-pro__toolbar-btn {
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.consult-pro__toolbar-icon {
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+/* Справка — лёгкая «текстовая» кнопка */
+.consult-pro__toolbar-btn--link {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.78);
+  border: 1px solid transparent;
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.consult-pro__toolbar-btn--link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.consult-pro__toolbar-btn--link:focus-visible {
+  outline: 2px solid rgba(255, 122, 26, 0.65);
+  outline-offset: 2px;
+}
+
+/* PDF — вторичное действие */
+.consult-pro__toolbar-btn--secondary {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+.consult-pro__toolbar-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transform: translateY(-1px);
+}
+
+.consult-pro__toolbar-btn--secondary:focus-visible {
+  outline: 2px solid rgba(255, 180, 120, 0.55);
+  outline-offset: 2px;
+}
+
+/* Новая сессия — главный акцент (наследует градиент btn--primary) */
+.consult-pro__toolbar-btn--primary {
+  padding-inline: 1.05rem 1.15rem;
+  box-shadow: 0 4px 20px rgba(255, 122, 26, 0.38);
+}
+
+.consult-pro__toolbar-btn--primary:hover {
+  box-shadow: 0 6px 24px rgba(255, 122, 26, 0.45);
+}
+
+.consult-pro__toolbar-btn--primary:focus-visible {
+  outline: 2px solid rgba(255, 200, 150, 0.9);
+  outline-offset: 2px;
+}
+
+a.consult-pro__toolbar-btn--link:visited {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+@media (max-width: 767px) {
+  .consult-pro__hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .consult-pro__toolbar {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.4rem;
+  }
+
+  .consult-pro__toolbar-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .consult-pro__toolbar-btn--primary {
+    order: -1;
+  }
+}
+
+.consult-pro__grid {
+  margin-top: 0.6rem;
+}
+
+@media (min-width: 1024px) {
+  .consult-pro__grid {
+    grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.25fr);
+  }
+}
+
+.consult-pro__chat {
+  padding: 0.95rem;
+}
+
+.consult-pro__hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.45rem 0 0.65rem;
+}
+
+.consult-pro__hints span {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.consult-pro__info .card {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.consult-pro__info .card:hover {
+  border-color: rgba(255, 122, 26, 0.22);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.34);
+}
+
+.consult-pro__start {
+  border-color: rgba(255, 122, 26, 0.22) !important;
+  background: rgba(255, 122, 26, 0.07) !important;
+}
+
+.consult-pro__stage-title {
+  margin: 0;
+}
+
+.consult-pro__stage-label {
+  margin: 0.6rem 0 0;
+}
+
+.consult-pro__stage-progress {
+  margin-top: 0.7rem;
+}
+
+.consult-pro__progress-label {
+  margin: 0.45rem 0 0;
+}
+
+.consult-pro__result-title {
+  margin: 0;
+}
+
+.consult-pro__result-subtitle {
+  margin: 0.25rem 0 0;
+}
+
+.consult-pro__side-title {
+  margin: 0 0 0.75rem;
+}
+
+.consult-pro__side-stack {
+  gap: 0.5rem;
+}
+
+.consult-pro__kpi-grid {
+  gap: 0.7rem;
+  margin-top: 0.7rem;
+}
+
+.consult-pro__result-head {
+  margin-bottom: 0.75rem;
+}
+
+.consult-pro__block-title {
+  margin: 0 0 0.55rem;
+}
+
+.consult-pro__result-actions {
+  margin: 1rem 0 0;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.consult-pro__result-note {
+  margin-top: 1rem;
+}
+
+.consult-pro__chat-form {
+  margin-top: 1rem;
+}
+
+.consult-pro__chat-field {
+  margin-bottom: 0;
+}
+
+.consult-pro__actions-slot {
+  margin-top: 1rem;
+}
+
+#progressBar,
+#sideProgressBar {
+  width: 0%;
+}
+
+#resultConfidenceBar {
+  width: 0%;
+}
+
+.consult-pro__post-message {
+  margin: 0 0 0.75rem;
+}
+
+.consult-pro__post-actions {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 767px) {
+  .consult-pro {
+    padding: 1rem;
+  }
+  .consult-pro__chat {
+    padding: 0.75rem;
+  }
+  .consult-pro__kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 479px) {
+  .consult-pro {
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+}

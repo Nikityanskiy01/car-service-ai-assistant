@@ -1,3 +1,4 @@
+import { attachPhoneInputMask, formatPhoneInputDisplay, isValidPhoneInput, PHONE_INPUT_PLACEHOLDER } from '../phone.js';
 import { escapeHtml } from '../utils.js';
 
 function ensureDialogRoot() {
@@ -9,11 +10,14 @@ function ensureDialogRoot() {
   return root;
 }
 
-function mountModal({ title, bodyHtml, actionsHtml }) {
+function mountModal({ title, bodyHtml, actionsHtml, variant = 'default' } = {}) {
   const root = ensureDialogRoot();
+  let modClass = 'ui-modal';
+  if (variant === 'success') modClass += ' ui-modal--success';
+  if (variant === 'warn') modClass += ' ui-modal--warn';
   root.innerHTML = `
-    <div class="ui-modal__backdrop" data-ui-close="1" role="presentation">
-      <div class="ui-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(title || 'Диалог')}">
+    <div class="ui-modal__backdrop" role="presentation">
+      <div class="${modClass}" role="dialog" aria-modal="true" aria-label="${escapeHtml(title || 'Диалог')}">
         <div class="ui-modal__head">
           <div class="ui-modal__title">${escapeHtml(title || '')}</div>
           <button type="button" class="ui-modal__x" aria-label="Закрыть" data-ui-close="1">×</button>
@@ -57,11 +61,19 @@ function trapFocus(modalEl) {
   return () => modalEl.removeEventListener('keydown', onKey);
 }
 
-export function uiAlert({ title = 'Готово', message = '' } = {}) {
+/**
+ * @param {{ title?: string; message?: string; footnote?: string; variant?: 'default' | 'success' | 'warn'; okText?: string }} [opts]
+ */
+export function uiAlert({ title = 'Готово', message = '', footnote = '', variant = 'default', okText } = {}) {
   return new Promise((resolve) => {
-    const bodyHtml = `<p style="margin:0">${escapeHtml(message)}</p>`;
-    const actionsHtml = `<button type="button" class="btn btn--primary" id="uiOkBtn">Ок</button>`;
-    const root = mountModal({ title, bodyHtml, actionsHtml });
+    const foot =
+      footnote && String(footnote).trim()
+        ? `<p class="ui-modal__footnote">${escapeHtml(String(footnote).trim())}</p>`
+        : '';
+    const bodyHtml = `<div class="ui-modal__message-wrap"><p class="ui-modal__message">${escapeHtml(message)}</p>${foot}</div>`;
+    const label = okText != null && String(okText).trim() ? String(okText).trim() : 'Ок';
+    const actionsHtml = `<button type="button" class="btn btn--primary ui-modal__ok-btn" id="uiOkBtn">${escapeHtml(label)}</button>`;
+    const root = mountModal({ title, bodyHtml, actionsHtml, variant });
     const backdrop = root.querySelector('.ui-modal__backdrop');
     const modal = root.querySelector('.ui-modal');
     const cleanupFocus = trapFocus(modal);
@@ -74,7 +86,7 @@ export function uiAlert({ title = 'Готово', message = '' } = {}) {
 
     root.querySelector('#uiOkBtn')?.addEventListener('click', done);
     backdrop?.addEventListener('click', (e) => {
-      if (e.target?.dataset?.uiClose === '1') done();
+      if (e.target === backdrop) done();
     });
     root.querySelectorAll('[data-ui-close="1"]').forEach((el) => el.addEventListener('click', done));
   });
@@ -83,16 +95,17 @@ export function uiAlert({ title = 'Готово', message = '' } = {}) {
 export function uiPromptContact({ title = 'Контакты для заявки', fullName = '', phone = '' } = {}) {
   return new Promise((resolve) => {
     const bodyHtml = `
-      <div class="stack" style="gap:0.75rem">
-        <div class="form-field" style="margin:0">
+      <div class="stack ui-modal__form">
+        <div class="form-field ui-modal__field">
           <label for="uiFullName">Как к вам обращаться</label>
           <input id="uiFullName" value="${escapeHtml(fullName)}" placeholder="Имя" />
         </div>
-        <div class="form-field" style="margin:0">
+        <div class="form-field ui-modal__field">
           <label for="uiPhone">Телефон</label>
-          <input id="uiPhone" value="${escapeHtml(phone)}" placeholder="+7..." />
+          <input id="uiPhone" type="tel" inputmode="tel" maxlength="22" value="${escapeHtml(formatPhoneInputDisplay(phone) || '')}" placeholder="${escapeHtml(PHONE_INPUT_PLACEHOLDER)}" aria-describedby="uiPhoneHint" />
+          <small id="uiPhoneHint" class="form-field__hint">Российский или международный номер (10–15 цифр)</small>
         </div>
-        <p class="muted" style="margin:0">
+        <p class="muted ui-modal__message">
           Регистрация нужна для отслеживания статуса заявки и сохранения отчётов.
         </p>
       </div>
@@ -108,6 +121,7 @@ export function uiPromptContact({ title = 'Контакты для заявки'
 
     const nameEl = root.querySelector('#uiFullName');
     const phoneEl = root.querySelector('#uiPhone');
+    attachPhoneInputMask(phoneEl);
 
     function cancel() {
       cleanupFocus?.();
@@ -118,10 +132,26 @@ export function uiPromptContact({ title = 'Контакты для заявки'
     function submit() {
       const name = String(nameEl?.value || '').trim();
       const ph = String(phoneEl?.value || '').trim();
-      if (!name || !ph) {
-        phoneEl?.focus();
-        return;
+      const nameField = nameEl?.closest('.form-field');
+      const phoneField = phoneEl?.closest('.form-field');
+      nameField?.classList.remove('is-invalid', 'is-valid');
+      phoneField?.classList.remove('is-invalid', 'is-valid');
+      let ok = true;
+      if (!name) {
+        nameField?.classList.add('is-invalid');
+        nameEl?.focus();
+        ok = false;
+      } else {
+        nameField?.classList.add('is-valid');
       }
+      if (!ph || !isValidPhoneInput(ph)) {
+        phoneField?.classList.add('is-invalid');
+        if (ok) phoneEl?.focus();
+        ok = false;
+      } else {
+        phoneField?.classList.add('is-valid');
+      }
+      if (!ok) return;
       cleanupFocus?.();
       closeModal();
       resolve({ fullName: name, phone: ph });
@@ -130,7 +160,7 @@ export function uiPromptContact({ title = 'Контакты для заявки'
     root.querySelector('#uiCancelBtn')?.addEventListener('click', cancel);
     root.querySelector('#uiSubmitBtn')?.addEventListener('click', submit);
     backdrop?.addEventListener('click', (e) => {
-      if (e.target?.dataset?.uiClose === '1') cancel();
+      if (e.target === backdrop) cancel();
     });
     root.querySelectorAll('[data-ui-close="1"]').forEach((el) => el.addEventListener('click', cancel));
 
@@ -150,7 +180,7 @@ export function uiConfirm({
   cancelText = 'Отмена',
 } = {}) {
   return new Promise((resolve) => {
-    const bodyHtml = `<p style="margin:0">${escapeHtml(message)}</p>`;
+    const bodyHtml = `<p class="ui-modal__message">${escapeHtml(message)}</p>`;
     const actionsHtml = `
       <button type="button" class="btn btn--ghost" id="uiCancelBtn">${escapeHtml(cancelText)}</button>
       <button type="button" class="btn btn--primary" id="uiConfirmBtn">${escapeHtml(confirmText)}</button>
@@ -175,7 +205,7 @@ export function uiConfirm({
     root.querySelector('#uiCancelBtn')?.addEventListener('click', cancel);
     root.querySelector('#uiConfirmBtn')?.addEventListener('click', confirm);
     backdrop?.addEventListener('click', (e) => {
-      if (e.target?.dataset?.uiClose === '1') cancel();
+      if (e.target === backdrop) cancel();
     });
     root.querySelectorAll('[data-ui-close="1"]').forEach((el) => el.addEventListener('click', cancel));
   });
@@ -197,8 +227,8 @@ export function uiPromptText({
         ? `<textarea id="${inputId}" rows="4" placeholder="${escapeHtml(placeholder)}">${escapeHtml(initialValue)}</textarea>`
         : `<input id="${inputId}" value="${escapeHtml(initialValue)}" placeholder="${escapeHtml(placeholder)}" />`;
     const bodyHtml = `
-      <div class="stack" style="gap:0.75rem">
-        <div class="form-field" style="margin:0">
+      <div class="stack ui-modal__form">
+        <div class="form-field ui-modal__field">
           <label for="${inputId}">${escapeHtml(label)}</label>
           ${field}
         </div>
@@ -230,7 +260,7 @@ export function uiPromptText({
     root.querySelector('#uiCancelBtn')?.addEventListener('click', cancel);
     root.querySelector('#uiSubmitBtn')?.addEventListener('click', submit);
     backdrop?.addEventListener('click', (e) => {
-      if (e.target?.dataset?.uiClose === '1') cancel();
+      if (e.target === backdrop) cancel();
     });
     root.querySelectorAll('[data-ui-close="1"]').forEach((el) => el.addEventListener('click', cancel));
 

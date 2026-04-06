@@ -3,10 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Кабинет клиента — AI Fox Motors</title>
+    <title>Кабинет клиента — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/dashboard.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
@@ -14,8 +17,8 @@
       <div class="dash">
         <aside class="dash__side">
           <div class="dash__head">
-            <h1 style="margin:0">Личный кабинет</h1>
-            <p class="muted" style="margin:0.25rem 0 0">
+            <h1 class="dash__title">Личный кабинет</h1>
+            <p class="muted dash__subtitle">
               <a href="/consult.html">Новая ИИ-консультация</a>
             </p>
           </div>
@@ -32,23 +35,26 @@
         <section class="dash__main">
           <section class="dash__panel" data-panel="profile">
             <div class="card stack">
-              <h2 style="margin:0">Мой профиль</h2>
-              <p class="muted" style="margin:0">Данные для связи с автосервисом.</p>
-              <form id="profileForm" class="stack" style="max-width:520px">
+              <h2 class="dash__title">Мой профиль</h2>
+              <p class="muted u-m0">Данные для связи с автосервисом.</p>
+              <form id="profileForm" class="stack dash__profile-form">
                 <div class="form-field">
                   <label for="pfFullName">Имя</label>
-                  <input id="pfFullName" name="fullName" required />
+                  <input id="pfFullName" name="fullName" required aria-describedby="pf-name-hint" />
+                  <small id="pf-name-hint" class="form-field__hint">Как к вам обращаться</small>
                 </div>
                 <div class="form-field">
                   <label for="pfPhone">Телефон</label>
-                  <input id="pfPhone" name="phone" required />
+                  <input id="pfPhone" name="phone" type="tel" inputmode="tel" maxlength="22" required placeholder="+7 (999) 000-00-00" aria-describedby="pf-phone-hint" />
+                  <small id="pf-phone-hint" class="form-field__hint">Российский или международный номер (10–15 цифр)</small>
                 </div>
                 <div class="form-field">
                   <label for="pfEmailProfile">Email для связи</label>
-                  <input id="pfEmailProfile" name="emailProfile" type="email" />
+                  <input id="pfEmailProfile" name="emailProfile" type="email" aria-describedby="pf-email-hint" />
+                  <small id="pf-email-hint" class="form-field__hint">Необязательно, если отличается от основного</small>
                 </div>
                 <button type="submit" class="btn btn--primary">Сохранить изменения</button>
-                <p id="profileMsg" class="muted" style="margin:0"></p>
+                <p id="profileMsg" class="muted u-m0"></p>
               </form>
             </div>
           </section>
@@ -56,17 +62,17 @@
           <section class="dash__panel" data-panel="consults" hidden>
             <div class="card">
               <h2>Консультации</h2>
-              <p class="muted" style="margin-top:-0.25rem">
+              <p class="muted dash__section-hint">
                 Здесь хранится история переписки с ассистентом и предварительные итоги по вашим обращениям.
               </p>
-              <div class="grid-2" style="gap: 1rem">
+              <div class="grid-2 dash__form-grid">
                 <div>
-                  <p class="muted" style="margin-top: 0">История обращений к ассистенту.</p>
-                  <ul id="sessList" class="stack" style="list-style: none; padding: 0; margin: 0"></ul>
+                  <p class="muted u-mt0">История обращений к ассистенту.</p>
+                  <ul id="sessList" class="stack u-list-reset"></ul>
                 </div>
                 <div>
-                  <p class="muted" style="margin-top: 0">Выберите консультацию, чтобы увидеть переписку.</p>
-                  <div id="sessDetail" class="card" style="background: var(--color-surface)">
+                  <p class="muted u-mt0">Выберите консультацию, чтобы увидеть переписку.</p>
+                  <div id="sessDetail" class="card dash__detail-surface">
                     <div class="empty">Выберите консультацию слева, чтобы открыть детали.</div>
                   </div>
                 </div>
@@ -77,7 +83,7 @@
           <section class="dash__panel" data-panel="requests" hidden>
             <div class="card">
               <h2>Заявки</h2>
-              <p class="muted" style="margin-top:-0.25rem">
+              <p class="muted dash__section-hint">
                 Заявка — это обращение в сервис. Менеджер обновляет статус и может написать вам прямо здесь.
               </p>
               <div class="table-wrap">
@@ -92,7 +98,7 @@
                   <tbody id="reqList"></tbody>
                 </table>
               </div>
-              <div id="reqDetail" class="card" style="margin-top: 1rem; background: var(--color-surface)">
+              <div id="reqDetail" class="card dash__detail-surface dash__section-margin">
                 <div class="empty">Выберите заявку в таблице, чтобы увидеть детали и переписку.</div>
               </div>
               <h3>Переписка</h3>
@@ -100,7 +106,7 @@
               <div id="threadBody" class="stack">
                 <div class="empty">Пока переписка не открыта. Выберите заявку выше.</div>
               </div>
-              <form id="threadForm" class="thread-compose" style="margin-top: 1rem; display: none">
+              <form id="threadForm" class="thread-compose dash__thread-form--request">
                 <textarea id="threadInput" class="thread-compose__input" rows="2" placeholder="Сообщение менеджеру"></textarea>
                 <button type="submit" class="btn btn--primary thread-compose__btn">Отправить</button>
               </form>
@@ -110,15 +116,15 @@
           <section class="dash__panel" data-panel="reports" hidden>
             <div class="card">
               <h2>Сохранённые отчёты</h2>
-              <p class="muted" style="margin-top:-0.25rem">
+              <p class="muted dash__section-hint">
                 Сохраняйте результаты консультации — удобно переслать менеджеру или вернуться к ним позже.
               </p>
-              <div class="grid-2" style="gap: 1rem">
+              <div class="grid-2 dash__form-grid">
                 <div>
-                  <ul id="repList" style="list-style: none; padding: 0; margin: 0"></ul>
+                  <ul id="repList" class="u-list-reset"></ul>
                 </div>
                 <div>
-                  <div id="repDetail" class="card" style="background: var(--color-surface)">
+                  <div id="repDetail" class="card dash__detail-surface">
                     <div class="empty">Выберите отчёт слева, чтобы открыть детали.</div>
                   </div>
                 </div>
@@ -129,40 +135,35 @@
           <section class="dash__panel" data-panel="bookings" hidden>
             <div class="card">
               <h2>Запись на визит</h2>
-              <p class="muted" style="margin-top:-0.25rem">
+              <p class="muted dash__section-hint">
                 Оставьте удобное время — менеджер подтвердит запись и при необходимости уточнит детали.
               </p>
-              <form id="bookingForm" class="stack" style="max-width: 420px">
+              <form id="bookingForm" class="stack dash__booking-form">
                 <div class="form-field">
                   <label for="preferredAt">Желаемая дата и время</label>
-                  <input id="preferredAt" name="preferredAt" type="datetime-local" required />
+                  <input id="preferredAt" name="preferredAt" type="datetime-local" required aria-describedby="bk-date-hint" />
+                  <small id="bk-date-hint" class="form-field__hint">С 9:00 до 21:00 по Москве. Менеджер подтвердит или предложит другое время</small>
                 </div>
                 <div class="form-field">
                   <label for="bookingServiceRequestId">Связать с заявкой</label>
-                  <select id="bookingServiceRequestId" name="serviceRequestId"></select>
+                  <select id="bookingServiceRequestId" name="serviceRequestId" aria-describedby="bk-req-hint"></select>
+                  <small id="bk-req-hint" class="form-field__hint">Необязательно</small>
                 </div>
                 <div class="form-field">
                   <label for="notes">Комментарий</label>
-                  <textarea id="notes" name="notes" rows="2"></textarea>
+                  <textarea id="notes" name="notes" rows="2" aria-describedby="bk-notes-hint"></textarea>
+                  <small id="bk-notes-hint" class="form-field__hint">Что хотите уточнить при записи</small>
                 </div>
                 <button type="submit" class="btn btn--primary">Отправить запись</button>
               </form>
               <h3>Мои записи</h3>
-              <ul id="bookList" style="list-style: none; padding: 0; margin: 0"></ul>
+              <ul id="bookList" class="u-list-reset"></ul>
             </div>
           </section>
         </section>
       </div>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      import { initClientDashboard } from '/js/dashboards/client.js';
-      mountHeaderFooter({ active: 'dash' });
-      initClientDashboard();
-      const side = document.querySelector('.dash__side');
-      const t = document.getElementById('dashMenuToggle');
-      t?.addEventListener('click', () => side?.classList.toggle('is-open'));
-    </script>
+    <script type="module" src="/js/entry/client-dash.js"></script>
   </body>
 </html>

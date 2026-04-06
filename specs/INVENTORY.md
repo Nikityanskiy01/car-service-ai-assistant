@@ -1,6 +1,6 @@
 # Inventory: страницы, роли и основные потоки
 
-Дата: 2026-03-25
+Дата: 2026-03-25 (инвентарь обновлён 2026-04-06)
 
 Цель: иметь единый список страниц/эндпоинтов/сценариев, чтобы системно улучшать дизайн, контент и UX без пропусков.
 
@@ -13,7 +13,9 @@
 - `frontend/about.html` — о сервисе / как работает.
 - `frontend/works.html` — примеры работ / направления.
 - `frontend/gallery.html` — галерея (пока заглушки).
-- `frontend/location.html` — контакты + карта.
+- `frontend/location.html` — контакты + карта (форма → `POST /api/contact`).
+- `frontend/services.html` — каталог услуг.
+- `frontend/book-service.html` — запись на сервис без аккаунта (`POST /api/bookings/guest`).
 - `frontend/login.html` — вход.
 - `frontend/register.html` — регистрация.
 
@@ -25,18 +27,22 @@
 
 ## Backend (API: маршруты)
 
+- `backend/src/routes/api.js`
+  - `GET /api/health`, глобальный CSRF для мутаций при auth-cookie.
 - `backend/src/modules/auth/auth.router.js`
-  - Регистрация/логин (JWT).
+  - Регистрация/логин/refresh/logout (JWT в httpOnly-cookie + CSRF cookie).
+- `backend/src/modules/contact/contact.router.js`
+  - Публичная отправка контактов; список для MANAGER/ADMINISTRATOR.
 - `backend/src/modules/users/users.router.js`
   - Профиль (`/users/me`).
 - `backend/src/modules/consultations/consultations.router.js`
-  - Сессии консультаций, сообщения, создание заявки гостем, “claim” гостевой сессии после логина.
+  - Сессии консультаций, сообщения, SSE, список для staff, PDF `export.pdf`, создание заявки гостем, claim.
 - `backend/src/modules/serviceRequests/serviceRequests.router.js`
-  - Заявки в сервис (список/детали/обновления).
+  - Заявки в сервис (список/детали/обновления, PDF `export.pdf`).
 - `backend/src/modules/requestMessages/requestMessages.router.js`
   - Переписка по заявке.
 - `backend/src/modules/bookings/bookings.router.js`
-  - Записи на визит.
+  - Записи на визит (гость `POST /guest`, клиент, список, PATCH, аудит для админа).
 - `backend/src/modules/analytics/analytics.router.js`
   - Сводка/аналитика.
 - `backend/src/modules/admin/admin.router.js`

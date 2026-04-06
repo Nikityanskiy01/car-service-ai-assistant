@@ -3,53 +3,226 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Администратор — AI Fox Motors</title>
+    <title>Администратор — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/dashboard.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container">
-      <div class="dash">
+    <main class="page container container--mgr">
+      <div class="dash dash--manager">
         <aside class="dash__side">
           <div class="dash__head">
-            <h1 style="margin:0">Админ‑панель</h1>
-            <p class="muted" style="margin:0.25rem 0 0">Пользователи, справочники, сценарии консультаций.</p>
+            <h1 class="dash__title">Админ-панель</h1>
+            <p class="muted dash__subtitle">
+              Роль: администратор. Сверху — работа с клиентами; ниже — пользователи и справочники для ИИ.
+            </p>
           </div>
           <button type="button" class="btn btn--ghost dash__menu-toggle" id="dashMenuToggle">Разделы кабинета</button>
           <nav class="dash__nav" aria-label="Разделы админ-панели">
-            <button type="button" class="dash__tab is-active" data-tab="overview">Сводка</button>
+            <button type="button" class="dash__tab is-active" data-tab="consultations">ИИ‑консультации</button>
+            <button type="button" class="dash__tab" data-tab="records">Все записи</button>
+            <button type="button" class="dash__tab" data-tab="contacts">Обращения с сайта</button>
+            <button type="button" class="dash__tab" data-tab="overview">Сводка</button>
             <button type="button" class="dash__tab" data-tab="users">Пользователи</button>
             <button type="button" class="dash__tab" data-tab="categories">Категории</button>
             <button type="button" class="dash__tab" data-tab="scenarios">Сценарии</button>
             <button type="button" class="dash__tab" data-tab="materials">Материалы</button>
           </nav>
-          <a class="btn btn--primary" href="/consult.html" style="margin-top:0.8rem; text-decoration:none">Начать диагностику</a>
+          <a class="btn btn--ghost dash__cta-link" href="/consult.html">Проверить ИИ как клиент</a>
         </aside>
 
         <section class="dash__main">
-          <section class="dash__panel" data-panel="overview">
+          <section class="dash__panel" data-panel="consultations">
+            <div class="dash-mgr-split">
+              <div class="dash-mgr-master">
+                <section class="card stack dash__section-gap dash-mgr-toolbar">
+                  <div class="dash__section-head">
+                    <h2 class="dash__title">ИИ‑консультации (все клиенты)</h2>
+                    <button type="button" class="btn btn--ghost" id="admConsultRefreshBtn">Обновить</button>
+                  </div>
+                  <p class="muted dash__section-hint dash-mgr-hint">
+                    Диалоги с ассистентом по всем пользователям и гостям. Ответ клиенту — во вкладке «Все записи», в заявке на
+                    ремонт.
+                  </p>
+                </section>
+                <div class="table-wrap card dash__table-card dash-mgr-table-card">
+                  <table class="data dash-mgr-table" id="admConsultTable">
+                    <thead>
+                      <tr>
+                        <th class="dash-mgr-col--date">Обновлено</th>
+                        <th>Клиент</th>
+                        <th>Авто</th>
+                        <th class="dash-mgr-col--status">Статус</th>
+                        <th class="dash-mgr-col--narrow">Заявка</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="card dash-mgr-detail" id="admConsultDetail" tabindex="-1">
+                <div class="empty">Выберите строку в таблице, чтобы открыть диалог и данные по авто.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dash__panel" data-panel="records" hidden>
+            <div class="dash-mgr-split">
+              <div class="dash-mgr-master dash-records-stack">
+                <section class="card stack dash__section-gap">
+                  <h2 class="dash__title u-m0">Записи на визит</h2>
+                  <p class="muted dash__section-hint u-m0">
+                    Изменения фиксируются в журнале («Журнал изменений»). Справа — детали выбранной заявки на ремонт.
+                  </p>
+                  <ul id="admBookingsMgr" class="dash__booking-list-pad"></ul>
+                </section>
+                <section class="card stack dash__section-gap dash-mgr-toolbar dash-sr-toolbar">
+                  <div class="dash-sr-toolbar__head">
+                    <h2 class="dash__title u-m0">Заявки на ремонт</h2>
+                    <div class="dash-sr-view-toggle" id="admSrViewToggle" role="group" aria-label="Вид списка заявок">
+                      <button type="button" class="btn btn--ghost btn-sm" data-sr-view="table">Таблица</button>
+                      <button type="button" class="btn btn--ghost btn-sm is-active" data-sr-view="kanban">Канбан</button>
+                      <button type="button" class="btn btn--ghost btn-sm" data-sr-view="calendar">Календарь</button>
+                    </div>
+                  </div>
+                  <div class="dash-mgr-filter dash-mgr-filter--sr">
+                    <div class="form-field dash__form-field">
+                      <label for="admFilterStatus">Статус</label>
+                      <select id="admFilterStatus">
+                        <option value="">Все статусы</option>
+                        <option value="NEW">Новая</option>
+                        <option value="IN_PROGRESS">В работе</option>
+                        <option value="SCHEDULED">Запланирована</option>
+                        <option value="COMPLETED">Завершена</option>
+                        <option value="CANCELLED">Отменена</option>
+                      </select>
+                    </div>
+                    <div class="form-field dash__form-field">
+                      <label for="admFilterQ">Поиск</label>
+                      <input id="admFilterQ" type="search" placeholder="марка, модель, текст" autocomplete="off" />
+                    </div>
+                    <div class="dash-mgr-filter__action">
+                      <button type="button" class="btn btn--outline btn-sm" id="admFilterBtn">Обновить</button>
+                    </div>
+                  </div>
+                  <details class="dash-sr-details">
+                    <summary>Справка по разделу</summary>
+                    <div class="dash-sr-details__body">
+                      <p class="dash-sr-details__lead">Как пользоваться списком заявок</p>
+                      <ul class="dash-sr-details__list">
+                        <li>
+                          <strong>Выбор заявки</strong> — строка в таблице или карточка на канбане; справа — детали, переписка
+                          и транскрипт ИИ.
+                        </li>
+                        <li><strong>Гость</strong> — без аккаунта; контакты в карточке заявки.</li>
+                        <li>
+                          <strong>Поиск и обновление</strong> — кнопка «Обновить» или Enter в поле поиска. В таблице фильтр
+                          «Статус» перезагружает список сразу после выбора.
+                        </li>
+                        <li><strong>Таблица</strong> — колонка «Версия» — служебное число для синхронизации правок.</li>
+                        <li>
+                          <strong>Канбан</strong> — заявки на ремонт и записи на визит; визиты в «Новая» / «Запланирована» /
+                          «Отменена»; колонки «В работе» и «Завершена» — только ремонт.
+                        </li>
+                        <li>
+                          <strong>Календарь</strong> — визиты по дате приезда, заявки по дате создания.
+                        </li>
+                      </ul>
+                      <p class="dash-sr-details__note muted">
+                        Если <strong>Версия</strong> не совпала при сохранении (двое редактировали одну заявку), обновите
+                        список и повторите действие.
+                      </p>
+                    </div>
+                  </details>
+                </section>
+                <div id="admSrTableWrap" class="dash-sr-table-wrap" hidden>
+                <div class="table-wrap card dash__table-card dash-mgr-table-card">
+                  <table class="data dash-mgr-table" id="admMgrTable">
+                    <thead>
+                      <tr>
+                        <th class="dash-mgr-col--date">Дата</th>
+                        <th>Клиент</th>
+                        <th>Авто</th>
+                        <th class="dash-mgr-col--status">Статус</th>
+                        <th class="dash-mgr-col--narrow">Версия</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                </div>
+                <div id="admSrKanban" class="sr-kanban card" aria-label="Канбан заявок и визитов"></div>
+                <div id="admSrCalendar" class="staff-cal-board card" hidden aria-label="Календарь визитов и заявок"></div>
+              </div>
+              <div class="dash-mgr-detail-col stack">
+                <div class="card dash-mgr-detail" id="admDetailPanel" tabindex="-1">
+                  <div class="empty">
+                    Выберите заявку в таблице или на канбане слева — здесь появятся данные и переписка с клиентом.
+                  </div>
+                </div>
+                <div class="card dash-mgr-thread-card" id="admMgrThreadCard" hidden>
+                  <h3 class="dash-mgr-thread-title">Переписка с клиентом</h3>
+                  <div id="admMgrThread" class="stack dash-mgr-thread-list"></div>
+                  <form id="admMgrThreadForm" class="thread-compose dash__thread-form dash-mgr-compose">
+                    <textarea id="admMgrThreadInput" class="thread-compose__input" rows="3" placeholder="Текст ответа клиенту"></textarea>
+                    <button type="submit" class="btn btn--primary thread-compose__btn">Отправить</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="dash__panel" data-panel="contacts" hidden>
+            <section class="card stack dash__section-gap">
+              <div class="dash__section-head">
+                <h2 class="dash__title u-m0">Обращения с сайта</h2>
+                <button type="button" class="btn btn--ghost" id="admContactsRefreshBtn">Обновить список</button>
+              </div>
+              <p class="muted dash__section-hint u-m0">
+                Сообщения из формы «Связаться» на странице контактов. Телефоны — в удобочитаемом виде.
+              </p>
+              <div class="table-wrap card dash__table-card dash-mgr-table-card">
+                <table class="data dash-mgr-table" id="admContactsTable">
+                  <thead>
+                    <tr>
+                      <th>Дата</th>
+                      <th>Имя</th>
+                      <th>Телефон</th>
+                      <th>Сообщение</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section class="dash__panel" data-panel="overview" hidden>
             <section class="card stack">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-                <h2 style="margin:0">Сводка</h2>
+              <div class="dash__section-head">
+                <h2 class="dash__title">Сводка</h2>
                 <button type="button" class="btn btn--ghost" id="btnReloadSummary">Обновить</button>
               </div>
-              <p class="muted" style="margin-top:-0.25rem">Быстрый срез по системе для проверки, что всё “живое”.</p>
-              <pre id="analyticsBox" style="overflow: auto; font-size: 0.85rem"></pre>
+              <p class="muted dash__section-hint">Срез по базе: пользователи, консультации, заявки, записи.</p>
+              <div id="analyticsBox" class="admin-summary"></div>
             </section>
           </section>
 
           <section class="dash__panel" data-panel="users" hidden>
             <section class="card stack">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-                <h2 style="margin:0">Пользователи</h2>
-                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
-                  <input id="adminUserQ" type="search" placeholder="Поиск: email / имя" style="min-width: 220px" />
+              <div class="dash__section-head">
+                <h2 class="dash__title">Пользователи</h2>
+                <div class="dash__detail-actions--center">
+                  <input id="adminUserQ" type="search" placeholder="Поиск: email / имя" class="dash__search-input" />
                   <button type="button" class="btn btn--ghost" id="btnReloadUsers">Обновить</button>
                 </div>
               </div>
-              <p class="muted" style="margin-top:-0.25rem">Роли и блокировка доступа. Изменения применяются сразу.</p>
+              <p class="muted dash__section-hint">Роли и блокировка доступа. Изменения применяются сразу.</p>
               <div class="table-wrap">
                 <table class="data" id="adminUsers">
                   <thead>
@@ -69,25 +242,25 @@
 
           <section class="dash__panel" data-panel="categories" hidden>
             <section class="card stack">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-                <h2 style="margin:0">Категории услуг</h2>
-                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
-                  <input id="catQ" type="search" placeholder="Поиск: название / описание" style="min-width: 260px" />
+              <div class="dash__section-head">
+                <h2 class="dash__title">Категории услуг</h2>
+                <div class="dash__detail-actions--center">
+                  <input id="catQ" type="search" placeholder="Поиск: название / описание" class="dash__search-input--wide" />
                   <button type="button" class="btn btn--ghost" id="btnReloadCats">Обновить</button>
                 </div>
               </div>
-              <p class="muted" style="margin-top:-0.25rem">Используются в справочных материалах и в логике рекомендаций.</p>
+              <p class="muted dash__section-hint">Используются в справочных материалах и в логике рекомендаций.</p>
 
-              <form id="catForm" class="grid-2" style="gap: 1rem; align-items: end">
-                <div class="form-field" style="margin:0">
+              <form id="catForm" class="grid-2 dash__form-grid">
+                <div class="form-field dash__form-field">
                   <label for="catName">Новая категория</label>
                   <input id="catName" name="name" placeholder="Например: Двигатель" required />
                 </div>
-                <div class="form-field" style="margin:0">
+                <div class="form-field dash__form-field">
                   <label for="catDesc">Описание (необязательно)</label>
                   <input id="catDesc" name="description" placeholder="Коротко: для чего эта категория" />
                 </div>
-                <div style="grid-column: 1 / -1">
+                <div class="dash__form-submit">
                   <button type="submit" class="btn btn--primary">Добавить категорию</button>
                 </div>
               </form>
@@ -110,24 +283,24 @@
 
           <section class="dash__panel" data-panel="scenarios" hidden>
             <section class="card stack">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-                <h2 style="margin:0">Сценарии консультации</h2>
+              <div class="dash__section-head">
+                <h2 class="dash__title">Сценарии консультации</h2>
                 <button type="button" class="btn btn--ghost" id="btnReloadSc">Обновить</button>
               </div>
-              <p class="muted" style="margin-top:-0.25rem">
+              <p class="muted dash__section-hint">
                 Сценарии определяют вопросы и подсказки в консультации. Можно включать/выключать активность.
               </p>
 
-              <form id="scForm" class="grid-2" style="gap: 1rem; align-items: end">
-                <div class="form-field" style="margin:0">
+              <form id="scForm" class="grid-2 dash__form-grid">
+                <div class="form-field dash__form-field">
                   <label for="scTitle">Новый сценарий</label>
                   <input id="scTitle" name="title" placeholder="Например: Диагностика двигателя" required />
                 </div>
-                <div class="form-field" style="margin:0">
+                <div class="form-field dash__form-field">
                   <label for="scDesc">Описание (необязательно)</label>
                   <input id="scDesc" name="description" placeholder="Короткое описание" />
                 </div>
-                <div style="grid-column: 1 / -1">
+                <div class="dash__form-submit">
                   <button type="submit" class="btn btn--primary">Добавить сценарий</button>
                 </div>
               </form>
@@ -147,7 +320,7 @@
                 </table>
               </div>
 
-              <div class="card" id="scDetail" style="background: var(--color-surface)">
+              <div class="card dash__detail-surface" id="scDetail">
                 <div class="empty">Выберите сценарий в таблице, чтобы редактировать вопросы и подсказки.</div>
               </div>
             </section>
@@ -155,27 +328,27 @@
 
           <section class="dash__panel" data-panel="materials" hidden>
             <section class="card stack">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
-                <h2 style="margin:0">Справочные материалы</h2>
-                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
-                  <input id="matQ" type="search" placeholder="Поиск: заголовок / текст" style="min-width: 260px" />
+              <div class="dash__section-head">
+                <h2 class="dash__title">Справочные материалы</h2>
+                <div class="dash__detail-actions--center">
+                  <input id="matQ" type="search" placeholder="Поиск: заголовок / текст" class="dash__search-input--wide" />
                   <button type="button" class="btn btn--ghost" id="btnReloadMat">Обновить</button>
                 </div>
               </div>
-              <p class="muted" style="margin-top:-0.25rem">Короткие статьи/шпаргалки для ассистента и менеджера.</p>
+              <p class="muted dash__section-hint">Короткие статьи/шпаргалки для ассистента и менеджера.</p>
 
-              <form id="matForm" class="stack" style="gap: 0.75rem">
-                <div class="grid-2" style="gap: 1rem">
-                  <div class="form-field" style="margin:0">
+              <form id="matForm" class="stack dash__stack-tight">
+                <div class="grid-2 dash__form-grid">
+                  <div class="form-field dash__form-field">
                     <label for="matTitle">Заголовок</label>
                     <input id="matTitle" name="title" required />
                   </div>
-                  <div class="form-field" style="margin:0">
+                  <div class="form-field dash__form-field">
                     <label for="matCat">Категория</label>
                     <select id="matCat" name="categoryId"></select>
                   </div>
                 </div>
-                <div class="form-field" style="margin:0">
+                <div class="form-field dash__form-field">
                   <label for="matBody">Текст</label>
                   <textarea id="matBody" name="body" rows="4" required placeholder="Коротко, по делу: что проверять, на что обратить внимание"></textarea>
                 </div>
@@ -195,10 +368,10 @@
                 </table>
               </div>
 
-              <div class="card" id="matDetail" style="background: var(--color-surface)">
+              <div class="card dash__detail-surface" id="matDetail">
                 <div class="empty">Выберите материал в таблице, чтобы посмотреть или отредактировать.</div>
               </div>
-              <p class="muted" style="margin:0">
+              <p class="muted dash__hint-tip">
                 Совет: материалы лучше делать короткими (5–10 строк) — ассистенту проще использовать их в ответах.
               </p>
             </section>
@@ -207,14 +380,6 @@
       </div>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      import { initAdminDashboard } from '/js/dashboards/admin.js';
-      mountHeaderFooter({ active: 'dash' });
-      initAdminDashboard();
-      const side = document.querySelector('.dash__side');
-      const t = document.getElementById('dashMenuToggle');
-      t?.addEventListener('click', () => side?.classList.toggle('is-open'));
-    </script>
+    <script type="module" src="/js/entry/admin-dash.js"></script>
   </body>
 </html>

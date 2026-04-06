@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import prisma from '../lib/prisma.js';
 
 /**
@@ -31,7 +32,12 @@ export async function consultationSessionAccess(req, res, next) {
   }
 
   const hdr = req.headers['x-consultation-guest-token'];
-  if (typeof hdr === 'string' && hdr.length > 0 && session.guestToken === hdr) {
+  if (
+    typeof hdr === 'string' &&
+    hdr.length > 0 &&
+    session.guestToken &&
+    crypto.timingSafeEqual(Buffer.from(session.guestToken), Buffer.from(hdr))
+  ) {
     req.consultationActor = { kind: 'guest' };
     return next();
   }

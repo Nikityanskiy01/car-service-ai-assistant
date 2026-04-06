@@ -3,10 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI Fox Motors — автосервис</title>
+    <title>Fox Motors — автосервис</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/home.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
@@ -23,10 +26,11 @@
             <li>Предварительная стоимость работ</li>
           </ul>
           <p class="home-pro__actions">
-            <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать диагностику</a>
+            <a class="btn btn--primary" href="/consult.html">Начать диагностику</a>
+            <a class="btn btn--primary" href="/services.html">Записаться в сервис</a>
           </p>
           <p class="home-pro__cta-note">Без регистрации · результат за 2-4 минуты · сохранение отчета</p>
-          <a class="home-pro__link" href="/works.html">Посмотреть реальные кейсы</a>
+          <a class="home-pro__link" href="/works.html">Смотреть наши работы</a>
         </div>
         <aside class="home-pro__hero-chat">
           <div class="home-chat card">
@@ -45,17 +49,29 @@
       <section class="home-pro__section home-pro__section--compact">
         <h2>Что вы получаете после консультации</h2>
         <div class="home-pro__grid home-pro__grid--4">
-          <article class="card home-pro__feature"><h3>Вероятные причины неисправности</h3></article>
-          <article class="card home-pro__feature"><h3>Приоритет и срочность обращения</h3></article>
-          <article class="card home-pro__feature"><h3>Список проверок перед ремонтом</h3></article>
-          <article class="card home-pro__feature"><h3>Предварительную оценку стоимости</h3></article>
+          <article class="card home-pro__feature">
+            <i data-lucide="search" class="home-pro__feature-icon"></i>
+            <div><h3>Вероятные причины</h3><p>ИИ определяет наиболее вероятные причины по вашим симптомам</p></div>
+          </article>
+          <article class="card home-pro__feature">
+            <i data-lucide="alert-triangle" class="home-pro__feature-icon"></i>
+            <div><h3>Срочность обращения</h3><p>Оценка приоритета: ехать в сервис сегодня или можно подождать</p></div>
+          </article>
+          <article class="card home-pro__feature">
+            <i data-lucide="clipboard-check" class="home-pro__feature-icon"></i>
+            <div><h3>Чек-лист проверок</h3><p>Список того, что нужно проверить до или во время визита</p></div>
+          </article>
+          <article class="card home-pro__feature">
+            <i data-lucide="calculator" class="home-pro__feature-icon"></i>
+            <div><h3>Оценка стоимости</h3><p>Примерная стоимость работ на основе типовых расценок</p></div>
+          </article>
         </div>
       </section>
 
       <section class="home-pro__section">
         <div class="side-head">
-          <h2 style="margin:0">Как работает система</h2>
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать консультацию</a>
+          <h2 class="u-m0">Как работает система</h2>
+          <a class="btn btn--primary" href="/consult.html">Начать консультацию</a>
         </div>
         <div class="home-pro__steps">
           <div class="home-pro__step"><span>Шаг 1</span><p>Вы описываете авто и проблему</p></div>
@@ -69,14 +85,17 @@
         <h2>Почему нам доверяют</h2>
         <div class="home-pro__grid home-pro__grid--3">
           <article class="card home-pro__trust">
+            <i data-lucide="eye" class="home-pro__trust-icon"></i>
             <h3>Прозрачный результат</h3>
             <p class="muted">Показываем причины, вероятности и следующий шаг, а не абстрактные советы.</p>
           </article>
           <article class="card home-pro__trust">
+            <i data-lucide="cpu" class="home-pro__trust-icon"></i>
             <h3>Связка ИИ + мастера</h3>
             <p class="muted">ИИ ускоряет первичную оценку, а окончательный вывод делает специалист на диагностике.</p>
           </article>
           <article class="card home-pro__trust">
+            <i data-lucide="file-text" class="home-pro__trust-icon"></i>
             <h3>Единая история обращения</h3>
             <p class="muted">Диалог, отчет и заявка сохраняются в кабинете для понятного сопровождения ремонта.</p>
           </article>
@@ -85,37 +104,73 @@
 
       <section class="home-pro__section">
         <div class="side-head">
-          <h2 style="margin:0">Примеры выполненных работ</h2>
-          <a class="btn btn--ghost" href="/works.html" style="text-decoration:none">Все кейсы</a>
+          <h2 class="u-m0">Примеры выполненных работ</h2>
+          <a class="btn btn--ghost" href="/works.html">Наши работы</a>
         </div>
         <div class="home-pro__grid home-pro__grid--3">
-          <article class="card home-pro__work">
+          <a href="/works.html#brakes" class="card home-pro__work">
             <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Диагностика тормозной системы" loading="lazy" />
             <p>Диагностика и восстановление тормозной системы</p>
-          </article>
-          <article class="card home-pro__work">
+          </a>
+          <a href="/works.html#suspension" class="card home-pro__work">
             <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Ремонт подвески" loading="lazy" />
             <p>Ремонт подвески с последующей проверкой геометрии</p>
-          </article>
-          <article class="card home-pro__work">
+          </a>
+          <a href="/works.html#to" class="card home-pro__work">
             <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=1200&q=80" alt="Техническое обслуживание" loading="lazy" />
             <p>Плановое ТО: масла, фильтры, технические жидкости</p>
-          </article>
+          </a>
         </div>
       </section>
 
       <section class="home-pro__section">
         <div class="side-head">
-          <h2 style="margin:0">Услуги автосервиса</h2>
-          <a class="btn btn--ghost" href="/works.html" style="text-decoration:none">Все услуги</a>
+          <h2 class="u-m0">Услуги автосервиса</h2>
+          <a class="btn btn--ghost" href="/services.html">Все услуги</a>
         </div>
         <div class="home-pro__grid home-pro__grid--3">
-          <article class="card home-pro__service">Диагностика двигателя</article>
-          <article class="card home-pro__service">Ремонт подвески</article>
-          <article class="card home-pro__service">Ремонт тормозной системы</article>
-          <article class="card home-pro__service">Ремонт трансмиссии</article>
-          <article class="card home-pro__service">Электрика автомобиля</article>
-          <article class="card home-pro__service">Техническое обслуживание</article>
+          <a href="/services.html#engine" class="card home-pro__service">
+            <i data-lucide="gauge" class="home-pro__service-icon"></i>
+            <div>
+              <h3>Диагностика двигателя</h3>
+              <p>Компьютерная и визуальная диагностика, проверка датчиков, анализ ошибок</p>
+            </div>
+          </a>
+          <a href="/services.html#suspension" class="card home-pro__service">
+            <i data-lucide="car" class="home-pro__service-icon"></i>
+            <div>
+              <h3>Ремонт подвески</h3>
+              <p>Замена стоек, рычагов, сайлентблоков, регулировка развал-схождения</p>
+            </div>
+          </a>
+          <a href="/services.html#brakes" class="card home-pro__service">
+            <i data-lucide="disc" class="home-pro__service-icon"></i>
+            <div>
+              <h3>Ремонт тормозной системы</h3>
+              <p>Замена колодок, дисков, обслуживание суппортов, прокачка</p>
+            </div>
+          </a>
+          <a href="/services.html#transmission" class="card home-pro__service">
+            <i data-lucide="settings" class="home-pro__service-icon"></i>
+            <div>
+              <h3>Ремонт трансмиссии</h3>
+              <p>Диагностика АКПП/МКПП, замена масла, адаптация коробки</p>
+            </div>
+          </a>
+          <a href="/services.html#electric" class="card home-pro__service">
+            <i data-lucide="zap" class="home-pro__service-icon"></i>
+            <div>
+              <h3>Электрика автомобиля</h3>
+              <p>Поиск утечек тока, ремонт проводки, диагностика блоков управления</p>
+            </div>
+          </a>
+          <a href="/services.html#maintenance" class="card home-pro__service">
+            <i data-lucide="wrench" class="home-pro__service-icon"></i>
+            <div>
+              <h3>Техническое обслуживание</h3>
+              <p>Плановое ТО, замена масел, фильтров, жидкостей по регламенту</p>
+            </div>
+          </a>
         </div>
       </section>
 
@@ -123,34 +178,47 @@
         <h2>Расположение сервиса</h2>
         <div class="home-pro__location">
           <article class="card">
-            <p><strong>Адрес:</strong><br />Москва, Фармацевтический проезд, 3</p>
-            <p><strong>Телефон:</strong><br />+7 (999) 000-00-00</p>
+            <p>
+              <strong>Адрес:</strong><br />
+              <a
+                class="home-pro__contact-link"
+                href="https://yandex.ru/maps/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%A4%D0%B0%D1%80%D0%BC%D0%B0%D1%86%D0%B5%D0%B2%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9%20%D0%BF%D1%80%D0%BE%D0%B5%D0%B7%D0%B4%2C%203"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Москва, Фармацевтический проезд, 3</a>
+            </p>
+            <p>
+              <strong>Телефон:</strong><br />
+              <a class="home-pro__contact-link" href="tel:+79990000000">+7 (999) 000-00-00</a>
+            </p>
             <p><strong>Режим работы:</strong><br />пн-сб 10:00-20:00</p>
-            <a class="btn btn--ghost" href="/location.html" style="text-decoration:none">Открыть контакты</a>
+            <a class="btn btn--ghost" href="/about.html#contacts">Открыть контакты</a>
           </article>
           <article class="card home-pro__map">
-            <iframe
-              title="Карта AI Fox Motors"
-              width="100%"
-              height="320"
-              style="border:0"
-              loading="lazy"
-              src="https://yandex.ru/map-widget/v1/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%A4%D0%B0%D1%80%D0%BC%D0%B0%D1%86%D0%B5%D0%B2%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9%20%D0%BF%D1%80%D0%BE%D0%B5%D0%B7%D0%B4%2C%203&z=16"
-            ></iframe>
+            <div id="homeMap" class="home-pro__map-container"></div>
           </article>
         </div>
       </section>
 
-      <section class="card home-pro__cta">
-        <h2>Получите предварительный результат диагностики прямо сейчас</h2>
-        <p class="muted">Опишите проблему автомобиля и получите понятный план действий до визита в сервис.</p>
-        <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Перейти к ИИ-консультации</a>
+      <section class="home-pro__dual-cta" aria-label="Запись в сервис и ИИ-консультация">
+        <article class="card home-pro__dual-card home-pro__dual-card--service">
+          <h2 class="home-pro__dual-title">Запись в сервис</h2>
+          <p class="muted home-pro__dual-lead">
+            Выберите услугу из каталога и оставьте удобное время — регистрация не обязательна.
+          </p>
+          <a class="btn btn--primary" href="/services.html">Записаться в сервис</a>
+        </article>
+        <article class="card home-pro__dual-card home-pro__dual-card--ai">
+          <h2 class="home-pro__dual-title">Предложение ИИ</h2>
+          <p class="muted home-pro__dual-lead">
+            Опишите симптомы — ассистент подготовит предварительный разбор, оценку срочности и план действий.
+          </p>
+          <a class="btn btn--primary" href="/consult.html">Начать диагностику</a>
+        </article>
       </section>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      mountHeaderFooter({ active: 'home' });
-    </script>
+    <script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU" defer></script>
+    <script type="module" src="/js/entry/home.js"></script>
   </body>
 </html>

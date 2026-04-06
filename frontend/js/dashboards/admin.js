@@ -2,6 +2,29 @@ import { api } from '../api.js';
 import { requireAuth } from '../router-guard.js';
 import { $, escapeHtml } from '../utils.js';
 import { uiAlert, uiConfirm, uiPromptText } from '../ui/dialogs.js';
+import { mountStaffDashboardOperations } from './staff-dashboard-ops.js';
+
+const ADMIN_OPS_IDS = {
+  filterQ: 'admFilterQ',
+  filterStatus: 'admFilterStatus',
+  filterBtn: 'admFilterBtn',
+  requestsTable: 'admMgrTable',
+  detailPanel: 'admDetailPanel',
+  thread: 'admMgrThread',
+  threadForm: 'admMgrThreadForm',
+  threadInput: 'admMgrThreadInput',
+  contactsTable: 'admContactsTable',
+  contactsRefreshBtn: 'admContactsRefreshBtn',
+  bookingsList: 'admBookingsMgr',
+  consultTable: 'admConsultTable',
+  consultDetail: 'admConsultDetail',
+  consultRefreshBtn: 'admConsultRefreshBtn',
+  jumpToRequestBtn: 'admJumpToRequest',
+  requestsTableWrap: 'admSrTableWrap',
+  requestsKanbanRoot: 'admSrKanban',
+  requestsCalendarRoot: 'admSrCalendar',
+  requestsViewToggle: 'admSrViewToggle',
+};
 
 export async function initAdminDashboard() {
   const user = requireAuth(['ADMINISTRATOR']);
@@ -10,6 +33,9 @@ export async function initAdminDashboard() {
   let catsCache = [];
   let matsCache = [];
   let scenariosCache = [];
+
+  /** @type {ReturnType<typeof mountStaffDashboardOperations> | null} */
+  let staffOps = null;
 
   function badge(text, tone = 'ghost') {
     const cls =
@@ -33,27 +59,72 @@ export async function initAdminDashboard() {
     } catch {
       /* ignore */
     }
+    staffOps?.onTabShown(tab);
   }
 
   function initTabs() {
     const fromHash = (() => {
       const h = String(window.location.hash || '').replace(/^#/, '');
       const m = h.match(/(?:^|&)tab=([^&]+)/);
-      return m ? decodeURIComponent(m[1]) : '';
+      const raw = m ? decodeURIComponent(m[1]) : '';
+      const legacy = { requests: 'records', bookings: 'records' };
+      return legacy[raw] || raw;
     })();
-    const initial = fromHash || 'overview';
+    const allowed = new Set(
+      Array.from(document.querySelectorAll('.dash__tab[data-tab]')).map((b) => b.dataset.tab),
+    );
+    const initial = fromHash && allowed.has(fromHash) ? fromHash : 'consultations';
     document.querySelectorAll('.dash__tab').forEach((b) => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
     setActiveTab(initial);
   }
 
+  function renderAnalyticsSummary(summary) {
+    const sr = summary.serviceRequestsByStatus || {};
+    const bk = summary.bookingsByStatus || {};
+    const srRows = ['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']
+      .map((k) => {
+        const n = sr[k] ?? 0;
+        return `<li><span class="admin-summary__k">${escapeHtml(k)}</span> <strong>${n}</strong></li>`;
+      })
+      .join('');
+    const bkRows = ['PENDING', 'CONFIRMED', 'CANCELLED']
+      .map((k) => {
+        const n = bk[k] ?? 0;
+        return `<li><span class="admin-summary__k">${escapeHtml(k)}</span> <strong>${n}</strong></li>`;
+      })
+      .join('');
+    return `
+      <div class="admin-summary__grid">
+        <div class="card admin-summary__card">
+          <h3 class="admin-summary__h">Пользователи</h3>
+          <p class="admin-summary__num">${escapeHtml(String(summary.usersTotal ?? 0))}</p>
+          <p class="muted admin-summary__hint">Зарегистрированных учётных записей</p>
+        </div>
+        <div class="card admin-summary__card">
+          <h3 class="admin-summary__h">ИИ‑консультации</h3>
+          <p class="admin-summary__num">${escapeHtml(String(summary.consultationsTotal ?? 0))}</p>
+          <p class="muted admin-summary__hint">Все сессии (клиенты и гости)</p>
+        </div>
+        <div class="card admin-summary__card admin-summary__card--wide">
+          <h3 class="admin-summary__h">Заявки на ремонт по статусам</h3>
+          <ul class="admin-summary__list u-list-reset">${srRows}</ul>
+        </div>
+        <div class="card admin-summary__card admin-summary__card--wide">
+          <h3 class="admin-summary__h">Записи на визит по статусам</h3>
+          <ul class="admin-summary__list u-list-reset">${bkRows}</ul>
+        </div>
+      </div>
+    `;
+  }
+
   async function loadSummary() {
     const box = $('#analyticsBox');
-    if (box) box.textContent = 'Загружаем сводку…';
+    if (box) box.innerHTML = '<p class="muted u-m0">Загружаем сводку…</p>';
     try {
       const summary = await api('/analytics/summary');
-      if (box) box.textContent = JSON.stringify(summary, null, 2);
+      if (box) box.innerHTML = renderAnalyticsSummary(summary);
     } catch (e) {
-      if (box) box.textContent = '';
+      if (box) box.innerHTML = '';
       await uiAlert({ title: 'Ошибка', message: e.message || 'Не удалось загрузить сводку.' });
     }
   }
@@ -125,11 +196,11 @@ export async function initAdminDashboard() {
     const tbody = $('#catsTable tbody');
     tbody.innerHTML = filtered
       .map(
-        (c) => `<tr data-id="${c.id}" style="cursor:pointer">
+        (c) => `<tr data-id="${c.id}" class="u-pointer">
         <td><strong>${escapeHtml(c.name)}</strong></td>
         <td class="muted">${escapeHtml(c.slug || '')}</td>
         <td class="muted">${escapeHtml(c.description || '')}</td>
-        <td style="white-space:nowrap;text-align:right">
+        <td class="u-nowrap u-text-right">
           <button type="button" class="btn btn--ghost btn-sm catEdit" data-id="${c.id}">Правка</button>
           <button type="button" class="btn btn--ghost btn-sm catDel" data-id="${c.id}">Удалить</button>
         </td>
@@ -196,12 +267,12 @@ export async function initAdminDashboard() {
     const qs = (sc.questions || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     const hs = (sc.hints || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     box.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+      <div class="dash__section-head">
         <div>
-          <h3 style="margin:0">${escapeHtml(sc.title)}</h3>
-          <p class="muted" style="margin:0.25rem 0 0">${escapeHtml(sc.description || '')}</p>
+          <h3 class="dash__title">${escapeHtml(sc.title)}</h3>
+          <p class="muted dash__subtitle">${escapeHtml(sc.description || '')}</p>
         </div>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+        <div class="dash__detail-actions--center">
           ${badge(sc.active ? 'active' : 'inactive', sc.active ? 'ok' : 'ghost')}
           <button type="button" class="btn btn--ghost btn-sm" id="scToggle">Вкл/Выкл</button>
           <button type="button" class="btn btn--ghost btn-sm" id="scEdit">Правка</button>
@@ -209,22 +280,22 @@ export async function initAdminDashboard() {
         </div>
       </div>
 
-      <div class="grid-2" style="gap:1rem;margin-top:1rem">
-        <div class="card" style="box-shadow:none">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+      <div class="grid-2 dash__content-grid">
+        <div class="card u-no-shadow">
+          <div class="dash__section-head">
             <strong>Вопросы</strong>
             <button type="button" class="btn btn--ghost btn-sm" id="qAdd">+ вопрос</button>
           </div>
-          <ul style="margin:0.5rem 0 0; padding-left:1.1rem">
+          <ul class="dash__item-list">
             ${
               qs.length
                 ? qs
                     .map(
                       (q) =>
-                        `<li style="margin:0.35rem 0">
+                        `<li class="dash__item-li">
                           <span>${escapeHtml(q.text)}</span>
                           <small class="muted"> (order ${q.order ?? 0})</small>
-                          <span style="display:inline-flex;gap:0.35rem;margin-left:0.5rem">
+                          <span class="dash__inline-actions">
                             <button type="button" class="btn btn--ghost btn-sm qEdit" data-id="${q.id}">Правка</button>
                             <button type="button" class="btn btn--ghost btn-sm qDel" data-id="${q.id}">Удалить</button>
                           </span>
@@ -235,21 +306,21 @@ export async function initAdminDashboard() {
             }
           </ul>
         </div>
-        <div class="card" style="box-shadow:none">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <div class="card u-no-shadow">
+          <div class="dash__section-head">
             <strong>Подсказки</strong>
             <button type="button" class="btn btn--ghost btn-sm" id="hAdd">+ подсказка</button>
           </div>
-          <ul style="margin:0.5rem 0 0; padding-left:1.1rem">
+          <ul class="dash__item-list">
             ${
               hs.length
                 ? hs
                     .map(
                       (h) =>
-                        `<li style="margin:0.35rem 0">
+                        `<li class="dash__item-li">
                           <span>${escapeHtml(h.text)}</span>
                           <small class="muted"> (order ${h.order ?? 0})</small>
-                          <span style="display:inline-flex;gap:0.35rem;margin-left:0.5rem">
+                          <span class="dash__inline-actions">
                             <button type="button" class="btn btn--ghost btn-sm hEdit" data-id="${h.id}">Правка</button>
                             <button type="button" class="btn btn--ghost btn-sm hDel" data-id="${h.id}">Удалить</button>
                           </span>
@@ -269,12 +340,12 @@ export async function initAdminDashboard() {
     const tbody = $('#scTable tbody');
     tbody.innerHTML = list
       .map(
-        (s) => `<tr data-id="${s.id}" style="cursor:pointer">
+        (s) => `<tr data-id="${s.id}" class="u-pointer">
         <td><strong>${escapeHtml(s.title)}</strong><div class="muted">${escapeHtml(s.description || '')}</div></td>
         <td>${badge(s.active ? 'да' : 'нет', s.active ? 'ok' : 'ghost')}</td>
         <td class="muted">${(s.questions || []).length}</td>
         <td class="muted">${(s.hints || []).length}</td>
-        <td style="text-align:right"><button type="button" class="btn btn--ghost btn-sm scOpen" data-id="${s.id}">Открыть</button></td>
+        <td class="u-text-right"><button type="button" class="btn btn--ghost btn-sm scOpen" data-id="${s.id}">Открыть</button></td>
       </tr>`,
       )
       .join('');
@@ -450,10 +521,10 @@ export async function initAdminDashboard() {
       : mats;
     tbody.innerHTML = filtered
       .map(
-        (m) => `<tr data-id="${m.id}" style="cursor:pointer">
+        (m) => `<tr data-id="${m.id}" class="u-pointer">
         <td><strong>${escapeHtml(m.title)}</strong></td>
         <td class="muted">${escapeHtml(m.category?.name || '—')}</td>
-        <td style="text-align:right">
+        <td class="u-text-right">
           <button type="button" class="btn btn--ghost btn-sm matOpen" data-id="${m.id}">Открыть</button>
           <button type="button" class="btn btn--ghost btn-sm matDel" data-id="${m.id}">Удалить</button>
         </td>
@@ -478,31 +549,31 @@ export async function initAdminDashboard() {
         `<option value="">— без категории —</option>` +
         catsCache.map((c) => `<option value="${c.id}" ${c.id === m.categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
       box.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <div class="dash__section-head">
           <div>
-            <h3 style="margin:0">Материал</h3>
-            <p class="muted" style="margin:0.25rem 0 0">ID: ${escapeHtml(m.id.slice(0, 8))}…</p>
+            <h3 class="dash__title">Материал</h3>
+            <p class="muted dash__subtitle">ID: ${escapeHtml(m.id.slice(0, 8))}…</p>
           </div>
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <div class="dash__detail-actions">
             <button type="button" class="btn btn--primary btn-sm" id="matSave">Сохранить</button>
             <button type="button" class="btn btn--ghost btn-sm" id="matDelete">Удалить</button>
           </div>
         </div>
-        <div class="grid-2" style="gap:1rem;margin-top:1rem">
-          <div class="form-field" style="margin:0">
+        <div class="grid-2 dash__content-grid">
+          <div class="form-field dash__form-field">
             <label for="matEditTitle">Заголовок</label>
             <input id="matEditTitle" value="${escapeHtml(m.title || '')}" />
           </div>
-          <div class="form-field" style="margin:0">
+          <div class="form-field dash__form-field">
             <label for="matEditCat">Категория</label>
             <select id="matEditCat">${catOptions}</select>
           </div>
         </div>
-        <div class="form-field" style="margin-top:0.75rem">
+        <div class="form-field dash__form-text-field">
           <label for="matEditBody">Текст</label>
           <textarea id="matEditBody" rows="6" placeholder="Коротко, по делу">${escapeHtml(m.body || '')}</textarea>
         </div>
-        <p class="muted" style="margin:0">
+        <p class="muted dash__hint-tip">
           Подсказка: используйте списки и короткие фразы — это быстрее читается в консультации.
         </p>
       `;
@@ -613,14 +684,24 @@ export async function initAdminDashboard() {
   $('#btnReloadMat')?.addEventListener('click', () => loadMaterials());
   $('#matQ')?.addEventListener('input', () => loadMaterials());
 
+  staffOps = mountStaffDashboardOperations(ADMIN_OPS_IDS, {
+    navigateToTab: setActiveTab,
+    requestsTabKey: 'records',
+    staffRole: 'ADMINISTRATOR',
+  });
+
   initTabs();
+
   await Promise.all([
+    (async () => {
+      await staffOps.loadList();
+      await staffOps.loadBookings();
+    })(),
     loadSummary(),
     loadUsers(),
     loadCategories(),
     (async () => {
       scenariosCache = await api('/admin/reference/scenarios');
-      // render table using existing function
       await loadScenarios({ keepSelected: false });
     })(),
     loadMaterials(),

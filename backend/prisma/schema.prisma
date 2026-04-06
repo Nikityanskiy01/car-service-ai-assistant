@@ -64,6 +64,8 @@ model User {
   followUpMessages     RequestFollowUpMessage[]
   consultationReports  ConsultationReport[]
   serviceBookings      ServiceBooking[]
+  serviceBookingAudits ServiceBookingAuditLog[] @relation("BookingAuditActor")
+  refreshTokens        RefreshToken[]
 
   @@map("users")
 }
@@ -158,6 +160,9 @@ model ConsultationSession {
   serviceRequest  ServiceRequest?
   reports         ConsultationReport[]
 
+  @@index([clientId])
+  @@index([createdAt])
+  @@index([status])
   @@map("consultation_sessions")
 }
 
@@ -273,7 +278,10 @@ model ConsultationReport {
 
 model ServiceBooking {
   id               String        @id @default(uuid())
-  clientId         String        @map("client_id")
+  clientId         String?       @map("client_id")
+  guestName        String?       @map("guest_name")
+  guestPhone       String?       @map("guest_phone")
+  guestEmail       String?       @map("guest_email")
   serviceRequestId String?       @map("service_request_id")
   preferredAt      DateTime      @map("preferred_at")
   status           BookingStatus @default(PENDING)
@@ -281,9 +289,52 @@ model ServiceBooking {
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  client         User            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client         User?           @relation(fields: [clientId], references: [id], onDelete: Cascade)
   serviceRequest ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  auditLogs      ServiceBookingAuditLog[]
 
   @@index([clientId])
+  @@index([serviceRequestId])
   @@map("service_bookings")
+}
+
+/** Журнал правок записи на визит (для администратора). */
+model ServiceBookingAuditLog {
+  id        String   @id @default(uuid())
+  bookingId String   @map("booking_id")
+  actorId   String   @map("actor_id")
+  changes   Json     @map("changes")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  booking ServiceBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor   User           @relation("BookingAuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt(sort: Desc)])
+  @@map("service_booking_audit_logs")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+/** Сообщения с публичной формы «Контакты» (location.html). */
+model ContactSubmission {
+  id        String   @id @default(uuid())
+  fullName  String   @map("full_name")
+  phone     String
+  message   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("contact_submissions")
 }

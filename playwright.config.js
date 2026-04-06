@@ -23,7 +23,6 @@ export default defineConfig({
     env: {
       ...process.env,
       NODE_ENV: 'development',
-      LLM_MOCK: '1',
     },
   },
 });

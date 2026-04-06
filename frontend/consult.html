@@ -3,10 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ИИ-консультация — AI Fox Motors</title>
+    <title>ИИ-консультация — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/consult.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
@@ -15,9 +18,50 @@
         <div class="consult-pro__hero-main">
           <h1>Интеллектуальная диагностика автомобиля</h1>
         </div>
-        <div class="consult-pro__hero-actions">
-          <a class="btn btn--ghost" href="/about.html" style="text-decoration:none">Как это работает</a>
-          <button type="button" class="btn btn--ghost" id="btnNewSession">Новая сессия</button>
+        <div
+          class="consult-pro__hero-actions consult-pro__toolbar"
+          role="toolbar"
+          aria-label="Действия на странице консультации"
+        >
+          <a class="btn consult-pro__toolbar-btn consult-pro__toolbar-btn--link" href="/about.html">
+            <svg class="consult-pro__toolbar-icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
+            </svg>
+            <span>Как это работает</span>
+          </a>
+          <button type="button" class="btn consult-pro__toolbar-btn consult-pro__toolbar-btn--secondary" id="btnExportConsultPdf" hidden>
+            <svg class="consult-pro__toolbar-icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            <span>Скачать PDF</span>
+          </button>
+          <button type="button" class="btn btn--primary consult-pro__toolbar-btn consult-pro__toolbar-btn--primary" id="btnNewSession">
+            <svg class="consult-pro__toolbar-icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            <span>Новая сессия</span>
+          </button>
         </div>
       </section>
 
@@ -29,13 +73,13 @@
       <div class="consult-grid consult-pro__grid">
         <aside class="consult-side stack consult-pro__info" aria-label="Возможности системы">
           <article class="card" id="sideRecommendationsCard" hidden>
-            <h3 style="margin: 0 0 0.75rem">Возможные причины неисправности</h3>
-            <div id="sideRecommendations" class="stack" style="gap:0.5rem"></div>
+            <h3 class="consult-pro__side-title">Возможные причины неисправности</h3>
+            <div id="sideRecommendations" class="stack consult-pro__side-stack"></div>
           </article>
 
           <article class="card">
             <div class="side-head">
-              <h3 style="margin: 0">Этап консультации</h3>
+              <h3 class="consult-pro__stage-title">Этап консультации</h3>
               <span class="pill" id="stagePill">Сбор данных</span>
             </div>
             <div class="steps" id="stageSteps" aria-hidden="true">
@@ -44,19 +88,19 @@
               <div class="step">3</div>
               <div class="step">4</div>
             </div>
-            <p class="muted" id="stageLabel" style="margin: 0.6rem 0 0">Сбор информации</p>
-            <div class="progress" aria-hidden="true" style="margin-top:0.7rem">
-              <div class="progress__bar" id="sideProgressBar" style="width: 0%"></div>
+            <p class="muted consult-pro__stage-label" id="stageLabel">Сбор информации</p>
+            <div class="progress consult-pro__stage-progress" aria-hidden="true">
+              <div class="progress__bar" id="sideProgressBar"></div>
             </div>
-            <p class="muted" id="sideProgressLabel" style="margin: 0.45rem 0 0">Прогресс: 0%</p>
+            <p class="muted consult-pro__progress-label" id="sideProgressLabel">Прогресс: 0%</p>
           </article>
 
           <article class="card" id="sideResultCard">
             <div class="side-head">
-              <h3 style="margin:0">Панель результата</h3>
+              <h3 class="consult-pro__result-title">Панель результата</h3>
               <span class="pill pill--ghost" id="sideConfidencePill">Уверенность: —</span>
             </div>
-            <div class="grid-2" style="gap:0.7rem; margin-top:0.7rem">
+            <div class="grid-2 consult-pro__kpi-grid">
               <div class="mini-kpi">
                 <div class="mini-kpi__label muted">Предварительная стоимость</div>
                 <div class="mini-kpi__value" id="sideCostValue">—</div>
@@ -76,7 +120,7 @@
         <section class="consult-main">
           <div id="consultChatPanel" class="card consult-pro__chat">
             <div class="progress" id="progressWrap" aria-hidden="true">
-              <div class="progress__bar" id="progressBar" style="width: 0%"></div>
+              <div class="progress__bar" id="progressBar"></div>
             </div>
             <p id="progressLabel" aria-live="polite">Готовность данных: 0%</p>
             <div class="consult-pro__hints">
@@ -85,22 +129,22 @@
             <div id="consultError" class="alert" role="alert" hidden></div>
             <div id="preliminarySlot"></div>
             <div class="chat" id="chat" aria-live="polite"></div>
-            <form id="chatForm" class="stack" style="margin-top:1rem">
-              <div class="form-field" style="margin-bottom:0">
+            <form id="chatForm" class="stack consult-pro__chat-form">
+              <div class="form-field consult-pro__chat-field">
                 <label for="messageInput">Ваше сообщение</label>
                 <textarea id="messageInput" rows="3" required placeholder="Марка, модель, пробег, затем неисправность или плановая работа…"></textarea>
               </div>
               <button type="submit" class="btn btn--primary">Отправить</button>
             </form>
-            <div id="consultActions" class="stack" style="margin-top:1rem"></div>
+            <div id="consultActions" class="stack consult-pro__actions-slot"></div>
           </div>
 
           <section id="consultResultPanel" class="result-grid" hidden aria-label="Результаты консультации">
             <div class="card diag-card">
-              <div class="side-head" style="margin-bottom: 0.75rem">
+              <div class="side-head consult-pro__result-head">
                 <div>
-                  <h2 style="margin: 0">Диагностический результат</h2>
-                  <p class="muted" style="margin: 0.25rem 0 0">Предварительная экспертная оценка по симптомам</p>
+                  <h2 class="consult-pro__result-title">Диагностический результат</h2>
+                  <p class="muted consult-pro__result-subtitle">Предварительная экспертная оценка по симптомам</p>
                 </div>
                 <span class="pill pill--ghost" id="resultRequestPill">Заявка: —</span>
               </div>
@@ -111,7 +155,7 @@
                   <span class="muted" id="resultConfidencePercent">—</span>
                 </div>
                 <div class="diag-confidence__bar" aria-hidden="true">
-                  <div id="resultConfidenceBar" style="width:0%"></div>
+                  <div id="resultConfidenceBar"></div>
                 </div>
                 <p class="diag-note muted" id="resultConfidenceHint">
                   Оценка основана на введенных симптомах и статистике типовых неисправностей.
@@ -119,12 +163,12 @@
               </article>
 
               <article class="diag-block" id="resultHypothesesBlock">
-                <h3 style="margin: 0 0 0.55rem">Наиболее вероятные причины</h3>
-                <div id="resultHypothesesList" class="stack" style="gap:0.5rem"></div>
+                <h3 class="consult-pro__block-title">Наиболее вероятные причины</h3>
+                <div id="resultHypothesesList" class="stack consult-pro__side-stack"></div>
               </article>
 
               <article class="diag-block" id="resultChecksBlock">
-                <h3 style="margin: 0 0 0.55rem">Рекомендуемые проверки</h3>
+                <h3 class="consult-pro__block-title">Рекомендуемые проверки</h3>
                 <ul id="resultChecksList" class="diag-checks"></ul>
               </article>
             </div>
@@ -153,14 +197,14 @@
                 Ожидаем дополнительные симптомы для уточнения оценки
               </div>
 
-              <p style="margin: 1rem 0 0; display:flex; gap:0.5rem; flex-wrap:wrap">
+              <p class="consult-pro__result-actions">
                 <button type="button" class="btn btn--primary" id="resultBtnRequest" hidden>Записаться в сервис</button>
                 <button type="button" class="btn btn--ghost" id="resultBtnSave" hidden>Сохранить отчет в личный кабинет</button>
-                <a class="btn btn--primary" id="resultBtnLogin" hidden href="/login.html?next=/consult.html" style="text-decoration:none">Войти</a>
-                <a class="btn btn--ghost" id="resultBtnRegister" hidden href="/register.html?next=/consult.html" style="text-decoration:none">Записаться в сервис</a>
+                <a class="btn btn--ghost" id="resultBtnLogin" hidden href="/login.html?next=/consult.html">Войти</a>
+                <a class="btn btn--ghost" id="resultBtnRegister" hidden href="/register.html?next=/consult.html">Регистрация</a>
               </p>
 
-              <p class="diag-note muted" style="margin-top: 1rem">
+              <p class="diag-note muted consult-pro__result-note">
                 Результат носит предварительный характер и не заменяет очную диагностику автомобиля специалистом.
               </p>
             </div>
@@ -169,11 +213,6 @@
       </div>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      import { initConsultPage } from '/js/consult.js';
-      mountHeaderFooter({ active: 'consult' });
-      initConsultPage();
-    </script>
+    <script type="module" src="/js/entry/consult-page.js"></script>
   </body>
 </html>

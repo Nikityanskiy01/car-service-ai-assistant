@@ -1,0 +1,203 @@
+/* Services page */
+.services-pro {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(900px 340px at 0% 0%, rgba(255, 122, 26, 0.10), transparent 62%),
+    radial-gradient(860px 340px at 100% 0%, rgba(255, 61, 129, 0.08), transparent 64%),
+    #121722;
+  color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.services-pro .lead,
+.services-pro .muted {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.services-pro .card {
+  background: rgba(15, 18, 26, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.services-pro .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.34);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.services-pro__hero {
+  padding: 0.3rem 0 0.2rem;
+}
+
+.services-pro__pill {
+  margin: 0 0 0.75rem;
+  width: fit-content;
+}
+
+.services-pro__section {
+  margin-top: 2rem;
+}
+
+.services-pro__section h2 {
+  font-size: clamp(1.15rem, 2.5vw, 1.4rem);
+  margin-bottom: .8rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.services-pro__section-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.services-pro__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.05rem;
+  align-items: stretch;
+}
+
+.services-pro__grid .services-pro__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 1.4rem 1.35rem;
+}
+
+.services-pro__item h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.94);
+  line-height: 1.35;
+}
+
+.services-pro__item p.muted {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.services-pro__price {
+  margin: 0 !important;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  color: var(--color-accent) !important;
+  padding-top: 0.15rem;
+}
+
+.services-pro__item--bookable {
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+}
+
+.services-pro__item--bookable:hover {
+  border-color: rgba(255, 122, 26, 0.28);
+}
+
+.services-pro__item--bookable:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.services-pro__item--bookable::after {
+  content: 'Записаться в сервис';
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: flex-start;
+  width: max-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: auto;
+  padding: 0.5rem 1rem;
+  min-height: 42px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+  white-space: nowrap;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-2));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 3px 14px rgba(255, 122, 26, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease;
+}
+
+.services-pro__item--bookable:hover::after {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow:
+    0 6px 22px rgba(255, 122, 26, 0.4),
+    0 0 40px rgba(255, 61, 129, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .services-pro__item--bookable::after,
+  .services-pro__item--bookable:hover::after {
+    transition: none;
+    transform: none;
+  }
+}
+
+.services-pro__cta {
+  text-align: center;
+  border-color: rgba(255, 122, 26, 0.32) !important;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.04) 0%, transparent 45%),
+    radial-gradient(520px 240px at 15% 0%, rgba(255, 122, 26, 0.16), transparent 58%),
+    radial-gradient(480px 220px at 100% 100%, rgba(255, 61, 129, 0.12), transparent 55%),
+    rgba(15, 18, 26, 0.92) !important;
+  box-shadow: 0 0 0 1px rgba(255, 122, 26, 0.08), 0 20px 48px rgba(0, 0, 0, 0.35) !important;
+}
+
+.services-pro__cta h2 {
+  border: none;
+  padding: 0;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.services-pro__cta .btn {
+  width: fit-content;
+  margin-inline: auto;
+  padding-inline: 1.6rem;
+}
+
+@media (max-width: 767px) {
+  .services-pro {
+    padding: 1rem;
+  }
+
+  .services-pro__section {
+    margin-top: 1.5rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .services-pro {
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+
+  .services-pro__grid {
+    grid-template-columns: 1fr;
+  }
+}

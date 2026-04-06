@@ -19,7 +19,9 @@ export function initGalleryPage() {
     });
   });
 
-  items.forEach((item) => {
+  const counter = document.getElementById('galleryLightboxCounter');
+
+  items.forEach((item, idx) => {
     item.addEventListener('click', () => {
       const img = item.querySelector('img');
       const caption = item.querySelector('p');
@@ -27,6 +29,9 @@ export function initGalleryPage() {
       lightboxImg.src = img.src;
       lightboxImg.alt = img.alt || 'Изображение';
       lightboxCaption.textContent = caption?.textContent || '';
+      const visible = items.filter((i) => !i.hidden);
+      const pos = visible.indexOf(item);
+      if (counter) counter.textContent = `${pos + 1} из ${visible.length}`;
       lightbox.hidden = false;
       document.body.style.overflow = 'hidden';
     });

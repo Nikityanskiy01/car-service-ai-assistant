@@ -7,4 +7,7 @@ const level =
       ? 'info'
       : 'debug';
 
-export const logger = pino({ level });
+export const logger = pino({
+  level,
+  redact: ['req.headers.authorization', 'req.headers.cookie'],
+});

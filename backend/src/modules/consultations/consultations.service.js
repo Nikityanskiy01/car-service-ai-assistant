@@ -11,6 +11,7 @@ import {
 } from '../../services/consultationFlowService.js';
 
 const sessionDetailInclude = {
+  client: { select: { id: true, fullName: true, phone: true, email: true, emailProfile: true } },
   extracted: true,
   messages: { orderBy: { createdAt: 'asc' } },
   recommendations: true,
@@ -138,15 +139,39 @@ export async function claimSession(sessionId, clientId, guestToken) {
   return getSessionDetail(sessionId, { kind: 'owner', user: { id: clientId } });
 }
 
-export async function listSessions(clientId) {
+export async function listSessions(clientId, { limit = 50, offset = 0 } = {}) {
   return prisma.consultationSession.findMany({
     where: { clientId },
     orderBy: { createdAt: 'desc' },
+    take: Math.min(limit, 100),
+    skip: offset,
     include: {
       extracted: true,
       serviceRequest: { select: { id: true, status: true } },
     },
   });
+}
+
+/** Список ИИ-сессий для менеджера / администратора (без гостевого токена). */
+export async function listSessionsForStaff({ limit = 500, offset = 0 } = {}) {
+  const take = Math.min(Math.max(1, limit), 500);
+  const skip = Math.max(0, offset);
+  const include = {
+    client: { select: { id: true, fullName: true, phone: true, email: true, emailProfile: true } },
+    extracted: true,
+    serviceRequest: { select: { id: true, status: true } },
+    serviceCategory: { select: { id: true, name: true } },
+  };
+  const [items, total] = await prisma.$transaction([
+    prisma.consultationSession.findMany({
+      orderBy: { updatedAt: 'desc' },
+      take,
+      skip,
+      include,
+    }),
+    prisma.consultationSession.count(),
+  ]);
+  return { items, total };
 }
 
 export async function getSessionDetail(sessionId, actor) {
@@ -159,7 +184,7 @@ export async function getSessionDetail(sessionId, actor) {
   return session;
 }
 
-export async function postMessage(sessionId, actor, content) {
+export async function postMessage(sessionId, actor, content, onProgress) {
   const trimmed = String(content || '').trim();
   if (!trimmed) throw new AppError(400, 'Message required', 'BAD_REQUEST');
 
@@ -192,7 +217,7 @@ export async function postMessage(sessionId, actor, content) {
     },
   });
 
-  const ai = await buildConsultationState(afterUser, trimmed);
+  const ai = await buildConsultationState(afterUser, trimmed, onProgress);
   const mergedExtracted = mergeExtracted(
     {
       make: afterUser.extracted?.make ?? null,
@@ -219,30 +244,23 @@ export async function postMessage(sessionId, actor, content) {
     : Math.min(100, progressFromConsultationSteps(ai.extracted_data));
   const diagnosis = ai.diagnosis;
   const recommendations =
-    ai.stage === 'service_result'
-      ? []
-      : diagnosis?.probable_causes?.length > 0
-        ? diagnosis.probable_causes
-            .map((title, i) => ({
-              title: coerceDiagnosisLine(title),
-              probabilityPercent: Math.max(15, Math.round(75 - i * 12)),
-            }))
-            .filter((r) => r.title)
-        : [];
-  const aiReply =
-    complete && ai.stage === 'service_result'
-      ? ai.assistant_message
-      : complete
-        ? `${ai.assistant_message}\n\nВы можете сохранить отчёт и оформить заявку в сервис.`
-        : ai.assistant_message;
+    diagnosis?.probable_causes?.length > 0
+      ? diagnosis.probable_causes
+          .map((title, i) => ({
+            title: coerceDiagnosisLine(title),
+            probabilityPercent: Math.max(15, Math.round(75 - i * 12)),
+          }))
+          .filter((r) => r.title)
+      : [];
+  const aiReply = ai.assistant_message;
   const confidencePercent =
     diagnosis && Number.isFinite(Number(diagnosis.confidence))
       ? Math.max(0, Math.min(100, Math.round(Number(diagnosis.confidence) * 100)))
       : null;
   const costFromMinor =
-    diagnosis?.estimated_cost_from != null
+    diagnosis?.estimated_cost_from != null && Number(diagnosis.estimated_cost_from) > 0
       ? Math.round(Number(diagnosis.estimated_cost_from))
-      : complete && ai.stage !== 'service_result'
+      : complete
         ? estimateCostFromMinor(mergedExtracted, { recommendations })
         : null;
 
@@ -278,16 +296,68 @@ export async function postMessage(sessionId, actor, content) {
         progressPercent: Math.min(100, progressPercent),
         confidencePercent,
         costFromMinor: costFromMinor != null && Number.isFinite(costFromMinor) ? Math.round(costFromMinor) : null,
-        preliminaryNote:
-          ai.stage === 'service_result'
-            ? 'Плановые работы; оценка без диагностики неисправностей.'
-            : 'Результат предварительный и не заменяет очную диагностику автомобиля специалистом.',
-        flowState: ai.flowState ?? undefined,
+        preliminaryNote: 'Результат предварительный и не заменяет очную диагностику автомобиля специалистом.',
+        flowState: {
+          ...(ai.flowState ?? {}),
+          ...(diagnosis?.recommended_checks?.length ? { recommended_checks: diagnosis.recommended_checks } : {}),
+        },
       },
     }),
   ]);
 
+  if (complete && actor.kind === 'owner' && actor.user?.id) {
+    try {
+      await autoSaveReport(sessionId, actor.user.id);
+    } catch (e) {
+      const { logger } = await import('../../lib/logger.js');
+      logger.warn({ err: e, sessionId }, 'autoSaveReport failed');
+    }
+  }
+
   return getSessionDetail(sessionId, actor);
+}
+
+async function autoSaveReport(sessionId, userId) {
+  const count = await prisma.consultationReport.count({
+    where: { consultationSessionId: sessionId, userId },
+  });
+  if (count > 0) return;
+
+  const session = await prisma.consultationSession.findUnique({
+    where: { id: sessionId },
+    include: {
+      extracted: true,
+      recommendations: true,
+      messages: { orderBy: { createdAt: 'asc' }, take: 80 },
+    },
+  });
+  if (!session) return null;
+
+  const snapshotJson = {
+    sessionId: session.id,
+    status: session.status,
+    progressPercent: session.progressPercent,
+    confidencePercent: session.confidencePercent,
+    costFromMinor: session.costFromMinor,
+    preliminaryNote: session.preliminaryNote,
+    extracted: session.extracted,
+    recommendations: session.recommendations,
+    messages: session.messages.map((m) => ({
+      sender: m.sender,
+      content: m.content,
+      createdAt: m.createdAt.toISOString(),
+    })),
+    savedAt: new Date().toISOString(),
+  };
+
+  return prisma.consultationReport.create({
+    data: {
+      userId,
+      consultationSessionId: sessionId,
+      snapshotJson,
+      label: `Отчёт ${new Date().toLocaleDateString('ru-RU')}`,
+    },
+  });
 }
 
 export async function saveReport(sessionId, userId, { label } = {}) {
@@ -334,9 +404,11 @@ export async function saveReport(sessionId, userId, { label } = {}) {
   });
 }
 
-export async function listMyReports(userId) {
+export async function listMyReports(userId, { limit = 50, offset = 0 } = {}) {
   return prisma.consultationReport.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
+    take: Math.min(limit, 100),
+    skip: offset,
   });
 }

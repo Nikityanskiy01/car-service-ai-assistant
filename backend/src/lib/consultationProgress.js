@@ -6,11 +6,9 @@
 export function isExtractedComplete(ext) {
   if (!ext) return false;
   const t = (s) => typeof s === 'string' && s.trim().length > 0;
-  return (
-    ext.mileage != null &&
-    Number.isFinite(ext.mileage) &&
-    t(ext.symptoms) &&
-    t(ext.problemConditions)
+  return t(ext.symptoms) && (
+    (ext.mileage != null && Number.isFinite(ext.mileage)) ||
+    t(ext.make)
   );
 }
 

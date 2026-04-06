@@ -4,6 +4,7 @@ import {
   getNextQuestion,
   preferPreExtractedServiceSymptoms,
   preExtractFromRules,
+  tryExtractUniversalConditionAnswer,
 } from '../../src/services/consultationFlowService.js';
 
 describe('preExtractFromRules — плановые работы', () => {
@@ -28,6 +29,42 @@ describe('preExtractFromRules — плановые работы', () => {
     };
     expect(getMissingFields(merged)).toEqual([]);
     expect(getNextQuestion(merged)).toBeNull();
+  });
+});
+
+describe('tryExtractUniversalConditionAnswer / условия проявления', () => {
+  it('принимает «всегда» и always при симптомах, не относящихся к плановому ТО', () => {
+    const base = { symptoms: 'вода в топливном баке' };
+    expect(tryExtractUniversalConditionAnswer('всегда', base)).toBe('постоянно, в любых условиях');
+    expect(tryExtractUniversalConditionAnswer('always', base)).toBe('постоянно, в любых условиях');
+  });
+
+  it('не подставляет условия без симптомов или для планового ТО', () => {
+    expect(tryExtractUniversalConditionAnswer('всегда', { symptoms: null })).toBeNull();
+    expect(tryExtractUniversalConditionAnswer('всегда', { symptoms: 'замена масла' })).toBeNull();
+    expect(tryExtractUniversalConditionAnswer('всегда', { symptoms: 'вода в баке' })).toBeTruthy();
+  });
+
+  it('preExtractFromRules заполняет conditions из «всегда»', () => {
+    const base = {
+      car_make: 'Mazda',
+      car_model: '3',
+      mileage: 44000,
+      symptoms: 'вода в баке',
+    };
+    const out = preExtractFromRules('всегда', base);
+    expect(out.conditions).toBe('постоянно, в любых условиях');
+  });
+
+  it('preExtractFromRules: на выключенном моторе даёт условия', () => {
+    const base = {
+      car_make: 'Mazda',
+      car_model: '3',
+      mileage: 44000,
+      symptoms: 'вода в баке',
+    };
+    const out = preExtractFromRules('на выключенном моторе', base);
+    expect(out.conditions).toBeTruthy();
   });
 });
 

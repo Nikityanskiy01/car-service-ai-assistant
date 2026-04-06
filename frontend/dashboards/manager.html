@@ -3,106 +3,256 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Кабинет менеджера — AI Fox Motors</title>
+    <title>Кабинет менеджера — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/dashboard.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
-    <main class="page container">
-      <div class="dash">
+    <main class="page container container--mgr">
+      <div class="dash dash--manager">
         <aside class="dash__side">
           <div class="dash__head">
-            <h1 style="margin:0">Личный кабинет</h1>
-            <p class="muted" style="margin:0.25rem 0 0">Роль: менеджер</p>
+            <h1 class="dash__title">Личный кабинет</h1>
+            <p class="muted dash__subtitle">Роль: менеджер</p>
           </div>
           <button type="button" class="btn btn--ghost dash__menu-toggle" id="dashMenuToggle">Разделы кабинета</button>
           <nav class="dash__nav" aria-label="Разделы кабинета менеджера">
-            <button type="button" class="dash__tab">Профиль</button>
-            <button type="button" class="dash__tab">История консультаций</button>
-            <button type="button" class="dash__tab">Отчеты диагностики</button>
-            <button type="button" class="dash__tab is-active">Заявки</button>
-            <button type="button" class="dash__tab">Запись в сервис</button>
-            <button type="button" class="dash__tab">Настройки</button>
+            <button type="button" class="dash__tab is-active" data-tab="records">Все записи</button>
+            <button type="button" class="dash__tab" data-tab="contacts">Обращения с сайта</button>
+            <button type="button" class="dash__tab" data-tab="consultations">ИИ-консультации</button>
           </nav>
-          <a class="btn btn--primary" href="/consult.html" style="margin-top:0.8rem; text-decoration:none">Начать диагностику</a>
         </aside>
 
         <section class="dash__main">
-          <section class="card stack" style="margin-bottom: 1rem">
-            <h2 style="margin:0">Заявки клиентов</h2>
-            <p class="muted" style="margin-top:-0.25rem">
-              Фильтруйте список, открывайте детали и отвечайте клиенту. Если клиент был гостем — контакты будут
-              показаны как “гость”.
-            </p>
-            <div class="grid-2">
-              <div class="form-field" style="margin: 0">
-                <label for="filterStatus">Статус</label>
-                <select id="filterStatus">
-                  <option value="">Все</option>
-                  <option>NEW</option>
-                  <option>IN_PROGRESS</option>
-                  <option>SCHEDULED</option>
-                  <option>COMPLETED</option>
-                  <option>CANCELLED</option>
-                </select>
+          <section class="dash__panel" data-panel="consultations" hidden>
+            <div class="dash-mgr-split">
+              <div class="dash-mgr-master">
+                <section class="card stack dash__section-gap dash-mgr-toolbar">
+                  <div class="dash__section-head">
+                    <h2 class="dash__title">ИИ-консультации</h2>
+                    <button type="button" class="btn btn--ghost" id="consultRefreshBtn">Обновить</button>
+                  </div>
+                  <p class="muted dash__section-hint dash-mgr-hint">
+                    Диалоги с ассистентом — только просмотр. Ответы клиенту — во вкладке «Все записи», в переписке по заявке
+                    на ремонт.
+                  </p>
+                  <p id="consultLoadNote" class="muted dash-mgr-load-note" hidden></p>
+                </section>
+                <div class="table-wrap card dash__table-card dash-mgr-table-card">
+                  <table class="data dash-mgr-table" id="mgrConsultTable">
+                    <thead>
+                      <tr>
+                        <th class="dash-mgr-col--date" scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="updatedAt">
+                            Обновлено<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="client">
+                            Клиент<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="car">
+                            Авто<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th class="dash-mgr-col--status" scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="status">
+                            Статус<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th class="dash-mgr-col--narrow" scope="col">
+                          <button
+                            type="button"
+                            class="dash-mgr-sort"
+                            data-sort-key="hasRequest"
+                            title="Оформлена ли заявка на ремонт в сервисе после этой ИИ-консультации (клиент нажал «создать заявку»)"
+                          >
+                            Ремонт<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th class="dash-mgr-col--actions" scope="col">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+                <nav class="dash-mgr-pager" id="consultPager" aria-label="Страницы списка консультаций" hidden></nav>
               </div>
-              <div class="form-field" style="margin: 0">
-                <label for="filterQ">Поиск</label>
-                <input id="filterQ" type="search" placeholder="марка, модель, текст" />
+              <div class="card dash-mgr-detail" id="mgrConsultDetail" tabindex="-1">
+                <div class="empty">Выберите строку в таблице, чтобы открыть диалог и данные по авто.</div>
               </div>
             </div>
-            <button type="button" class="btn btn--primary" id="filterBtn">Применить</button>
           </section>
 
-          <div class="grid-2">
-            <div class="table-wrap card" style="padding: 0">
-              <table class="data" id="mgrTable">
-                <thead>
-                  <tr>
-                    <th>Дата</th>
-                    <th>Клиент</th>
-                    <th>Авто</th>
-                    <th>Статус</th>
-                    <th>Ver</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div class="stack">
-              <div class="card" id="detailPanel"><div class="empty">Выберите заявку в таблице слева, чтобы увидеть детали.</div></div>
-              <div class="card">
-                <h3>Переписка с клиентом</h3>
-                <div id="mgrThread" class="stack">
-                  <div class="empty">Выберите заявку слева, чтобы открыть переписку.</div>
+          <section class="dash__panel" data-panel="records">
+            <div class="dash-mgr-split">
+              <div class="dash-mgr-master dash-records-stack">
+                <section class="card stack dash__section-gap">
+                  <h2 class="dash__title u-m0">Записи на визит</h2>
+                  <p class="muted dash__section-hint u-m0">
+                    Дата, время, комментарий и статус; для гостей — имя, телефон и email. Справа — детали выбранной заявки на
+                    ремонт.
+                  </p>
+                  <ul id="bookingsMgr" class="dash__booking-list-pad"></ul>
+                </section>
+                <section class="card stack dash__section-gap dash-mgr-toolbar dash-sr-toolbar">
+                  <div class="dash-sr-toolbar__head">
+                    <h2 class="dash__title u-m0">Заявки на ремонт</h2>
+                    <div class="dash-sr-view-toggle" id="mgrSrViewToggle" role="group" aria-label="Вид списка заявок">
+                      <button type="button" class="btn btn--ghost btn-sm" data-sr-view="table">Таблица</button>
+                      <button type="button" class="btn btn--ghost btn-sm is-active" data-sr-view="kanban">Канбан</button>
+                      <button type="button" class="btn btn--ghost btn-sm" data-sr-view="calendar">Календарь</button>
+                    </div>
+                  </div>
+                  <div class="dash-mgr-filter dash-mgr-filter--sr">
+                    <div class="form-field dash__form-field">
+                      <label for="filterStatus">Статус</label>
+                      <select id="filterStatus">
+                        <option value="">Все статусы</option>
+                        <option value="NEW">Новая</option>
+                        <option value="IN_PROGRESS">В работе</option>
+                        <option value="SCHEDULED">Запланирована</option>
+                        <option value="COMPLETED">Завершена</option>
+                        <option value="CANCELLED">Отменена</option>
+                      </select>
+                    </div>
+                    <div class="form-field dash__form-field">
+                      <label for="filterQ">Поиск</label>
+                      <input id="filterQ" type="search" placeholder="марка, модель, текст" autocomplete="off" />
+                    </div>
+                    <div class="dash-mgr-filter__action">
+                      <button type="button" class="btn btn--outline btn-sm" id="filterBtn">Обновить</button>
+                    </div>
+                  </div>
+                  <details class="dash-sr-details">
+                    <summary>Справка по разделу</summary>
+                    <div class="dash-sr-details__body">
+                      <p class="dash-sr-details__lead">Как пользоваться списком заявок</p>
+                      <ul class="dash-sr-details__list">
+                        <li>
+                          <strong>Выбор заявки</strong> — строка в таблице или карточка на канбане; справа откроются детали,
+                          переписка и транскрипт ИИ.
+                        </li>
+                        <li><strong>Гость</strong> — клиент без аккаунта; имя и телефон указаны в карточке заявки.</li>
+                        <li>
+                          <strong>Поиск</strong> — марка, модель или фрагмент текста. Обновление: кнопка «Обновить» или
+                          клавиша Enter в поле поиска. Смена статуса в фильтре сразу перезагружает таблицу.
+                        </li>
+                        <li>
+                          <strong>Таблица</strong> — можно сузить список по полю «Статус». Колонка «Версия» — число для
+                          синхронизации (см. ниже).
+                        </li>
+                        <li>
+                          <strong>Канбан</strong> — заявки на ремонт и записи на визит; записи в «Новая» (ожидают), в
+                          «Запланирована» (подтверждены), в «Отменена». Перетаскивание меняет статус. Колонки «В работе» и
+                          «Завершена» — только для заявок на ремонт.
+                        </li>
+                        <li>
+                          <strong>Календарь</strong> — визиты по дате приезда, заявки на ремонт по дате создания; клик по
+                          событию открывает детали справа.
+                        </li>
+                      </ul>
+                      <p class="dash-sr-details__note muted">
+                        <strong>Версия</strong> в таблице и на карточке канбана — служебный счётчик правок. Если двое меняют
+                        одну заявку, возможен конфликт: обновите список и повторите действие.
+                      </p>
+                    </div>
+                  </details>
+                </section>
+                <div id="mgrSrTableWrap" class="dash-sr-table-wrap" hidden>
+                <div class="table-wrap card dash__table-card dash-mgr-table-card">
+                  <table class="data dash-mgr-table" id="mgrTable">
+                    <thead>
+                      <tr>
+                        <th class="dash-mgr-col--date" scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="createdAt">
+                            Дата<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="client">
+                            Клиент<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="car">
+                            Авто<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th class="dash-mgr-col--status" scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="status">
+                            Статус<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th class="dash-mgr-col--narrow" scope="col">
+                          <button type="button" class="dash-mgr-sort" data-sort-key="version">
+                            Версия<span class="dash-mgr-sort__ico" aria-hidden="true"></span>
+                          </button>
+                        </th>
+                        <th class="dash-mgr-col--actions" scope="col">Действия</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
                 </div>
-                <form id="mgrThreadForm" class="thread-compose" style="margin-top: 0.5rem; display: none">
-                  <textarea id="mgrThreadInput" class="thread-compose__input" rows="2" placeholder="Ответ клиенту"></textarea>
-                  <button type="submit" class="btn btn--primary thread-compose__btn">Отправить</button>
-                </form>
+                <nav class="dash-mgr-pager" id="requestsPager" aria-label="Страницы списка заявок" hidden></nav>
+                </div>
+                <div id="mgrSrKanban" class="sr-kanban card" aria-label="Канбан заявок и визитов"></div>
+                <div id="mgrSrCalendar" class="staff-cal-board card" hidden aria-label="Календарь визитов и заявок"></div>
+              </div>
+              <div class="dash-mgr-detail-col stack">
+                <div class="card dash-mgr-detail" id="detailPanel" tabindex="-1">
+                  <div class="empty">
+                    Выберите заявку в таблице или на канбане слева — здесь появятся данные и переписка с клиентом.
+                  </div>
+                </div>
+                <div class="card dash-mgr-thread-card" id="mgrThreadCard" hidden>
+                  <h3 class="dash-mgr-thread-title">Переписка с клиентом</h3>
+                  <div id="mgrThread" class="stack dash-mgr-thread-list"></div>
+                  <form id="mgrThreadForm" class="thread-compose dash__thread-form dash-mgr-compose">
+                    <textarea id="mgrThreadInput" class="thread-compose__input" rows="3" placeholder="Текст ответа клиенту"></textarea>
+                    <button type="submit" class="btn btn--primary thread-compose__btn">Отправить</button>
+                  </form>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <section class="card" style="margin-top: 1rem">
-            <h2>Запись в сервис</h2>
-            <p class="muted" style="margin-top:-0.25rem">Подтверждайте время визита или отменяйте запись при необходимости.</p>
-            <ul id="bookingsMgr" style="list-style: none; padding: 0"></ul>
+          <section class="dash__panel" data-panel="contacts" hidden>
+            <section class="card stack dash__section-gap">
+              <div class="dash__section-head">
+                <h2 class="dash__title u-m0">Обращения с сайта</h2>
+                <button type="button" class="btn btn--ghost" id="contactsRefreshBtn">Обновить список</button>
+              </div>
+              <p class="muted dash__section-hint u-m0">
+                Сообщения из формы «Связаться» на странице контактов. Телефоны — в удобочитаемом виде.
+              </p>
+              <div class="table-wrap card dash__table-card dash-mgr-table-card">
+                <table class="data dash-mgr-table" id="contactsTable">
+                  <thead>
+                    <tr>
+                      <th>Дата</th>
+                      <th>Имя</th>
+                      <th>Телефон</th>
+                      <th>Сообщение</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </section>
           </section>
         </section>
       </div>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      import { initManagerDashboard } from '/js/dashboards/manager.js';
-      mountHeaderFooter({ active: 'dash' });
-      initManagerDashboard();
-      const side = document.querySelector('.dash__side');
-      const t = document.getElementById('dashMenuToggle');
-      t?.addEventListener('click', () => side?.classList.toggle('is-open'));
-    </script>
+    <script type="module" src="/js/entry/manager-dash.js"></script>
   </body>
 </html>

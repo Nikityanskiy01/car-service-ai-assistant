@@ -10,14 +10,16 @@ import {
   ENGINE_EXTRA_KEYWORDS,
   FLOW_QUESTIONS,
 } from '../config/consultationFlow.config.js';
-import { EXTRACTION_SYSTEM_PROMPT, extractionUserPrompt } from '../prompts/consultationPrompts.js';
+import {
+  EXTRACTION_FORMAT_SCHEMA,
+  EXTRACTION_SYSTEM_PROMPT,
+  extractionUserPrompt,
+} from '../prompts/consultationPrompts.js';
 import {
   detectConsultationIntent,
   detectServiceType,
-  serviceResultAssistantMessage,
 } from './consultationIntent.service.js';
 import { chatCompletion } from './ollamaService.js';
-import { safeJsonParse } from '../utils/safeJsonParse.js';
 
 /** @typedef {"engine"|"brakes"|"suspension"|"steering"|"cooling"|"transmission"|"electrical"|"starting_system"|"fuel_system"|"unknown"} SymptomCategory */
 
@@ -237,8 +239,7 @@ export function getLastAssistantContent(messages) {
 }
 
 /**
- * Отсекает мусор в марке/модели после LLM.
- * Допускает коды моделей с одной буквой и цифрами (X5, A4, х5) и строки с цифрами (GLC300, 550i).
+ * Отсекает мусор в марке после LLM.
  * @param {unknown} value
  */
 export function isValidVehicleText(value) {
@@ -252,16 +253,28 @@ export function isValidVehicleText(value) {
   const letters = (v.match(/[a-zA-Zа-яА-Я]/g) || []).length;
   const hasDigit = /[0-9]/.test(v);
 
-  // X5, A4, х5, V12 — одна буква и цифры
   if (letters < 2) {
     return letters === 1 && hasDigit;
   }
 
   const vowels = (v.match(/[aeiouyаеёиоуыэюя]/gi) || []).length;
-  // «bmw x5» как одна строка: 4+ согласных без гласных — нормально для латиницы/кодов
   if (letters >= 4 && vowels === 0 && !hasDigit) return false;
 
   return true;
+}
+
+/**
+ * Более мягкая валидация для модели: допускает чисто числовые названия
+ * (Mazda 3, Mazda 6, Peugeot 208, BMW 320, Fiat 500, Porsche 911).
+ * @param {unknown} value
+ */
+export function isValidModelText(value) {
+  if (!value || typeof value !== 'string') return false;
+  const v = value.trim();
+  if (!v.length || v.length > 25) return false;
+  if (/[^a-zA-Zа-яА-Я0-9\-\s]/.test(v)) return false;
+  if (/^[0-9]+$/.test(v)) return v.length <= 4;
+  return isValidVehicleText(value);
 }
 
 function normalizeExtractedFromLlm(raw) {
@@ -280,7 +293,7 @@ function normalizeExtractedFromLlm(raw) {
   const mileage = int(obj.mileage);
   return {
     car_make: isValidVehicleText(obj.car_make) ? text(obj.car_make) : null,
-    car_model: isValidVehicleText(obj.car_model) ? text(obj.car_model) : null,
+    car_model: isValidModelText(obj.car_model) ? text(obj.car_model) : null,
     year: year != null && year >= 1950 && year <= 2100 ? year : null,
     mileage: mileage != null && mileage >= 0 ? mileage : null,
     symptoms: text(obj.symptoms),
@@ -312,7 +325,33 @@ function extractYearRegex(t) {
 }
 
 const CONDITION_HINTS =
-  /при\s+(движении|запуске|торможении|разгоне|повороте)|на\s+(холодную|горячую|ходу|кочках|скорости)|на\s+холост|после\s+прогрева|в\s+пробке/i;
+  /при\s+(движении|запуске|торможении|разгоне|повороте)|на\s+(холодную|горячую|ходу|кочках|скорости)|на\s+холост|после\s+прогрева|в\s+пробке|выключен\w*\s+(мотор|двигател)\w*|на\s+выключенном|мотор\s+выключен|двигател\w*\s+выключен|engine\s+off|заглушен\w*\s+(мотор|двигател)\w*/i;
+
+/**
+ * Ответы вроде «всегда» на вопрос про условия — rule-based, т.к. LLM часто даёт conditions: null.
+ * @param {string} message
+ * @param {Record<string, unknown>} base merged state (должны быть симптомы диагностики)
+ * @returns {string|null}
+ */
+export function tryExtractUniversalConditionAnswer(message, base) {
+  const s = base?.symptoms != null ? String(base.symptoms).trim() : '';
+  if (!s || detectConsultationIntent(s) === 'service') return null;
+  const raw = String(message || '').trim();
+  if (!raw || raw.length > 120) return null;
+  const low = raw.toLowerCase().replace(/\s+/g, ' ');
+
+  if (/^(всегда|always|постоянно|неизменно)$/i.test(raw)) {
+    return 'постоянно, в любых условиях';
+  }
+  if (
+    /^(в\s+любое\s+время|в\s+любых\s+условиях|не\s+зависит(\s+от\s+условий)?|anytime|all\s+the\s+time|at\s+all\s+times)$/i.test(
+      low,
+    )
+  ) {
+    return 'постоянно, в любых условиях';
+  }
+  return null;
+}
 
 const SYMPTOM_HINTS =
   /пропуск|троит|оборот|стук|скрип|вибрац|тормож|рывк|дым|перегрев|запуск|глох|биение|плава|чек|короб|рул|подвеск|старт/i;
@@ -335,15 +374,54 @@ export function preExtractFromRules(message, base = {}) {
   if (mileage != null) out.mileage = mileage;
 
   if (!out.car_make || !out.car_model) {
-    const bmw = t.match(/^(?:бмв|bmw)\s+([a-zA-Zа-яА-Я0-9]{1,12})(?:\s|$)/i);
-    if (bmw) {
-      if (!out.car_make) out.car_make = 'BMW';
-      if (!out.car_model) out.car_model = bmw[1];
+    const MAKE_PATTERNS = [
+      { rx: /^(?:бмв|bmw)\s+(.+)/i, make: 'BMW' },
+      { rx: /^(?:мазда|mazda)\s+(.+)/i, make: 'Mazda' },
+      { rx: /^(?:тойота|toyota)\s+(.+)/i, make: 'Toyota' },
+      { rx: /^(?:хонда|honda)\s+(.+)/i, make: 'Honda' },
+      { rx: /^(?:ниссан|nissan)\s+(.+)/i, make: 'Nissan' },
+      { rx: /^(?:хёндай|хендай|хюндай|hyundai)\s+(.+)/i, make: 'Hyundai' },
+      { rx: /^(?:киа|kia)\s+(.+)/i, make: 'Kia' },
+      { rx: /^(?:мерседес|mercedes|мерс)\s+(.+)/i, make: 'Mercedes-Benz' },
+      { rx: /^(?:ауди|audi)\s+(.+)/i, make: 'Audi' },
+      { rx: /^(?:фольксваген|volkswagen|vw|фольц)\s+(.+)/i, make: 'Volkswagen' },
+      { rx: /^(?:шкода|skoda)\s+(.+)/i, make: 'Skoda' },
+      { rx: /^(?:форд|ford)\s+(.+)/i, make: 'Ford' },
+      { rx: /^(?:шевроле|chevrolet)\s+(.+)/i, make: 'Chevrolet' },
+      { rx: /^(?:рено|renault)\s+(.+)/i, make: 'Renault' },
+      { rx: /^(?:пежо|peugeot)\s+(.+)/i, make: 'Peugeot' },
+      { rx: /^(?:ситроен|citroen)\s+(.+)/i, make: 'Citroen' },
+      { rx: /^(?:лада|ваз|vaz|lada)\s+(.+)/i, make: 'Lada' },
+      { rx: /^(?:субару|subaru)\s+(.+)/i, make: 'Subaru' },
+      { rx: /^(?:мицубиси|митсубиси|mitsubishi)\s+(.+)/i, make: 'Mitsubishi' },
+      { rx: /^(?:лексус|lexus)\s+(.+)/i, make: 'Lexus' },
+      { rx: /^(?:вольво|volvo)\s+(.+)/i, make: 'Volvo' },
+      { rx: /^(?:сузуки|suzuki)\s+(.+)/i, make: 'Suzuki' },
+      { rx: /^(?:опель|opel)\s+(.+)/i, make: 'Opel' },
+      { rx: /^(?:порше|porsche)\s+(.+)/i, make: 'Porsche' },
+      { rx: /^(?:фиат|fiat)\s+(.+)/i, make: 'Fiat' },
+      { rx: /^(?:джили|geely)\s+(.+)/i, make: 'Geely' },
+      { rx: /^(?:чери|chery)\s+(.+)/i, make: 'Chery' },
+      { rx: /^(?:хавал|haval)\s+(.+)/i, make: 'Haval' },
+    ];
+    for (const { rx, make } of MAKE_PATTERNS) {
+      const m = t.match(rx);
+      if (m) {
+        if (!out.car_make) out.car_make = make;
+        if (!out.car_model) {
+          const rest = m[1].trim().split(/\s+/)[0];
+          if (rest && isValidModelText(rest)) out.car_model = rest;
+        }
+        break;
+      }
     }
   }
 
   if (!out.conditions) {
-    if (CONDITION_HINTS.test(t)) {
+    const universal = tryExtractUniversalConditionAnswer(t, out);
+    if (universal) {
+      out.conditions = universal;
+    } else if (CONDITION_HINTS.test(t)) {
       const c = normalizeConditions(t);
       if (c && c.length > 2) out.conditions = c;
     }
@@ -400,14 +478,14 @@ export async function extractConsultationData(message, currentState = {}) {
 
   try {
     const raw = await chatCompletion({
-      model: 'llama3.2',
       temperature: 0,
+      format: EXTRACTION_FORMAT_SCHEMA,
       messages: [
         { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
-        { role: 'user', content: extractionUserPrompt(msg) },
+        { role: 'user', content: extractionUserPrompt(msg, pre) },
       ],
     });
-    const parsed = safeJsonParse(raw);
+    const parsed = JSON.parse(raw);
     const normalized = normalizeExtractedFromLlm(parsed || {});
     const mergedLlm = preferPreExtractedServiceSymptoms(pre, mergeExtractedData(pre, normalized));
     return postProcessMerged(mergedLlm);
@@ -445,8 +523,12 @@ function pickAlternateQuestion(meta) {
 function resolveQuestionAvoidingRepeat(meta, session, askedQuestions, _mergedState) {
   if (!meta) return null;
   if (shouldAskQuestion(session, meta, askedQuestions)) return meta;
-  return pickAlternateQuestion(meta);
+  const alt = pickAlternateQuestion(meta);
+  if (shouldAskQuestion(session, alt, askedQuestions)) return alt;
+  return alt;
 }
+
+const MAX_ASKS_PER_FIELD = 3;
 
 /**
  * Прогресс по шагам: марка, модель, пробег, запрос; для diagnostic — ещё условия.
@@ -480,42 +562,11 @@ export function progressFromServiceFields(data) {
 }
 
 /**
- * Итог планового обслуживания (все поля уже собраны в общем порядке).
- * @param {Record<string, unknown>} merged
- * @param {{ asked_questions: Array<{ field: string, question: string }>, stage: string, intent?: string | null, service_type?: string | null }} flow
- * @param {string} userMessage
- */
-export function handleServiceRequest(merged, session, flow, userMessage) {
-  void session;
-  const src = String(merged.symptoms || userMessage || '');
-  const stFromMsg = detectServiceType(src);
-  if (stFromMsg !== 'unknown') merged.service_type = stFromMsg;
-  else if (flow.service_type) merged.service_type = flow.service_type;
-  else merged.service_type = merged.service_type || 'unknown';
-
-  const st = String(merged.service_type || 'unknown');
-
-  return {
-    stage: 'service_result',
-    service_type: st,
-    assistant_message: serviceResultAssistantMessage(st),
-    extracted_data: merged,
-    diagnosis: null,
-    missing_fields: [],
-    flowState: {
-      asked_questions: flow.asked_questions,
-      stage: 'service_result',
-      intent: 'service',
-      service_type: st,
-    },
-  };
-}
-
-/**
  * @param {import('@prisma/client').ConsultationSession & { extracted?: import('@prisma/client').ExtractedDiagnosticData | null, messages?: import('@prisma/client').Message[] }} session
  * @param {string} userMessage
+ * @param {((event: {phase: string, data?: unknown}) => void) | undefined} onProgress
  */
-export async function buildConsultationState(session, userMessage) {
+export async function buildConsultationState(session, userMessage, onProgress) {
   const flow =
     parseFlowState(session?.flowState) || {
       asked_questions: [],
@@ -537,9 +588,11 @@ export async function buildConsultationState(session, userMessage) {
     service_type: flow.service_type ?? null,
   };
 
+  onProgress?.({ phase: 'extracting' });
   const extractedNew = await extractConsultationData(userMessage, existing);
   let merged = mergeExtractedData(existing, extractedNew);
   merged = postProcessMerged(merged);
+  onProgress?.({ phase: 'extracted', data: merged });
 
   if (isFieldFilled('symptoms', merged.symptoms)) {
     const det = detectConsultationIntent(String(merged.symptoms));
@@ -556,34 +609,51 @@ export async function buildConsultationState(session, userMessage) {
     merged.service_type = null;
   }
 
-  if (flow.stage === 'service_result' && merged.intent === 'service') {
-    return handleServiceRequest(merged, session, flow, userMessage);
+  if (flow.stage === 'result' || flow.stage === 'service_result') {
+    return {
+      stage: flow.stage,
+      assistant_message: 'Консультация завершена. Нажмите «Новая сессия» для нового запроса.',
+      extracted_data: merged,
+      diagnosis: null,
+      missing_fields: [],
+      flowState: flow,
+    };
   }
 
-  const missing = getMissingFields(merged);
+  let missing = getMissingFields(merged);
+
+  const fieldAskCount = (field) =>
+    flow.asked_questions.filter((q) => q.field === field).length;
+  const exhausted = missing.filter((f) => fieldAskCount(f) >= MAX_ASKS_PER_FIELD);
+  if (exhausted.length) {
+    missing = missing.filter((f) => !exhausted.includes(f));
+  }
 
   if (missing.length === 0) {
-    if (merged.intent === 'service') {
-      return handleServiceRequest(merged, session, flow, userMessage);
-    }
+    onProgress?.({ phase: 'diagnosing' });
     const { generateDiagnosis } = await import('../modules/consultations/consultationAi.service.js');
     const diagnosis = await generateDiagnosis(merged);
+
+    const isService = merged.intent === 'service';
+    const st = isService ? detectServiceType(String(merged.symptoms || '')) : null;
+
     return {
       stage: 'result',
-      assistant_message: diagnosis.summary,
+      assistant_message: diagnosis.summary + '\n\nВы можете сохранить отчёт и оформить заявку в сервис.',
       extracted_data: merged,
       diagnosis,
       missing_fields: [],
+      service_type: st || merged.service_type || null,
       flowState: {
         asked_questions: flow.asked_questions,
         stage: 'result',
-        intent: 'diagnostic',
-        service_type: null,
+        intent: merged.intent || 'diagnostic',
+        service_type: st || merged.service_type || null,
       },
     };
   }
 
-  const meta = getNextQuestion(merged);
+  const meta = getNextQuestion({ ...merged, ...Object.fromEntries(exhausted.map((f) => [f, '__skip__'])) });
   if (!meta) {
     throw new Error('consultationFlow: getNextQuestion returned null while mandatory fields are missing');
   }

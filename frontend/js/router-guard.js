@@ -1,12 +1,11 @@
-import { getToken, getUser } from './api.js';
+import { getUser } from './api.js';
 
 /**
  * @param {('CLIENT'|'MANAGER'|'ADMINISTRATOR')[]} allowed
  */
 export function requireAuth(allowed) {
-  const t = getToken();
   const u = getUser();
-  if (!t || !u) {
+  if (!u) {
     window.location.href = '/login.html?next=' + encodeURIComponent(window.location.pathname);
     return null;
   }

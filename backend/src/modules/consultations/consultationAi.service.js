@@ -1,13 +1,17 @@
-import { DIAGNOSIS_SYSTEM_PROMPT } from '../../prompts/consultationPrompts.js';
+import {
+  DIAGNOSIS_FORMAT_SCHEMA,
+  DIAGNOSIS_SYSTEM_PROMPT,
+  diagnosisUserPrompt,
+} from '../../prompts/consultationPrompts.js';
 import { getRelevantCases } from '../../services/caseMemory.service.js';
 import { isFieldFilled } from '../../services/consultationFlowService.js';
 import { chatCompletion } from '../../services/ollamaService.js';
-import { safeJsonParse } from '../../utils/safeJsonParse.js';
+import { pickPlaybook, playbookToAiHints } from '../../lib/diagnosticPlaybooks.js';
+import { topWorksForCategory, topWorksForCategoryAndMake } from '../../lib/workStats.js';
 
 export {
   buildConsultationState,
   extractConsultationData,
-  handleServiceRequest,
   progressFromConsultationSteps,
 } from '../../services/consultationFlowService.js';
 export { detectConsultationIntent, detectServiceType } from '../../services/consultationIntent.service.js';
@@ -434,6 +438,16 @@ export async function generateDiagnosis(data) {
   };
 
   const ruleBased = preAnalyzeSymptoms(payload);
+
+  const pb = pickPlaybook(payload, String(data.symptoms || ''));
+  const pbHints = playbookToAiHints(pb);
+  const tw =
+    pbHints?.categoryId && payload.car_make
+      ? topWorksForCategoryAndMake(pbHints.categoryId, payload.car_make, 10)
+      : pbHints?.categoryId
+        ? topWorksForCategory(pbHints.categoryId, 10)
+        : [];
+
   let relatedCases = [];
   try {
     relatedCases = await getRelevantCases(payload, 3);
@@ -442,19 +456,14 @@ export async function generateDiagnosis(data) {
   }
   try {
     const raw = await chatCompletion({
-      model: 'llama3.2',
       temperature: 0.2,
+      format: DIAGNOSIS_FORMAT_SCHEMA,
       messages: [
         { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content:
-            `Данные консультации: ${JSON.stringify(payload)}\n\n` +
-            `Похожие кейсы сервиса (используй как контекст, не как 100% истину): ${JSON.stringify(relatedCases)}`,
-        },
+        { role: 'user', content: diagnosisUserPrompt(payload, relatedCases, pbHints, tw) },
       ],
     });
-    const llmDiagnosis = normalizeDiagnosis(safeJsonParse(raw));
+    const llmDiagnosis = normalizeDiagnosis(JSON.parse(raw));
     return mergeDiagnosis(ruleBased, llmDiagnosis);
   } catch {
     return mergeDiagnosis(ruleBased, safeDiagnosisFallback());

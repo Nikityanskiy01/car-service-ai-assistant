@@ -3,16 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Наши работы — AI Fox Motors</title>
+    <title>Наши работы — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/works.css" />
+    <link rel="stylesheet" href="/css/pages/home.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
     <main class="page container works-pro">
       <section class="works-pro__hero">
-        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">Наши работы</p>
+        <p class="pill pill--warn works-pro__pill">Наши работы</p>
         <h1>Примеры выполненных работ</h1>
         <p class="lead">Реальные случаи диагностики и ремонта автомобилей в нашем сервисе.</p>
       </section>
@@ -31,87 +35,99 @@
           <img src="https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?auto=format&fit=crop&w=1200&q=80" alt="Volkswagen Tiguan на диагностике двигателя" loading="lazy" />
           <h3>Volkswagen Tiguan</h3>
           <p><strong>Проблема:</strong> нестабильная работа двигателя и ошибка Check Engine.</p>
-          <p><strong>Работы:</strong> компьютерная диагностика, проверка катушек, замена свечей.</p>
-          <p><strong>Результат:</strong> восстановлена стабильная работа мотора.</p>
           <p><strong>Стоимость:</strong> от 9 500 ₽</p>
-          <button type="button" class="btn btn--ghost">Подробнее</button>
+          <button type="button" class="btn btn--ghost work-item__toggle">Подробнее</button>
+          <div class="work-item__details" hidden>
+            <p><strong>Работы:</strong> компьютерная диагностика, проверка катушек зажигания, замена свечей, проверка форсунок и топливной системы.</p>
+            <p><strong>Результат:</strong> восстановлена стабильная работа мотора, ошибка Check Engine устранена.</p>
+            <p><strong>Срок:</strong> 1 рабочий день</p>
+          </div>
         </article>
 
         <article class="card work-item" data-category="suspension">
           <img src="https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=1200&q=80" alt="Skoda Octavia ремонт подвески" loading="lazy" />
           <h3>Skoda Octavia</h3>
           <p><strong>Проблема:</strong> стук спереди на неровностях.</p>
-          <p><strong>Работы:</strong> диагностика подвески, замена стоек стабилизатора и втулок.</p>
-          <p><strong>Результат:</strong> устранены шумы и люфты ходовой.</p>
           <p><strong>Стоимость:</strong> от 7 800 ₽</p>
-          <button type="button" class="btn btn--ghost">Подробнее</button>
+          <button type="button" class="btn btn--ghost work-item__toggle">Подробнее</button>
+          <div class="work-item__details" hidden>
+            <p><strong>Работы:</strong> диагностика подвески на подъемнике, замена стоек стабилизатора и втулок, проверка шаровых опор.</p>
+            <p><strong>Результат:</strong> устранены шумы и люфты ходовой, восстановлена управляемость.</p>
+            <p><strong>Срок:</strong> 1 рабочий день</p>
+          </div>
         </article>
 
         <article class="card work-item" data-category="brakes">
           <img src="https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1200&q=80" alt="Kia Sportage обслуживание тормозной системы" loading="lazy" />
           <h3>Kia Sportage</h3>
           <p><strong>Проблема:</strong> вибрация при торможении на скорости.</p>
-          <p><strong>Работы:</strong> проточка дисков, обслуживание суппортов, замена колодок.</p>
-          <p><strong>Результат:</strong> торможение плавное и безопасное.</p>
           <p><strong>Стоимость:</strong> от 8 900 ₽</p>
-          <button type="button" class="btn btn--ghost">Подробнее</button>
+          <button type="button" class="btn btn--ghost work-item__toggle">Подробнее</button>
+          <div class="work-item__details" hidden>
+            <p><strong>Работы:</strong> проточка тормозных дисков, обслуживание суппортов, замена колодок, прокачка тормозной системы.</p>
+            <p><strong>Результат:</strong> торможение плавное и безопасное, вибрация полностью устранена.</p>
+            <p><strong>Срок:</strong> 1 рабочий день</p>
+          </div>
         </article>
 
         <article class="card work-item" data-category="electric">
           <img src="https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=1200&q=80" alt="BMW диагностика электрики" loading="lazy" />
           <h3>BMW 5 Series</h3>
           <p><strong>Проблема:</strong> периодический сбой электрооборудования.</p>
-          <p><strong>Работы:</strong> поиск утечки тока, восстановление цепи питания блока.</p>
-          <p><strong>Результат:</strong> стабилизирована работа бортовой сети.</p>
           <p><strong>Стоимость:</strong> от 11 000 ₽</p>
-          <button type="button" class="btn btn--ghost">Подробнее</button>
+          <button type="button" class="btn btn--ghost work-item__toggle">Подробнее</button>
+          <div class="work-item__details" hidden>
+            <p><strong>Работы:</strong> поиск утечки тока, восстановление цепи питания блока управления, диагностика CAN-шины.</p>
+            <p><strong>Результат:</strong> стабилизирована работа бортовой сети, устранены спонтанные ошибки.</p>
+            <p><strong>Срок:</strong> 1-2 рабочих дня</p>
+          </div>
         </article>
 
         <article class="card work-item" data-category="transmission">
           <img src="https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?auto=format&fit=crop&w=1200&q=80" alt="Audi A6 диагностика трансмиссии" loading="lazy" />
           <h3>Audi A6</h3>
           <p><strong>Проблема:</strong> рывки при переключении передач.</p>
-          <p><strong>Работы:</strong> адаптация АКПП, замена масла и фильтра трансмиссии.</p>
-          <p><strong>Результат:</strong> переключения стали плавными.</p>
           <p><strong>Стоимость:</strong> от 14 500 ₽</p>
-          <button type="button" class="btn btn--ghost">Подробнее</button>
+          <button type="button" class="btn btn--ghost work-item__toggle">Подробнее</button>
+          <div class="work-item__details" hidden>
+            <p><strong>Работы:</strong> адаптация АКПП, замена масла и фильтра трансмиссии, проверка гидроблока.</p>
+            <p><strong>Результат:</strong> переключения стали плавными, рывки полностью устранены.</p>
+            <p><strong>Срок:</strong> 1-2 рабочих дня</p>
+          </div>
         </article>
 
         <article class="card work-item" data-category="to">
           <img src="https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=1200&q=80" alt="Toyota Camry плановое ТО" loading="lazy" />
           <h3>Toyota Camry</h3>
           <p><strong>Проблема:</strong> плановое ТО по пробегу 120 000 км.</p>
-          <p><strong>Работы:</strong> замена масел, фильтров, проверка тормозов и подвески.</p>
-          <p><strong>Результат:</strong> автомобиль подготовлен к дальнейшей эксплуатации.</p>
           <p><strong>Стоимость:</strong> от 6 200 ₽</p>
-          <button type="button" class="btn btn--ghost">Подробнее</button>
+          <button type="button" class="btn btn--ghost work-item__toggle">Подробнее</button>
+          <div class="work-item__details" hidden>
+            <p><strong>Работы:</strong> замена моторного масла и фильтра, воздушного и салонного фильтров, проверка тормозов и подвески.</p>
+            <p><strong>Результат:</strong> автомобиль подготовлен к дальнейшей эксплуатации, все жидкости в норме.</p>
+            <p><strong>Срок:</strong> 3-4 часа</p>
+          </div>
         </article>
       </section>
 
-      <section class="works-pro__section">
-        <article class="card works-pro__ai">
-          <h2>Роль ИИ-ассистента</h2>
-          <p class="muted">
-            Перед обращением в сервис вы можете пройти интеллектуальную диагностику и получить предварительный
-            результат.
+      <section class="works-pro__section home-pro__dual-cta" aria-label="Запись в сервис и ИИ-консультация">
+        <article class="card home-pro__dual-card home-pro__dual-card--service">
+          <h2 class="home-pro__dual-title">Запись в сервис</h2>
+          <p class="muted home-pro__dual-lead">
+            Выберите услугу из каталога и оставьте удобное время — регистрация не обязательна.
           </p>
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Перейти к ИИ-консультации</a>
+          <a class="btn btn--primary" href="/services.html">Записаться в сервис</a>
         </article>
-      </section>
-
-      <section class="works-pro__section">
-        <article class="card works-pro__bottom-cta">
-          <h2>Опишите симптомы автомобиля и получите предварительный результат диагностики</h2>
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration:none">Начать диагностику</a>
+        <article class="card home-pro__dual-card home-pro__dual-card--ai">
+          <h2 class="home-pro__dual-title">Предложение ИИ</h2>
+          <p class="muted home-pro__dual-lead">
+            Опишите симптомы — ассистент подготовит предварительный разбор, оценку срочности и план действий.
+          </p>
+          <a class="btn btn--primary" href="/consult.html">Начать диагностику</a>
         </article>
       </section>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      import { initWorksPage } from '/js/works.js';
-      mountHeaderFooter({ active: 'works' });
-      initWorksPage();
-    </script>
+    <script type="module" src="/js/entry/works-page.js"></script>
   </body>
 </html>

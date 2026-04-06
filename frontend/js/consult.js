@@ -1,4 +1,5 @@
-import { api, getToken, getUser } from './api.js';
+import { api, downloadApiFile, getCsrfToken, getUser } from './api.js';
+import { clearConsultSessionStorage } from './consultStorage.js';
 import { $, escapeHtml, formatDate } from './utils.js';
 import { uiAlert, uiPromptContact } from './ui/dialogs.js';
 
@@ -32,42 +33,9 @@ function sixComplete(ext) {
   );
 }
 
-function isMaintenanceRecommendations(recs) {
-  if (!Array.isArray(recs) || recs.length === 0) return false;
-  return recs.some((r) => /планов.*то|техобслуж/i.test(String(r?.title || '')));
-}
-
-/** Завершение по плановому ТО (бэкенд: flowState + preliminaryNote), не по диагностике неисправности */
 function isPlannedServiceResult(data) {
   const fs = data?.flowState;
-  if (fs && fs.intent === 'service' && fs.stage === 'service_result') return true;
-  return String(data?.preliminaryNote || '').includes('Плановые работы');
-}
-
-function plannedServiceCard(flowState) {
-  const st = flowState?.service_type;
-  const map = {
-    oil_change: {
-      title: 'Замена масла ДВС',
-      hint: 'Слив, замена моторного масла и масляного фильтра по регламенту производителя',
-    },
-    brake_pads: {
-      title: 'Замена тормозных колодок',
-      hint: 'Подбор накладок и работы на подъёмнике',
-    },
-    filters: { title: 'Замена фильтров', hint: 'Воздушный, салонный, топливный — по состоянию' },
-    timing_belt: { title: 'Замена ремня ГРМ', hint: 'Регламент по пробегу/сроку' },
-    tire_service: { title: 'Шиномонтаж', hint: 'Сезонная смена, балансировка' },
-    maintenance: {
-      title: 'Плановое ТО',
-      hint: 'Регламентные работы по пробегу и состоянию расходников',
-    },
-    unknown: {
-      title: 'Плановое обслуживание',
-      hint: 'Работы по вашему запросу без поиска неисправностей',
-    },
-  };
-  return map[st] || map.unknown;
+  return !!(fs && fs.intent === 'service');
 }
 
 function formatCarDisplay(ext) {
@@ -130,12 +98,10 @@ function roundToHundreds(n) {
   return Math.ceil(Number(n) / 100) * 100;
 }
 
-function buildCostRange(costFromMinor) {
+function buildCostFrom(costFromMinor) {
   const base = Number(costFromMinor);
-  if (!Number.isFinite(base)) return null;
-  const min = Math.max(0, roundToHundreds(base));
-  const max = Math.max(min, roundToHundreds(base * 2.3));
-  return { min, max };
+  if (!Number.isFinite(base) || base <= 0) return null;
+  return Math.max(0, roundToHundreds(base));
 }
 
 function determineUrgency(ext, isMaintenance) {
@@ -177,19 +143,33 @@ function hasSymptoms(ext) {
 
 function guestApiOpts() {
   const gt = sessionStorage.getItem('consultGuestToken');
-  const token = getToken();
+  const loggedIn = !!getUser();
   // Be tolerant: if we have a guest token, always send it. If user is not logged in, skip auth.
   const out = {};
   if (gt) out.guestToken = gt;
-  if (!token) out.skipAuth = true;
+  if (!loggedIn) out.skipAuth = true;
   return out;
 }
 
+/** Сессия в storage привязана к аккаунту или токен устарел — без входа API отвечает 401/403. */
+function isConsultSessionAccessDenied(e) {
+  if (!e || typeof e.status !== 'number' || !e.data || typeof e.data !== 'object') return false;
+  if (e.data.code === 'CSRF') return false;
+  if (e.status === 401 && e.data.code === 'GUEST_TOKEN_REQUIRED') return true;
+  if (e.status === 403) {
+    const c = String(e.data.code || '').toUpperCase();
+    if (c === 'CSRF') return false;
+    if (c === 'FORBIDDEN') return true;
+    if (String(e.data.error || '') === 'Forbidden') return true;
+  }
+  return false;
+}
+
 async function tryClaimPendingGuest() {
-  const token = getToken();
+  const loggedIn = !!getUser();
   const sid = sessionStorage.getItem('consultSessionId');
   const gt = sessionStorage.getItem('consultGuestToken');
-  if (!token || !sid || !gt) return;
+  if (!loggedIn || !sid || !gt) return;
   try {
     await api(`/consultations/${sid}/claim`, { method: 'POST', body: { guestToken: gt } });
     sessionStorage.removeItem('consultGuestToken');
@@ -210,6 +190,7 @@ export async function initConsultPage() {
   const errBox = $('#consultError');
   const actions = $('#consultActions');
   const btnNew = $('#btnNewSession');
+  const btnExportPdf = $('#btnExportConsultPdf');
   const guestBanner = $('#guestConsultBanner');
   const stagePill = $('#stagePill');
   const stageLabel = $('#stageLabel');
@@ -249,6 +230,11 @@ export async function initConsultPage() {
 
   let sessionId = sessionStorage.getItem('consultSessionId');
 
+  function syncExportPdfButton() {
+    if (!btnExportPdf) return;
+    btnExportPdf.hidden = !sessionId;
+  }
+
   function updateGuestBanner(isGuest) {
     if (!guestBanner) return;
     guestBanner.hidden = !isGuest;
@@ -286,14 +272,10 @@ export async function initConsultPage() {
       !!data.serviceRequest;
     const hasSym = hasSymptoms(ext);
     const plannedService = isPlannedServiceResult(data);
-    const isMaintenance = isMaintenanceRecommendations(data.recommendations) || plannedService;
-    const serviceCard = plannedService ? plannedServiceCard(data.flowState) : null;
+    const hasData = hasSym || done;
 
-    // Show full diagnostic result only after consultation completion
     if (resultPanel) resultPanel.hidden = !done;
-    // After completion hide chat input and side widgets to avoid duplicate info
     if (chatPanel) chatPanel.hidden = !!done;
-    // Keep consult grid but collapse sidebar to reduce noise
     const side = document.querySelector('.consult-side');
     if (side) side.hidden = !!done;
     document.body.classList.toggle('is-result-mode', !!done);
@@ -305,50 +287,39 @@ export async function initConsultPage() {
     if (resultConfidencePercent) resultConfidencePercent.textContent = confNum != null ? `${confNum}%` : '—';
     if (resultConfidenceBar) resultConfidenceBar.style.width = `${confNum ?? 0}%`;
     if (resultConfidenceHint) {
-      resultConfidenceHint.textContent = plannedService
-        ? confNum != null
-          ? 'Для плановых работ оценка неисправностей не требуется; блок ниже — справочно.'
-          : 'Для планового визита оценка «неисправности» не применяется — ориентир по смете после осмотра.'
-        : confNum != null
-          ? 'Оценка основана на введенных симптомах и статистике типовых неисправностей.'
-          : 'Оценка станет точнее после уточнения симптомов и условий проявления.';
+      resultConfidenceHint.textContent = confNum != null
+        ? 'Оценка основана на описании запроса и статистике сервиса.'
+        : 'Оценка станет точнее после уточнения деталей.';
     }
 
-    // Service type heuristic
     const t = `${ext?.symptoms || ''} ${ext?.problemConditions || ''}`.toLowerCase();
     const checkEngine = ['check engine', 'чек', 'ошибк', 'пропуск', 'троит'].some((k) => t.includes(k));
-    const serviceName = plannedService && serviceCard
-      ? serviceCard.title
-      : isMaintenance
-        ? 'Плановое ТО'
-        : hasSym
+    const serviceName = plannedService
+      ? 'Плановое обслуживание'
+      : hasSym
         ? checkEngine
           ? 'Комплексная диагностика двигателя'
           : 'Комплексная диагностика'
         : '—';
     if (resultServiceValue) resultServiceValue.textContent = serviceName;
     if (resultServiceHint)
-      resultServiceHint.textContent = plannedService && serviceCard
-        ? serviceCard.hint
-        : isMaintenance
-        ? 'Регламентные работы по пробегу и состоянию расходников'
+      resultServiceHint.textContent = plannedService
+        ? 'План работ по вашему запросу'
         : hasSym
-        ? checkEngine
-          ? 'Компьютерная диагностика + проверка системы зажигания/топлива'
-          : 'Первичная диагностика + проверка узлов по симптомам'
-        : 'Станет доступно после описания проблемы';
+          ? 'Предварительная оценка и план проверок'
+          : 'Станет доступно после описания запроса';
 
-    const costRange = (hasSym || isMaintenance) ? buildCostRange(data.costFromMinor) : null;
+    const costFrom = hasData ? buildCostFrom(data.costFromMinor) : null;
     if (resultCostRange) {
-      resultCostRange.textContent = costRange ? `от ${fmtMoneyRub(costRange.min)} до ${fmtMoneyRub(costRange.max)}` : '—';
+      resultCostRange.textContent = costFrom ? `от ${fmtMoneyRub(costFrom)}` : '—';
     }
     if (resultCostNote) {
-      resultCostNote.textContent = costRange
+      resultCostNote.textContent = costFrom
         ? 'Стоимость уточняется после осмотра автомобиля'
-        : 'Ожидаем дополнительные симптомы для расчета диапазона стоимости';
+        : 'Ожидаем данные для расчёта стоимости';
     }
 
-    const urgency = determineUrgency(ext, isMaintenance);
+    const urgency = determineUrgency(ext, plannedService);
     if (resultUrgencyValue) resultUrgencyValue.textContent = urgency.value;
     if (resultUrgencyHint) resultUrgencyHint.textContent = urgency.hint;
     if (resultUrgencyCard) {
@@ -357,39 +328,47 @@ export async function initConsultPage() {
     }
 
     const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
-    const top = (isMaintenance || hasSym) ? recs.slice(0, 5) : [];
+    const top = recs.slice(0, 5);
     if (resultHypothesesList) {
-      resultHypothesesList.innerHTML =
-        top.length > 0
-          ? top
-              .map((r) => {
-                const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
-                return `<div class="diag-hyp">
+      if (top.length > 0) {
+        resultHypothesesList.innerHTML = top
+          .map((r) => {
+            const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
+            return `<div class="diag-hyp">
                   <div class="diag-hyp__top">
-                    <span>${escapeHtml(diagLineText(r.title) || 'Гипотеза')}</span>
+                    <span>${escapeHtml(diagLineText(r.title) || 'Пункт')}</span>
                     <strong>${pct}%</strong>
                   </div>
-                  <div class="diag-hyp__bar" aria-hidden="true"><div style="width:${pct}%"></div></div>
+                  <div class="diag-hyp__bar" aria-hidden="true"><div class="diag-hyp__fill"></div></div>
                 </div>`;
-              })
-              .join('')
-          : plannedService
-          ? `<div class="diag-state muted">Плановые работы: поиск неисправности не требуется. Итоговый перечень и цена — после осмотра автомобиля в сервисе.</div>`
-          : `<div class="diag-state muted"><span class="diag-spinner" aria-hidden="true"></span>Ожидаем дополнительные симптомы для уточнения оценки</div>`;
+          })
+          .join('');
+        resultHypothesesList.querySelectorAll('.diag-hyp').forEach((wrap, i) => {
+          const r = top[i];
+          if (!r) return;
+          const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
+          const fill = wrap.querySelector('.diag-hyp__fill');
+          if (fill) fill.style.width = `${pct}%`;
+        });
+      } else {
+        resultHypothesesList.innerHTML =
+          '<div class="diag-state muted"><span class="diag-spinner" aria-hidden="true"></span>Ожидаем данные для формирования плана работ</div>';
+      }
     }
 
     if (resultChecksList) {
-      const checks = top.map((r) => diagLineText(r.title)).filter(Boolean).slice(0, 4);
+      const flowChecks = data.flowState?.recommended_checks;
+      const checks = Array.isArray(flowChecks)
+        ? flowChecks.map((c) => typeof c === 'string' ? c.trim() : '').filter(Boolean).slice(0, 5)
+        : [];
       resultChecksList.innerHTML =
         checks.length > 0
           ? checks.map((x) => `<li>${escapeHtml(x)}</li>`).join('')
-          : plannedService
-          ? `<li class="muted">Контроль уровня жидкостей, визуальный осмотр на подъёмнике — по стандарту сервиса перед записью на работы.</li>`
-          : `<li class="muted">Ожидаем дополнительные симптомы для уточнения оценки</li>`;
+          : `<li class="muted">План проверок формируется по результатам анализа</li>`;
     }
 
     if (resultPendingState) {
-      resultPendingState.hidden = hasSym || isMaintenance;
+      resultPendingState.hidden = hasData;
     }
 
     if (resultRequestPill) {
@@ -408,13 +387,16 @@ export async function initConsultPage() {
 
     if (done && !data.serviceRequest) {
       if (isGuest) {
-        // Guest can create a request without registration, but must provide name + phone
         if (resultBtnRequest) resultBtnRequest.hidden = false;
         if (resultBtnRegister) resultBtnRegister.hidden = false;
         if (resultBtnLogin) resultBtnLogin.hidden = false;
       } else {
-        if (resultBtnSave) resultBtnSave.hidden = false;
         if (resultBtnRequest) resultBtnRequest.hidden = false;
+        if (resultBtnSave) {
+          resultBtnSave.hidden = false;
+          resultBtnSave.textContent = 'Отчёт в личном кабинете';
+          resultBtnSave.dataset.autoSaved = '1';
+        }
       }
     }
 
@@ -438,9 +420,11 @@ export async function initConsultPage() {
           }
           await uiAlert({
             title: 'Заявка создана',
+            variant: 'success',
+            okText: 'Отлично',
             message: isGuest
-              ? 'Заявка создана. Чтобы отслеживать статус и переписку в личном кабинете, войдите или зарегистрируйтесь — текущий диалог привяжется к аккаунту.'
-              : 'Заявка создана. Смотрите статус в личном кабинете.',
+              ? 'Чтобы отслеживать статус и переписку в личном кабинете, войдите или зарегистрируйтесь — текущий диалог привяжется к аккаунту.'
+              : 'Статус заявки смотрите в личном кабинете.',
           });
           window.location.href = isGuest
             ? `/login.html?next=${encodeURIComponent('/dashboards/client.html#tab=requests')}`
@@ -455,18 +439,8 @@ export async function initConsultPage() {
 
     if (resultBtnSave && !resultBtnSave.dataset.bound) {
       resultBtnSave.dataset.bound = '1';
-      resultBtnSave.addEventListener('click', async () => {
-        try {
-          await api(`/consultations/${sessionId}/report`, {
-            method: 'POST',
-            body: { label: `Отчёт ${formatDate(new Date().toISOString())}` },
-          });
-          await uiAlert({ title: 'Отчёт сохранён', message: 'Отчёт сохранён и доступен в личном кабинете.' });
-        } catch (e) {
-          errBox.textContent = e.message;
-          errBox.className = 'alert alert--error';
-          errBox.hidden = false;
-        }
+      resultBtnSave.addEventListener('click', () => {
+        window.location.href = '/dashboards/client.html';
       });
     }
 
@@ -478,25 +452,21 @@ export async function initConsultPage() {
         conf != null && Number.isFinite(Number(conf)) ? `Уверенность: ${Math.round(Number(conf))}%` : 'Уверенность: —';
     }
     if (sideCostValue) {
-      sideCostValue.textContent =
-        (hasSym || isMaintenance) && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor))
-          ? `от ${fmtMoneyRub(data.costFromMinor)}`
-          : '—';
+      const hasCost = data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor)) && Number(data.costFromMinor) > 0;
+      sideCostValue.textContent = hasCost ? `от ${fmtMoneyRub(data.costFromMinor)}` : '—';
     }
     if (sideCostHint) {
-      sideCostHint.textContent =
-        (hasSym || isMaintenance) && data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor))
-          ? isMaintenance
-            ? 'Минимальная стоимость базового регламентного ТО'
-            : 'Оценка по статистике сервиса и текущим данным'
-          : 'Опишите симптомы, чтобы появилась оценка';
+      const hasCost = data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor)) && Number(data.costFromMinor) > 0;
+      sideCostHint.textContent = hasCost
+        ? 'Минимальная оценка по данным сервиса'
+        : 'Оценка появится после анализа';
     }
     if (sideVisitValue && sideVisitHint) {
-      const visit = isMaintenance
-        ? { value: 'в течение 3-7 дней', hint: 'Для планового ТО можно выбрать удобный слот' }
+      const visit = plannedService
+        ? { value: 'в удобное время', hint: 'Запишитесь на удобный слот' }
         : hasSym
           ? recommendVisitWindow(ext)
-          : { value: '—', hint: 'Опишите симптомы, чтобы оценить срочность' };
+          : { value: '—', hint: 'Опишите запрос для оценки срочности' };
       sideVisitValue.textContent = visit.value;
       sideVisitHint.textContent = visit.hint;
     }
@@ -549,17 +519,23 @@ export async function initConsultPage() {
       const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
       if (done && recs.length > 0) {
         sideRecsCard.hidden = false;
-        sideRecs.innerHTML = recs
-          .slice(0, 5)
-          .map((r) => {
-            const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
-            return `
+        const slice = recs.slice(0, 5);
+        sideRecs.innerHTML = slice
+          .map(
+            (r) => `
               <div class="rec-row">
                 <div class="rec-title">${escapeHtml(r.title || 'Рекомендация')}</div>
-                <div class="rec-meter" aria-hidden="true"><div style="width:${pct}%"></div></div>
-              </div>`;
-          })
+                <div class="rec-meter" aria-hidden="true"><div class="rec-meter__fill"></div></div>
+              </div>`,
+          )
           .join('');
+        sideRecs.querySelectorAll('.rec-row').forEach((row, i) => {
+          const r = slice[i];
+          if (!r) return;
+          const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
+          const fill = row.querySelector('.rec-meter__fill');
+          if (fill) fill.style.width = `${pct}%`;
+        });
       } else {
         sideRecsCard.hidden = true;
         sideRecs.innerHTML = '';
@@ -571,14 +547,14 @@ export async function initConsultPage() {
       const wrap = document.createElement('div');
       wrap.className = 'alert alert--info';
       wrap.innerHTML = `
-        <p style="margin:0 0 0.75rem">
+        <p class="consult-pro__post-message">
           Данные для предварительной оценки собраны. Вы можете <strong>создать заявку как гость</strong> (мы свяжемся по телефону)
           или <strong>войти/зарегистрироваться</strong>, чтобы отслеживать статус и переписку в личном кабинете.
         </p>
-        <p style="margin:0;display:flex;flex-wrap:wrap;gap:0.5rem">
+        <p class="consult-pro__post-actions">
           <button type="button" class="btn btn--primary" id="${guestRequestFormId}">Создать заявку (гость)</button>
-          <a class="btn btn--ghost" href="/login.html?next=${encodeURIComponent(CONSULT_NEXT)}" style="text-decoration:none">Войти</a>
-          <a class="btn btn--ghost" href="/register.html?next=${encodeURIComponent(CONSULT_NEXT)}" style="text-decoration:none">Регистрация</a>
+          <a class="btn btn--ghost" href="/login.html?next=${encodeURIComponent(CONSULT_NEXT)}">Войти</a>
+          <a class="btn btn--ghost" href="/register.html?next=${encodeURIComponent(CONSULT_NEXT)}">Регистрация</a>
         </p>`;
       actions.appendChild(wrap);
 
@@ -592,7 +568,12 @@ export async function initConsultPage() {
       b1.addEventListener('click', async () => {
         try {
           await api(`/consultations/${sessionId}/service-request`, { method: 'POST' });
-          await uiAlert({ title: 'Заявка создана', message: 'Заявка создана. Смотрите статус в личном кабинете.' });
+          await uiAlert({
+            title: 'Заявка создана',
+            variant: 'success',
+            okText: 'Отлично',
+            message: 'Статус заявки смотрите в личном кабинете.',
+          });
           window.location.href = '/dashboards/client.html';
         } catch (e) {
           errBox.textContent = e.message;
@@ -610,7 +591,12 @@ export async function initConsultPage() {
             method: 'POST',
             body: { label: `Отчёт ${formatDate(new Date().toISOString())}` },
           });
-          await uiAlert({ title: 'Отчёт сохранён', message: 'Отчёт сохранён и доступен в личном кабинете.' });
+          await uiAlert({
+            title: 'Отчёт сохранён',
+            variant: 'success',
+            okText: 'Хорошо',
+            message: 'Отчёт доступен в личном кабинете.',
+          });
         } catch (e) {
           errBox.textContent = e.message;
           errBox.className = 'alert alert--error';
@@ -630,6 +616,8 @@ export async function initConsultPage() {
       $('#preliminarySlot').innerHTML = '';
       $('#preliminarySlot').appendChild(note);
     }
+
+    syncExportPdfButton();
   }
 
   async function loadSession() {
@@ -639,28 +627,43 @@ export async function initConsultPage() {
   }
 
   async function startSession() {
+    let data;
     const u = getUser();
-    const token = getToken();
-    if (token && u?.role === 'CLIENT') {
+    if (u?.role === 'CLIENT') {
       sessionStorage.setItem('consultMode', 'auth');
       sessionStorage.removeItem('consultGuestToken');
-      const data = await api('/consultations', { method: 'POST', body: {} });
-      sessionId = data.id;
-      sessionStorage.setItem('consultSessionId', sessionId);
+      try {
+        data = await api('/consultations', { method: 'POST', body: {} });
+      } catch (e) {
+        // В localStorage ещё CLIENT, а cookie сессии нет — продолжаем как гость
+        if (e.status !== 401) throw e;
+        sessionStorage.setItem('consultMode', 'guest');
+        data = await api('/consultations', { method: 'POST', body: {}, skipAuth: true });
+        if (data.guestToken) sessionStorage.setItem('consultGuestToken', data.guestToken);
+      }
     } else {
       sessionStorage.setItem('consultMode', 'guest');
-      const data = await api('/consultations', { method: 'POST', body: {}, skipAuth: true });
-      sessionId = data.id;
-      sessionStorage.setItem('consultSessionId', sessionId);
+      data = await api('/consultations', { method: 'POST', body: {}, skipAuth: true });
       if (data.guestToken) sessionStorage.setItem('consultGuestToken', data.guestToken);
     }
+    sessionId = data.id;
+    sessionStorage.setItem('consultSessionId', sessionId);
     await loadSession();
   }
 
+  btnExportPdf?.addEventListener('click', async () => {
+    if (!sessionId) return;
+    try {
+      await downloadApiFile(`/consultations/${sessionId}/export.pdf`, guestApiOpts());
+    } catch (e) {
+      await uiAlert({ title: 'Ошибка', message: e.message, variant: 'warn' });
+    }
+  });
+
   btnNew?.addEventListener('click', () => {
-    sessionStorage.removeItem('consultSessionId');
-    sessionStorage.removeItem('consultGuestToken');
+    clearConsultSessionStorage();
     sessionId = null;
+    syncExportPdfButton();
     chatEl.innerHTML = '';
     progressBar.style.width = '0%';
     progressLabel.textContent = 'Готовность данных: 0%';
@@ -683,6 +686,112 @@ export async function initConsultPage() {
     }
   });
 
+  const PHASE_LABELS = {
+    started: 'ИИ принял сообщение…',
+    extracting: 'Извлекаю данные из сообщения…',
+    extracted: 'Данные извлечены, проверяю…',
+    diagnosing: 'Формирую диагностику…',
+  };
+
+  function showThinkingBubble(phase) {
+    let bubble = chatEl.querySelector('.bubble--thinking');
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.className = 'bubble bubble--assistant bubble--thinking';
+      chatEl.appendChild(bubble);
+    }
+    bubble.innerHTML = `<span class="thinking-dot"></span> ${escapeHtml(PHASE_LABELS[phase] || 'ИИ анализирует…')}`;
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function removeThinkingBubble() {
+    chatEl.querySelector('.bubble--thinking')?.remove();
+  }
+
+  async function sendMessageSSE(text, recoveredOnce = false) {
+    const API_BASE = `${window.location.origin}/api`;
+    const headers = { 'Content-Type': 'application/json' };
+    const csrf = getCsrfToken();
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+    const gt = sessionStorage.getItem('consultGuestToken');
+    if (gt) headers['X-Consultation-Guest-Token'] = gt;
+
+    const userBubble = document.createElement('div');
+    userBubble.className = 'bubble bubble--user';
+    userBubble.innerHTML = escapeHtml(text);
+    chatEl.appendChild(userBubble);
+    chatEl.scrollTop = chatEl.scrollHeight;
+
+    showThinkingBubble('started');
+
+    const res = await fetch(`${API_BASE}/consultations/${sessionId}/messages/stream`, {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({ content: text }),
+    });
+
+    if (!res.ok) {
+      removeThinkingBubble();
+      const errorData = await res.json().catch(() => ({}));
+      const err = Object.assign(new Error(errorData?.error || res.statusText), { status: res.status, data: errorData });
+      if (!recoveredOnce && isConsultSessionAccessDenied(err)) {
+        userBubble.remove();
+        clearConsultSessionStorage();
+        sessionId = null;
+        await startSession();
+        return sendMessageSSE(text, true);
+      }
+      if (res.status === 503) {
+        throw Object.assign(new Error(errorData?.error || 'ИИ временно недоступен'), { status: 503, data: errorData });
+      }
+      if (res.status === 401 && errorData?.code === 'GUEST_TOKEN_REQUIRED') {
+        throw Object.assign(new Error('Guest token lost'), { status: 401, data: errorData });
+      }
+      throw err;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let idx;
+      while ((idx = buffer.indexOf('\n\n')) !== -1) {
+        const chunk = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+
+        let eventType = 'message';
+        let eventData = '';
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+          else if (line.startsWith('data: ')) eventData = line.slice(6);
+        }
+        if (!eventData) continue;
+
+        const parsed = JSON.parse(eventData);
+
+        if (eventType === 'thinking' || eventType === 'progress') {
+          showThinkingBubble(parsed.phase || 'started');
+        } else if (eventType === 'done') {
+          finalData = parsed;
+        } else if (eventType === 'error') {
+          removeThinkingBubble();
+          throw Object.assign(new Error(parsed.message || 'Ошибка ИИ'), { status: 503, data: parsed });
+        }
+      }
+    }
+
+    removeThinkingBubble();
+    if (finalData) renderSession(finalData);
+    else if (sessionId) await loadSession();
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -690,13 +799,9 @@ export async function initConsultPage() {
     input.value = '';
     try {
       if (!sessionId) await startSession();
-      const data = await api(`/consultations/${sessionId}/messages`, {
-        method: 'POST',
-        body: { content: text },
-        ...guestApiOpts(),
-      });
-      renderSession(data);
+      await sendMessageSSE(text);
     } catch (e) {
+      removeThinkingBubble();
       if (e.status === 503) {
         errBox.textContent =
           e.data?.error || 'Модуль ИИ временно недоступен. Сообщение сохранено, попробуйте позже.';
@@ -704,7 +809,6 @@ export async function initConsultPage() {
         errBox.hidden = false;
         if (sessionId) await loadSession().catch(() => {});
       } else if (e.status === 401 && e.data?.code === 'GUEST_TOKEN_REQUIRED') {
-        // Guest token lost (e.g., sessionStorage cleared). Start a new guest session.
         await startSession();
       } else {
         errBox.textContent = e.message;
@@ -717,8 +821,22 @@ export async function initConsultPage() {
   try {
     await tryClaimPendingGuest();
     sessionId = sessionStorage.getItem('consultSessionId');
-    if (sessionId) await loadSession();
-    else await startSession();
+    if (sessionId) {
+      try {
+        await loadSession();
+      } catch (e) {
+        if (isConsultSessionAccessDenied(e)) {
+          clearConsultSessionStorage();
+          sessionId = null;
+          syncExportPdfButton();
+          await startSession();
+        } else {
+          throw e;
+        }
+      }
+    } else {
+      await startSession();
+    }
   } catch (e) {
     errBox.textContent = e.message;
     errBox.className = 'alert alert--error';

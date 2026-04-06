@@ -6,6 +6,7 @@ import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody } from '../../middleware/validate.js';
 import * as adminService from './admin.service.js';
 import * as referenceService from '../reference/reference.service.js';
+import { logger } from '../../lib/logger.js';
 
 const roleSchema = z.object({
   role: z.enum(['CLIENT', 'MANAGER', 'ADMINISTRATOR']),
@@ -98,6 +99,10 @@ adminRouter.patch(
   validateBody(roleSchema),
   asyncHandler(async (req, res) => {
     const u = await adminService.patchUserRole(req.params.userId, req.validatedBody.role);
+    logger.info(
+      { action: 'CHANGE_ROLE', adminId: req.user.id, targetUserId: req.params.userId, newRole: req.validatedBody.role },
+      'audit: admin changed user role',
+    );
     res.json(u);
   }),
 );
@@ -106,6 +111,10 @@ adminRouter.post(
   '/users/:userId/block',
   asyncHandler(async (req, res) => {
     await adminService.blockUser(req.params.userId);
+    logger.info(
+      { action: 'BLOCK_USER', adminId: req.user.id, targetUserId: req.params.userId },
+      'audit: admin blocked user',
+    );
     res.status(204).send();
   }),
 );
@@ -114,6 +123,10 @@ adminRouter.post(
   '/users/:userId/unblock',
   asyncHandler(async (req, res) => {
     await adminService.unblockUser(req.params.userId);
+    logger.info(
+      { action: 'UNBLOCK_USER', adminId: req.user.id, targetUserId: req.params.userId },
+      'audit: admin unblocked user',
+    );
     res.status(204).send();
   }),
 );

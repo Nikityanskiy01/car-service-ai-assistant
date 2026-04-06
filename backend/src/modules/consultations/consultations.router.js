@@ -7,11 +7,12 @@ import {
   blockStaffFromPosting,
 } from '../../middleware/consultationAccess.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
-import { validateBody } from '../../middleware/validate.js';
+import { validateBody, validateQuery } from '../../middleware/validate.js';
 import { isAppError } from '../../lib/errors.js';
 import * as consultationsService from './consultations.service.js';
 import * as serviceRequestsService from '../serviceRequests/serviceRequests.service.js';
 import * as referenceService from '../reference/reference.service.js';
+import { buildConsultationPdfBuffer } from '../../lib/pdf/consultationPdf.js';
 
 const messageSchema = z.object({
   content: z.string().min(1),
@@ -29,6 +30,11 @@ const guestRequestSchema = z.object({
   fullName: z.string().min(2).max(120),
   phone: z.string().min(6).max(40),
   email: z.string().email().optional().nullable(),
+});
+
+const staffSessionsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(500).optional().default(500),
+  offset: z.coerce.number().int().min(0).optional().default(0),
 });
 
 export const consultationsRouter = Router();
@@ -71,6 +77,23 @@ consultationsRouter.get(
   }),
 );
 
+consultationsRouter.get(
+  '/staff',
+  authJwt,
+  requireRole('MANAGER', 'ADMINISTRATOR'),
+  validateQuery(staffSessionsQuerySchema),
+  asyncHandler(async (req, res) => {
+    const { limit, offset } = req.validatedQuery;
+    const { items, total } = await consultationsService.listSessionsForStaff({ limit, offset });
+    res.json({
+      items: items.map(serializeStaffSessionList),
+      total,
+      limit,
+      offset,
+    });
+  }),
+);
+
 consultationsRouter.post(
   '/:sessionId/claim',
   authJwt,
@@ -83,6 +106,20 @@ consultationsRouter.post(
       req.validatedBody.guestToken,
     );
     res.status(200).json(serializeSessionDetail(session));
+  }),
+);
+
+consultationsRouter.get(
+  '/:sessionId/export.pdf',
+  optionalAuthJwt,
+  consultationSessionAccess,
+  asyncHandler(async (req, res) => {
+    const session = await consultationsService.getSessionDetail(req.params.sessionId, req.consultationActor);
+    const buf = await buildConsultationPdfBuffer(session);
+    const short = req.params.sessionId.slice(0, 8);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="konsultaciya-${short}.pdf"`);
+    res.send(buf);
   }),
 );
 
@@ -123,6 +160,48 @@ consultationsRouter.post(
       }
       throw e;
     }
+  }),
+);
+
+consultationsRouter.post(
+  '/:sessionId/messages/stream',
+  optionalAuthJwt,
+  consultationSessionAccess,
+  blockStaffFromPosting,
+  validateBody(messageSchema),
+  asyncHandler(async (req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    const send = (event, data) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      if (typeof res.flush === 'function') res.flush();
+    };
+
+    send('thinking', { phase: 'started' });
+
+    try {
+      const session = await consultationsService.postMessage(
+        req.params.sessionId,
+        req.consultationActor,
+        req.validatedBody.content,
+        (progress) => send('progress', progress),
+      );
+      send('done', serializeSessionDetail(session));
+    } catch (e) {
+      if (isAppError(e) && (e.statusCode === 503 || e.code === 'LLM_ERROR')) {
+        send('error', { message: e.message || 'AI module unavailable', code: 'LLM_ERROR' });
+      } else {
+        const safeMessage = process.env.NODE_ENV === 'production' ? 'Internal error' : (e.message || 'Internal error');
+        send('error', { message: safeMessage });
+      }
+    }
+
+    res.end();
   }),
 );
 
@@ -200,9 +279,42 @@ function serializeSessionList(s) {
   };
 }
 
+function serializeStaffSessionList(s) {
+  return {
+    id: s.id,
+    status: s.status,
+    progressPercent: s.progressPercent,
+    createdAt: s.createdAt instanceof Date ? s.createdAt.toISOString() : s.createdAt,
+    updatedAt: s.updatedAt instanceof Date ? s.updatedAt.toISOString() : s.updatedAt,
+    client: s.client
+      ? {
+          id: s.client.id,
+          fullName: s.client.fullName,
+          phone: s.client.phone,
+          email: s.client.emailProfile || s.client.email,
+        }
+      : null,
+    guestName: s.guestName || null,
+    guestPhone: s.guestPhone || null,
+    make: s.extracted?.make ?? null,
+    model: s.extracted?.model ?? null,
+    serviceRequest: s.serviceRequest,
+    serviceCategoryName: s.serviceCategory?.name ?? null,
+  };
+}
+
 function serializeSessionDetail(s) {
   return {
     ...serializeSession(s),
+    flowState: s.flowState ?? null,
+    client: s.client
+      ? {
+          id: s.client.id,
+          fullName: s.client.fullName,
+          phone: s.client.phone,
+          email: s.client.emailProfile || s.client.email,
+        }
+      : undefined,
     extracted: s.extracted,
     recommendations: s.recommendations,
     messages: s.messages?.map((m) => ({

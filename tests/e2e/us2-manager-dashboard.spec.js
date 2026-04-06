@@ -10,7 +10,7 @@ async function ensureManager(request) {
   return login.status() === 200;
 }
 
-/** Полный цикл заявки через API (LLM_MOCK на сервере). */
+/** Полный цикл заявки через API. */
 async function createServiceRequestViaApi(request) {
   const email = `e2e_mgr_${Date.now()}@t.test`;
   const reg = await request.post('/api/auth/register', {
@@ -62,6 +62,7 @@ test.describe('US2 manager dashboard', () => {
     await page.fill('input[name="password"]', 'Admin12345!');
     await page.click('button[type="submit"]');
     await page.waitForURL(/dashboards\/manager/);
+    await page.locator('[data-sr-view="table"]').click();
     await expect(page.locator('#mgrTable')).toBeVisible();
   });
 
@@ -79,6 +80,7 @@ test.describe('US2 manager dashboard', () => {
     await page.fill('input[name="password"]', 'Admin12345!');
     await page.click('button[type="submit"]');
     await page.waitForURL(/dashboards\/manager/);
+    await page.locator('[data-sr-view="table"]').click();
 
     await page.waitForSelector(`tr[data-id="${requestId}"]`, { timeout: 30_000 });
     await page.locator(`tr[data-id="${requestId}"]`).click();

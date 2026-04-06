@@ -3,8 +3,18 @@ import { z } from 'zod';
 import { authJwt } from '../../middleware/authJwt.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
-import { validateBody } from '../../middleware/validate.js';
+import { validateBody, validateQuery } from '../../middleware/validate.js';
 import * as serviceRequestsService from './serviceRequests.service.js';
+import { buildServiceRequestPdfBuffer } from '../../lib/pdf/serviceRequestPdf.js';
+
+const listQuerySchema = z.object({
+  status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']).optional(),
+  q: z.string().max(200).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+  sort: z.enum(['createdAt', 'client', 'car', 'status', 'version']).optional().default('createdAt'),
+  dir: z.enum(['asc', 'desc']).optional().default('desc'),
+});
 
 const patchSchema = z.object({
   status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']),
@@ -16,12 +26,34 @@ serviceRequestsRouter.use(authJwt);
 
 serviceRequestsRouter.get(
   '/',
+  validateQuery(listQuerySchema),
   asyncHandler(async (req, res) => {
-    const list = await serviceRequestsService.listRequests(req.user, {
-      status: req.query.status,
-      q: req.query.q,
+    const { status, q, page, pageSize, sort, dir } = req.validatedQuery;
+    const out = await serviceRequestsService.listRequests(req.user, {
+      status,
+      q,
+      page,
+      pageSize,
+      sort,
+      dir,
     });
-    res.json(list.map(serializeListItem));
+    res.json({
+      items: out.items.map(serializeListItem),
+      total: out.total,
+      page: out.page,
+      pageSize: out.pageSize,
+    });
+  }),
+);
+
+serviceRequestsRouter.get(
+  '/:requestId/export.pdf',
+  asyncHandler(async (req, res) => {
+    const buf = await buildServiceRequestPdfBuffer(req.params.requestId, req.user);
+    const short = req.params.requestId.slice(0, 8);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="zayavka-${short}.pdf"`);
+    res.send(buf);
   }),
 );
 

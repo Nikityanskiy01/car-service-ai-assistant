@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Запись в сервис — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/services.css" />
+    <link rel="stylesheet" href="/css/pages/location.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container services-pro">
+      <section class="services-pro__hero">
+        <p class="pill pill--warn services-pro__pill">Запись</p>
+        <h1>Запись в сервис</h1>
+        <p class="lead" id="bookingLead">
+          Укажите удобное время и контакты — менеджер подтвердит визит. Регистрация на сайте не требуется.
+        </p>
+      </section>
+
+      <section class="services-pro__section">
+        <article class="card location-pro__form-card">
+          <div id="bookingServiceSummary" class="booking-service-summary muted u-mb-md" hidden></div>
+          <h2 class="contact-form__title">Данные для записи</h2>
+          <p class="contact-form__lead muted">Поля с отметкой * обязательны.</p>
+          <form id="guestBookingForm" class="contact-form stack" novalidate aria-busy="false">
+            <div class="form-field">
+              <label for="bkName">Имя <span class="contact-form__req" aria-hidden="true">*</span></label>
+              <input
+                id="bkName"
+                name="fullName"
+                type="text"
+                autocomplete="name"
+                placeholder="Как к вам обращаться"
+                maxlength="120"
+                required
+                aria-required="true"
+              />
+              <small class="form-field__error" role="alert">Укажите имя</small>
+            </div>
+            <div class="form-field">
+              <label for="bkPhone">Телефон <span class="contact-form__req" aria-hidden="true">*</span></label>
+              <input
+                id="bkPhone"
+                name="phone"
+                type="tel"
+                inputmode="tel"
+                autocomplete="tel"
+                placeholder="+7 (999) 000-00-00"
+                maxlength="22"
+                required
+                aria-required="true"
+                aria-describedby="bk-phone-hint"
+              />
+              <small id="bk-phone-hint" class="form-field__hint contact-form__hint--subtle"
+                >Российский или международный номер</small
+              >
+              <small class="form-field__error" role="alert">Укажите корректный номер</small>
+            </div>
+            <div class="form-field">
+              <label for="bkEmail">Email <span class="contact-form__opt">необязательно</span></label>
+              <input
+                id="bkEmail"
+                name="email"
+                type="email"
+                autocomplete="email"
+                maxlength="120"
+                placeholder="Для подтверждения или уточнений"
+              />
+            </div>
+            <div class="form-field">
+              <label for="bkWhen">Желаемая дата и время <span class="contact-form__req" aria-hidden="true">*</span></label>
+              <input id="bkWhen" name="preferredAt" type="datetime-local" required aria-required="true" aria-describedby="bk-when-hint" />
+              <small id="bk-when-hint" class="form-field__hint contact-form__hint--subtle">Время визита — с 9:00 до 21:00 по московскому времени</small>
+              <small class="form-field__error" role="alert">Выберите дату и время в рабочие часы</small>
+            </div>
+            <div class="form-field">
+              <label for="bkNotes">Комментарий <span class="contact-form__opt">необязательно</span></label>
+              <textarea
+                id="bkNotes"
+                name="notes"
+                rows="3"
+                maxlength="2000"
+                placeholder="Марка и модель авто, пожелания по времени"
+              ></textarea>
+            </div>
+            <div id="guestBookingError" class="alert alert--error contact-form__banner" role="alert" hidden></div>
+            <div class="contact-form__actions">
+              <button type="submit" class="btn btn--primary contact-form__submit" id="guestBookingSubmit">Отправить запись</button>
+              <a class="btn btn--ghost" href="/services.html">К списку услуг</a>
+            </div>
+            <div id="guestBookingNote" class="alert alert--info contact-form__banner" hidden>
+              Запись сохранена. Мы свяжемся с вами для подтверждения.
+            </div>
+          </form>
+        </article>
+      </section>
+    </main>
+    <div id="footer-placeholder"></div>
+    <script type="module" src="/js/entry/book-service.js"></script>
+  </body>
+</html>

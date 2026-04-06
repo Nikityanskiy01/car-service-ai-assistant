@@ -3,109 +3,235 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>О сервисе — AI Fox Motors</title>
+    <title>О сервисе и контакты — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/base.css" />
     <link rel="stylesheet" href="/css/layout.css" />
     <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/about.css" />
   </head>
   <body>
     <div id="header-placeholder"></div>
     <main class="page container about-pro about-pro--dark">
       <section class="about-pro__hero about-pro__hero--strong">
-        <p class="pill pill--warn" style="margin: 0 0 0.75rem; width: fit-content">О сервисе</p>
-        <h1>Современный автосервис с интеллектуальной системой диагностики</h1>
+        <p class="pill pill--warn about-pro__pill">О сервисе и контакты</p>
+        <h1>Автосервис с ИИ-первичной диагностикой</h1>
         <p class="lead">
-          Мы объединяем опыт специалистов и технологии искусственного интеллекта для быстрой и точной первичной
-          консультации автомобиля.
+          Собираем симптомы и данные по авто за несколько минут, готовим понятную первичную картину до визита в сервис.
+          Ниже — как мы работаем, и блок с адресом, картой и формой связи.
         </p>
-        <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Перейти к ИИ-консультации</a>
-      </section>
-
-      <section class="about-pro__section">
-        <div class="about-pro__grid about-pro__grid--3 about-pro__quick">
-          <article class="card"><h3>Быстрый первичный прием</h3><p class="muted" style="margin:0">ИИ собирает данные за 3-5 минут и готовит первичный результат.</p></article>
-          <article class="card"><h3>Технологичная диагностика</h3><p class="muted" style="margin:0">Цифровая анкета, структурированный анализ симптомов и понятные рекомендации.</p></article>
-          <article class="card"><h3>Прозрачный путь в сервис</h3><p class="muted" style="margin:0">От консультации до заявки и записи без потери данных и повторных объяснений.</p></article>
+        <div class="about-pro__hero-actions">
+          <a class="btn btn--primary" href="/consult.html">ИИ-консультация</a>
+          <a class="btn btn--ghost" href="#contacts">Контакты и карта</a>
         </div>
       </section>
 
-      <section class="about-pro__section">
-        <article class="card glass about-pro__who">
-          <h2>Кто мы</h2>
-          <p class="muted">
-            AI Fox Motors — сервис, где опыт практикующих мастеров сочетается с цифровой системой обработки обращений.
-            Мы используем современное диагностическое оборудование и выстроенные регламенты обслуживания, чтобы клиент
-            получал понятный и надежный результат.
-          </p>
-          <ul class="list-muted">
-            <li>Опытная команда специалистов по ключевым узлам автомобиля.</li>
-            <li>Современные диагностические стенды и инструменты.</li>
-            <li>Цифровой поток обработки обращений и история работ по авто.</li>
-            <li>ИИ-ассистент для ускорения первичной диагностики.</li>
-            <li>Системная работа с историей консультаций и заявок клиента.</li>
-          </ul>
-        </article>
+      <section class="about-pro__section" aria-labelledby="about-who-heading">
+        <h2 id="about-who-heading">О Fox Motors</h2>
+        <p class="muted u-mb-md">
+          Сочетаем опыт мастеров и цифровой поток заявок: меньше повторных объяснений, прозрачнее этапы и стоимость.
+        </p>
+        <ul class="list-muted about-pro__list-tight">
+          <li>Диагностическое оборудование и регламенты по узлам автомобиля.</li>
+          <li>ИИ-ассистент ускоряет первичный приём; итог на подъёмнике остаётся за специалистом.</li>
+          <li>История консультаций и заявок в личном кабинете.</li>
+        </ul>
       </section>
 
-      <section class="about-pro__section">
-        <h2>Преимущества сервиса</h2>
+      <section class="about-pro__section" aria-labelledby="about-features-heading">
+        <h2 id="about-features-heading">Что важно клиенту</h2>
         <div class="about-pro__grid about-pro__grid--3">
-          <article class="card about-pro__adv"><span class="about-pro__icon">✓</span><h3>Квалифицированные специалисты</h3></article>
-          <article class="card about-pro__adv"><span class="about-pro__icon">⚙</span><h3>Современное диагностическое оборудование</h3></article>
-          <article class="card about-pro__adv"><span class="about-pro__icon">₽</span><h3>Прозрачная стоимость работ</h3></article>
-          <article class="card about-pro__adv"><span class="about-pro__icon">AI</span><h3>Интеллектуальная предварительная диагностика</h3></article>
-          <article class="card about-pro__adv"><span class="about-pro__icon">🕒</span><h3>Быстрое оформление заявки через сайт</h3></article>
-          <article class="card about-pro__adv"><span class="about-pro__icon">📄</span><h3>Сохранение истории консультаций клиента</h3></article>
+          <article class="card about-pro__adv">
+            <i data-lucide="users" class="about-pro__icon"></i>
+            <h3>Специалисты</h3>
+            <p class="muted u-m0">Работа по узлам с понятными этапами и согласованием работ.</p>
+          </article>
+          <article class="card about-pro__adv">
+            <i data-lucide="settings" class="about-pro__icon"></i>
+            <h3>Оборудование</h3>
+            <p class="muted u-m0">Стенды и инструменты для диагностики и ремонта.</p>
+          </article>
+          <article class="card about-pro__adv">
+            <i data-lucide="wallet" class="about-pro__icon"></i>
+            <h3>Смета</h3>
+            <p class="muted u-m0">Прозрачнее ориентиры по работам и запчастям до старта.</p>
+          </article>
+          <article class="card about-pro__adv">
+            <i data-lucide="brain" class="about-pro__icon"></i>
+            <h3>ИИ при входе</h3>
+            <p class="muted u-m0">Быстрый разбор симптомов и черновик плана проверок.</p>
+          </article>
+          <article class="card about-pro__adv">
+            <i data-lucide="clock" class="about-pro__icon"></i>
+            <h3>Заявка с сайта</h3>
+            <p class="muted u-m0">Оформление и запись без очереди в мессенджерах.</p>
+          </article>
+          <article class="card about-pro__adv">
+            <i data-lucide="folder-open" class="about-pro__icon"></i>
+            <h3>История</h3>
+            <p class="muted u-m0">Консультации и обращения не теряются между визитами.</p>
+          </article>
         </div>
       </section>
 
-      <section class="about-pro__section">
+      <section class="about-pro__section" aria-labelledby="about-ai-heading">
         <article class="card about-pro__ai">
-          <h2>Как работает ИИ-ассистент</h2>
+          <h2 id="about-ai-heading">Как работает ИИ-ассистент</h2>
           <div class="about-pro__grid about-pro__grid--3 about-pro__steps">
-            <div class="about-pro__step"><span>1</span><p>Собирает описание неисправности и ключевые данные по авто.</p></div>
-            <div class="about-pro__step"><span>2</span><p>Задает уточняющие вопросы и анализирует симптомы.</p></div>
-            <div class="about-pro__step"><span>3</span><p>Показывает вероятные причины, проверки и предварительную стоимость.</p></div>
+            <div class="about-pro__step"><span>1</span><p>Собирает описание неисправности и данные по авто.</p></div>
+            <div class="about-pro__step"><span>2</span><p>Уточняет симптомы и предлагает вероятные причины.</p></div>
+            <div class="about-pro__step"><span>3</span><p>Даёт ориентиры по проверкам и стоимости до визита в сервис.</p></div>
           </div>
-          <p class="muted" style="margin:0.8rem 0 0">
-            ИИ ускоряет первичную обработку обращения и помогает специалистам, но не заменяет профессиональную диагностику в сервисе.
+          <p class="muted about-pro__ai-note u-mb0">
+            ИИ не заменяет диагностику на подъёмнике — он помогает быстрее сориентироваться и подготовиться к приёму.
           </p>
         </article>
       </section>
 
-      <section class="about-pro__section">
-        <h2>Статистика сервиса</h2>
+      <section class="about-pro__section" aria-labelledby="about-stats-heading">
+        <h2 id="about-stats-heading">В цифрах</h2>
         <div class="about-pro__grid about-pro__grid--4">
           <article class="mini-kpi">
-            <div class="mini-kpi__label muted">Обслужено автомобилей</div>
+            <div class="mini-kpi__label muted">Автомобилей</div>
             <div class="mini-kpi__value">5 000+</div>
           </article>
           <article class="mini-kpi">
-            <div class="mini-kpi__label muted">Выполнено ремонтов</div>
+            <div class="mini-kpi__label muted">Ремонтов</div>
             <div class="mini-kpi__value">12 000+</div>
           </article>
           <article class="mini-kpi">
-            <div class="mini-kpi__label muted">Проведено консультаций</div>
+            <div class="mini-kpi__label muted">Консультаций</div>
             <div class="mini-kpi__value">9 000+</div>
           </article>
           <article class="mini-kpi">
-            <div class="mini-kpi__label muted">Среднее время первичной диагностики</div>
+            <div class="mini-kpi__label muted">Первичный разбор ИИ</div>
             <div class="mini-kpi__value">до 5 мин</div>
           </article>
         </div>
       </section>
 
-      <section class="about-pro__section">
-        <article class="card about-pro__bottom-cta">
-          <h2>Получите предварительный результат диагностики автомобиля прямо сейчас</h2>
-          <a class="btn btn--primary" href="/consult.html" style="text-decoration: none">Начать диагностику</a>
+      <section id="contacts" class="about-pro__section about-contacts" aria-labelledby="about-contacts-heading">
+        <h2 id="about-contacts-heading">Контакты</h2>
+        <p class="muted about-contacts__lead">Свяжитесь удобным способом или оставьте заявку — ответим в рабочее время.</p>
+
+        <dl class="about-contacts__facts card">
+          <div>
+            <dt>Адрес</dt>
+            <dd>
+              <a
+                href="https://yandex.ru/maps/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%A4%D0%B0%D1%80%D0%BC%D0%B0%D1%86%D0%B5%D0%B2%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9%20%D0%BF%D1%80%D0%BE%D0%B5%D0%B7%D0%B4%2C%203"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Москва, Фармацевтический проезд, 3</a>
+            </dd>
+          </div>
+          <div>
+            <dt>Телефон</dt>
+            <dd><a href="tel:+79990000000">+7 (999) 000-00-00</a></dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd><a href="mailto:service@aifoxmotors.ru">service@aifoxmotors.ru</a></dd>
+          </div>
+          <div>
+            <dt>Режим</dt>
+            <dd>пн–сб 10:00–20:00</dd>
+          </div>
+        </dl>
+
+        <div class="about-contacts__split">
+          <article class="card about-contacts__map-card">
+            <div id="yandexMap" class="about-contacts__map" aria-label="Карта проезда к сервису"></div>
+            <div id="yandexMapFallback" class="muted about-contacts__map-fallback" hidden>
+              Карта не загрузилась — откройте адрес в Яндекс.Картах кнопкой справа.
+            </div>
+          </article>
+          <div class="about-contacts__side">
+            <p class="muted">
+              <strong class="about-contacts__strong">Проезд:</strong> удобный въезд с магистрали, ориентир — промзона рядом.
+            </p>
+            <p class="muted">Перед визитом можно пройти ИИ-консультацию — сократите время на первичный приём.</p>
+            <div class="about-contacts__links">
+              <a class="btn btn--primary" href="tel:+79990000000">Позвонить</a>
+              <a class="btn btn--ghost" href="mailto:service@aifoxmotors.ru">Email</a>
+              <a
+                class="btn btn--ghost"
+                href="https://yandex.ru/maps/?text=%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0%2C%20%D0%A4%D0%B0%D1%80%D0%BC%D0%B0%D1%86%D0%B5%D0%B2%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B9%20%D0%BF%D1%80%D0%BE%D0%B5%D0%B7%D0%B4%2C%203"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Яндекс.Карты</a>
+              <a class="btn btn--ghost" href="/consult.html">ИИ-консультация</a>
+            </div>
+          </div>
+        </div>
+
+        <article class="card about-contacts__form-wrap">
+          <h3 class="about-contacts__form-title">Обратная связь</h3>
+          <p class="muted about-contacts__form-intro">
+            Оставьте имя и телефон — менеджер перезвонит. Сообщение по желанию.
+          </p>
+          <form id="contactForm" class="contact-form stack" novalidate aria-busy="false">
+            <div class="form-field">
+              <label for="contactName">Имя <span class="about-contacts__req" aria-hidden="true">*</span></label>
+              <input
+                id="contactName"
+                name="name"
+                type="text"
+                autocomplete="name"
+                placeholder="Как к вам обращаться"
+                maxlength="120"
+                required
+                aria-required="true"
+              />
+              <small class="form-field__error" role="alert">Укажите имя</small>
+            </div>
+            <div class="form-field">
+              <label for="contactPhone">Телефон <span class="about-contacts__req" aria-hidden="true">*</span></label>
+              <input
+                id="contactPhone"
+                name="phone"
+                type="tel"
+                inputmode="tel"
+                autocomplete="tel"
+                placeholder="+7 (999) 000-00-00"
+                maxlength="22"
+                required
+                aria-required="true"
+                aria-describedby="cphone-format"
+              />
+              <small id="cphone-format" class="form-field__hint about-contacts__hint">Российский (+7 / 8…) или международный, 10–15 цифр</small>
+              <small class="form-field__error" role="alert">Нужен номер для связи</small>
+            </div>
+            <div class="form-field">
+              <label for="contactMessage">Сообщение <span class="about-contacts__opt">необязательно</span></label>
+              <textarea
+                id="contactMessage"
+                name="message"
+                rows="4"
+                maxlength="4000"
+                placeholder="Вопрос или удобное время звонка"
+              ></textarea>
+            </div>
+            <div id="contactFormError" class="alert alert--error about-contacts__banner" role="alert" hidden></div>
+            <div class="about-contacts__form-actions">
+              <button type="submit" class="btn btn--primary" id="contactSubmitBtn">Отправить</button>
+            </div>
+            <div id="contactFormNote" class="alert alert--info about-contacts__banner" hidden>
+              Спасибо! Заявка сохранена — менеджер свяжется с вами.
+            </div>
+          </form>
         </article>
+      </section>
+
+      <section class="about-pro__section about-pro__tail" aria-label="Ссылка на консультацию">
+        <p class="about-pro__tail-text muted u-m0">
+          Нужна предварительная диагностика?
+          <a href="/consult.html">Открыть ИИ-консультацию</a>
+        </p>
       </section>
     </main>
     <div id="footer-placeholder"></div>
-    <script type="module">
-      import { mountHeaderFooter } from '/js/layout.js';
-      mountHeaderFooter({ active: 'about' });
-    </script>
+    <script type="module" src="/js/entry/about-page.js"></script>
   </body>
 </html>

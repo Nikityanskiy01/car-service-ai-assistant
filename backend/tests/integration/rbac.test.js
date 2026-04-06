@@ -12,6 +12,7 @@ describe('rbac', () => {
       .get('/api/service-requests')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.items)).toBe(true);
     const res2 = await request(app)
       .patch('/api/service-requests/00000000-0000-4000-8000-000000000099')
       .set('Authorization', `Bearer ${token}`)
@@ -43,6 +44,6 @@ describe('rbac', () => {
       .get('/api/service-requests')
       .set('Authorization', `Bearer ${login.body.accessToken}`);
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.items)).toBe(true);
   });
 });

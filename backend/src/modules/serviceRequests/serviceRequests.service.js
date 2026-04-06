@@ -1,6 +1,7 @@
 import { apiMessages } from '../../config/apiMessages.js';
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
+import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
 import { isExtractedComplete } from '../../lib/consultationProgress.js';
 import { notifyNewServiceRequest } from '../notifications/telegram.service.js';
 
@@ -36,30 +37,8 @@ export async function createFromSession(sessionId, user) {
     return created;
   });
 
-  const full = await prisma.serviceRequest.findUnique({
-    where: { id: sr.id },
-    include: {
-      client: {
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          email: true,
-          emailProfile: true,
-        },
-      },
-      consultationSession: {
-        include: {
-          messages: { orderBy: { createdAt: 'asc' } },
-          extracted: true,
-          recommendations: true,
-        },
-      },
-    },
-  });
-
+  const full = await findFullServiceRequest(sr.id);
   await notifyNewServiceRequest(full);
-
   return full;
 }
 
@@ -77,8 +56,12 @@ export async function createFromGuestSession(sessionId, actor, { fullName, phone
     throw new AppError(400, apiMessages.serviceRequest.incompleteConsultation, 'INCOMPLETE');
   }
   const name = String(fullName || '').trim();
-  const ph = String(phone || '').trim();
-  if (!name || !ph) throw new AppError(400, apiMessages.serviceRequest.guestNamePhoneRequired, 'BAD_REQUEST');
+  const phRaw = String(phone || '').trim();
+  if (!name || !phRaw) throw new AppError(400, apiMessages.serviceRequest.guestNamePhoneRequired, 'BAD_REQUEST');
+  const phDigits = normalizePhone(phRaw);
+  if (!isValidPhoneDigits(phDigits)) {
+    throw new AppError(400, 'Укажите корректный номер телефона', 'BAD_REQUEST');
+  }
 
   const ext = session.extracted;
   const sr = await prisma.$transaction(async (tx) => {
@@ -86,7 +69,7 @@ export async function createFromGuestSession(sessionId, actor, { fullName, phone
       data: {
         clientId: null,
         guestName: name.slice(0, 120),
-        guestPhone: ph.slice(0, 40),
+        guestPhone: phDigits.slice(0, 40),
         guestEmail: email ? String(email).slice(0, 120) : null,
         consultationSessionId: sessionId,
         status: 'NEW',
@@ -98,38 +81,34 @@ export async function createFromGuestSession(sessionId, actor, { fullName, phone
     });
     await tx.consultationSession.update({
       where: { id: sessionId },
-      data: { status: 'COMPLETED', progressPercent: 100, guestName: name, guestPhone: ph },
+      data: { status: 'COMPLETED', progressPercent: 100, guestName: name, guestPhone: phDigits },
     });
     return created;
   });
 
-  const full = await prisma.serviceRequest.findUnique({
-    where: { id: sr.id },
-    include: {
-      client: {
-        select: {
-          id: true,
-          fullName: true,
-          phone: true,
-          email: true,
-          emailProfile: true,
-        },
-      },
-      consultationSession: {
-        include: {
-          messages: { orderBy: { createdAt: 'asc' } },
-          extracted: true,
-          recommendations: true,
-        },
-      },
-    },
-  });
-
+  const full = await findFullServiceRequest(sr.id);
   await notifyNewServiceRequest(full);
   return full;
 }
 
-export async function listRequests(user, { status, q } = {}) {
+function findFullServiceRequest(id) {
+  return prisma.serviceRequest.findUnique({
+    where: { id },
+    include: {
+      client: {
+        select: { id: true, fullName: true, phone: true, email: true, emailProfile: true },
+      },
+      consultationSession: {
+        include: { messages: { orderBy: { createdAt: 'asc' } }, extracted: true, recommendations: true },
+      },
+    },
+  });
+}
+
+export async function listRequests(
+  user,
+  { status, q, page = 1, pageSize = 20, sort = 'createdAt', dir = 'desc' } = {},
+) {
   if (user.role !== 'CLIENT' && user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {
     throw new AppError(403, 'Forbidden', 'FORBIDDEN');
   }
@@ -146,13 +125,42 @@ export async function listRequests(user, { status, q } = {}) {
       { snapshotSymptoms: { contains: s, mode: 'insensitive' } },
     ];
   }
-  return prisma.serviceRequest.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      client: { select: { id: true, fullName: true, phone: true, email: true } },
-    },
-  });
+  const take = Math.min(Math.max(1, Number(pageSize) || 20), 100);
+  const skip = (Math.max(1, Number(page) || 1) - 1) * take;
+  const orderDir = dir === 'asc' ? 'asc' : 'desc';
+  let orderBy;
+  switch (sort) {
+    case 'status':
+      orderBy = { status: orderDir };
+      break;
+    case 'version':
+      orderBy = { version: orderDir };
+      break;
+    case 'client':
+      orderBy = [{ client: { fullName: orderDir } }, { guestName: orderDir }];
+      break;
+    case 'car':
+      orderBy = [{ snapshotMake: orderDir }, { snapshotModel: orderDir }];
+      break;
+    case 'createdAt':
+    default:
+      orderBy = { createdAt: orderDir };
+      break;
+  }
+  const include = {
+    client: { select: { id: true, fullName: true, phone: true, email: true } },
+  };
+  const [items, total] = await prisma.$transaction([
+    prisma.serviceRequest.findMany({
+      where,
+      orderBy,
+      take,
+      skip,
+      include,
+    }),
+    prisma.serviceRequest.count({ where }),
+  ]);
+  return { items, total, page: Math.max(1, Number(page) || 1), pageSize: take };
 }
 
 export async function getRequest(requestId, user) {

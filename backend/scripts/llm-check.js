@@ -7,19 +7,25 @@ function safePreview(text, maxLen = 500) {
 
 async function main() {
   const env = getEnv();
-  const url = `${env.LLM_BASE_URL.replace(/\/$/, '')}/chat/completions`;
+  const base = env.LLM_BASE_URL.replace(/\/v1\/?$/, '').replace(/\/$/, '');
+  const url = `${base}/api/chat`;
 
   const body = {
     model: env.LLM_MODEL,
     messages: [
       {
         role: 'system',
-        content:
-          'Отвечай ТОЛЬКО валидным JSON без текста вокруг. JSON должен иметь ключ "reply" (строка).',
+        content: 'Отвечай строго JSON с ключом "reply" (строка).',
       },
       { role: 'user', content: 'Верни JSON с reply="ok".' },
     ],
+    format: {
+      type: 'object',
+      properties: { reply: { type: 'string' } },
+      required: ['reply'],
+    },
     temperature: 0,
+    stream: false,
   };
 
   const res = await fetch(url, {
@@ -42,9 +48,9 @@ async function main() {
     process.exit(1);
   }
 
-  const content = data?.choices?.[0]?.message?.content;
+  const content = data?.message?.content;
   if (!content) {
-    console.error(`LLM check failed: missing choices[0].message.content: ${safePreview(rawText)}`);
+    console.error(`LLM check failed: missing message.content: ${safePreview(rawText)}`);
     process.exit(1);
   }
 
@@ -69,4 +75,3 @@ main().catch((e) => {
   console.error(`LLM check failed: ${e?.message || String(e)}`);
   process.exit(1);
 });
-

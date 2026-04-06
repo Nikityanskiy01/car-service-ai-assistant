@@ -1,16 +1,24 @@
-# AI Fox Motors — Render Blueprint (backend + static frontend + PostgreSQL)
-# Статический сайт: в спецификации Render — type: web + runtime: static + staticPublishPath
+# AI Fox Motors — Render Blueprint
+# Один Web Service: API + статика из frontend/dist (один origin → cookie, CSRF, /api без прокси).
+# Ранее отдельный Static Site ломал фронт: api.js использует window.location.origin + '/api'.
+#
+# ИИ / Ollama на Render НЕ деплоятся и не нужны: только веб-приложение + PostgreSQL.
+# Консультации с выключенным LLM — rule-based fallback; LLM_* в Dashboard не настраивать.
+#
+# Деплой: Dashboard → New → Blueprint → указать этот репозиторий.
 services:
   - type: web
-    name: ai-fox-motors-backend
+    name: ai-fox-motors-app
     env: node
     plan: free
     rootDir: backend
+    healthCheckPath: /api/health
     autoDeploy: true
     buildCommand: |
-      npm install
+      npm ci
       npx prisma generate
       npx prisma migrate deploy
+      cd ../frontend && npm ci && npm run build
     startCommand: node src/server.js
     envVars:
       - key: NODE_ENV
@@ -23,18 +31,16 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
-      # На Render нет локального Ollama — сценарий без внешнего LLM API
-      - key: LLM_MOCK
-        value: "true"
-
-  - type: web
-    name: ai-fox-motors-frontend
-    runtime: static
-    plan: free
-    rootDir: frontend
-    autoDeploy: true
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+      - key: JWT_EXPIRES_IN
+        value: "30m"
+      - key: REFRESH_TOKEN_EXPIRES_DAYS
+        value: "7"
+      # Явно без нейросети на платформе (не поднимаем Ollama и не тянем модели в билд).
+      - key: LLM_ENABLED
+        value: "false"
+      # TELEGRAM_* при необходимости добавьте в Dashboard вручную.
+      # CORS: на Render автоматически подставляется из RENDER_EXTERNAL_URL в env.js, если не задать вручную.
+      # При кастомном домене задайте CORS_ORIGIN=https://ваш-домен (без слэша в конце).
 
 databases:
   - name: ai-fox-motors-db

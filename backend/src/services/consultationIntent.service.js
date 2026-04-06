@@ -46,15 +46,30 @@ export function detectConsultationIntent(message) {
   const low = String(message || '').toLowerCase();
   if (!low.trim()) return 'unknown';
 
+  let hasDiagnostic = false;
   for (const m of DIAGNOSTIC_MARKERS) {
-    if (low.includes(m)) return 'diagnostic';
+    if (low.includes(m)) hasDiagnostic = true;
   }
 
+  let hasService = false;
+  let longestService = '';
   for (const m of SERVICE_MARKERS) {
-    if (low.includes(m)) return 'service';
+    if (low.includes(m)) {
+      hasService = true;
+      if (m.length > longestService.length) longestService = m;
+    }
   }
+  if (!hasService && hasServiceToAbbrev(low)) hasService = true;
 
-  if (hasServiceToAbbrev(low)) return 'service';
+  if (hasDiagnostic) return 'diagnostic';
+
+  if (hasService) {
+    const stripped = low.replace(longestService, '').replace(/[,.\s]+/g, ' ').trim();
+    const filler = /^[\s\d]*(?:тыс(?:яч)?|км|год[а-я]*|пробег|мазда|mazda|bmw|toyota|kia|hyundai|honda|nissan|audi|vw|volkswagen|mercedes|лада|ваз|форд|шкода|рено|опель|пежо|субару|шевроле|чери|хавал|geely|haval|лексус|вольво|порше|фиат|ситроен|mitsubishi|suzuki|[a-zа-яё]{1,3}\d{1,4}|\d{4}\s*г(?:од)?)\b/gi;
+    const remainder = stripped.replace(filler, '').replace(/\s+/g, ' ').trim();
+    if (remainder.length > 12) return 'diagnostic';
+    return 'service';
+  }
 
   return 'unknown';
 }

@@ -1,9 +1,11 @@
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 
-export async function listUsers() {
+export async function listUsers({ limit = 100, offset = 0 } = {}) {
   return prisma.user.findMany({
     orderBy: { createdAt: 'desc' },
+    take: Math.min(limit, 200),
+    skip: offset,
     select: {
       id: true,
       email: true,
