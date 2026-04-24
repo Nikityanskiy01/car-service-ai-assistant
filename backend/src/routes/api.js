@@ -8,6 +8,7 @@ import { authRouter } from '../modules/auth/auth.router.js';
 import { bookingsRouter } from '../modules/bookings/bookings.router.js';
 import { contactRouter } from '../modules/contact/contact.router.js';
 import { consultationsRouter } from '../modules/consultations/consultations.router.js';
+import { contentRouter } from '../modules/content/content.router.js';
 import { requestMessagesRouter } from '../modules/requestMessages/requestMessages.router.js';
 import { serviceRequestsRouter } from '../modules/serviceRequests/serviceRequests.router.js';
 import { usersRouter } from '../modules/users/users.router.js';
@@ -28,6 +29,7 @@ api.get('/health', async (_req, res) => {
 
 api.use('/auth', authRouter);
 api.use('/contact', contactRouter);
+api.use('/content', contentRouter);
 api.use('/users', usersRouter);
 api.use('/consultations', consultationsRouter);
 api.use('/service-requests', serviceRequestsRouter);

@@ -1,5 +1,6 @@
 import { getUser } from './api.js';
 import { uiAlert } from './ui/dialogs.js';
+import { escapeHtml } from './utils.js';
 
 const STORAGE_KEY = 'fm_booking_prefill';
 const CLIENT_BOOKINGS = '/dashboards/client.html#tab=bookings';
@@ -95,4 +96,29 @@ export function initHomeServicesBooking() {
       void goToBooking(t, 'Услуги автосервиса');
     });
   });
+}
+
+export async function mountCmsServices() {
+  const root = document.getElementById('servicesCmsGrid');
+  if (!root) return;
+  try {
+    const res = await fetch('/api/content/site-items?kind=service', { credentials: 'include' });
+    if (!res.ok) return;
+    const items = await res.json();
+    if (!Array.isArray(items) || !items.length) {
+      root.innerHTML = '<div class="empty">Пока нет дополнительных услуг.</div>';
+      return;
+    }
+    root.innerHTML = items
+      .map(
+        (it) => `<article class="card services-pro__item">
+      <h3>${escapeHtml(it.title || '')}</h3>
+      <p class="muted">${escapeHtml(it.description || '')}</p>
+      ${it.price ? `<p class="services-pro__price">${escapeHtml(it.price)}</p>` : ''}
+    </article>`,
+      )
+      .join('');
+  } catch {
+    root.innerHTML = '<div class="empty">Не удалось загрузить данные CMS.</div>';
+  }
 }

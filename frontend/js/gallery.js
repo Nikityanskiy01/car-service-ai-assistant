@@ -1,5 +1,14 @@
 import { $, $$ } from './utils.js';
 
+function esc(s) {
+  return String(s || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 export function initGalleryPage() {
   const filterButtons = $$('.gallery-pro__filters [data-filter]');
   const items = $$('#galleryGrid .gallery-item');
@@ -51,5 +60,29 @@ export function initGalleryPage() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeLightbox();
   });
+}
+
+export async function mountCmsGallery() {
+  const root = document.getElementById('galleryGrid');
+  if (!root) return;
+  try {
+    const res = await fetch('/api/content/site-items?kind=gallery', { credentials: 'include' });
+    if (!res.ok) return;
+    const items = await res.json();
+    if (!Array.isArray(items) || !items.length) return;
+    root.insertAdjacentHTML(
+      'beforeend',
+      items
+      .map(
+        (it) => `<article class="gallery-item card" data-category="${esc(String(it.category || 'all').toLowerCase())}">
+      ${it.imageUrl ? `<img src="${esc(it.imageUrl)}" alt="${esc(it.title || 'Фото')}" loading="lazy" />` : ''}
+      <p>${esc(it.title || '')}</p>
+    </article>`,
+      )
+      .join(''),
+    );
+  } catch {
+    /* ignore */
+  }
 }
 

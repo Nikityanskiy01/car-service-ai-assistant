@@ -21,6 +21,11 @@ const patchSchema = z.object({
   expectedVersion: z.number().int(),
 });
 
+const bulkPatchSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+  status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']),
+});
+
 export const serviceRequestsRouter = Router();
 serviceRequestsRouter.use(authJwt);
 
@@ -80,6 +85,23 @@ serviceRequestsRouter.patch(
       status: row.status,
       version: row.version,
     });
+  }),
+);
+
+serviceRequestsRouter.post(
+  '/bulk/status',
+  requireRole('MANAGER', 'ADMINISTRATOR'),
+  validateBody(bulkPatchSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await serviceRequestsService.bulkPatchStatuses(req.user, req.validatedBody));
+  }),
+);
+
+serviceRequestsRouter.get(
+  '/client-dossier/:clientId',
+  requireRole('MANAGER', 'ADMINISTRATOR'),
+  asyncHandler(async (req, res) => {
+    res.json(await serviceRequestsService.getClientDossier(req.user, req.params.clientId));
   }),
 );
 

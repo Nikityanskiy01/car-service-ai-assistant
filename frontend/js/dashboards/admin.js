@@ -1,4 +1,4 @@
-import { api } from '../api.js';
+import { api, downloadApiFile } from '../api.js';
 import { requireAuth } from '../router-guard.js';
 import { $, escapeHtml } from '../utils.js';
 import { uiAlert, uiConfirm, uiPromptText } from '../ui/dialogs.js';
@@ -33,6 +33,36 @@ export async function initAdminDashboard() {
   let catsCache = [];
   let matsCache = [];
   let scenariosCache = [];
+  let contentKind = 'service';
+
+  const CMS_CATEGORY_LABELS = {
+    service: {
+      diagnostics: 'Диагностика',
+      engine: 'Двигатель',
+      suspension: 'Подвеска',
+      brakes: 'Тормозная система',
+      electric: 'Электрика',
+      transmission: 'Трансмиссия',
+      to: 'Техническое обслуживание',
+      detailing: 'Детейлинг и уход',
+      tires: 'Шины и диски',
+    },
+    work: {
+      engine: 'Двигатель',
+      suspension: 'Подвеска',
+      brakes: 'Тормозная система',
+      electric: 'Электрика',
+      transmission: 'Трансмиссия',
+      to: 'Техническое обслуживание',
+    },
+    gallery: {
+      service: 'Сервис',
+      equipment: 'Оборудование',
+      zones: 'Ремонтные зоны',
+      cars: 'Автомобили',
+      results: 'Результаты работ',
+    },
+  };
 
   /** @type {ReturnType<typeof mountStaffDashboardOperations> | null} */
   let staffOps = null;
@@ -129,6 +159,50 @@ export async function initAdminDashboard() {
     }
   }
 
+  function renderKpi(kpi) {
+    const f = kpi?.funnel || {};
+    const mgrRows = (kpi?.managers || [])
+      .map(
+        (m) =>
+          `<li><span class="admin-summary__k">${escapeHtml(m.manager?.fullName || m.manager?.email || 'manager')}</span> <strong>${escapeHtml(String(m.activityMessages || 0))}</strong> сообщений</li>`,
+      )
+      .join('');
+    return `
+      <div class="admin-summary__grid">
+        <div class="card admin-summary__card"><h3 class="admin-summary__h">Консультации</h3><p class="admin-summary__num">${escapeHtml(String(f.consultationsTotal || 0))}</p></div>
+        <div class="card admin-summary__card"><h3 class="admin-summary__h">Заявки</h3><p class="admin-summary__num">${escapeHtml(String(f.requestsTotal || 0))}</p></div>
+        <div class="card admin-summary__card"><h3 class="admin-summary__h">Записи</h3><p class="admin-summary__num">${escapeHtml(String(f.bookingsTotal || 0))}</p></div>
+        <div class="card admin-summary__card admin-summary__card--wide"><h3 class="admin-summary__h">Конверсия консультация -> заявка</h3><p class="admin-summary__num">${escapeHtml(String(f.conversionConsultationToRequest || 0))}%</p></div>
+        <div class="card admin-summary__card admin-summary__card--wide"><h3 class="admin-summary__h">Конверсия заявка -> запись</h3><p class="admin-summary__num">${escapeHtml(String(f.conversionRequestToBooking || 0))}%</p></div>
+        <div class="card admin-summary__card admin-summary__card--wide"><h3 class="admin-summary__h">Активность менеджеров</h3><ul class="admin-summary__list u-list-reset">${mgrRows || '<li class="muted">Нет данных</li>'}</ul></div>
+      </div>
+    `;
+  }
+
+  async function loadKpi() {
+    const box = $('#kpiBox');
+    if (box) box.innerHTML = '<p class="muted u-m0">Загружаем KPI…</p>';
+    try {
+      const kpi = await api('/analytics/kpi');
+      if (box) box.innerHTML = renderKpi(kpi);
+    } catch (e) {
+      if (box) box.innerHTML = `<div class="empty">${escapeHtml(e.message || 'Ошибка загрузки KPI')}</div>`;
+    }
+  }
+
+  async function loadAudit() {
+    const rows = await api('/admin/audit-events?limit=100');
+    const tbody = $('#auditTable tbody');
+    if (!tbody) return;
+    tbody.innerHTML = rows.length
+      ? rows
+          .map(
+            (r) => `<tr><td>${escapeHtml(new Date(r.createdAt).toLocaleString('ru-RU'))}</td><td>${escapeHtml(r.action)}</td><td>${escapeHtml(r.entityType)}</td><td>${escapeHtml(r.actor?.fullName || r.actor?.email || 'system')}</td><td><small>${escapeHtml(JSON.stringify(r.payloadJson || {}))}</small></td></tr>`,
+          )
+          .join('')
+      : `<tr><td colspan="5"><div class="empty">Событий пока нет</div></td></tr>`;
+  }
+
   async function loadUsers() {
     const users = await api('/admin/users');
     const q = ($('#adminUserQ')?.value || '').trim().toLowerCase();
@@ -213,9 +287,12 @@ export async function initAdminDashboard() {
         : `<tr><td colspan="4"><div class="empty">Категорий пока нет. Добавьте первую выше.</div></td></tr>`;
     }
 
-    $('#matCat').innerHTML =
-      `<option value="">— без категории —</option>` +
-      cats.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    const matCat = $('#matCat');
+    if (matCat) {
+      matCat.innerHTML =
+        `<option value="">— без категории —</option>` +
+        cats.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    }
 
     tbody.querySelectorAll('.catEdit').forEach((b) => {
       b.addEventListener('click', async () => {
@@ -498,137 +575,146 @@ export async function initAdminDashboard() {
   }
 
   async function loadMaterials() {
-    const [cats, mats] = await Promise.all([
-      api('/admin/reference/service-categories'),
-      api('/admin/reference/reference-materials'),
-    ]);
-    catsCache = cats;
-    matsCache = mats;
-
-    $('#matCat').innerHTML =
-      `<option value="">— без категории —</option>` +
-      cats.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-
-    const tbody = $('#matTable tbody');
-    const q = ($('#matQ')?.value || '').trim().toLowerCase();
-    const filtered = q
-      ? mats.filter(
-          (m) =>
-            String(m.title || '').toLowerCase().includes(q) ||
-            String(m.body || '').toLowerCase().includes(q) ||
-            String(m.category?.name || '').toLowerCase().includes(q),
-        )
-      : mats;
-    tbody.innerHTML = filtered
-      .map(
-        (m) => `<tr data-id="${m.id}" class="u-pointer">
-        <td><strong>${escapeHtml(m.title)}</strong></td>
-        <td class="muted">${escapeHtml(m.category?.name || '—')}</td>
-        <td class="u-text-right">
-          <button type="button" class="btn btn--ghost btn-sm matOpen" data-id="${m.id}">Открыть</button>
-          <button type="button" class="btn btn--ghost btn-sm matDel" data-id="${m.id}">Удалить</button>
-        </td>
-      </tr>`,
-      )
-      .join('');
-    if (!filtered.length) {
-      tbody.innerHTML = q
-        ? `<tr><td colspan="3"><div class="empty">Ничего не найдено по запросу “${escapeHtml(q)}”.</div></td></tr>`
-        : `<tr><td colspan="3"><div class="empty">Материалов пока нет. Добавьте первый выше.</div></td></tr>`;
-    }
-
-    function renderMatDetail(m) {
-      const box = $('#matDetail');
-      if (!box) return;
-      if (!m) {
-        box.innerHTML = `<div class="empty">Выберите материал в таблице, чтобы посмотреть или отредактировать.</div>`;
-        return;
-      }
-      box.dataset.mid = m.id;
-      const catOptions =
-        `<option value="">— без категории —</option>` +
-        catsCache.map((c) => `<option value="${c.id}" ${c.id === m.categoryId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
-      box.innerHTML = `
-        <div class="dash__section-head">
+    const rows = await api(`/admin/site-items?kind=${encodeURIComponent(contentKind)}`);
+    matsCache = Array.isArray(rows) ? rows : [];
+    const q = ($('#siteItemQ')?.value || '').trim().toLowerCase();
+    const filtered = matsCache.filter((m) => {
+      if (!q) return true;
+      return (
+        String(m.title || '').toLowerCase().includes(q) ||
+        String(m.description || '').toLowerCase().includes(q) ||
+        String(m.category || '').toLowerCase().includes(q)
+      );
+    });
+    const listRoot = $('#siteItemsList');
+    if (!listRoot) return;
+    const titleEl = $('#siteItemsTitle');
+    const countEl = $('#siteItemsCount');
+    if (titleEl) titleEl.textContent = `Карточки: ${kindTitle(contentKind).toLowerCase()}`;
+    if (countEl) countEl.textContent = String(filtered.length);
+    listRoot.innerHTML = filtered.length
+      ? filtered
+          .map(
+            (m, idx) => `<article class="site-cms-item" draggable="true" data-id="${m.id}">
+        <div class="site-cms-item__head">
           <div>
-            <h3 class="dash__title">Материал</h3>
-            <p class="muted dash__subtitle">ID: ${escapeHtml(m.id.slice(0, 8))}…</p>
+            <div class="muted">#${idx + 1}</div>
+            <strong>${escapeHtml(m.title || '')}</strong>
           </div>
-          <div class="dash__detail-actions">
-            <button type="button" class="btn btn--primary btn-sm" id="matSave">Сохранить</button>
-            <button type="button" class="btn btn--ghost btn-sm" id="matDelete">Удалить</button>
-          </div>
+          <button type="button" class="btn btn--ghost btn-sm siteItemToggle" data-id="${m.id}">${m.published ? 'Опубликовано' : 'Скрыто'}</button>
         </div>
-        <div class="grid-2 dash__content-grid">
-          <div class="form-field dash__form-field">
-            <label for="matEditTitle">Заголовок</label>
-            <input id="matEditTitle" value="${escapeHtml(m.title || '')}" />
-          </div>
-          <div class="form-field dash__form-field">
-            <label for="matEditCat">Категория</label>
-            <select id="matEditCat">${catOptions}</select>
-          </div>
+        <div class="site-cms-item__meta muted">${escapeHtml(prettyCategory(m.kind, m.category))} ${m.price ? `• ${escapeHtml(m.price)}` : ''}</div>
+        ${m.description ? `<div class="site-cms-item__desc muted">${escapeHtml(m.description)}</div>` : ''}
+        <div class="site-cms-item__actions">
+          <button type="button" class="btn btn--ghost btn-sm siteItemEdit" data-id="${m.id}">Правка</button>
+          <button type="button" class="btn btn--ghost btn-sm siteItemDel" data-id="${m.id}">Удалить</button>
         </div>
-        <div class="form-field dash__form-text-field">
-          <label for="matEditBody">Текст</label>
-          <textarea id="matEditBody" rows="6" placeholder="Коротко, по делу">${escapeHtml(m.body || '')}</textarea>
-        </div>
-        <p class="muted dash__hint-tip">
-          Подсказка: используйте списки и короткие фразы — это быстрее читается в консультации.
-        </p>
-      `;
+      </article>`,
+          )
+          .join('')
+      : `<div class="empty">Пока нет записей. Добавьте первую карточку слева.</div>`;
 
-      box.querySelector('#matSave')?.addEventListener('click', async () => {
-        const title = String(box.querySelector('#matEditTitle')?.value || '').trim();
-        const body = String(box.querySelector('#matEditBody')?.value || '').trim();
-        const categoryId = String(box.querySelector('#matEditCat')?.value || '');
-        if (!title || !body) {
-          await uiAlert({ title: 'Проверьте поля', message: 'Нужно заполнить заголовок и текст материала.' });
-          return;
-        }
-        await api(`/admin/reference/reference-materials/${m.id}`, {
-          method: 'PATCH',
-          body: { title, body, categoryId: categoryId || null },
-        });
-        await uiAlert({ title: 'Готово', message: 'Материал сохранён.' });
-        await loadMaterials();
-        const updated = matsCache.find((x) => x.id === m.id);
-        if (updated) renderMatDetail(updated);
-      });
-
-      box.querySelector('#matDelete')?.addEventListener('click', async () => {
-        const ok = await uiConfirm({ title: 'Удалить материал', message: 'Удалить справочный материал?' });
-        if (!ok) return;
-        await api(`/admin/reference/reference-materials/${m.id}`, { method: 'DELETE' });
-        await uiAlert({ title: 'Готово', message: 'Материал удалён.' });
-        box.removeAttribute('data-mid');
-        await loadMaterials();
-        renderMatDetail(null);
-      });
-    }
-
-    tbody.querySelectorAll('tr[data-id]').forEach((tr) => {
-      tr.addEventListener('click', () => {
-        const id = tr.dataset.id;
-        const m = mats.find((x) => x.id === id);
-        tbody.querySelectorAll('tr[data-id]').forEach((x) => x.classList.toggle('is-selected', x.dataset.id === id));
-        renderMatDetail(m);
-      });
-    });
-    tbody.querySelectorAll('.matOpen').forEach((b) => {
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        b.closest('tr[data-id]')?.click();
-      });
-    });
-    tbody.querySelectorAll('.matDel').forEach((b) => {
-      b.addEventListener('click', async (e) => {
-        e.stopPropagation();
+    listRoot.querySelectorAll('.siteItemEdit').forEach((b) => {
+      b.addEventListener('click', async () => {
         const id = b.dataset.id;
-        const ok = await uiConfirm({ title: 'Удалить материал', message: 'Удалить справочный материал?' });
+        const row = matsCache.find((x) => x.id === id);
+        if (!row) return;
+        const title = await uiPromptText({ title: 'Правка записи', label: 'Заголовок', initialValue: row.title || '' });
+        if (title == null) return;
+        const description = await uiPromptText({
+          title: 'Правка записи',
+          label: 'Описание',
+          initialValue: row.description || '',
+          multiline: true,
+        });
+        if (description == null) return;
+        await api(`/admin/site-items/${id}`, {
+          method: 'PATCH',
+          body: {
+            kind: row.kind,
+            title,
+            description,
+            price: row.price || '',
+            category: row.category || '',
+            imageUrl: row.imageUrl || '',
+            problem: row.problem || '',
+            result: row.result || '',
+            term: row.term || '',
+          },
+        });
+        await uiAlert({ title: 'Готово', message: 'Запись обновлена.' });
+        await loadMaterials();
+      });
+    });
+
+    listRoot.querySelectorAll('.siteItemToggle').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const id = b.dataset.id;
+        const row = matsCache.find((x) => x.id === id);
+        if (!row) return;
+        await api(`/admin/site-items/${id}`, {
+          method: 'PATCH',
+          body: {
+            kind: row.kind,
+            title: row.title,
+            description: row.description || '',
+            price: row.price || '',
+            category: row.category || '',
+            imageUrl: row.imageUrl || '',
+            problem: row.problem || '',
+            result: row.result || '',
+            term: row.term || '',
+            published: !row.published,
+            orderIndex: row.orderIndex || 0,
+          },
+        });
+        await loadMaterials();
+      });
+    });
+
+    listRoot.querySelectorAll('.siteItemDel').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const id = b.dataset.id;
+        const ok = await uiConfirm({ title: 'Удалить запись', message: 'Удалить запись из CMS сайта?' });
         if (!ok) return;
-        await api(`/admin/reference/reference-materials/${id}`, { method: 'DELETE' });
-        await uiAlert({ title: 'Готово', message: 'Материал удалён.' });
+        await api(`/admin/site-items/${id}`, { method: 'DELETE' });
+        await uiAlert({ title: 'Готово', message: 'Запись удалена.' });
+        await loadMaterials();
+      });
+    });
+
+    let draggedId = null;
+    const dndEnabled = !q;
+    listRoot.querySelectorAll('.site-cms-item').forEach((row) => {
+      if (!dndEnabled) row.setAttribute('draggable', 'false');
+      row.addEventListener('dragstart', () => {
+        if (!dndEnabled) return;
+        draggedId = row.dataset.id;
+        row.classList.add('site-cms-item--dragging');
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('site-cms-item--dragging');
+      });
+      row.addEventListener('dragover', (e) => {
+        if (!dndEnabled) return;
+        e.preventDefault();
+      });
+      row.addEventListener('drop', async (e) => {
+        if (!dndEnabled) return;
+        e.preventDefault();
+        const targetId = row.dataset.id;
+        if (!draggedId || !targetId || draggedId === targetId) return;
+        const ordered = [...matsCache];
+        const from = ordered.findIndex((x) => x.id === draggedId);
+        const to = ordered.findIndex((x) => x.id === targetId);
+        if (from < 0 || to < 0) return;
+        const [item] = ordered.splice(from, 1);
+        ordered.splice(to, 0, item);
+        await api('/admin/site-items/reorder', {
+          method: 'POST',
+          body: { kind: contentKind, ids: ordered.map((x) => x.id) },
+        });
+        draggedId = null;
         await loadMaterials();
       });
     });
@@ -659,30 +745,77 @@ export async function initAdminDashboard() {
     await loadScenarios({ keepSelected: false });
   });
 
-  $('#matForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    await api('/admin/reference/reference-materials', {
+  async function createSiteItem(kind, data) {
+    const category = resolveCategoryValue(kind, data);
+    await api('/admin/site-items', {
       method: 'POST',
       body: {
-        title: fd.get('title'),
-        body: fd.get('body'),
-        categoryId: fd.get('categoryId') || null,
+        kind,
+        title: String(data.title || ''),
+        description: String(data.description || ''),
+        category,
+        price: String(data.price || ''),
+        imageUrl: String(data.imageUrl || ''),
+        problem: String(data.problem || ''),
+        result: String(data.result || ''),
+        term: String(data.term || ''),
       },
     });
-    await uiAlert({ title: 'Готово', message: 'Материал создан.' });
-    e.target.reset();
+    await uiAlert({ title: 'Готово', message: 'Запись добавлена.' });
     await loadMaterials();
+  }
+
+  $('#serviceForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    await createSiteItem('service', Object.fromEntries(fd.entries()));
+    e.target.reset();
+  });
+  $('#workForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    await createSiteItem('work', Object.fromEntries(fd.entries()));
+    e.target.reset();
+  });
+  $('#galleryForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    await createSiteItem('gallery', Object.fromEntries(fd.entries()));
+    e.target.reset();
   });
 
   $('#btnReloadSummary')?.addEventListener('click', () => loadSummary());
+  $('#btnReloadKpi')?.addEventListener('click', () => loadKpi());
+  $('#btnExportKpi')?.addEventListener('click', async () => downloadApiFile('/analytics/kpi.csv'));
   $('#btnReloadUsers')?.addEventListener('click', () => loadUsers());
   $('#adminUserQ')?.addEventListener('input', () => loadUsers());
   $('#btnReloadCats')?.addEventListener('click', () => loadCategories());
   $('#catQ')?.addEventListener('input', () => loadCategories());
   $('#btnReloadSc')?.addEventListener('click', () => loadScenarios({ keepSelected: true }));
   $('#btnReloadMat')?.addEventListener('click', () => loadMaterials());
-  $('#matQ')?.addEventListener('input', () => loadMaterials());
+  $('#btnReloadAudit')?.addEventListener('click', () => loadAudit());
+  $('#siteItemQ')?.addEventListener('input', () => loadMaterials());
+  $('#matKindFilter')?.addEventListener('change', () => {
+    contentKind = String($('#matKindFilter')?.value || 'service');
+    switchContentKind(contentKind);
+    loadMaterials();
+  });
+  $('#contentTypeTabs')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-content-kind]');
+    if (!btn) return;
+    const kind = btn.getAttribute('data-content-kind') || 'service';
+    const sel = $('#matKindFilter');
+    if (sel) sel.value = kind;
+    contentKind = kind;
+    switchContentKind(kind);
+    void loadMaterials();
+  });
+  document.querySelectorAll('select[name="categoryPreset"][data-custom-target]').forEach((select) => {
+    select.addEventListener('change', () => {
+      syncCustomCategoryInput(select);
+    });
+    syncCustomCategoryInput(select);
+  });
 
   staffOps = mountStaffDashboardOperations(ADMIN_OPS_IDS, {
     navigateToTab: setActiveTab,
@@ -691,6 +824,7 @@ export async function initAdminDashboard() {
   });
 
   initTabs();
+  switchContentKind(contentKind);
 
   await Promise.all([
     (async () => {
@@ -698,6 +832,7 @@ export async function initAdminDashboard() {
       await staffOps.loadBookings();
     })(),
     loadSummary(),
+    loadKpi(),
     loadUsers(),
     loadCategories(),
     (async () => {
@@ -705,5 +840,59 @@ export async function initAdminDashboard() {
       await loadScenarios({ keepSelected: false });
     })(),
     loadMaterials(),
+    loadAudit(),
   ]);
+}
+
+function switchContentKind(kind) {
+  document.querySelectorAll('.site-cms-form[data-form-kind]').forEach((form) => {
+    const active = form.getAttribute('data-form-kind') === kind;
+    form.classList.toggle('is-active', active);
+  });
+  document.querySelectorAll('#contentTypeTabs [data-content-kind]').forEach((b) => {
+    b.classList.toggle('is-active', b.getAttribute('data-content-kind') === kind);
+  });
+}
+
+function kindTitle(kind) {
+  if (kind === 'service') return 'Услуги';
+  if (kind === 'work') return 'Работы';
+  if (kind === 'gallery') return 'Галерея';
+  return 'Контент';
+}
+
+function resolveCategoryValue(kind, data) {
+  const preset = String(data.categoryPreset || '').trim().toLowerCase();
+  if (preset && preset !== 'custom') return preset;
+  const custom = String(data.categoryCustom || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9_-]/g, '');
+  if (custom) return custom;
+  if (kind === 'gallery') return 'service';
+  return kind === 'service' ? 'diagnostics' : 'engine';
+}
+
+function prettyCategory(kind, raw) {
+  const key = String(raw || '').trim().toLowerCase();
+  if (!key) return 'без категории';
+  const label = CMS_CATEGORY_LABELS[kind]?.[key];
+  return label || `Своя: ${key}`;
+}
+
+function syncCustomCategoryInput(selectEl) {
+  const targetId = selectEl.getAttribute('data-custom-target');
+  if (!targetId) return;
+  const input = document.getElementById(targetId);
+  if (!input) return;
+  const wrap = document.querySelector(`[data-custom-wrap="${targetId}"]`);
+  const isCustom = selectEl.value === 'custom';
+  if (wrap) {
+    wrap.hidden = !isCustom;
+    wrap.classList.toggle('is-visible', isCustom);
+  }
+  input.disabled = !isCustom;
+  input.required = isCustom;
+  if (!isCustom) input.value = '';
 }

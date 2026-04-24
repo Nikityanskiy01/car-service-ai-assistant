@@ -273,3 +273,16 @@ export function uiPromptText({
   });
 }
 
+export function uiToast(message, { tone = 'info', timeoutMs = 2400 } = {}) {
+  const root = ensureDialogRoot();
+  const id = `toast-${Date.now()}`;
+  const cls = tone === 'success' ? 'ui-toast ui-toast--success' : tone === 'warn' ? 'ui-toast ui-toast--warn' : 'ui-toast';
+  const html = `<div id="${id}" class="${cls}" role="status" aria-live="polite">${escapeHtml(String(message || ''))}</div>`;
+  root.insertAdjacentHTML('beforeend', html);
+  const el = root.querySelector(`#${id}`);
+  window.setTimeout(() => {
+    el?.classList.add('is-hiding');
+    window.setTimeout(() => el?.remove(), 220);
+  }, Math.max(800, Number(timeoutMs) || 2400));
+}
+

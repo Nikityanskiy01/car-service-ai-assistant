@@ -131,6 +131,23 @@
                       <button type="button" class="btn btn--outline btn-sm" id="filterBtn">Обновить</button>
                     </div>
                   </div>
+                  <section class="card u-no-shadow mgr-quick-panel">
+                    <div class="mgr-quick-panel__head">
+                      <h3 class="dash__title u-m0">Быстрый контроль</h3>
+                      <button type="button" class="btn btn--ghost btn-sm" id="mgrResetFiltersBtn">Сбросить фильтры</button>
+                    </div>
+                    <div id="mgrQuickStats" class="mgr-quick-stats">
+                      <div class="muted">Загружаем метрики...</div>
+                    </div>
+                    <div class="mgr-quick-filters" id="mgrQuickFilters" role="group" aria-label="Быстрые фильтры статуса">
+                      <button type="button" class="btn btn--ghost btn-sm is-active" data-status="">Все</button>
+                      <button type="button" class="btn btn--ghost btn-sm" data-status="NEW">Новые</button>
+                      <button type="button" class="btn btn--ghost btn-sm" data-status="IN_PROGRESS">В работе</button>
+                      <button type="button" class="btn btn--ghost btn-sm" data-status="SCHEDULED">Запланированные</button>
+                      <button type="button" class="btn btn--ghost btn-sm" data-status="COMPLETED">Завершенные</button>
+                      <button type="button" class="btn btn--ghost btn-sm" data-status="CANCELLED">Отмененные</button>
+                    </div>
+                  </section>
                   <details class="dash-sr-details">
                     <summary>Справка по разделу</summary>
                     <div class="dash-sr-details__body">
@@ -165,6 +182,20 @@
                       </p>
                     </div>
                   </details>
+                  <div class="dash__section-head">
+                    <p class="muted u-m0">Массовое действие: введите ID заявок через запятую и назначьте статус.</p>
+                    <div class="dash__detail-actions--center">
+                      <input id="bulkRequestIds" placeholder="id1,id2,id3" class="dash__search-input--wide" />
+                      <select id="bulkRequestStatus">
+                        <option value="IN_PROGRESS">В работе</option>
+                        <option value="SCHEDULED">Запланирована</option>
+                        <option value="COMPLETED">Завершена</option>
+                        <option value="CANCELLED">Отменена</option>
+                      </select>
+                      <button type="button" class="btn btn--ghost btn-sm" id="bulkFillVisibleBtn">ID из списка</button>
+                      <button type="button" class="btn btn--outline btn-sm" id="bulkApplyBtn">Применить</button>
+                    </div>
+                  </div>
                 </section>
                 <div id="mgrSrTableWrap" class="dash-sr-table-wrap" hidden>
                 <div class="table-wrap card dash__table-card dash-mgr-table-card">

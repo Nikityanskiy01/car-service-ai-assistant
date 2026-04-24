@@ -1,7 +1,7 @@
 import { api } from '../api.js';
 import { requireAuth } from '../router-guard.js';
 import { $, escapeHtml, formatDate } from '../utils.js';
-import { uiAlert } from '../ui/dialogs.js';
+import { uiAlert, uiConfirm, uiToast } from '../ui/dialogs.js';
 import { attachBookingListHandlers, renderBookingCardsMarkup } from './booking-staff-ui.js';
 import { syncStaffWorkBoard } from './service-requests-kanban.js';
 import { syncStaffWorkCalendar } from './staff-work-calendar.js';
@@ -124,6 +124,33 @@ export async function initManagerDashboard() {
             ? 'pill pill--bad'
             : 'pill pill--ghost';
     return `<span class="${cls}">${escapeHtml(text)}</span>`;
+  }
+
+  function renderQuickStats() {
+    const root = $('#mgrQuickStats');
+    if (!root) return;
+    const req = requestsListCache || [];
+    const reqCounts = {
+      NEW: 0,
+      IN_PROGRESS: 0,
+      SCHEDULED: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+    };
+    req.forEach((r) => {
+      if (reqCounts[r.status] != null) reqCounts[r.status] += 1;
+    });
+    const bookings = bookingsListCache || [];
+    const pendingBookings = bookings.filter((b) => b.status === 'PENDING').length;
+    const confirmedBookings = bookings.filter((b) => b.status === 'CONFIRMED').length;
+    root.innerHTML = `
+      <article class="mgr-quick-stat"><span class="muted">Новые заявки</span><strong>${reqCounts.NEW}</strong></article>
+      <article class="mgr-quick-stat"><span class="muted">В работе</span><strong>${reqCounts.IN_PROGRESS}</strong></article>
+      <article class="mgr-quick-stat"><span class="muted">Запланировано</span><strong>${reqCounts.SCHEDULED}</strong></article>
+      <article class="mgr-quick-stat"><span class="muted">Ожидают визит</span><strong>${pendingBookings}</strong></article>
+      <article class="mgr-quick-stat"><span class="muted">Подтверждено визитов</span><strong>${confirmedBookings}</strong></article>
+      <article class="mgr-quick-stat"><span class="muted">Показано в списке</span><strong>${req.length}</strong></article>
+    `;
   }
 
   function updateConsultSortUi() {
@@ -370,6 +397,7 @@ export async function initManagerDashboard() {
     requestsListCache = Array.isArray(res) ? res : res.items || [];
     requestsTotal = Array.isArray(res) ? res.length : typeof res.total === 'number' ? res.total : requestsListCache.length;
     renderRequestsTable();
+    renderQuickStats();
     refreshBoardViews();
   }
 
@@ -384,6 +412,22 @@ export async function initManagerDashboard() {
   async function selectRow(id) {
     selectedId = id;
     selected = await api(`/service-requests/${id}`);
+    let dossierHtml = '<p class="muted">Карточка клиента недоступна для гостя.</p>';
+    if (selected.clientId) {
+      try {
+        const dossier = await api(`/service-requests/client-dossier/${selected.clientId}`);
+        dossierHtml = `
+          <div class="card u-no-shadow">
+            <h4>Карточка клиента</h4>
+            <p><strong>${escapeHtml(dossier.profile.fullName || '—')}</strong><br>${escapeHtml(dossier.profile.phone || '—')} · ${escapeHtml(dossier.profile.email || '—')}</p>
+            <p class="muted">Заявок: ${escapeHtml(String(dossier.requests.length))}, записей: ${escapeHtml(String(dossier.bookings.length))}, консультаций: ${escapeHtml(String(dossier.consultations.length))}</p>
+          </div>
+        `;
+      } catch {
+        dossierHtml = '<p class="muted">Не удалось загрузить карточку клиента.</p>';
+      }
+    }
+
     $('#detailPanel').innerHTML = `
       <h3>Заявка ${selected.id.slice(0, 8)}…</h3>
       <p><strong>Клиент:</strong> ${escapeHtml(selected.client?.fullName || selected.guestName || '—')}<br>
@@ -422,6 +466,7 @@ export async function initManagerDashboard() {
               .join('')
           : `<div class="empty">Транскрипта консультации нет (заявка могла быть создана вручную или без ИИ-диалога).</div>`}
       </div>
+      ${dossierHtml}
     `;
 
     $('#saveStatus').onclick = async () => {
@@ -547,6 +592,7 @@ export async function initManagerDashboard() {
       listEl.innerHTML = renderBookingCardsMarkup(bookingsListCache, 'MANAGER');
       attachBookingListHandlers(listEl, { staffRole: 'MANAGER', reload: loadBookings });
     }
+    renderQuickStats();
     refreshBoardViews();
   }
 
@@ -787,6 +833,33 @@ export async function initManagerDashboard() {
   });
 
   $('#filterBtn')?.addEventListener('click', () => loadList({ resetPage: true }));
+  $('#bulkApplyBtn')?.addEventListener('click', async () => {
+    const idsRaw = String($('#bulkRequestIds')?.value || '').trim();
+    const status = String($('#bulkRequestStatus')?.value || 'IN_PROGRESS');
+    const ids = idsRaw
+      .split(/[,\s;]+/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+    if (!ids.length) {
+      await uiAlert({ title: 'Нет данных', message: 'Введите хотя бы один ID заявки через запятую.' });
+      return;
+    }
+    const ok = await uiConfirm({ title: 'Массовое изменение', message: `Изменить статус для ${ids.length} заявок?` });
+    if (!ok) return;
+    const out = await api('/service-requests/bulk/status', { method: 'POST', body: { ids, status } });
+    uiToast(`Обновлено заявок: ${out.updated || 0}`, { tone: 'success' });
+    await loadList();
+  });
+  $('#bulkFillVisibleBtn')?.addEventListener('click', () => {
+    const ids = (requestsListCache || []).map((x) => x.id).filter(Boolean).slice(0, 30);
+    if (!ids.length) {
+      uiToast('Список пуст — нечего подставлять.', { tone: 'warn' });
+      return;
+    }
+    const input = $('#bulkRequestIds');
+    if (input) input.value = ids.join(', ');
+    uiToast(`Подставлено ID: ${ids.length}`, { tone: 'success' });
+  });
   $('#filterStatus')?.addEventListener('change', () => {
     if (requestsViewMode === 'table') void loadList({ resetPage: true });
   });
@@ -798,6 +871,27 @@ export async function initManagerDashboard() {
   });
   document.getElementById('contactsRefreshBtn')?.addEventListener('click', () => loadContacts());
   document.getElementById('consultRefreshBtn')?.addEventListener('click', () => loadConsultationsList());
+  $('#mgrResetFiltersBtn')?.addEventListener('click', () => {
+    const q = $('#filterQ');
+    const st = $('#filterStatus');
+    if (q) q.value = '';
+    if (st) st.value = '';
+    document.querySelectorAll('#mgrQuickFilters [data-status]').forEach((b) => {
+      b.classList.toggle('is-active', b.getAttribute('data-status') === '');
+    });
+    void loadList({ resetPage: true });
+  });
+  $('#mgrQuickFilters')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-status]');
+    if (!btn) return;
+    const status = btn.getAttribute('data-status') || '';
+    const st = $('#filterStatus');
+    if (st) st.value = status;
+    document.querySelectorAll('#mgrQuickFilters [data-status]').forEach((b) => {
+      b.classList.toggle('is-active', b === btn);
+    });
+    void loadList({ resetPage: true });
+  });
 
   const fsInit = $('#filterStatus');
   if (fsInit && (requestsViewMode === 'kanban' || requestsViewMode === 'calendar')) {
@@ -808,6 +902,7 @@ export async function initManagerDashboard() {
 
   await loadList();
   await loadBookings();
+  renderQuickStats();
   const h = LEGACY_TAB_HASH[rawHash] || rawHash;
   if (h === 'contacts') await loadContacts();
   if (h === 'consultations') await loadConsultationsList();

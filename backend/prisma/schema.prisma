@@ -65,9 +65,58 @@ model User {
   consultationReports  ConsultationReport[]
   serviceBookings      ServiceBooking[]
   serviceBookingAudits ServiceBookingAuditLog[] @relation("BookingAuditActor")
+  adminAuditEvents     AdminAuditEvent[]        @relation("AdminAuditActor")
+  siteContentVersions  SiteContentVersion[]     @relation("SiteContentVersionActor")
   refreshTokens        RefreshToken[]
 
   @@map("users")
+}
+
+model SiteContentBlock {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  title       String
+  section     String   @default("general")
+  content     String
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  versions SiteContentVersion[]
+
+  @@index([section, updatedAt(sort: Desc)])
+  @@map("site_content_blocks")
+}
+
+model SiteContentVersion {
+  id        String   @id @default(uuid())
+  blockId   String   @map("block_id")
+  content   String
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String?  @map("created_by")
+
+  block SiteContentBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  actor User?            @relation("SiteContentVersionActor", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([blockId, createdAt(sort: Desc)])
+  @@map("site_content_versions")
+}
+
+model AdminAuditEvent {
+  id          String   @id @default(uuid())
+  actorId     String?  @map("actor_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id")
+  payloadJson Json?    @map("payload_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, createdAt(sort: Desc)])
+  @@index([action, createdAt(sort: Desc)])
+  @@map("admin_audit_events")
 }
 
 model ServiceCategory {

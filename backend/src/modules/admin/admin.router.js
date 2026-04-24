@@ -82,6 +82,48 @@ const materialPatchSchema = z
     message: 'At least one field required',
   });
 
+const contentBlockCreateSchema = z.object({
+  key: z.string().min(3).max(100),
+  title: z.string().min(1).max(200),
+  section: z.string().min(1).max(120).optional(),
+  content: z.string().min(1),
+});
+
+const contentBlockPatchSchema = z
+  .object({
+    title: z.string().min(1).max(200).optional(),
+    section: z.string().min(1).max(120).optional(),
+    content: z.string().min(1).optional(),
+    isPublished: z.boolean().optional(),
+    note: z.string().max(240).optional(),
+  })
+  .refine((o) => o.title != null || o.section != null || o.content != null || o.isPublished != null, {
+    message: 'At least one field required',
+  });
+
+const rollbackSchema = z.object({
+  versionId: z.string().uuid(),
+});
+
+const cmsItemSchema = z.object({
+  kind: z.enum(['service', 'work', 'gallery']),
+  title: z.string().min(1).max(200),
+  description: z.string().max(5000).optional(),
+  price: z.string().max(120).optional(),
+  category: z.string().max(120).optional(),
+  imageUrl: z.string().url().max(2000).optional().or(z.literal('')),
+  problem: z.string().max(2000).optional(),
+  result: z.string().max(2000).optional(),
+  term: z.string().max(200).optional(),
+  published: z.boolean().optional(),
+  orderIndex: z.number().int().nonnegative().optional(),
+});
+
+const cmsReorderSchema = z.object({
+  kind: z.enum(['service', 'work', 'gallery']),
+  ids: z.array(z.string().uuid()).min(1),
+});
+
 export const adminRouter = Router();
 adminRouter.use(authJwt);
 adminRouter.use(requireRole('ADMINISTRATOR'));
@@ -177,6 +219,95 @@ adminRouter.delete(
   asyncHandler(async (req, res) => {
     await referenceService.deleteCategory(req.params.categoryId);
     res.status(204).send();
+  }),
+);
+
+adminRouter.get(
+  '/site-content',
+  asyncHandler(async (req, res) => {
+    const section = req.query.section ? String(req.query.section) : undefined;
+    res.json(await adminService.listContentBlocks({ section }));
+  }),
+);
+
+adminRouter.post(
+  '/site-content',
+  validateBody(contentBlockCreateSchema),
+  asyncHandler(async (req, res) => {
+    const row = await adminService.createContentBlock(req.user.id, req.validatedBody);
+    res.status(201).json(row);
+  }),
+);
+
+adminRouter.patch(
+  '/site-content/:blockId',
+  validateBody(contentBlockPatchSchema),
+  asyncHandler(async (req, res) => {
+    const row = await adminService.patchContentBlock(req.params.blockId, req.user.id, req.validatedBody);
+    res.json(row);
+  }),
+);
+
+adminRouter.post(
+  '/site-content/:blockId/rollback',
+  validateBody(rollbackSchema),
+  asyncHandler(async (req, res) => {
+    const row = await adminService.rollbackContentBlock(req.params.blockId, req.validatedBody.versionId, req.user.id);
+    res.json(row);
+  }),
+);
+
+adminRouter.get(
+  '/audit-events',
+  asyncHandler(async (req, res) => {
+    const action = req.query.action ? String(req.query.action) : undefined;
+    const entityType = req.query.entityType ? String(req.query.entityType) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const rows = await adminService.listAdminAuditEvents({ action, entityType, limit });
+    res.json(rows);
+  }),
+);
+
+adminRouter.get(
+  '/site-items',
+  asyncHandler(async (req, res) => {
+    const kind = req.query.kind ? String(req.query.kind) : undefined;
+    res.json(await adminService.listCmsSiteItems({ kind }));
+  }),
+);
+
+adminRouter.post(
+  '/site-items',
+  validateBody(cmsItemSchema),
+  asyncHandler(async (req, res) => {
+    const row = await adminService.createCmsSiteItem(req.user.id, req.validatedBody);
+    res.status(201).json(row);
+  }),
+);
+
+adminRouter.patch(
+  '/site-items/:itemId',
+  validateBody(cmsItemSchema),
+  asyncHandler(async (req, res) => {
+    const row = await adminService.updateCmsSiteItem(req.params.itemId, req.user.id, req.validatedBody);
+    res.json(row);
+  }),
+);
+
+adminRouter.delete(
+  '/site-items/:itemId',
+  asyncHandler(async (req, res) => {
+    await adminService.deleteCmsSiteItem(req.params.itemId, req.user.id);
+    res.status(204).send();
+  }),
+);
+
+adminRouter.post(
+  '/site-items/reorder',
+  validateBody(cmsReorderSchema),
+  asyncHandler(async (req, res) => {
+    const rows = await adminService.reorderCmsSiteItems(req.user.id, req.validatedBody.kind, req.validatedBody.ids);
+    res.json(rows);
   }),
 );
 

@@ -214,3 +214,48 @@ export async function patchRequestStatus(requestId, user, { status, expectedVers
   }
   return prisma.serviceRequest.findUnique({ where: { id: requestId } });
 }
+
+export async function bulkPatchStatuses(user, { ids, status }) {
+  if (user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {
+    throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  }
+  const uniqueIds = Array.from(new Set((ids || []).map((v) => String(v))));
+  if (!uniqueIds.length) throw new AppError(400, 'Нужно передать список заявок', 'BAD_REQUEST');
+  const result = await prisma.serviceRequest.updateMany({
+    where: { id: { in: uniqueIds } },
+    data: { status, version: { increment: 1 } },
+  });
+  return { updated: result.count };
+}
+
+export async function getClientDossier(user, clientId) {
+  if (user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {
+    throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  }
+  const profile = await prisma.user.findUnique({
+    where: { id: clientId },
+    select: { id: true, fullName: true, email: true, phone: true, role: true, createdAt: true },
+  });
+  if (!profile) throw new AppError(404, 'Клиент не найден', 'NOT_FOUND');
+  const [requests, bookings, consultations] = await Promise.all([
+    prisma.serviceRequest.findMany({
+      where: { clientId },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      select: { id: true, status: true, createdAt: true, snapshotMake: true, snapshotModel: true },
+    }),
+    prisma.serviceBooking.findMany({
+      where: { clientId },
+      orderBy: { preferredAt: 'desc' },
+      take: 30,
+      select: { id: true, status: true, preferredAt: true, notes: true },
+    }),
+    prisma.consultationSession.findMany({
+      where: { clientId },
+      orderBy: { updatedAt: 'desc' },
+      take: 30,
+      select: { id: true, status: true, updatedAt: true, progressPercent: true },
+    }),
+  ]);
+  return { profile, requests, bookings, consultations };
+}

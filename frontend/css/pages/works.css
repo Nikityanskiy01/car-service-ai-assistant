@@ -73,6 +73,10 @@
   transition: transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease;
 }
 
+.work-item[hidden] {
+  display: none !important;
+}
+
 .work-item::before {
   content: '';
   position: absolute;

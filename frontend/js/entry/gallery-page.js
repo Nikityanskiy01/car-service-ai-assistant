@@ -1,5 +1,6 @@
 import { mountHeaderFooter } from '/js/layout.js';
-import { initGalleryPage } from '/js/gallery.js';
+import { initGalleryPage, mountCmsGallery } from '/js/gallery.js';
 
 mountHeaderFooter({ active: 'gallery' });
+await mountCmsGallery();
 initGalleryPage();
