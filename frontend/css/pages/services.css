@@ -20,7 +20,11 @@
   background: rgba(15, 18, 26, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base),
+    background var(--transition-slow);
 }
 
 .services-pro .card:hover {
@@ -31,6 +35,11 @@
 
 .services-pro__hero {
   padding: 0.3rem 0 0.2rem;
+}
+
+.services-pro__hero-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
 }
 
 .services-pro__pill {
@@ -101,9 +110,24 @@
   cursor: pointer;
   text-align: left;
   outline: none;
+  transform: translate3d(0, 0, 0);
+}
+
+.services-pro__item--bookable::before {
+  content: 'Нажмите, чтобы записаться';
+  display: inline-flex;
+  width: fit-content;
+  font-size: 0.74rem;
+  line-height: 1.25;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .services-pro__item--bookable:hover {
+  transform: translateY(-3px);
   border-color: rgba(255, 122, 26, 0.28);
 }
 
@@ -135,9 +159,9 @@
     0 3px 14px rgba(255, 122, 26, 0.28),
     0 0 0 1px rgba(0, 0, 0, 0.15) inset;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    filter 0.15s ease;
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    filter var(--transition-base);
 }
 
 .services-pro__item--bookable:hover::after {

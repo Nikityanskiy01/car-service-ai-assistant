@@ -183,6 +183,7 @@ export async function initConsultPage() {
   const chatEl = $('#chat');
   const form = $('#chatForm');
   const input = $('#messageInput');
+  const submitBtn = form?.querySelector('button[type="submit"]');
   const chatPanel = $('#consultChatPanel');
   const progressWrap = $('#progressWrap');
   const progressBar = $('#progressBar');
@@ -256,9 +257,10 @@ export async function initConsultPage() {
     updateGuestBanner(!!data.isGuest);
 
     chatEl.innerHTML = '';
-    (data.messages || []).forEach((m) => {
+    (data.messages || []).forEach((m, idx) => {
       const div = document.createElement('div');
       div.className = `bubble ${m.sender === 'USER' ? 'bubble--user' : 'bubble--assistant'}`;
+      div.style.setProperty('--bubble-delay', `${Math.min(idx * 36, 240)}ms`);
       div.innerHTML = escapeHtml(m.content);
       chatEl.appendChild(div);
     });
@@ -693,11 +695,21 @@ export async function initConsultPage() {
     diagnosing: 'Формирую диагностику…',
   };
 
+  function setSendState(isBusy, label = 'Отправить') {
+    if (submitBtn) {
+      submitBtn.disabled = isBusy;
+      submitBtn.textContent = isBusy ? label : 'Отправить';
+    }
+    if (input) input.disabled = isBusy;
+    chatPanel?.classList.toggle('is-busy', isBusy);
+  }
+
   function showThinkingBubble(phase) {
     let bubble = chatEl.querySelector('.bubble--thinking');
     if (!bubble) {
       bubble = document.createElement('div');
       bubble.className = 'bubble bubble--assistant bubble--thinking';
+      bubble.classList.add('bubble--enter');
       chatEl.appendChild(bubble);
     }
     bubble.innerHTML = `<span class="thinking-dot"></span> ${escapeHtml(PHASE_LABELS[phase] || 'ИИ анализирует…')}`;
@@ -718,6 +730,7 @@ export async function initConsultPage() {
 
     const userBubble = document.createElement('div');
     userBubble.className = 'bubble bubble--user';
+    userBubble.classList.add('bubble--enter');
     userBubble.innerHTML = escapeHtml(text);
     chatEl.appendChild(userBubble);
     chatEl.scrollTop = chatEl.scrollHeight;
@@ -797,8 +810,10 @@ export async function initConsultPage() {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
+    setSendState(true, 'Отправка...');
     try {
       if (!sessionId) await startSession();
+      setSendState(true, 'ИИ анализирует...');
       await sendMessageSSE(text);
     } catch (e) {
       removeThinkingBubble();
@@ -815,6 +830,9 @@ export async function initConsultPage() {
         errBox.className = 'alert alert--error';
         errBox.hidden = false;
       }
+    } finally {
+      setSendState(false);
+      input?.focus();
     }
   });
 

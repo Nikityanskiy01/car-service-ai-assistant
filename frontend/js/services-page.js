@@ -100,15 +100,18 @@ export function initHomeServicesBooking() {
 
 export async function mountCmsServices() {
   const root = document.getElementById('servicesCmsGrid');
+  const section = document.getElementById('servicesCmsSection');
   if (!root) return;
+  if (section) section.hidden = true;
   try {
     const res = await fetch('/api/content/site-items?kind=service', { credentials: 'include' });
     if (!res.ok) return;
     const items = await res.json();
     if (!Array.isArray(items) || !items.length) {
-      root.innerHTML = '<div class="empty">Пока нет дополнительных услуг.</div>';
+      root.innerHTML = '';
       return;
     }
+    if (section) section.hidden = false;
     root.innerHTML = items
       .map(
         (it) => `<article class="card services-pro__item">
@@ -119,6 +122,6 @@ export async function mountCmsServices() {
       )
       .join('');
   } catch {
-    root.innerHTML = '<div class="empty">Не удалось загрузить данные CMS.</div>';
+    root.innerHTML = '';
   }
 }

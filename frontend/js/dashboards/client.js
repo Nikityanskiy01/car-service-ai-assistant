@@ -50,7 +50,12 @@ export async function initClientDashboard() {
       b.classList.toggle('is-active', b.dataset.tab === tab);
     });
     document.querySelectorAll('.dash__panel').forEach((p) => {
-      p.hidden = p.dataset.panel !== tab;
+      const active = p.dataset.panel === tab;
+      p.hidden = !active;
+      p.classList.toggle('is-entering', active);
+      if (active) {
+        window.setTimeout(() => p.classList.remove('is-entering'), 450);
+      }
     });
     try {
       window.location.hash = `tab=${encodeURIComponent(tab)}`;
@@ -97,6 +102,19 @@ export async function initClientDashboard() {
     if (!field) return;
     field.classList.toggle('is-invalid', !valid);
     field.classList.toggle('is-valid', valid);
+  }
+
+  async function withButtonBusy(btn, loadingText, action) {
+    if (!btn) return action();
+    const initialText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = loadingText;
+    try {
+      return await action();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = initialText;
+    }
   }
 
   function setMinDateTimeLocal(input) {
@@ -413,12 +431,15 @@ export async function initClientDashboard() {
     if (!selectedRequestId) return;
     const body = $('#threadInput').value.trim();
     if (!body) return;
-    await api(`/service-requests/${selectedRequestId}/messages`, {
-      method: 'POST',
-      body: { body },
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    await withButtonBusy(submitBtn, 'Отправка...', async () => {
+      await api(`/service-requests/${selectedRequestId}/messages`, {
+        method: 'POST',
+        body: { body },
+      });
+      $('#threadInput').value = '';
+      await openThread(selectedRequestId);
     });
-    $('#threadInput').value = '';
-    await openThread(selectedRequestId);
   });
 
   $('#bookingForm')?.addEventListener('submit', async (e) => {
@@ -451,24 +472,27 @@ export async function initClientDashboard() {
     }
     markField(preferredEl, true);
     const iso = at.toISOString();
-    await api('/bookings', {
-      method: 'POST',
-      body: {
-        preferredAt: iso,
-        notes: fd.get('notes') || null,
-        serviceRequestId: fd.get('serviceRequestId') || null,
-      },
-    });
-    form.reset();
-    setMinDateTimeLocal(preferredEl);
-    await refresh();
-    await uiAlert({
-      title: 'Запись принята',
-      message:
-        'Ваша заявка на визит зарегистрирована. Администратор свяжется с вами для подтверждения; актуальный статус отображается в разделе «Запись в сервис».',
-      footnote: 'Если телефон вдруг молчит — загляните в кабинет: иногда спокойнее, чем ждать гудков.',
-      variant: 'success',
-      okText: 'Понятно',
+    const submitBtn = form.querySelector('button[type="submit"]');
+    await withButtonBusy(submitBtn, 'Отправляем...', async () => {
+      await api('/bookings', {
+        method: 'POST',
+        body: {
+          preferredAt: iso,
+          notes: fd.get('notes') || null,
+          serviceRequestId: fd.get('serviceRequestId') || null,
+        },
+      });
+      form.reset();
+      setMinDateTimeLocal(preferredEl);
+      await refresh();
+      await uiAlert({
+        title: 'Запись принята',
+        message:
+          'Ваша заявка на визит зарегистрирована. Администратор свяжется с вами для подтверждения; актуальный статус отображается в разделе «Запись в сервис».',
+        footnote: 'Если телефон вдруг молчит — загляните в кабинет: иногда спокойнее, чем ждать гудков.',
+        variant: 'success',
+        okText: 'Понятно',
+      });
     });
   });
 
@@ -506,13 +530,16 @@ export async function initClientDashboard() {
     markField(phoneEl, true);
     try {
       const emailProfile = emailEl.value.trim();
-      await api('/users/me', {
-        method: 'PATCH',
-        body: {
-          fullName,
-          phone,
-          emailProfile: emailProfile ? emailProfile : null,
-        },
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      await withButtonBusy(submitBtn, 'Сохраняем...', async () => {
+        await api('/users/me', {
+          method: 'PATCH',
+          body: {
+            fullName,
+            phone,
+            emailProfile: emailProfile ? emailProfile : null,
+          },
+        });
       });
       if (msg) msg.textContent = 'Изменения сохранены.';
     } catch (err) {

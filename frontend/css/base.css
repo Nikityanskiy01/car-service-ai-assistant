@@ -91,6 +91,73 @@ body > * {
   z-index: 1;
 }
 
+main.page {
+  animation: page-open var(--motion-duration-page) var(--motion-ease-emphasized) both;
+}
+
+main.page > section,
+main.page > .consult-grid,
+main.page .dash__side,
+main.page .dash__panel > .card {
+  animation: block-open var(--motion-duration-section) var(--motion-ease-emphasized) both;
+}
+
+main.page > section:nth-of-type(1),
+main.page .dash__side {
+  animation-delay: 80ms;
+}
+
+main.page > section:nth-of-type(2),
+main.page .dash__panel > .card {
+  animation-delay: 150ms;
+}
+
+main.page > section:nth-of-type(3) {
+  animation-delay: 220ms;
+}
+
+main.page > section:nth-of-type(n + 4) {
+  animation-delay: 280ms;
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translate3d(0, var(--motion-distance-reveal), 0);
+  transition:
+    opacity var(--motion-duration-reveal) var(--motion-ease-smooth),
+    transform calc(var(--motion-duration-reveal) + 120ms) var(--motion-ease-smooth);
+  transition-delay: var(--scroll-reveal-delay, 0ms);
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+}
+
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+@keyframes page-open {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-distance-page), 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes block-open {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-distance-section), 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 a {
   color: var(--color-accent-dark);
   text-decoration: none;
@@ -156,7 +223,14 @@ small {
 
 *:focus-visible {
   box-shadow: var(--focus-ring);
-  border-radius: 10px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: var(--focus-ring-strong);
 }
 
 .sr-only,
@@ -216,6 +290,19 @@ small {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  main.page,
+  main.page > section,
+  main.page > .consult-grid,
+  main.page .dash__side,
+  main.page .dash__panel > .card,
+  .scroll-reveal,
+  .scroll-reveal.is-visible {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 
 }

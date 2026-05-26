@@ -22,7 +22,7 @@ export default async function globalSetup() {
       'postgresql://fox:fox@localhost:5433/foxmotors_test',
   };
   try {
-    execSync('npx prisma migrate reset --force --skip-seed', { cwd: root, env, stdio: 'pipe' });
+    execSync('npx prisma migrate deploy', { cwd: root, env, stdio: 'pipe' });
   } catch (e) {
     console.warn('global-setup: prisma db setup failed', e.message);
   }

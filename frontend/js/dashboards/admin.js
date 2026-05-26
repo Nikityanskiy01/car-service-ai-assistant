@@ -79,10 +79,28 @@ export async function initAdminDashboard() {
     return `<span class="${cls}">${escapeHtml(text)}</span>`;
   }
 
+  async function withButtonBusy(btn, loadingText, action) {
+    if (!btn) return action();
+    const initialText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = loadingText;
+    try {
+      return await action();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = initialText;
+    }
+  }
+
   function setActiveTab(tab) {
     document.querySelectorAll('.dash__tab').forEach((b) => b.classList.toggle('is-active', b.dataset.tab === tab));
     document.querySelectorAll('.dash__panel').forEach((p) => {
-      p.hidden = p.dataset.panel !== tab;
+      const active = p.dataset.panel === tab;
+      p.hidden = !active;
+      p.classList.toggle('is-entering', active);
+      if (active) {
+        window.setTimeout(() => p.classList.remove('is-entering'), 450);
+      }
     });
     try {
       window.location.hash = `tab=${encodeURIComponent(tab)}`;
@@ -784,16 +802,30 @@ export async function initAdminDashboard() {
     e.target.reset();
   });
 
-  $('#btnReloadSummary')?.addEventListener('click', () => loadSummary());
-  $('#btnReloadKpi')?.addEventListener('click', () => loadKpi());
+  $('#btnReloadSummary')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadSummary());
+  });
+  $('#btnReloadKpi')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadKpi());
+  });
   $('#btnExportKpi')?.addEventListener('click', async () => downloadApiFile('/analytics/kpi.csv'));
-  $('#btnReloadUsers')?.addEventListener('click', () => loadUsers());
+  $('#btnReloadUsers')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadUsers());
+  });
   $('#adminUserQ')?.addEventListener('input', () => loadUsers());
-  $('#btnReloadCats')?.addEventListener('click', () => loadCategories());
+  $('#btnReloadCats')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadCategories());
+  });
   $('#catQ')?.addEventListener('input', () => loadCategories());
-  $('#btnReloadSc')?.addEventListener('click', () => loadScenarios({ keepSelected: true }));
-  $('#btnReloadMat')?.addEventListener('click', () => loadMaterials());
-  $('#btnReloadAudit')?.addEventListener('click', () => loadAudit());
+  $('#btnReloadSc')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadScenarios({ keepSelected: true }));
+  });
+  $('#btnReloadMat')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadMaterials());
+  });
+  $('#btnReloadAudit')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadAudit());
+  });
   $('#siteItemQ')?.addEventListener('input', () => loadMaterials());
   $('#matKindFilter')?.addEventListener('change', () => {
     contentKind = String($('#matKindFilter')?.value || 'service');

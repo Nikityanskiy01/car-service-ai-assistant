@@ -2,11 +2,6 @@ function norm(s) {
   return String(s || '').toLowerCase();
 }
 
-function hasAny(text, needles) {
-  const t = norm(text);
-  return needles.some((n) => t.includes(n));
-}
-
 /**
  * Minimal "mechanic-like" playbooks: hypotheses + checks + urgency triggers.
  * This is deterministic and can be improved with your 3-year history later.

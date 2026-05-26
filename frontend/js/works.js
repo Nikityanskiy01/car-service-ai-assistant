@@ -16,7 +16,7 @@ export function initWorksPage() {
 
   function applyFilter(filter) {
     items.forEach((item) => {
-      item.hidden = item.dataset.category !== filter;
+      item.hidden = !(filter === 'all' || item.dataset.category === filter);
     });
     filterButtons.forEach((b) => b.classList.toggle('is-active', b.dataset.filter === filter));
   }
@@ -42,7 +42,7 @@ export function initWorksPage() {
 
   const hash = location.hash.replace('#', '');
   const validFilter = filterButtons.some((b) => b.dataset.filter === hash);
-  applyFilter(validFilter ? hash : filterButtons[0].dataset.filter);
+  applyFilter(validFilter ? hash : 'all');
 }
 
 export async function mountCmsWorks() {
