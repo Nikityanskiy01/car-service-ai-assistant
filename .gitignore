@@ -33,5 +33,6 @@ thesis/*.synctex.gz
 thesis/*.fdb_latexmk
 thesis/*.fls
 
-# Demo screenshots (optional local captures)
-docs/screenshots/
+# Demo screenshots (optional local captures; keep folder)
+docs/screenshots/*
+!docs/screenshots/.gitkeep
