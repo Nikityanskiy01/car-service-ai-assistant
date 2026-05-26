@@ -23,3 +23,15 @@ Thumbs.db
 
 # Локальные данные Cursor (правила в репозитории обычно не нужны — при необходимости уберите эту строку)
 .cursor/
+
+# LaTeX / thesis build artifacts
+thesis/*.aux
+thesis/*.log
+thesis/*.out
+thesis/*.toc
+thesis/*.synctex.gz
+thesis/*.fdb_latexmk
+thesis/*.fls
+
+# Demo screenshots (optional local captures)
+docs/screenshots/
