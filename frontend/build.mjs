@@ -1,5 +1,5 @@
 /**
- * Копирует статику (HTML/CSS/JS) в dist/ для деплоя на Render Static Site.
+ * Копирует статику (HTML/CSS/JS) в dist/ для production-деплоя.
  * JS и CSS файлы минифицируются через esbuild.
  */
 import fs from 'fs';

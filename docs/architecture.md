@@ -67,7 +67,7 @@ flowchart TB
 ## Развёртывание
 
 Локально: `docker compose` (Postgres + Ollama) + `backend` (`npm run db:setup`, `npm run dev`).  
-Подробности: [setup.md](./setup.md), `render.yaml` для облака.
+Подробности: [setup.md](./setup.md).
 
 ## Связанные документы
 

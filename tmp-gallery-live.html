@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Галерея — Fox Motors</title>
+    <link rel="stylesheet" href="/css/tokens.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/utilities.css" />
+    <link rel="stylesheet" href="/css/pages/home.css" />
+    <link rel="stylesheet" href="/css/pages/gallery.css" />
+  </head>
+  <body>
+    <div id="header-placeholder"></div>
+    <main class="page container gallery-pro gallery-pro--dark">
+      <section class="gallery-pro__hero">
+        <p class="pill pill--warn gallery-pro__pill">Галерея</p>
+        <h1>Галерея автосервиса</h1>
+        <p class="lead">Фотографии сервиса, оборудования и результатов выполненных работ.</p>
+      </section>
+
+      <section class="gallery-pro__filters" aria-label="Фильтрация галереи">
+        <button class="btn btn--ghost is-active" type="button" data-filter="all">Все</button>
+        <button class="btn btn--ghost" type="button" data-filter="service">Сервис</button>
+        <button class="btn btn--ghost" type="button" data-filter="equipment">Оборудование</button>
+        <button class="btn btn--ghost" type="button" data-filter="zones">Ремонтные зоны</button>
+        <button class="btn btn--ghost" type="button" data-filter="cars">Автомобили</button>
+        <button class="btn btn--ghost" type="button" data-filter="results">Результаты работ</button>
+      </section>
+
+      <section class="gallery-pro__grid" id="galleryGrid">
+        <article class="gallery-item card" data-category="service">
+          <img src="/assets/placeholders/gallery-01.svg" alt="Зона приема клиентов" loading="lazy" />
+          <p>Зона приема клиентов</p>
+        </article>
+        <article class="gallery-item card" data-category="zones">
+          <img src="/assets/placeholders/gallery-02.svg" alt="Пост первичной диагностики" loading="lazy" />
+          <p>Пост первичной диагностики</p>
+        </article>
+        <article class="gallery-item card" data-category="equipment">
+          <img src="/assets/placeholders/gallery-03.svg" alt="Профессиональное диагностическое оборудование" loading="lazy" />
+          <p>Профессиональное оборудование</p>
+        </article>
+        <article class="gallery-item card" data-category="cars">
+          <img src="/assets/placeholders/gallery-04.svg" alt="Автомобиль после технического обслуживания" loading="lazy" />
+          <p>Автомобиль после ТО</p>
+        </article>
+        <article class="gallery-item card" data-category="results">
+          <img src="/assets/placeholders/gallery-05.svg" alt="Результат ремонта подвески" loading="lazy" />
+          <p>Результат ремонта подвески</p>
+        </article>
+        <article class="gallery-item card" data-category="equipment">
+          <img src="/assets/placeholders/gallery-06.svg" alt="Стенд проверки и инструментальная зона" loading="lazy" />
+          <p>Стенд проверки и инструментальная зона</p>
+        </article>
+        <article class="gallery-item card" data-category="zones">
+          <img src="/assets/placeholders/gallery-07.svg" alt="Ремонтная зона автосервиса" loading="lazy" />
+          <p>Ремонтная зона</p>
+        </article>
+        <article class="gallery-item card" data-category="results">
+          <img src="/assets/placeholders/gallery-08.svg" alt="Автомобиль после комплексной диагностики" loading="lazy" />
+          <p>Автомобиль после комплексной диагностики</p>
+        </article>
+      </section>
+
+      <section class="gallery-pro__section">
+        <article class="card gallery-pro__trust">
+          <h2>О качестве сервиса</h2>
+          <p class="muted u-m0">
+            Мы показываем реальные зоны обслуживания, оборудование и результаты работ, чтобы клиент заранее видел
+            условия сервиса, уровень подготовки команды и подход к автомобилю на каждом этапе.
+          </p>
+        </article>
+      </section>
+
+      <section class="home-pro__dual-cta" aria-label="Запись в сервис и ИИ-консультация">
+        <article class="card home-pro__dual-card home-pro__dual-card--service">
+          <h2 class="home-pro__dual-title">Запись в сервис</h2>
+          <p class="muted home-pro__dual-lead">
+            Выберите услугу из каталога и оставьте удобное время — регистрация не обязательна.
+          </p>
+          <a class="btn btn--primary" href="/services.html">Записаться в сервис</a>
+        </article>
+        <article class="card home-pro__dual-card home-pro__dual-card--ai">
+          <h2 class="home-pro__dual-title">Предложение ИИ</h2>
+          <p class="muted home-pro__dual-lead">
+            Опишите симптомы — ассистент подготовит предварительный разбор, оценку срочности и план действий.
+          </p>
+          <a class="btn btn--primary" href="/consult.html">Начать диагностику</a>
+        </article>
+      </section>
+    </main>
+
+    <div class="gallery-lightbox" id="galleryLightbox" hidden>
+      <button type="button" class="gallery-lightbox__close" id="galleryLightboxClose" aria-label="Закрыть">&times;</button>
+      <img id="galleryLightboxImage" alt="Увеличенное изображение" />
+      <p id="galleryLightboxCaption"></p>
+      <span class="gallery-lightbox__counter" id="galleryLightboxCounter"></span>
+    </div>
+    <div id="footer-placeholder"></div>
+    <script type="module" src="/js/entry/gallery-page.js"></script>
+  </body>
+</html>

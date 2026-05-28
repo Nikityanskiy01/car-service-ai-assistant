@@ -1,9 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  countFieldsChangedByPre,
   getMissingFields,
   getNextQuestion,
+  isSimpleExtractionMessage,
   preferPreExtractedServiceSymptoms,
   preExtractFromRules,
+  shouldSkipLlmExtraction,
   tryExtractUniversalConditionAnswer,
 } from '../../src/services/consultationFlowService.js';
 
@@ -65,6 +68,44 @@ describe('tryExtractUniversalConditionAnswer / условия проявлени
     };
     const out = preExtractFromRules('на выключенном моторе', base);
     expect(out.conditions).toBeTruthy();
+  });
+});
+
+describe('shouldSkipLlmExtraction', () => {
+  it('пропускает короткий пробег и «всегда»', () => {
+    expect(isSimpleExtractionMessage('120000')).toBe(true);
+    expect(isSimpleExtractionMessage('всегда')).toBe(true);
+    expect(shouldSkipLlmExtraction('120000', {}, { mileage: 120000 })).toBe(true);
+  });
+
+  it('пропускает, если правила извлекли ≥2 поля из одного сообщения', () => {
+    const base = {};
+    const pre = preExtractFromRules('BMW X5 140000 стук при торможении', base);
+    expect(countFieldsChangedByPre(base, pre)).toBeGreaterThanOrEqual(2);
+    expect(shouldSkipLlmExtraction('BMW X5 140000 стук при торможении', base, pre)).toBe(true);
+  });
+
+  it('не пропускает длинное сообщение без срабатывания правил', () => {
+    const base = {};
+    const pre = preExtractFromRules(
+      'У меня странная ситуация с машиной, иногда что-то происходит но непонятно когда именно',
+      base,
+    );
+    expect(countFieldsChangedByPre(base, pre)).toBe(0);
+    expect(
+      shouldSkipLlmExtraction(
+        'У меня странная ситуация с машиной, иногда что-то происходит но непонятно когда именно',
+        base,
+        pre,
+      ),
+    ).toBe(false);
+  });
+
+  it('модель одним словом при известной марке', () => {
+    const base = { car_make: 'Toyota' };
+    const pre = preExtractFromRules('Camry', base);
+    expect(pre.car_model).toBe('Camry');
+    expect(shouldSkipLlmExtraction('Camry', base, pre)).toBe(true);
   });
 });
 

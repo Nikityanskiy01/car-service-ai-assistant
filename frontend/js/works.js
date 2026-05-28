@@ -9,6 +9,22 @@ function esc(s) {
     .replaceAll("'", '&#39;');
 }
 
+function bindBrokenImageFallbacks(root) {
+  const imgs = Array.from(root.querySelectorAll('img'));
+  imgs.forEach((img, idx) => {
+    img.addEventListener(
+      'error',
+      () => {
+        const n = String((idx % 6) + 1).padStart(2, '0');
+        const fallback = `/assets/placeholders/works-${n}.svg`;
+        if (img.src.endsWith(fallback)) return;
+        img.src = fallback;
+      },
+      { once: true },
+    );
+  });
+}
+
 export function initWorksPage() {
   const filterButtons = $$('.works-pro__filters [data-filter]');
   const items = $$('#worksGrid .work-item');
@@ -43,6 +59,7 @@ export function initWorksPage() {
   const hash = location.hash.replace('#', '');
   const validFilter = filterButtons.some((b) => b.dataset.filter === hash);
   applyFilter(validFilter ? hash : 'all');
+  bindBrokenImageFallbacks(document);
 }
 
 export async function mountCmsWorks() {
@@ -72,6 +89,7 @@ export async function mountCmsWorks() {
       )
       .join(''),
     );
+    bindBrokenImageFallbacks(root);
   } catch {
     /* ignore */
   }

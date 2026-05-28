@@ -2,6 +2,8 @@
 
 ## Backend (Jest + Supertest)
 
+Требование: запущенный Docker daemon (для PostgreSQL в контейнере) или локальная PostgreSQL с доступной тестовой БД.
+
 ```bash
 cd backend
 npm ci
@@ -12,6 +14,15 @@ export JWT_SECRET=ci-test-jwt-secret-min-32-chars-long!!
 export NODE_ENV=test
 npx prisma migrate deploy
 npm test
+```
+
+PowerShell-эквивалент переменных окружения:
+
+```powershell
+$env:DATABASE_URL="postgresql://fox:fox@localhost:5432/foxmotors_test"
+$env:TEST_DATABASE_URL=$env:DATABASE_URL
+$env:JWT_SECRET="ci-test-jwt-secret-min-32-chars-long!!"
+$env:NODE_ENV="test"
 ```
 
 ### Покрытие

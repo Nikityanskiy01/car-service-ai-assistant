@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily PostgreSQL backup for Car Service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=car-service-backup.service
+
+[Install]
+WantedBy=timers.target

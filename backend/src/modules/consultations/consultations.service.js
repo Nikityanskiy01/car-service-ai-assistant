@@ -175,12 +175,19 @@ export async function listSessionsForStaff({ limit = 500, offset = 0 } = {}) {
 }
 
 export async function getSessionDetail(sessionId, actor) {
-  const session = await prisma.consultationSession.findUnique({
+  let session = await prisma.consultationSession.findUnique({
     where: { id: sessionId },
     include: sessionDetailInclude,
   });
   if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
   assertActorCanReadSession(session, actor);
+  if (!Array.isArray(session.messages) || session.messages.length === 0) {
+    await bootstrapOpeningTurn(sessionId);
+    session = await prisma.consultationSession.findUnique({
+      where: { id: sessionId },
+      include: sessionDetailInclude,
+    });
+  }
   return session;
 }
 

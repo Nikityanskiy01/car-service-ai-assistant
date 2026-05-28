@@ -17,7 +17,7 @@ const projectRoot = path.join(__dirname, '..', '..');
 const frontendSrc = path.join(projectRoot, 'frontend');
 const frontendDist = path.join(projectRoot, 'frontend', 'dist');
 
-/** В production отдаём собранный dist/ (Render, docker), иначе исходники frontend/. */
+/** В production отдаём собранный dist/ (docker/сервер), иначе исходники frontend/. */
 function resolveFrontendRoot(env) {
   if (env.NODE_ENV === 'production' && fs.existsSync(frontendDist)) {
     return frontendDist;
@@ -96,10 +96,12 @@ export function createApp() {
 
   app.use('/api', api);
 
-  app.use(express.static(frontendRoot));
+  if (env.SERVE_FRONTEND) {
+    app.use(express.static(frontendRoot));
+  }
 
   app.use((req, res) => {
-    if (req.path.startsWith('/api')) {
+    if (req.path.startsWith('/api') || !env.SERVE_FRONTEND) {
       return res.status(404).json({ error: 'Not found' });
     }
     return res.status(404).sendFile(frontend404);
@@ -108,11 +110,14 @@ export function createApp() {
   // Keep JSON errors for API, nice page for frontend.
   app.use((err, req, res, next) => {
     if (req.path?.startsWith?.('/api')) return errorHandler(err, req, res, next);
-    try {
-      return res.status(500).sendFile(frontend500);
-    } catch {
-      return errorHandler(err, req, res, next);
+    if (env.SERVE_FRONTEND) {
+      try {
+        return res.status(500).sendFile(frontend500);
+      } catch {
+        return errorHandler(err, req, res, next);
+      }
     }
+    return errorHandler(err, req, res, next);
   });
 
   return app;

@@ -89,6 +89,7 @@ E2E-аккаунты (если нужны): `admin@fox.local` / `Admin12345!`, `
 
 | Симптом | Действие |
 |---------|----------|
+| Docker daemon недоступен | Запустить Docker Desktop и повторить `docker compose up -d`; если до защиты < 5 минут — показать подготовленные скриншоты из `docs/screenshots/` |
 | `LLM unavailable` | `docker compose ps`, `npm run llm:check`, перезапуск Ollama |
 | Пустая БД | `npm run db:setup` |
 | 401 в кабинете | Очистить cookies, повторный вход |
