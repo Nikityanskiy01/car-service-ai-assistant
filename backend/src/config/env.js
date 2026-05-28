@@ -36,6 +36,9 @@ const schema = z.object({
   LLM_DIAGNOSIS_MODEL: z.string().optional(),
   LLM_DIAGNOSIS_NUM_PREDICT: z.coerce.number().default(420),
   LLM_DIAGNOSIS_TIMEOUT_MS: z.coerce.number().default(240000),
+  DIAGNOSIS_AGENT_MODE: z.enum(['classic', 'llmfactory']).default('llmfactory'),
+  DIAGNOSIS_AGENT_TIMEOUT_MS: z.coerce.number().int().min(5000).default(90000),
+  DIAGNOSIS_AGENT_MAX_RETRIES: z.coerce.number().int().min(0).max(3).default(1),
   LLM_KEEP_ALIVE: z.string().default('30m'),
   LLM_ENABLED: z
     .enum(['true', 'false', '1', '0'])

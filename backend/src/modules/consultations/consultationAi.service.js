@@ -7,6 +7,7 @@ import { getEnv } from '../../config/env.js';
 import { getRelevantCases } from '../../services/caseMemory.service.js';
 import { isFieldFilled } from '../../services/consultationFlowService.js';
 import { chatCompletion } from '../../services/ollamaService.js';
+import { runDiagnosisAgent } from '../../services/diagnosisAgent.service.js';
 import { pickPlaybook, playbookToAiHints } from '../../lib/diagnosticPlaybooks.js';
 import { topWorksForCategory, topWorksForCategoryAndMake } from '../../lib/workStats.js';
 import { safeJsonParse } from '../../utils/safeJsonParse.js';
@@ -500,41 +501,64 @@ export async function generateDiagnosis(data) {
     relatedCases = [];
   }
   const env = getEnv();
-  const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || env.LLM_MODEL;
-  const callDiagnosisLlm = async () =>
-    chatCompletion({
-      model: diagnosisModel,
-      temperature: 0.15,
-      timeoutMs: env.LLM_DIAGNOSIS_TIMEOUT_MS,
-      keepAlive: env.LLM_KEEP_ALIVE,
-      format: DIAGNOSIS_FORMAT_SCHEMA,
-      options: {
-        num_predict: env.LLM_DIAGNOSIS_NUM_PREDICT,
-        num_ctx: 3072,
-      },
-      messages: [
-        { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
-        { role: 'user', content: diagnosisUserPrompt(payload, relatedCases, pbHints, tw) },
-      ],
-    });
-  try {
-    const firstRaw = await callDiagnosisLlm();
-    let parsed = safeJsonParse(firstRaw);
-    if (!parsed) {
-      const secondRaw = await callDiagnosisLlm();
-      parsed = safeJsonParse(secondRaw);
+
+  const runClassicDiagnosis = async () => {
+    const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || env.LLM_MODEL;
+    const callDiagnosisLlm = async () =>
+      chatCompletion({
+        model: diagnosisModel,
+        temperature: 0.15,
+        timeoutMs: env.LLM_DIAGNOSIS_TIMEOUT_MS,
+        keepAlive: env.LLM_KEEP_ALIVE,
+        format: DIAGNOSIS_FORMAT_SCHEMA,
+        options: {
+          num_predict: env.LLM_DIAGNOSIS_NUM_PREDICT,
+          num_ctx: 3072,
+        },
+        messages: [
+          { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
+          { role: 'user', content: diagnosisUserPrompt(payload, relatedCases, pbHints, tw) },
+        ],
+      });
+    try {
+      const firstRaw = await callDiagnosisLlm();
+      let parsed = safeJsonParse(firstRaw);
+      if (!parsed) {
+        const secondRaw = await callDiagnosisLlm();
+        parsed = safeJsonParse(secondRaw);
+      }
+      if (!parsed) throw new Error('diagnosis: invalid json from llm');
+      const llmDiagnosis = normalizeDiagnosis(parsed);
+      return mergeDiagnosis(ruleBased, llmDiagnosis);
+    } catch {
+      return mergeDiagnosis(ruleBased, {
+        probable_causes: [],
+        recommended_checks: [],
+        urgency: ruleBased.urgency || 'medium',
+        confidence: 0.25,
+        estimated_cost_from: null,
+        summary: '',
+      });
     }
-    if (!parsed) throw new Error('diagnosis: invalid json from llm');
-    const llmDiagnosis = normalizeDiagnosis(parsed);
-    return mergeDiagnosis(ruleBased, llmDiagnosis);
-  } catch {
-    return mergeDiagnosis(ruleBased, {
-      probable_causes: [],
-      recommended_checks: [],
-      urgency: ruleBased.urgency || 'medium',
-      confidence: 0.25,
-      estimated_cost_from: null,
-      summary: '',
-    });
+  };
+
+  if (env.DIAGNOSIS_AGENT_MODE === 'llmfactory') {
+    try {
+      const agent = await runDiagnosisAgent({
+        payload,
+        relatedCases,
+        playbook: pbHints,
+        topWorks: tw,
+        env,
+        logger: console,
+      });
+      return mergeDiagnosis(ruleBased, agent.diagnosis);
+    } catch (err) {
+      console.warn('diagnosis_agent_fallback_to_classic', {
+        reason: String(err?.message || err),
+      });
+    }
   }
+
+  return runClassicDiagnosis();
 }

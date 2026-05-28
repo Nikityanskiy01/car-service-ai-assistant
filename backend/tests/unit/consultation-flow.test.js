@@ -33,6 +33,14 @@ describe('preExtractFromRules — плановые работы', () => {
     expect(getMissingFields(merged)).toEqual([]);
     expect(getNextQuestion(merged)).toBeNull();
   });
+
+  it('корректно извлекает модель с запятой в сообщении "Mazda 3, 32333, ..."', () => {
+    const out = preExtractFromRules('Мазда 3, 32333, греется двигатель', {});
+    expect(out.car_make).toBe('Mazda');
+    expect(out.car_model).toBe('3');
+    expect(out.mileage).toBe(32333);
+    expect(String(out.symptoms || '').toLowerCase()).toContain('гре');
+  });
 });
 
 describe('tryExtractUniversalConditionAnswer / условия проявления', () => {
@@ -106,6 +114,20 @@ describe('shouldSkipLlmExtraction', () => {
     const pre = preExtractFromRules('Camry', base);
     expect(pre.car_model).toBe('Camry');
     expect(shouldSkipLlmExtraction('Camry', base, pre)).toBe(true);
+  });
+
+  it('модель одним словом с пунктуацией при известной марке', () => {
+    const base = { car_make: 'Mazda' };
+    const pre = preExtractFromRules('3,', base);
+    expect(pre.car_model).toBe('3');
+    expect(shouldSkipLlmExtraction('3,', base, pre)).toBe(true);
+  });
+
+  it('не принимает служебное слово как модель в "Мазда, пробег 120000"', () => {
+    const pre = preExtractFromRules('Мазда, пробег 120000', {});
+    expect(pre.car_make).toBe('Mazda');
+    expect(pre.car_model).toBeNull();
+    expect(pre.mileage).toBe(120000);
   });
 });
 

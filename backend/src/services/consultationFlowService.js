@@ -143,6 +143,8 @@ export function normalizeSymptoms(text) {
     [/глохнет/i, 'двигатель глохнет'],
     [/плавают\s+обороты/i, 'плавают обороты'],
     [/биение\s+руля/i, 'биение руля'],
+    [/гре(ет|ется|юсь|емся)\s+двигател/i, 'перегрев двигателя'],
+    [/двигател\w*\s+гре(ет|ется|юсь|емся)/i, 'перегрев двигателя'],
     [/^стук$/i, 'посторонний стук'],
   ];
   for (const [rx, rep] of pairs) {
@@ -288,6 +290,27 @@ export function isValidModelText(value) {
   return isValidVehicleText(value);
 }
 
+/**
+ * Удаляет обрамляющую пунктуацию и служебные символы вокруг токена модели.
+ * Пример: "3," -> "3", "(CX-5)" -> "CX-5".
+ * @param {unknown} value
+ */
+function sanitizeModelToken(value) {
+  if (value == null) return '';
+  return String(value)
+    .trim()
+    .replace(/^[^a-zA-Zа-яА-Я0-9]+/, '')
+    .replace(/[^a-zA-Zа-яА-Я0-9]+$/, '');
+}
+
+/**
+ * Слова-маркеры, которые не могут быть моделью авто.
+ * @param {string} token
+ */
+function isModelStopWord(token) {
+  return /^(пробег|км|тыс|год|года|двигатель|мотор|неисправность|симптомы|симптом)$/i.test(token);
+}
+
 function normalizeExtractedFromLlm(raw) {
   const obj = raw && typeof raw === 'object' ? raw : {};
   const text = (v) => {
@@ -365,7 +388,7 @@ export function tryExtractUniversalConditionAnswer(message, base) {
 }
 
 const SYMPTOM_HINTS =
-  /пропуск|троит|оборот|стук|скрип|вибрац|тормож|рывк|дым|перегрев|запуск|глох|биение|плава|чек|короб|рул|подвеск|старт/i;
+  /пропуск|троит|оборот|стук|скрип|вибрац|тормож|рывк|дым|перегрев|гре(ет|ется)|температур|кипит|запуск|глох|биение|плава|чек|короб|рул|подвеск|старт/i;
 
 /**
  * Rule-based pre-extraction до вызова LLM.
@@ -377,6 +400,10 @@ export function preExtractFromRules(message, base = {}) {
   const t = String(message || '').trim();
   if (!t) return out;
   const low = t.toLowerCase();
+  const compact = t
+    .replace(/[，,;:]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   const y = extractYearRegex(t);
   if (y && !out.year) out.year = y;
@@ -416,14 +443,17 @@ export function preExtractFromRules(message, base = {}) {
       { rx: /^(?:хавал|haval)(?:\s+(.+))?$/i, make: 'Haval' },
     ];
     for (const { rx, make } of MAKE_PATTERNS) {
-      const m = t.match(rx);
+      const m = compact.match(rx);
       if (m) {
         if (!out.car_make) out.car_make = make;
         if (!out.car_model) {
           const rest = String(m[1] || '')
             .trim()
             .split(/\s+/)[0];
-          if (rest && isValidModelText(rest)) out.car_model = rest;
+          const modelCandidate = sanitizeModelToken(rest);
+          if (modelCandidate && !isModelStopWord(modelCandidate) && isValidModelText(modelCandidate)) {
+            out.car_model = modelCandidate;
+          }
         }
         break;
       }
@@ -431,9 +461,9 @@ export function preExtractFromRules(message, base = {}) {
   }
 
   // Ответ на «уточните модель»: одно слово при уже известной марке
-  if (out.car_make && !out.car_model && t.length <= 28 && !/\d{4,}/.test(t)) {
-    const token = t.split(/\s+/)[0];
-    if (token && isValidModelText(token) && !/^(тыс|км|пробег)$/i.test(token)) {
+  if (out.car_make && !out.car_model && compact.length <= 28 && !/\d{4,}/.test(compact)) {
+    const token = sanitizeModelToken(compact.split(/\s+/)[0]);
+    if (token && !isModelStopWord(token) && isValidModelText(token) && !/^(тыс|км|пробег)$/i.test(token)) {
       out.car_model = token;
     }
   }
@@ -583,6 +613,69 @@ export async function extractConsultationData(message, currentState = {}) {
     return postProcessMerged(mergedLlm);
   } catch {
     return postProcessMerged(pre);
+  }
+}
+
+/**
+ * Генерирует контекстный follow-up вопрос через LLM (plain text, не JSON),
+ * чтобы диалог не был жестко шаблонным при неполных симптомах.
+ * @param {{
+ *   userMessage: string,
+ *   merged: Record<string, unknown>,
+ *   nextField: string,
+ *   fallbackQuestion: string,
+ * }} params
+ * @returns {Promise<string | null>}
+ */
+async function generateContextualFollowupQuestion({
+  userMessage,
+  merged,
+  nextField,
+  fallbackQuestion,
+}) {
+  const msg = String(userMessage || '').trim();
+  if (!msg) return null;
+
+  const env = getEnv();
+  const model = env.LLM_EXTRACTION_MODEL?.trim() || env.LLM_MODEL;
+  const stateSummary = {
+    car_make: merged.car_make ?? null,
+    car_model: merged.car_model ?? null,
+    mileage: merged.mileage ?? null,
+    symptoms: merged.symptoms ?? null,
+    conditions: merged.conditions ?? null,
+    intent: merged.intent ?? null,
+  };
+
+  try {
+    const raw = await chatCompletion({
+      model,
+      temperature: 0.2,
+      timeoutMs: 15_000,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Ты ассистент автосервиса. Сформулируй ОДИН короткий уточняющий вопрос на русском по контексту клиента. Без JSON, без списков, без кавычек, только текст вопроса.',
+        },
+        {
+          role: 'user',
+          content:
+            `Реплика клиента: ${msg}\n` +
+            `Уже извлечено: ${JSON.stringify(stateSummary)}\n` +
+            `Нужно уточнить поле: ${nextField}\n` +
+            `Шаблон по умолчанию: ${fallbackQuestion}\n` +
+            'Сделай вопрос максимально по смыслу реплики клиента.',
+        },
+      ],
+    });
+    const question = String(raw || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!question || question.length > 240) return null;
+    return question;
+  } catch {
+    return null;
   }
 }
 
@@ -752,11 +845,21 @@ export async function buildConsultationState(session, userMessage, onProgress) {
 
   const resolved = resolveQuestionAvoidingRepeat(meta, session, flow.asked_questions, merged);
   const finalMeta = resolved || meta;
-  const newAsked = [...flow.asked_questions, { field: finalMeta.field, question: finalMeta.question }];
+  let assistantQuestion = finalMeta.question;
+  // При неполном описании проблемы используем контекстный follow-up от LLM (plain text).
+  const contextualQuestion = await generateContextualFollowupQuestion({
+    userMessage,
+    merged,
+    nextField: finalMeta.field,
+    fallbackQuestion: finalMeta.question,
+  });
+  if (contextualQuestion) assistantQuestion = contextualQuestion;
+
+  const newAsked = [...flow.asked_questions, { field: finalMeta.field, question: assistantQuestion }];
 
   return {
     stage: 'clarification',
-    assistant_message: finalMeta.question,
+    assistant_message: assistantQuestion,
     extracted_data: merged,
     diagnosis: null,
     missing_fields: missing,

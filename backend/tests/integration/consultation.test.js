@@ -37,6 +37,9 @@ describe('consultation lifecycle', () => {
     expect(done.body.extracted?.symptoms).toBeTruthy();
     expect(done.body.extracted?.problemConditions).toBeTruthy();
     expect(done.body.status).toBe('COMPLETED');
+    expect(done.body.preliminaryNote).toBeTruthy();
+    expect(done.body).toHaveProperty('serviceRequest');
+    expect(done.body).toHaveProperty('recommendations');
 
     const req = await request(app)
       .post(`/api/consultations/${sid}/service-request`)

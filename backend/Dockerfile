@@ -12,11 +12,9 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app/backend
 
-COPY --from=deps /app/backend/node_modules ./node_modules
-COPY --from=deps /app/backend/prisma ./prisma
-COPY backend/src ./src
-
-RUN chown -R node:node /app
+COPY --chown=node:node --from=deps /app/backend/node_modules ./node_modules
+COPY --chown=node:node --from=deps /app/backend/prisma ./prisma
+COPY --chown=node:node backend/src ./src
 USER node
 
 ENV NODE_ENV=production
