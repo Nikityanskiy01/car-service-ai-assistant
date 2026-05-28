@@ -11,7 +11,6 @@ function getCatalog() {
   if (catalogCache !== undefined) return catalogCache;
   try {
     // Lazy-load optional generated catalog.
-    // eslint-disable-next-line n/no-sync
     const raw = fs.readFileSync(new URL('../../data/price_catalog.json', import.meta.url), 'utf8');
     catalogCache = JSON.parse(raw);
   } catch {

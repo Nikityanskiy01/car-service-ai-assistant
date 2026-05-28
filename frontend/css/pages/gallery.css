@@ -52,7 +52,11 @@
 .gallery-item {
   cursor: pointer;
   overflow: hidden;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.gallery-item[hidden] {
+  display: none !important;
 }
 
 .gallery-item:hover {
@@ -199,11 +203,12 @@
 }
 
 .gallery-pro--dark .gallery-item img {
-  transition: transform 180ms ease;
+  transition: transform var(--transition-slow), filter var(--transition-base);
 }
 
 .gallery-pro--dark .gallery-item:hover img {
   transform: scale(1.03);
+  filter: saturate(1.08) contrast(1.03);
 }
 
 .gallery-pro--dark .gallery-item p {

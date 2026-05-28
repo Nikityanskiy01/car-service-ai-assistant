@@ -152,7 +152,7 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 
 - [X] T053 [P] [—] **Security** automated suite `backend/tests/security/` or Jest tags: XSS-safe JSON responses, SQLi via Prisma only, JWT tampering, cross-role access (TR-006)
 - [X] T054 [—] **Performance** script `tests/perf/k6-consultation.js` (or Artillery) — document p95 methodology for FR-042a–042b; optional FR-042c sampling notes
-- [ ] T055 [—] **Manual** TR-007 checklist execution; record results for thesis appendix (usability, mobile, manager/admin flows)
+- [X] T055 [—] **Manual** TR-007 checklist execution; record results for thesis appendix (usability, mobile, manager/admin flows) — см. [`docs/manual-acceptance-tr007.md`](../../docs/manual-acceptance-tr007.md)
 - [X] T056 [P] [—] Root `README.md` — how to run backend, frontend, Prisma, Ollama, Telegram
 - [X] T057 [—] Align implemented routes with [contracts/openapi.yaml](./contracts/openapi.yaml); update contract when API changes
 
@@ -202,6 +202,6 @@ Registration/login, RBAC, consultation workflow + completion gate, result genera
 
 | ID | Причина |
 |----|---------|
-| **T055** | Ручная приёмка TR-007 — выполняет автор ВКР, не автоматизируется. |
+| **T055** | Выполнено 2026-05-26 — протокол [`docs/manual-acceptance-tr007.md`](../../docs/manual-acceptance-tr007.md). |
 
 Закрыто позже: **T034** (E2E менеджера с API-сидом заявки), **T041/T043** (REST CRUD справочников под `/api/admin/reference/*`, `GET /api/consultations/context/active-templates` для клиента).

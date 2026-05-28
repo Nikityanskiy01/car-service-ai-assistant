@@ -19,7 +19,18 @@ import {
   detectConsultationIntent,
   detectServiceType,
 } from './consultationIntent.service.js';
+import { getEnv } from '../config/env.js';
 import { chatCompletion } from './ollamaService.js';
+
+const EXTRACTION_FIELD_KEYS = [
+  'car_make',
+  'car_model',
+  'year',
+  'mileage',
+  'symptoms',
+  'conditions',
+  'urgency_signs',
+];
 
 /** @typedef {"engine"|"brakes"|"suspension"|"steering"|"cooling"|"transmission"|"electrical"|"starting_system"|"fuel_system"|"unknown"} SymptomCategory */
 
@@ -375,45 +386,55 @@ export function preExtractFromRules(message, base = {}) {
 
   if (!out.car_make || !out.car_model) {
     const MAKE_PATTERNS = [
-      { rx: /^(?:бмв|bmw)\s+(.+)/i, make: 'BMW' },
-      { rx: /^(?:мазда|mazda)\s+(.+)/i, make: 'Mazda' },
-      { rx: /^(?:тойота|toyota)\s+(.+)/i, make: 'Toyota' },
-      { rx: /^(?:хонда|honda)\s+(.+)/i, make: 'Honda' },
-      { rx: /^(?:ниссан|nissan)\s+(.+)/i, make: 'Nissan' },
-      { rx: /^(?:хёндай|хендай|хюндай|hyundai)\s+(.+)/i, make: 'Hyundai' },
-      { rx: /^(?:киа|kia)\s+(.+)/i, make: 'Kia' },
-      { rx: /^(?:мерседес|mercedes|мерс)\s+(.+)/i, make: 'Mercedes-Benz' },
-      { rx: /^(?:ауди|audi)\s+(.+)/i, make: 'Audi' },
-      { rx: /^(?:фольксваген|volkswagen|vw|фольц)\s+(.+)/i, make: 'Volkswagen' },
-      { rx: /^(?:шкода|skoda)\s+(.+)/i, make: 'Skoda' },
-      { rx: /^(?:форд|ford)\s+(.+)/i, make: 'Ford' },
-      { rx: /^(?:шевроле|chevrolet)\s+(.+)/i, make: 'Chevrolet' },
-      { rx: /^(?:рено|renault)\s+(.+)/i, make: 'Renault' },
-      { rx: /^(?:пежо|peugeot)\s+(.+)/i, make: 'Peugeot' },
-      { rx: /^(?:ситроен|citroen)\s+(.+)/i, make: 'Citroen' },
-      { rx: /^(?:лада|ваз|vaz|lada)\s+(.+)/i, make: 'Lada' },
-      { rx: /^(?:субару|subaru)\s+(.+)/i, make: 'Subaru' },
-      { rx: /^(?:мицубиси|митсубиси|mitsubishi)\s+(.+)/i, make: 'Mitsubishi' },
-      { rx: /^(?:лексус|lexus)\s+(.+)/i, make: 'Lexus' },
-      { rx: /^(?:вольво|volvo)\s+(.+)/i, make: 'Volvo' },
-      { rx: /^(?:сузуки|suzuki)\s+(.+)/i, make: 'Suzuki' },
-      { rx: /^(?:опель|opel)\s+(.+)/i, make: 'Opel' },
-      { rx: /^(?:порше|porsche)\s+(.+)/i, make: 'Porsche' },
-      { rx: /^(?:фиат|fiat)\s+(.+)/i, make: 'Fiat' },
-      { rx: /^(?:джили|geely)\s+(.+)/i, make: 'Geely' },
-      { rx: /^(?:чери|chery)\s+(.+)/i, make: 'Chery' },
-      { rx: /^(?:хавал|haval)\s+(.+)/i, make: 'Haval' },
+      { rx: /^(?:бмв|bmw)(?:\s+(.+))?$/i, make: 'BMW' },
+      { rx: /^(?:мазда|mazda)(?:\s+(.+))?$/i, make: 'Mazda' },
+      { rx: /^(?:тойота|toyota)(?:\s+(.+))?$/i, make: 'Toyota' },
+      { rx: /^(?:хонда|honda)(?:\s+(.+))?$/i, make: 'Honda' },
+      { rx: /^(?:ниссан|nissan)(?:\s+(.+))?$/i, make: 'Nissan' },
+      { rx: /^(?:хёндай|хендай|хюндай|hyundai)(?:\s+(.+))?$/i, make: 'Hyundai' },
+      { rx: /^(?:киа|kia)(?:\s+(.+))?$/i, make: 'Kia' },
+      { rx: /^(?:мерседес|mercedes|мерс)(?:\s+(.+))?$/i, make: 'Mercedes-Benz' },
+      { rx: /^(?:ауди|audi)(?:\s+(.+))?$/i, make: 'Audi' },
+      { rx: /^(?:фольксваген|volkswagen|vw|фольц)(?:\s+(.+))?$/i, make: 'Volkswagen' },
+      { rx: /^(?:шкода|skoda)(?:\s+(.+))?$/i, make: 'Skoda' },
+      { rx: /^(?:форд|ford)(?:\s+(.+))?$/i, make: 'Ford' },
+      { rx: /^(?:шевроле|chevrolet)(?:\s+(.+))?$/i, make: 'Chevrolet' },
+      { rx: /^(?:рено|renault)(?:\s+(.+))?$/i, make: 'Renault' },
+      { rx: /^(?:пежо|peugeot)(?:\s+(.+))?$/i, make: 'Peugeot' },
+      { rx: /^(?:ситроен|citroen)(?:\s+(.+))?$/i, make: 'Citroen' },
+      { rx: /^(?:лада|ваз|vaz|lada)(?:\s+(.+))?$/i, make: 'Lada' },
+      { rx: /^(?:субару|subaru)(?:\s+(.+))?$/i, make: 'Subaru' },
+      { rx: /^(?:мицубиси|митсубиси|mitsubishi)(?:\s+(.+))?$/i, make: 'Mitsubishi' },
+      { rx: /^(?:лексус|lexus)(?:\s+(.+))?$/i, make: 'Lexus' },
+      { rx: /^(?:вольво|volvo)(?:\s+(.+))?$/i, make: 'Volvo' },
+      { rx: /^(?:сузуки|suzuki)(?:\s+(.+))?$/i, make: 'Suzuki' },
+      { rx: /^(?:опель|opel)(?:\s+(.+))?$/i, make: 'Opel' },
+      { rx: /^(?:порше|porsche)(?:\s+(.+))?$/i, make: 'Porsche' },
+      { rx: /^(?:фиат|fiat)(?:\s+(.+))?$/i, make: 'Fiat' },
+      { rx: /^(?:джили|geely)(?:\s+(.+))?$/i, make: 'Geely' },
+      { rx: /^(?:чери|chery)(?:\s+(.+))?$/i, make: 'Chery' },
+      { rx: /^(?:хавал|haval)(?:\s+(.+))?$/i, make: 'Haval' },
     ];
     for (const { rx, make } of MAKE_PATTERNS) {
       const m = t.match(rx);
       if (m) {
         if (!out.car_make) out.car_make = make;
         if (!out.car_model) {
-          const rest = m[1].trim().split(/\s+/)[0];
+          const rest = String(m[1] || '')
+            .trim()
+            .split(/\s+/)[0];
           if (rest && isValidModelText(rest)) out.car_model = rest;
         }
         break;
       }
+    }
+  }
+
+  // Ответ на «уточните модель»: одно слово при уже известной марке
+  if (out.car_make && !out.car_model && t.length <= 28 && !/\d{4,}/.test(t)) {
+    const token = t.split(/\s+/)[0];
+    if (token && isValidModelText(token) && !/^(тыс|км|пробег)$/i.test(token)) {
+      out.car_model = token;
     }
   }
 
@@ -458,6 +479,63 @@ function postProcessMerged(merged) {
  * @param {Record<string, unknown>} pre
  * @param {Record<string, unknown>} merged
  */
+/**
+ * Сколько полей rule-based слой добавил или уточнил относительно base.
+ * @param {Record<string, unknown>} base
+ * @param {Record<string, unknown>} pre
+ */
+export function countFieldsChangedByPre(base, pre) {
+  let n = 0;
+  for (const key of EXTRACTION_FIELD_KEYS) {
+    const had = isFieldFilled(key, base[key]);
+    const now = isFieldFilled(key, pre[key]);
+    if (!now) continue;
+    if (!had || String(pre[key]).trim() !== String(base[key] ?? '').trim()) n++;
+  }
+  return n;
+}
+
+/**
+ * Короткий ответ на один вопрос бота (пробег, год, «всегда») — LLM не нужен.
+ * @param {string} message
+ */
+export function isSimpleExtractionMessage(message) {
+  const t = String(message || '').trim();
+  if (!t) return true;
+  if (t.length > 80) return false;
+  if (/^\d{4,7}(\s*км)?$/i.test(t)) return true;
+  if (/^\d{1,3}\s*тыс(?:\s*км)?\.?$/i.test(t)) return true;
+  if (/^(19|20)\d{2}$/.test(t)) return true;
+  if (/^(всегда|always|постоянно|неизменно)$/i.test(t)) return true;
+  if (
+    /^(в\s+любое\s+время|в\s+любых\s+условиях|не\s+зависит(\s+от\s+условий)?)$/i.test(
+      t.toLowerCase(),
+    )
+  ) {
+    return true;
+  }
+  if (CONDITION_HINTS.test(t) && t.length <= 60) return true;
+  return false;
+}
+
+/**
+ * Пропускаем вызов Ollama, если правила уже разобрали сообщение.
+ * @param {string} message
+ * @param {Record<string, unknown>} base
+ * @param {Record<string, unknown>} pre
+ */
+export function shouldSkipLlmExtraction(message, base, pre) {
+  const msg = String(message || '').trim();
+  if (!msg) return true;
+  if (isSimpleExtractionMessage(msg)) return true;
+
+  const delta = countFieldsChangedByPre(base, pre);
+  if (delta >= 2) return true;
+  if (delta > 0 && msg.length <= 140) return true;
+
+  return false;
+}
+
 export function preferPreExtractedServiceSymptoms(pre, merged) {
   const p = pre?.symptoms != null ? String(pre.symptoms).trim() : '';
   if (!p || detectConsultationIntent(p) !== 'service') return merged;
@@ -476,10 +554,24 @@ export async function extractConsultationData(message, currentState = {}) {
   const base = mergeExtractedData(EMPTY_CONSULTATION_STATE, currentState);
   const pre = preExtractFromRules(msg, base);
 
+  if (shouldSkipLlmExtraction(msg, base, pre)) {
+    return postProcessMerged(pre);
+  }
+
+  const env = getEnv();
+  const extractionModel = env.LLM_EXTRACTION_MODEL?.trim() || env.LLM_MODEL;
+
   try {
     const raw = await chatCompletion({
+      model: extractionModel,
       temperature: 0,
+      timeoutMs: 45_000,
+      keepAlive: env.LLM_KEEP_ALIVE,
       format: EXTRACTION_FORMAT_SCHEMA,
+      options: {
+        num_predict: env.LLM_EXTRACTION_NUM_PREDICT,
+        num_ctx: 2048,
+      },
       messages: [
         { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
         { role: 'user', content: extractionUserPrompt(msg, pre) },

@@ -3,11 +3,13 @@ import {
   DIAGNOSIS_SYSTEM_PROMPT,
   diagnosisUserPrompt,
 } from '../../prompts/consultationPrompts.js';
+import { getEnv } from '../../config/env.js';
 import { getRelevantCases } from '../../services/caseMemory.service.js';
 import { isFieldFilled } from '../../services/consultationFlowService.js';
 import { chatCompletion } from '../../services/ollamaService.js';
 import { pickPlaybook, playbookToAiHints } from '../../lib/diagnosticPlaybooks.js';
 import { topWorksForCategory, topWorksForCategoryAndMake } from '../../lib/workStats.js';
+import { safeJsonParse } from '../../utils/safeJsonParse.js';
 
 export {
   buildConsultationState,
@@ -49,6 +51,17 @@ function safeDiagnosisFallback() {
     summary:
       'По текущим данным невозможно сделать надежный вывод. Рекомендуем очную диагностику для уточнения причин.',
   };
+}
+
+function isGenericDiagnosisText(text) {
+  const s = String(text || '').toLowerCase().trim();
+  if (!s) return true;
+  return (
+    s.includes('требуется очная проверка') ||
+    s.includes('требуется дополнительная диагностика') ||
+    s.includes('невозможно сделать') ||
+    s.includes('обратитесь в сервис')
+  );
 }
 
 const URGENCY_RANK = { low: 1, medium: 2, high: 3 };
@@ -98,6 +111,21 @@ export function preAnalyzeSymptoms(data) {
     raiseUrgency('high');
   }
 
+  // 1b. Вибрация руля при торможении (частый реальный кейс)
+  if (
+    (symptoms.includes('вибрац') && symptoms.includes('рул') && symptoms.includes('тормож')) ||
+    (symptoms.includes('вибрац') && symptoms.includes('рул') && conditions.includes('тормож'))
+  ) {
+    rulesMatched++;
+    pushCause('Деформация или перегрев тормозных дисков');
+    pushCause('Неравномерный износ колодок и направляющих суппорта');
+    pushCause('Люфт элементов передней подвески или ступичного узла');
+    pushCheck('Проверить биение передних тормозных дисков индикатором на ступице');
+    pushCheck('Осмотреть колодки, направляющие и поршни суппортов на заедание');
+    pushCheck('Проверить люфты ступичных подшипников, рулевых наконечников и шаровых опор');
+    raiseUrgency('high');
+  }
+
   // 2. Стук на неровной дороге
   if (symptoms.includes('посторонний стук') && conditions.includes('на неровной дороге')) {
     rulesMatched++;
@@ -106,6 +134,21 @@ export function preAnalyzeSymptoms(data) {
     pushCause('Шаровые опоры');
     pushCheck('Покачать стабилизатор: слушать стук в сайлентблоках и втулках');
     pushCheck('На подъёмнике проверить люфт шаровых и опор амортизаторов');
+    raiseUrgency('medium');
+  }
+
+  // 2b. Стук в подвеске без фразы "на неровной дороге"
+  if (
+    (symptoms.includes('стук') || symptoms.includes('грохот')) &&
+    (symptoms.includes('справа') || symptoms.includes('слева') || symptoms.includes('спереди'))
+  ) {
+    rulesMatched++;
+    pushCause('Износ стоек/втулок стабилизатора');
+    pushCause('Люфт шаровой опоры или рулевого наконечника');
+    pushCause('Износ опоры амортизатора');
+    pushCheck('Проверить подвеску на подъемнике с нагрузкой на шарниры и стойки');
+    pushCheck('Проверить люфты рулевых наконечников и шаровых опор монтажкой');
+    pushCheck('Оценить состояние опор амортизаторов и крепежа стойки');
     raiseUrgency('medium');
   }
 
@@ -244,14 +287,16 @@ function normalizeDiagnosis(raw) {
   const checks = Array.isArray(obj.recommended_checks)
     ? obj.recommended_checks.map((x) => coerceDiagnosisLine(x)).filter(Boolean).slice(0, 5)
     : [];
+  const cleanedCauses = causes.filter((x) => !isGenericDiagnosisText(x));
+  const cleanedChecks = checks.filter((x) => !isGenericDiagnosisText(x));
   const cost = obj.estimated_cost_from == null ? null : Number(obj.estimated_cost_from);
   return {
-    probable_causes: causes.length >= 1 ? causes : fallback.probable_causes,
-    recommended_checks: checks.length >= 1 ? checks : fallback.recommended_checks,
+    probable_causes: cleanedCauses,
+    recommended_checks: cleanedChecks,
     urgency,
     confidence,
     estimated_cost_from: Number.isFinite(cost) ? Math.max(0, Math.round(cost)) : null,
-    summary: String(obj.summary || fallback.summary).trim(),
+    summary: String(obj.summary || '').trim(),
   };
 }
 
@@ -454,18 +499,42 @@ export async function generateDiagnosis(data) {
   } catch {
     relatedCases = [];
   }
-  try {
-    const raw = await chatCompletion({
-      temperature: 0.2,
+  const env = getEnv();
+  const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || env.LLM_MODEL;
+  const callDiagnosisLlm = async () =>
+    chatCompletion({
+      model: diagnosisModel,
+      temperature: 0.15,
+      timeoutMs: env.LLM_DIAGNOSIS_TIMEOUT_MS,
+      keepAlive: env.LLM_KEEP_ALIVE,
       format: DIAGNOSIS_FORMAT_SCHEMA,
+      options: {
+        num_predict: env.LLM_DIAGNOSIS_NUM_PREDICT,
+        num_ctx: 3072,
+      },
       messages: [
         { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
         { role: 'user', content: diagnosisUserPrompt(payload, relatedCases, pbHints, tw) },
       ],
     });
-    const llmDiagnosis = normalizeDiagnosis(JSON.parse(raw));
+  try {
+    const firstRaw = await callDiagnosisLlm();
+    let parsed = safeJsonParse(firstRaw);
+    if (!parsed) {
+      const secondRaw = await callDiagnosisLlm();
+      parsed = safeJsonParse(secondRaw);
+    }
+    if (!parsed) throw new Error('diagnosis: invalid json from llm');
+    const llmDiagnosis = normalizeDiagnosis(parsed);
     return mergeDiagnosis(ruleBased, llmDiagnosis);
   } catch {
-    return mergeDiagnosis(ruleBased, safeDiagnosisFallback());
+    return mergeDiagnosis(ruleBased, {
+      probable_causes: [],
+      recommended_checks: [],
+      urgency: ruleBased.urgency || 'medium',
+      confidence: 0.25,
+      estimated_cost_from: null,
+      summary: '',
+    });
   }
 }

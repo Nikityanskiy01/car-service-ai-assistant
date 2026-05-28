@@ -36,9 +36,10 @@
 }
 
 .consult-pro__hero-note {
-  margin: 0;
+  margin: 0.2rem 0 0;
   font-size: 0.92rem;
   color: rgba(255, 255, 255, 0.72);
+  max-width: 48rem;
 }
 
 .consult-pro__hero-actions {
@@ -165,6 +166,13 @@ a.consult-pro__toolbar-btn--link:visited {
 
 .consult-pro__chat {
   padding: 0.95rem;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+}
+
+.consult-pro__chat.is-busy {
+  border-color: rgba(255, 122, 26, 0.28);
+  box-shadow: 0 0 0 1px rgba(255, 122, 26, 0.12), 0 16px 34px rgba(0, 0, 0, 0.36);
+  background: linear-gradient(170deg, rgba(255, 122, 26, 0.06), transparent 42%), rgba(15, 18, 26, 0.9);
 }
 
 .consult-pro__hints {
@@ -269,14 +277,37 @@ a.consult-pro__toolbar-btn--link:visited {
 #progressBar,
 #sideProgressBar {
   width: 0%;
+  transition: width 620ms var(--motion-ease-smooth);
 }
 
 #resultConfidenceBar {
   width: 0%;
+  transition: width 720ms var(--motion-ease-smooth);
+}
+
+.consult-pro .bubble {
+  animation: consult-bubble-in 520ms var(--motion-ease-smooth) both;
+  animation-delay: var(--bubble-delay, 0ms);
+}
+
+.consult-pro .bubble--enter {
+  animation-delay: 0ms !important;
+}
+
+@keyframes consult-bubble-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .consult-pro__post-message {
   margin: 0 0 0.75rem;
+  font-size: 0.88rem;
 }
 
 .consult-pro__post-actions {

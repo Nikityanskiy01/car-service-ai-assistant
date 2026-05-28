@@ -21,19 +21,19 @@
   align-items: center;
   gap: 0.6rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-text);
   text-decoration: none;
 }
 
 .brand:hover {
   text-decoration: none;
-  color: #fff;
+  color: var(--color-text);
 }
 
 .brand__logo {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   object-fit: contain;
   display: block;
   flex-shrink: 0;
@@ -47,18 +47,18 @@
 }
 
 .nav a {
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--color-muted);
   font-weight: 500;
   padding: 0.35rem 0;
 }
 
 .nav a:hover {
   text-decoration: none;
-  color: #fff;
+  color: var(--color-text);
 }
 
 .nav a.is-active {
-  color: #fff;
+  color: var(--color-text);
   position: relative;
 }
 
@@ -75,8 +75,8 @@
 
 .nav-toggle {
   display: none;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
   border: none;
   padding: 0.5rem 0.75rem;
   border-radius: var(--radius);
@@ -159,7 +159,7 @@
   justify-content: center;
   gap: 0.4rem;
   padding: 0.55rem 1.1rem;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 1.5px solid transparent;
   font-weight: 600;
   cursor: pointer;
@@ -168,13 +168,8 @@
   min-height: 42px;
   line-height: 1.3;
   white-space: nowrap;
-  transition:
-    transform 0.12s ease,
-    background 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    filter 0.15s ease;
+  transition: transform var(--transition-fast), background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast), box-shadow var(--transition-fast), filter var(--transition-fast);
 }
 
 a.btn,
@@ -202,12 +197,12 @@ a.btn:visited {
   color: #fff !important;
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-2));
   border-color: transparent;
-  box-shadow: 0 4px 14px rgba(255, 122, 26, 0.25);
+  box-shadow: 0 8px 18px rgba(255, 122, 26, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.07) inset;
 }
 
 .btn--primary:hover {
-  filter: brightness(1.08);
-  box-shadow: 0 6px 20px rgba(255, 122, 26, 0.35);
+  filter: brightness(1.09);
+  box-shadow: 0 12px 28px rgba(255, 122, 26, 0.34), 0 0 40px rgba(255, 61, 129, 0.16);
   transform: translateY(-1px);
 }
 
@@ -236,7 +231,7 @@ a.btn:visited {
 /* ─── Outline (accent border) ─── */
 .btn--outline {
   background: transparent;
-  color: var(--color-accent);
+  color: var(--color-accent-dark);
   border-color: var(--color-accent);
 }
 
@@ -289,7 +284,7 @@ a.btn:visited {
 .ui-modal {
   width: min(520px, 100%);
   background: var(--color-surface);
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   box-shadow:
     0 28px 70px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(255, 255, 255, 0.04) inset,
@@ -328,7 +323,7 @@ a.btn:visited {
 .ui-modal__x {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
@@ -457,7 +452,7 @@ a.btn:visited {
 .card {
   background: var(--color-panel);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(8px);
@@ -490,7 +485,7 @@ a.btn:visited {
 .form-field select {
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   font-size: 1rem;
   min-height: 44px;
@@ -659,7 +654,7 @@ select option {
 
 .chat {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: rgba(15, 17, 23, 0.72);
   min-height: 320px;
   max-height: 480px;
@@ -673,7 +668,7 @@ select option {
 .bubble {
   max-width: 85%;
   padding: 0.65rem 0.9rem;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   line-height: 1.45;
 }
 
@@ -888,7 +883,7 @@ select option {
 .mini-kpi {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 0.75rem;
   min-width: 0;
 }
@@ -999,7 +994,7 @@ select option {
 .diag-confidence {
   border: 1px solid rgba(255, 122, 26, 0.24);
   background: rgba(255, 122, 26, 0.08);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 0.75rem;
 }
 
@@ -1031,14 +1026,14 @@ select option {
 
 .diag-block {
   border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.03);
   padding: 0.72rem;
 }
 
 .diag-hyp {
   border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 0.56rem 0.62rem;
   background: rgba(255, 255, 255, 0.03);
 }
@@ -1080,7 +1075,7 @@ select option {
   gap: 0.45rem;
   align-items: center;
   border: 1px dashed rgba(255, 255, 255, 0.20);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 0.6rem 0.7rem;
   background: rgba(255, 255, 255, 0.02);
   font-size: 0.9rem;
@@ -1173,8 +1168,16 @@ table.data tr.is-selected th:first-child {
 }
 
 .nav-auth .btn {
-  min-width: 130px;
-  padding: .55rem 1.8rem;
+  min-width: 118px;
+  padding: .55rem 1.2rem;
+}
+
+.nav-auth .btn--primary {
+  order: 2;
+}
+
+.nav-auth .btn--ghost {
+  order: 1;
 }
 
 /* Thread composer */

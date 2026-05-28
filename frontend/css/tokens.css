@@ -27,9 +27,11 @@
   --space-4: 1rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
 
   /* Focus */
-  --focus-ring: 0 0 0 4px rgba(255, 143, 74, 0.25);
+  --focus-ring: 0 0 0 3px rgba(255, 143, 74, 0.24);
+  --focus-ring-strong: 0 0 0 4px rgba(255, 122, 26, 0.34);
 
   color-scheme: dark;
 
@@ -39,6 +41,7 @@
   --color-surface-2: #141824;
   --color-panel: rgba(15, 18, 26, 0.84);
   --color-panel-soft: rgba(255, 255, 255, 0.04);
+  --color-panel-raised: rgba(19, 23, 34, 0.92);
   --color-text: rgba(255, 255, 255, 0.92);
   --color-muted: rgba(255, 255, 255, 0.66);
   --color-border: rgba(255, 255, 255, 0.1);
@@ -57,9 +60,31 @@
   --page-bg-mid: #0c121c;
   --page-bg-top: #101820;
 
-  --shadow: 0 10px 34px rgba(0, 0, 0, 0.35);
-  --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.22);
+  --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.24);
+  --shadow: 0 16px 38px rgba(0, 0, 0, 0.35);
+  --shadow-elevated: 0 22px 58px rgba(0, 0, 0, 0.48);
+
+  --radius-sm: 8px;
   --radius: 10px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  --transition-fast: 140ms ease;
+  --transition-base: 220ms ease;
+  --transition-slow: 420ms ease;
+
+  /* Motion tokens */
+  --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-duration-page: 620ms;
+  --motion-duration-section: 760ms;
+  --motion-duration-reveal: 880ms;
+  --motion-distance-page: 10px;
+  --motion-distance-section: 18px;
+  --motion-distance-reveal: 24px;
+  --motion-stagger-sm: 65ms;
+  --motion-stagger-md: 95ms;
 
   /* Скроллбары (Firefox + WebKit) */
   --scrollbar-size: 8px;

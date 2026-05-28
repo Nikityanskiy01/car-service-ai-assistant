@@ -5,7 +5,6 @@ let cache;
 export function getWorkStats() {
   if (cache !== undefined) return cache;
   try {
-    // eslint-disable-next-line n/no-sync
     const raw = fs.readFileSync(new URL('../../data/work_stats.json', import.meta.url), 'utf8');
     cache = JSON.parse(raw);
   } catch {

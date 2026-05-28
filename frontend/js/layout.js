@@ -13,6 +13,55 @@ function loadLucide() {
   });
 }
 
+function initScrollReveal() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (typeof IntersectionObserver === 'undefined') return;
+
+  const main = document.querySelector('main.page');
+  if (!main) return;
+
+  const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+  const candidates = main.querySelectorAll(
+    [
+      'main.page > section',
+      'main.page > .consult-grid',
+      '.home-pro__grid > *',
+      '.services-pro__grid > *',
+      '.works-pro__grid > *',
+      '.gallery-pro__grid > *',
+      '.dash__panel .card',
+      '.dash__panel .table-wrap',
+      '.dash__panel .admin-summary__card',
+    ].join(','),
+  );
+
+  const rawTargets = Array.from(new Set(Array.from(candidates))).filter((el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.top > viewportH * 0.92;
+  });
+  const targets = rawTargets.filter((el) => !rawTargets.some((parent) => parent !== el && parent.contains(el)));
+
+  if (!targets.length) return;
+
+  targets.forEach((el) => el.classList.add('scroll-reveal'));
+
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        .forEach((entry, idx) => {
+          entry.target.style.setProperty('--scroll-reveal-delay', `${Math.min(idx * 65, 240)}ms`);
+          entry.target.classList.add('is-visible');
+          io.unobserve(entry.target);
+        });
+    },
+    { threshold: 0.12, rootMargin: '0px 0px -2% 0px' },
+  );
+
+  targets.forEach((el) => io.observe(el));
+}
+
 export function mountHeaderFooter({ active = '' } = {}) {
   const user = getUser();
   const authed = !!user;
@@ -25,12 +74,12 @@ export function mountHeaderFooter({ active = '' } = {}) {
         : '/dashboards/client.html';
 
   const dashClass = active === 'dash' ? 'is-active' : '';
-  const navCta = '';
+  const navCta = `<a href="/services.html" class="btn btn--primary nav-cta">Быстрая запись</a>`;
   const authBlock = authed
     ? `<a href="${dash}" class="${dashClass}">Кабинет</a>
        <button type="button" class="btn btn--ghost" id="logoutBtn">Выход</button>`
     : `<div class="nav-auth">
-         <a href="/login.html" class="btn btn--primary">Вход</a>
+         <a href="/login.html" class="btn btn--ghost">Вход</a>
          <a href="/register.html" class="btn btn--primary">Регистрация</a>
        </div>`;
 
@@ -136,4 +185,5 @@ export function mountHeaderFooter({ active = '' } = {}) {
   });
 
   loadLucide();
+  initScrollReveal();
 }

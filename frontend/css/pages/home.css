@@ -32,7 +32,11 @@
   background: rgba(15, 18, 26, 0.86);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base),
+    background var(--transition-slow);
 }
 
 .home-pro .card:hover {
@@ -81,6 +85,18 @@
   align-items: center;
 }
 
+.home-pro__actions .btn--ghost {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  transition: transform var(--transition-base), border-color var(--transition-base), background var(--transition-base);
+}
+
+.home-pro__actions .btn--ghost:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 122, 26, 0.36);
+  background: rgba(255, 122, 26, 0.12);
+}
+
 .home-pro__hero-list {
   margin: 0.75rem 0 0;
   padding-left: 1rem;
@@ -102,20 +118,28 @@
 .home-pro__link {
   display: inline-block;
   margin-top: 0.42rem;
+  margin-right: 0.85rem;
   color: rgba(255, 173, 99, 0.96);
   font-weight: 600;
   text-decoration: none;
-  transition: color .15s ease;
+  transition: color var(--transition-base), transform var(--transition-base);
 }
 
 .home-pro__link:hover {
   color: #fff;
   text-decoration: underline;
+  transform: translateX(3px);
 }
 
 /* ─── Demo chat card ─── */
 .home-chat {
   backdrop-filter: blur(8px);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.home-chat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
 }
 
 .home-chat__title {
@@ -219,6 +243,11 @@
   display: flex;
   align-items: center;
   gap: .6rem;
+  transition: transform var(--transition-base);
+}
+
+.home-pro__feature:hover {
+  transform: translateY(-2px);
 }
 
 .home-pro__feature h3 {
@@ -566,6 +595,11 @@ a.home-pro__work:visited {
 .home-pro__dual-card .btn {
   margin-top: auto;
   padding-inline: 1.35rem;
+}
+
+.home-pro__dual-card--ai .btn {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ─── CTA buttons on homepage ─── */

@@ -45,11 +45,13 @@
   color: rgba(255, 255, 255, 0.90) !important;
   border-color: rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.04);
+  transition: transform var(--transition-base), background var(--transition-base), border-color var(--transition-base);
 }
 
 .works-pro__filters .btn:hover {
   border-color: rgba(255, 122, 26, 0.35);
   background: rgba(255, 122, 26, 0.10);
+  transform: translateY(-1px);
 }
 
 .works-pro__filters .btn.is-active {
@@ -70,7 +72,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 170ms ease, box-shadow 170ms ease, border-color 170ms ease;
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
 }
 
 .work-item[hidden] {
@@ -105,6 +107,12 @@
   margin-bottom: 0.65rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   outline: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform var(--transition-slow), box-shadow var(--transition-slow);
+}
+
+.work-item:hover img {
+  transform: scale(1.025);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.45);
 }
 
 .work-item h3 {

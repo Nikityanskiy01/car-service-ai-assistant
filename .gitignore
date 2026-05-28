@@ -1,6 +1,7 @@
 node_modules/
 backend/node_modules/
 .env
+.env.proxmox
 backend/.env
 backend/prisma/prisma/
 backend/prisma/*.db
@@ -23,3 +24,16 @@ Thumbs.db
 
 # Локальные данные Cursor (правила в репозитории обычно не нужны — при необходимости уберите эту строку)
 .cursor/
+
+# LaTeX / thesis build artifacts
+thesis/*.aux
+thesis/*.log
+thesis/*.out
+thesis/*.toc
+thesis/*.synctex.gz
+thesis/*.fdb_latexmk
+thesis/*.fls
+
+# Demo screenshots (optional local captures; keep folder)
+docs/screenshots/*
+!docs/screenshots/.gitkeep

@@ -4,6 +4,8 @@ import { $, escapeHtml, formatDate } from './utils.js';
 import { uiAlert, uiPromptContact } from './ui/dialogs.js';
 
 const CONSULT_NEXT = '/consult.html';
+const FALLBACK_GREETING =
+  'Здравствуйте! Я виртуальный консультант автосервиса. Напишите марку, модель, пробег и опишите запрос (неисправность или плановую работу) — можно по отдельности сообщениями; я задам только недостающие уточнения.';
 
 /** Если с бэка пришёл объект вместо строки — не показывать "[object Object]". */
 function diagLineText(raw) {
@@ -183,6 +185,7 @@ export async function initConsultPage() {
   const chatEl = $('#chat');
   const form = $('#chatForm');
   const input = $('#messageInput');
+  const submitBtn = form?.querySelector('button[type="submit"]');
   const chatPanel = $('#consultChatPanel');
   const progressWrap = $('#progressWrap');
   const progressBar = $('#progressBar');
@@ -256,12 +259,19 @@ export async function initConsultPage() {
     updateGuestBanner(!!data.isGuest);
 
     chatEl.innerHTML = '';
-    (data.messages || []).forEach((m) => {
+    (data.messages || []).forEach((m, idx) => {
       const div = document.createElement('div');
       div.className = `bubble ${m.sender === 'USER' ? 'bubble--user' : 'bubble--assistant'}`;
+      div.style.setProperty('--bubble-delay', `${Math.min(idx * 36, 240)}ms`);
       div.innerHTML = escapeHtml(m.content);
       chatEl.appendChild(div);
     });
+    if (!Array.isArray(data.messages) || data.messages.length === 0) {
+      const intro = document.createElement('div');
+      intro.className = 'bubble bubble--assistant';
+      intro.innerHTML = escapeHtml(FALLBACK_GREETING);
+      chatEl.appendChild(intro);
+    }
     chatEl.scrollTop = chatEl.scrollHeight;
 
     const ext = data.extracted;
@@ -693,11 +703,21 @@ export async function initConsultPage() {
     diagnosing: 'Формирую диагностику…',
   };
 
+  function setSendState(isBusy, label = 'Отправить') {
+    if (submitBtn) {
+      submitBtn.disabled = isBusy;
+      submitBtn.textContent = isBusy ? label : 'Отправить';
+    }
+    if (input) input.disabled = isBusy;
+    chatPanel?.classList.toggle('is-busy', isBusy);
+  }
+
   function showThinkingBubble(phase) {
     let bubble = chatEl.querySelector('.bubble--thinking');
     if (!bubble) {
       bubble = document.createElement('div');
       bubble.className = 'bubble bubble--assistant bubble--thinking';
+      bubble.classList.add('bubble--enter');
       chatEl.appendChild(bubble);
     }
     bubble.innerHTML = `<span class="thinking-dot"></span> ${escapeHtml(PHASE_LABELS[phase] || 'ИИ анализирует…')}`;
@@ -718,6 +738,7 @@ export async function initConsultPage() {
 
     const userBubble = document.createElement('div');
     userBubble.className = 'bubble bubble--user';
+    userBubble.classList.add('bubble--enter');
     userBubble.innerHTML = escapeHtml(text);
     chatEl.appendChild(userBubble);
     chatEl.scrollTop = chatEl.scrollHeight;
@@ -792,14 +813,47 @@ export async function initConsultPage() {
     else if (sessionId) await loadSession();
   }
 
+  async function sendMessageClassic(text, recoveredOnce = false) {
+    const userBubble = document.createElement('div');
+    userBubble.className = 'bubble bubble--user';
+    userBubble.classList.add('bubble--enter');
+    userBubble.innerHTML = escapeHtml(text);
+    chatEl.appendChild(userBubble);
+    chatEl.scrollTop = chatEl.scrollHeight;
+
+    showThinkingBubble('started');
+    try {
+      const data = await api(
+        `/consultations/${sessionId}/messages`,
+        { method: 'POST', body: { content: text }, ...guestApiOpts() },
+      );
+      removeThinkingBubble();
+      renderSession(data);
+    } catch (e) {
+      removeThinkingBubble();
+      if (!recoveredOnce && isConsultSessionAccessDenied(e)) {
+        userBubble.remove();
+        clearConsultSessionStorage();
+        sessionId = null;
+        await startSession();
+        return sendMessageClassic(text, true);
+      }
+      throw e;
+    }
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
+    setSendState(true, 'Отправка...');
     try {
       if (!sessionId) await startSession();
-      await sendMessageSSE(text);
+      setSendState(true, 'ИИ анализирует...');
+      // В проде SSE иногда рвётся на слабом соединении/после рестартов контейнера.
+      // Для стабильности отправляем обычный POST без стриминга.
+      await sendMessageClassic(text);
     } catch (e) {
       removeThinkingBubble();
       if (e.status === 503) {
@@ -815,6 +869,9 @@ export async function initConsultPage() {
         errBox.className = 'alert alert--error';
         errBox.hidden = false;
       }
+    } finally {
+      setSendState(false);
+      input?.focus();
     }
   });
 

@@ -126,6 +126,19 @@ export async function initManagerDashboard() {
     return `<span class="${cls}">${escapeHtml(text)}</span>`;
   }
 
+  async function withButtonBusy(btn, loadingText, action) {
+    if (!btn) return action();
+    const initialText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = loadingText;
+    try {
+      return await action();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = initialText;
+    }
+  }
+
   function renderQuickStats() {
     const root = $('#mgrQuickStats');
     if (!root) return;
@@ -693,7 +706,12 @@ export async function initManagerDashboard() {
   function setActiveTab(key) {
     tabs.forEach((t) => t.classList.toggle('is-active', t.dataset.tab === key));
     panels.forEach((p) => {
-      p.hidden = p.dataset.panel !== key;
+      const active = p.dataset.panel === key;
+      p.hidden = !active;
+      p.classList.toggle('is-entering', active);
+      if (active) {
+        window.setTimeout(() => p.classList.remove('is-entering'), 450);
+      }
     });
     if (key) history.replaceState(null, '', '#' + key);
     if (key === 'records') {
@@ -832,7 +850,9 @@ export async function initManagerDashboard() {
     void loadList({ resetPage: true });
   });
 
-  $('#filterBtn')?.addEventListener('click', () => loadList({ resetPage: true }));
+  $('#filterBtn')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadList({ resetPage: true }));
+  });
   $('#bulkApplyBtn')?.addEventListener('click', async () => {
     const idsRaw = String($('#bulkRequestIds')?.value || '').trim();
     const status = String($('#bulkRequestStatus')?.value || 'IN_PROGRESS');
@@ -869,8 +889,12 @@ export async function initManagerDashboard() {
       void loadList({ resetPage: true });
     }
   });
-  document.getElementById('contactsRefreshBtn')?.addEventListener('click', () => loadContacts());
-  document.getElementById('consultRefreshBtn')?.addEventListener('click', () => loadConsultationsList());
+  document.getElementById('contactsRefreshBtn')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadContacts());
+  });
+  document.getElementById('consultRefreshBtn')?.addEventListener('click', async (e) => {
+    await withButtonBusy(e.currentTarget, 'Обновляем...', () => loadConsultationsList());
+  });
   $('#mgrResetFiltersBtn')?.addEventListener('click', () => {
     const q = $('#filterQ');
     const st = $('#filterStatus');

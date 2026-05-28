@@ -1,4 +1,4 @@
--- sync_render_database_schema
+-- sync_database_schema
 -- Идемпотентно выравнивает продовую БД с schema.prisma (без DROP, без потери данных).
 -- consultation_sessions: гостевые поля (на случай если миграция 20260405120000 не применялась или hotfix вручную)
 ALTER TABLE "consultation_sessions" ADD COLUMN IF NOT EXISTS "guest_name" TEXT;
