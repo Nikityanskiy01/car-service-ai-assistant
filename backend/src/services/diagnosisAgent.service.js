@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { getEnv } from '../config/env.js';
-import { chatCompletion } from './ollamaService.js';
+import { chatCompletion } from './llmService.js';
 import { safeJsonParse } from '../utils/safeJsonParse.js';
 import {
   AGENT_CHECKS_FORMAT_SCHEMA,
@@ -11,11 +11,18 @@ import {
   AGENT_FINAL_SYSTEM_PROMPT,
   AGENT_HYPOTHESES_FORMAT_SCHEMA,
   AGENT_HYPOTHESES_SYSTEM_PROMPT,
+  AGENT_REASONING_FORMAT_SCHEMA,
+  AGENT_REASONING_SYSTEM_PROMPT,
+  AGENT_SUMMARY_FORMAT_SCHEMA,
+  AGENT_SUMMARY_SYSTEM_PROMPT,
   agentChecksUserPrompt,
   agentContextUserPrompt,
   agentFinalUserPrompt,
   agentHypothesesUserPrompt,
+  agentReasoningUserPrompt,
+  agentSummaryUserPrompt,
 } from '../prompts/diagnosisAgentPrompts.js';
+import { telemetryObservePhase } from './diagnosticsTelemetry.service.js';
 
 const contextSchema = z.object({
   normalized_symptoms: z.string().nullable(),
@@ -117,6 +124,7 @@ async function runStep({
   env,
   invokeCompletion,
   logger,
+  onProgress,
 }) {
   let lastError = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -126,6 +134,10 @@ async function runStep({
         event: 'agent_step_started',
         step: stepName,
         attempt: attempt + 1,
+      });
+      onProgress?.({
+        phase: 'diagnosis_agent_step',
+        data: { step: stepName, status: 'started', attempt: attempt + 1 },
       });
       const raw = await invokeCompletion({
         model,
@@ -147,6 +159,11 @@ async function runStep({
         attempt: attempt + 1,
         latency_ms: Date.now() - started,
       });
+      telemetryObservePhase('diagnosis_agent_step', Date.now() - started);
+      onProgress?.({
+        phase: 'diagnosis_agent_step',
+        data: { step: stepName, status: 'finished', attempt: attempt + 1 },
+      });
       return parsed;
     } catch (err) {
       lastError = err;
@@ -156,6 +173,11 @@ async function runStep({
         attempt: attempt + 1,
         error: String(err?.message || err),
         latency_ms: Date.now() - started,
+      });
+      telemetryObservePhase('diagnosis_agent_step', Date.now() - started);
+      onProgress?.({
+        phase: 'diagnosis_agent_step',
+        data: { step: stepName, status: 'failed', attempt: attempt + 1 },
       });
     }
   }
@@ -170,6 +192,9 @@ async function runStep({
  *   relatedCases?: Array<Record<string, unknown>>,
  *   playbook?: Record<string, unknown> | null,
  *   topWorks?: string[],
+ *   useHints?: boolean,
+ *   profile?: 'full'|'compact',
+ *   onProgress?: ((event: {phase: string, data?: unknown}) => void),
  *   env?: ReturnType<typeof getEnv>,
  *   invokeCompletion?: typeof chatCompletion,
  *   logger?: Pick<Console, 'info' | 'warn'>,
@@ -180,6 +205,9 @@ export async function runDiagnosisAgent({
   relatedCases = [],
   playbook = null,
   topWorks = [],
+  useHints = false,
+  profile = 'full',
+  onProgress,
   env = getEnv(),
   invokeCompletion = chatCompletion,
   logger = console,
@@ -196,12 +224,109 @@ export async function runDiagnosisAgent({
     checks: null,
     final: null,
   };
+  const contextCases = useHints ? relatedCases : [];
+  const contextPlaybook = useHints ? playbook : null;
+  const contextTopWorks = useHints ? topWorks : [];
+
+  const compactMode = profile === 'compact';
+
+  if (compactMode) {
+    let context;
+    try {
+      const rawContext = await runStep({
+        stepName: 'context_extraction',
+        systemPrompt: AGENT_CONTEXT_SYSTEM_PROMPT,
+        userPrompt: agentContextUserPrompt(payload, contextCases, contextPlaybook, contextTopWorks),
+        format: AGENT_CONTEXT_FORMAT_SCHEMA,
+        timeoutMs,
+        retries,
+        model,
+        env,
+        invokeCompletion,
+        logger,
+        onProgress,
+      });
+      context = contextSchema.parse(rawContext);
+    } catch {
+      context = contextSchema.parse({
+        normalized_symptoms: payload?.symptoms ? String(payload.symptoms) : null,
+        normalized_conditions: payload?.conditions ? String(payload.conditions) : null,
+        inferred_intent: 'unknown',
+        key_signals: [],
+        missing_data: [],
+      });
+    }
+
+    let reasoning;
+    try {
+      const rawReasoning = await runStep({
+        stepName: 'reasoning_and_checks',
+        systemPrompt: AGENT_REASONING_SYSTEM_PROMPT,
+        userPrompt: agentReasoningUserPrompt(payload, context),
+        format: AGENT_REASONING_FORMAT_SCHEMA,
+        timeoutMs,
+        retries,
+        model,
+        env,
+        invokeCompletion,
+        logger,
+        onProgress,
+      });
+      reasoning = rawReasoning;
+    } catch {
+      reasoning = {
+        probable_causes: ['Требуется первичная диагностика по обращению'],
+        recommended_checks: ['Компьютерная диагностика OBD-II', 'Осмотр на подъемнике'],
+        urgency: 'medium',
+        confidence: 0.35,
+        estimated_cost_from: 2500,
+      };
+    }
+
+    let summary = '';
+    try {
+      const rawSummary = await runStep({
+        stepName: 'final_synthesis',
+        systemPrompt: AGENT_SUMMARY_SYSTEM_PROMPT,
+        userPrompt: agentSummaryUserPrompt(payload, reasoning),
+        format: AGENT_SUMMARY_FORMAT_SCHEMA,
+        timeoutMs: Math.min(timeoutMs, 20_000),
+        retries: 0,
+        model,
+        env,
+        invokeCompletion,
+        logger,
+        onProgress,
+      });
+      summary = String(rawSummary?.summary || '').trim();
+    } catch {
+      summary =
+        'Собран предварительный вывод по обращению. Рекомендуется выполнить указанные проверки для точного подтверждения причины.';
+    }
+
+    const compactFinal = finalSchema.parse({
+      probable_causes: Array.isArray(reasoning?.probable_causes) ? reasoning.probable_causes : [],
+      recommended_checks: Array.isArray(reasoning?.recommended_checks) ? reasoning.recommended_checks : [],
+      urgency: ['low', 'medium', 'high'].includes(String(reasoning?.urgency)) ? reasoning.urgency : 'medium',
+      confidence: Number.isFinite(Number(reasoning?.confidence)) ? Number(reasoning.confidence) : 0.35,
+      estimated_cost_from:
+        reasoning?.estimated_cost_from == null || !Number.isFinite(Number(reasoning.estimated_cost_from))
+          ? null
+          : Math.round(Number(reasoning.estimated_cost_from)),
+      summary,
+    });
+
+    return {
+      diagnosis: normalizeDiagnosisContract(compactFinal),
+      trace: { context, reasoning },
+    };
+  }
 
   try {
     const rawContext = await runStep({
       stepName: 'context_extraction',
       systemPrompt: AGENT_CONTEXT_SYSTEM_PROMPT,
-      userPrompt: agentContextUserPrompt(payload, relatedCases, playbook, topWorks),
+      userPrompt: agentContextUserPrompt(payload, contextCases, contextPlaybook, contextTopWorks),
       format: AGENT_CONTEXT_FORMAT_SCHEMA,
       timeoutMs,
       retries,
@@ -209,6 +334,7 @@ export async function runDiagnosisAgent({
       env,
       invokeCompletion,
       logger,
+      onProgress,
     });
     state.context = contextSchema.parse(rawContext);
   } catch (err) {
@@ -239,6 +365,7 @@ export async function runDiagnosisAgent({
       env,
       invokeCompletion,
       logger,
+      onProgress,
     });
     state.hypotheses = hypothesesSchema.parse(rawHypotheses);
   } catch (err) {
@@ -263,6 +390,7 @@ export async function runDiagnosisAgent({
       env,
       invokeCompletion,
       logger,
+      onProgress,
     });
     state.checks = checksSchema.parse(rawChecks);
   } catch (err) {
@@ -287,6 +415,7 @@ export async function runDiagnosisAgent({
       env,
       invokeCompletion,
       logger,
+      onProgress,
     });
     state.final = finalSchema.parse(rawFinal);
   } catch (err) {

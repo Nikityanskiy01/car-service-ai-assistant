@@ -9,6 +9,51 @@ import {
   buildConsultationState,
   progressFromConsultationSteps,
 } from '../../services/consultationFlowService.js';
+import {
+  telemetryInc,
+  telemetryObserveMessageLatency,
+} from '../../services/diagnosticsTelemetry.service.js';
+
+function sanitizeAssistantMessage(text) {
+  const src = String(text || '').trim();
+  if (!src) return 'Не удалось сформировать корректный ответ. Попробуйте повторить сообщение.';
+  const low = src.toLowerCase();
+  if (
+    low.includes('<html') ||
+    low.includes('gateway time-out') ||
+    low.includes('openresty') ||
+    low.includes('<body') ||
+    low.includes('<title>')
+  ) {
+    return 'Сервис диагностики временно перегружен. Данные сохранены, попробуйте еще раз через несколько секунд.';
+  }
+  return src;
+}
+
+/**
+ * Строит убывающий ряд вероятностей с учетом общей уверенности.
+ * @param {number | null | undefined} confidenceValue
+ * @param {number} count
+ */
+function buildProbabilitiesByConfidence(confidenceValue, count) {
+  const n = Math.max(0, Math.min(5, Number(count) || 0));
+  if (!n) return [];
+
+  const c = Number(confidenceValue);
+  const confPct = Number.isFinite(c)
+    ? c <= 1
+      ? Math.round(Math.max(0, Math.min(1, c)) * 100)
+      : Math.round(Math.max(0, Math.min(100, c)))
+    : 55;
+
+  const top = Math.max(45, Math.min(92, confPct + 18));
+  const step = n <= 1 ? 0 : Math.max(8, Math.round((top - 22) / (n - 1)));
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push(Math.max(15, top - i * step));
+  }
+  return out;
+}
 
 const sessionDetailInclude = {
   client: { select: { id: true, fullName: true, phone: true, email: true, emailProfile: true } },
@@ -192,6 +237,8 @@ export async function getSessionDetail(sessionId, actor) {
 }
 
 export async function postMessage(sessionId, actor, content, onProgress) {
+  const startedAt = Date.now();
+  telemetryInc('requests');
   const trimmed = String(content || '').trim();
   if (!trimmed) throw new AppError(400, 'Message required', 'BAD_REQUEST');
 
@@ -224,7 +271,9 @@ export async function postMessage(sessionId, actor, content, onProgress) {
     },
   });
 
-  const ai = await buildConsultationState(afterUser, trimmed, onProgress);
+  const ai = await buildConsultationState(afterUser, trimmed, (event) => {
+    onProgress?.(event);
+  });
   const mergedExtracted = mergeExtracted(
     {
       make: afterUser.extracted?.make ?? null,
@@ -249,27 +298,51 @@ export async function postMessage(sessionId, actor, content, onProgress) {
   const progressPercent = complete
     ? 100
     : Math.min(100, progressFromConsultationSteps(ai.extracted_data));
-  const diagnosis = ai.diagnosis;
+  const diagnosis =
+    ai.diagnosis ||
+    (complete
+      ? {
+          probable_causes: [],
+          recommended_checks: [],
+          urgency: 'medium',
+          confidence: 0.2,
+          estimated_cost_from: null,
+          summary:
+            'Не удалось получить структурированный ответ диагностической модели. Повторите запрос.',
+        }
+      : null);
+  const diagnosisCauses = Array.isArray(diagnosis?.probable_causes)
+    ? diagnosis.probable_causes.map((x) => coerceDiagnosisLine(x)).filter(Boolean).slice(0, 5)
+    : [];
+  const diagnosisChecks = Array.isArray(diagnosis?.recommended_checks)
+    ? diagnosis.recommended_checks.map((x) => coerceDiagnosisLine(x)).filter(Boolean).slice(0, 5)
+    : [];
+  const finalCauses = diagnosisCauses;
+  const finalChecks = diagnosisChecks;
+  const probabilitySeries = buildProbabilitiesByConfidence(diagnosis?.confidence, finalCauses.length);
   const recommendations =
-    diagnosis?.probable_causes?.length > 0
-      ? diagnosis.probable_causes
+    finalCauses.length > 0
+      ? finalCauses
           .map((title, i) => ({
-            title: coerceDiagnosisLine(title),
-            probabilityPercent: Math.max(15, Math.round(75 - i * 12)),
+            title,
+            probabilityPercent: probabilitySeries[i] ?? Math.max(15, Math.round(75 - i * 12)),
           }))
           .filter((r) => r.title)
       : [];
-  const aiReply = ai.assistant_message;
+  const aiReply = sanitizeAssistantMessage(ai.assistant_message);
   const confidencePercent =
     diagnosis && Number.isFinite(Number(diagnosis.confidence))
       ? Math.max(0, Math.min(100, Math.round(Number(diagnosis.confidence) * 100)))
       : null;
-  const costFromMinor =
+  let costFromMinor =
     diagnosis?.estimated_cost_from != null && Number(diagnosis.estimated_cost_from) > 0
       ? Math.round(Number(diagnosis.estimated_cost_from))
       : complete
         ? estimateCostFromMinor(mergedExtracted, { recommendations })
         : null;
+  if (complete && (!Number.isFinite(Number(costFromMinor)) || Number(costFromMinor) <= 0)) {
+    costFromMinor = 2500;
+  }
 
   await prisma.$transaction([
     prisma.message.create({
@@ -306,7 +379,9 @@ export async function postMessage(sessionId, actor, content, onProgress) {
         preliminaryNote: 'Результат предварительный и не заменяет очную диагностику автомобиля специалистом.',
         flowState: {
           ...(ai.flowState ?? {}),
-          ...(diagnosis?.recommended_checks?.length ? { recommended_checks: diagnosis.recommended_checks } : {}),
+          ...(finalChecks.length ? { recommended_checks: finalChecks } : {}),
+          ...(finalCauses.length ? { probable_causes: finalCauses } : {}),
+          ...(complete && Number.isFinite(Number(costFromMinor)) ? { estimated_cost_from: Number(costFromMinor) } : {}),
         },
       },
     }),
@@ -320,6 +395,9 @@ export async function postMessage(sessionId, actor, content, onProgress) {
       logger.warn({ err: e, sessionId }, 'autoSaveReport failed');
     }
   }
+
+  telemetryInc('completed');
+  telemetryObserveMessageLatency(Date.now() - startedAt);
 
   return getSessionDetail(sessionId, actor);
 }

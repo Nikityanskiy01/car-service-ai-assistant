@@ -27,7 +27,7 @@ Sync Impact Report
 ### I. Client-Server and Stack Integrity
 The system MUST preserve a client-server architecture with a responsive web frontend, a
 Node.js modular backend, REST API communication, PostgreSQL persistence for all
-consultation sessions and generated requests, and a locally deployed LLM for natural
+consultation sessions and generated requests, and an OpenAI-compatible LLM for natural
 language processing. Changes that bypass these stack constraints MUST NOT be merged unless
 the constitution is formally amended first.
 
@@ -71,8 +71,6 @@ control. No release candidate is acceptable without evidence that critical flows
     and client contact flow.
   - Administrator: user management, role changes, access restoration/blocking, scenario
     editing, knowledge base management, and analytics.
-- Telegram notifications for managers MUST trigger on new service request creation and include
-  client name, phone number, vehicle info, problem description, and consultation summary.
 - UI/UX must remain responsive and brand-consistent across desktop and mobile; white is the
   primary background, orange and black are accents, and visual design MUST avoid similarity
   with adult website styling.

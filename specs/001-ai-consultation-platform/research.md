@@ -4,7 +4,7 @@
 **Date**: 2026-03-24
 
 Planning decisions aligned with the **Russian stack brief** (HTML5/CSS3/JS, Express, PostgreSQL,
-local LLM, Telegram) and with [spec.md](./spec.md) / project constitution.
+OpenAI-compatible LLM) and with [spec.md](./spec.md) / project constitution.
 
 ---
 
@@ -50,20 +50,12 @@ parameterized queries everywhere.
 
 ---
 
-## 4. Local LLM
+## 4. LLM Integration
 
-**Decision**: Same as prior plan: **HTTP client** to **OpenAI-compatible** local server (default
-**Ollama**). Consultation service parses **JSON-shaped** model output; on failure applies **FR-025b**
+**Decision**: Same as prior plan: **HTTP client** to **OpenAI-compatible** server. Consultation service parses **JSON-shaped** model output; on failure applies **FR-025b**
 (no fabricated reply, session preserved, retry).
 
-**Rationale**: Aligns with “локально развернутая модель” and spec.
-
----
-
-## 5. Telegram
-
-**Decision**: **Telegraf** (or equivalent) triggered after **committed** `ServiceRequest` +
-`Notification` row; retries / `FAILED` status per FR-030.
+**Rationale**: Aligns with target cloud deployment and spec.
 
 ---
 

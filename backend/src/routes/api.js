@@ -2,6 +2,7 @@ import { Router } from 'express';
 import prisma from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
 import { csrfProtection } from '../middleware/csrf.js';
+import { getDiagnosticsQualityGate, getDiagnosticsTelemetrySnapshot } from '../services/diagnosticsTelemetry.service.js';
 import { adminRouter } from '../modules/admin/admin.router.js';
 import { analyticsRouter } from '../modules/analytics/analytics.router.js';
 import { authRouter } from '../modules/auth/auth.router.js';
@@ -25,6 +26,14 @@ api.get('/health', async (_req, res) => {
     logger.error({ err }, 'health check: database unreachable');
     res.status(503).json({ status: 'error', db: 'disconnected' });
   }
+});
+
+api.get('/health/ai-diagnostics', (_req, res) => {
+  res.json(getDiagnosticsTelemetrySnapshot());
+});
+
+api.get('/health/ai-diagnostics/gates', (_req, res) => {
+  res.json(getDiagnosticsQualityGate());
 });
 
 api.use('/auth', authRouter);

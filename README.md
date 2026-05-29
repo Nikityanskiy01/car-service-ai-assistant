@@ -2,7 +2,7 @@
 
 Веб-система первичной ИИ-консультации для автосервиса.
 
-**Стек:** Express + Prisma + PostgreSQL | HTML/CSS/JS | Ollama / OpenAI-compatible LLM | Telegram  
+**Стек:** Express + Prisma + PostgreSQL | HTML/CSS/JS | OpenAI-compatible LLM  
 
 Версия Node для разработки: см. [`.nvmrc`](.nvmrc) (рекомендуется **22 LTS**).
 
@@ -11,7 +11,7 @@
 Перед стартом убедиться, что Docker Desktop запущен (доступен Docker daemon).
 
 ```bash
-docker compose up -d                 # PostgreSQL + Ollama (модель скачается автоматически)
+docker compose up -d                 # PostgreSQL + backend + frontend
 cd backend
 npm install
 cp .env.example .env
@@ -31,7 +31,6 @@ Copy-Item .env.example .env
 - `frontend` (nginx со статикой и прокси `/api`);
 - `backend` (Express API + Prisma migrations on start);
 - `db` (PostgreSQL 16);
-- `ollama` (локальная LLM).
 
 Быстрый запуск на сервере:
 
@@ -50,15 +49,13 @@ docker compose --env-file .env.proxmox up -d --build
 
 ```env
 LLM_PROVIDER=openai
-LLM_FALLBACK_ENABLED=true
-LLM_FALLBACK_PROVIDER=ollama
-LLM_CLOUD_BASE_URL=https://api.openai.com/v1
-LLM_API_KEY=sk-...
-LLM_MODEL=gpt-4.1-mini
+LLM_FALLBACK_ENABLED=false
+LLM_CLOUD_BASE_URL=https://api.vsellm.ru/v1
+LLM_API_KEY=vsellm_xxx
+LLM_MODEL=qwen/qwen3-coder-next
 ```
 
-После этого `backend` будет использовать `/chat/completions` облачного провайдера.  
-Если облако недоступно, сервис автоматически переключится на fallback-провайдер (`ollama` или `openai`).
+После этого `backend` будет использовать `/chat/completions` cloud-провайдера.
 
 ### Тестовые аккаунты
 

@@ -11,8 +11,11 @@ import {
   FLOW_QUESTIONS,
 } from '../config/consultationFlow.config.js';
 import {
+  DIALOG_STEP_FORMAT_SCHEMA,
+  DIALOG_STEP_SYSTEM_PROMPT,
   EXTRACTION_FORMAT_SCHEMA,
   EXTRACTION_SYSTEM_PROMPT,
+  dialogStepUserPrompt,
   extractionUserPrompt,
 } from '../prompts/consultationPrompts.js';
 import {
@@ -20,7 +23,8 @@ import {
   detectServiceType,
 } from './consultationIntent.service.js';
 import { getEnv } from '../config/env.js';
-import { chatCompletion } from './ollamaService.js';
+import { chatCompletion } from './llmService.js';
+import { telemetryInc, telemetryObservePhase } from './diagnosticsTelemetry.service.js';
 
 const EXTRACTION_FIELD_KEYS = [
   'car_make',
@@ -48,6 +52,8 @@ export const EMPTY_CONSULTATION_STATE = {
   /** @type {string|null} */
   service_type: null,
 };
+
+const DIALOG_REQUIRED_FIELDS = ['car_make', 'car_model', 'year', 'mileage', 'symptoms'];
 
 /**
  * @param {Record<string, unknown>} currentData
@@ -79,13 +85,62 @@ export function isFieldFilled(field, value) {
 }
 
 /**
+ * Считаем симптом/запрос валидным только если в нём есть предметика, а не общая фраза.
+ * @param {unknown} value
+ */
+export function isExplicitSymptomsText(value) {
+  const s = String(value || '').trim();
+  if (!s || s.length < 6) return false;
+  const low = s.toLowerCase().replace(/\s+/g, ' ');
+
+  // Плановые работы тоже считаем "явным запросом".
+  if (
+    /\b(то|техобслуж|обслужив|замен|масл|фильтр|колод|грм|антифриз|свеч|шиномонтаж|развал)\b/i.test(
+      low,
+    )
+  ) {
+    return true;
+  }
+
+  // Слишком общие ответы — невалидны для постановки диагноза.
+  if (
+    /^(диагностика|нужна диагностика|проверка|посмотрите|помогите|что[- ]?то не так|проблема|не знаю|подскажите)$/i.test(
+      low,
+    )
+  ) {
+    return false;
+  }
+
+  // Явные маркеры симптомов.
+  if (SYMPTOM_HINTS.test(low)) return true;
+  if (
+    /(не\s+завод|не\s+едет|плохо\s+едет|есть\s+шум|посторонний\s+звук|вибраци|стук|глох|перегрев|дым|рев(е|ё)т|громк|гул|свист|скрежет|треск)/i.test(
+      low,
+    )
+  ) {
+    return true;
+  }
+
+  // Мягкий fallback: если текст осмысленный (2+ слова) и не "общая отписка" — считаем симптомом,
+  // чтобы ИИ мог продолжить консультацию даже без совпадения по rule-based паттернам.
+  const words = low
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter(Boolean);
+  const hasMeaningfulWords = words.length >= 2 && low.length >= 12;
+  return hasMeaningfulWords;
+}
+
+/**
  * Недостающие поля: марка → модель → пробег → описание запроса → условия (только diagnostic).
  * @param {Record<string, unknown>} data
  */
 export function getMissingFields(data) {
-  const base = ['car_make', 'car_model', 'mileage', 'symptoms'];
-  const missing = base.filter((k) => !isFieldFilled(k, data[k]));
+  const missing = DIALOG_REQUIRED_FIELDS.filter((k) => !isFieldFilled(k, data[k]));
   if (missing.length) return missing;
+  if (!isExplicitSymptomsText(data.symptoms)) {
+    return ['symptoms'];
+  }
   if (detectConsultationIntent(String(data.symptoms || '')) === 'service') {
     return [];
   }
@@ -95,6 +150,155 @@ export function getMissingFields(data) {
   return [];
 }
 
+function pickRecentAssistantMessages(messages = []) {
+  return messages
+    .filter((m) => m?.sender === 'ASSISTANT' && m?.content)
+    .slice(-5)
+    .map((m) => String(m.content));
+}
+
+function normalizeDialogDecision(raw, fallbackMissing) {
+  const obj = raw && typeof raw === 'object' ? raw : {};
+  const intent = ['diagnostic', 'service', 'unknown'].includes(String(obj.intent))
+    ? String(obj.intent)
+    : 'unknown';
+  const missing_fields = Array.isArray(obj.missing_fields)
+    ? obj.missing_fields
+        .map((x) => String(x))
+        .filter((x) => ['car_make', 'car_model', 'year', 'mileage', 'symptoms', 'conditions'].includes(x))
+    : [];
+  const next_question =
+    obj.next_question == null ? null : String(obj.next_question).replace(/\s+/g, ' ').trim() || null;
+  const completion_ready = Boolean(obj.completion_ready);
+  const confidenceRaw = Number(obj.confidence);
+  const confidence = Number.isFinite(confidenceRaw) ? Math.max(0, Math.min(1, confidenceRaw)) : 0;
+  return {
+    intent,
+    missing_fields: missing_fields.length ? missing_fields : fallbackMissing,
+    next_question,
+    completion_ready,
+    confidence,
+  };
+}
+
+function looksLikeShortConditionsReply(message) {
+  const t = String(message || '')
+    .toLowerCase()
+    .trim();
+  if (!t || t.length > 80) return false;
+  return /^(на\s+месте|только\s+на\s+месте|при\s+повороте|на\s+ходу|при\s+движении|всегда|постоянно|на\s+холодную|на\s+горячую|на\s+газ(у)?|при\s+нажатии\s+на\s+газ)\b/i.test(
+    t,
+  );
+}
+
+function applyDialogGuardrails({ decision, merged, flow, userMessage }) {
+  const out = { ...decision, missing_fields: [...(decision?.missing_fields || [])] };
+  const lastAsked = flow?.asked_questions?.length
+    ? flow.asked_questions[flow.asked_questions.length - 1]
+    : null;
+  const hasSymptoms = isFieldFilled('symptoms', merged?.symptoms);
+  const hasConditions = isFieldFilled('conditions', merged?.conditions);
+
+  // Если симптом уже есть, не позволяем LLM снова требовать symptoms
+  if (hasSymptoms) {
+    out.missing_fields = out.missing_fields.filter((f) => f !== 'symptoms');
+  }
+  if (hasConditions) {
+    out.missing_fields = out.missing_fields.filter((f) => f !== 'conditions');
+  }
+
+  // Не даем LLM "забыть" реально недостающие поля.
+  const deterministicMissing = getMissingFields(merged);
+  if (out.missing_fields.length === 0 && deterministicMissing.length > 0) {
+    out.missing_fields = deterministicMissing;
+  }
+
+  // Если только что спрашивали условия и клиент дал короткий ответ про условия,
+  // не перескакиваем обратно к symptoms даже если LLM запутался.
+  if (
+    lastAsked?.field === 'conditions' &&
+    looksLikeShortConditionsReply(userMessage) &&
+    hasSymptoms &&
+    !hasConditions
+  ) {
+    out.missing_fields = ['conditions'];
+    out.intent = merged?.intent || out.intent;
+    if (!out.next_question || out.next_question.length < 6) {
+      out.next_question = FLOW_QUESTIONS.conditions;
+    }
+  }
+
+  // После нескольких попыток по одному полю прекращаем цикл и даем завершиться с текущими данными.
+  const fieldAskCount = (field) =>
+    (flow?.asked_questions || []).filter((q) => q.field === field).length;
+  if (
+    lastAsked?.field === 'conditions' &&
+    String(userMessage || '').trim().length > 0 &&
+    hasSymptoms &&
+    fieldAskCount('conditions') >= 1
+  ) {
+    out.missing_fields = out.missing_fields.filter((f) => f !== 'conditions');
+    out.completion_ready = true;
+    telemetryInc('loopPreventions');
+  }
+  if (out.missing_fields.length === 1 && fieldAskCount(out.missing_fields[0]) >= MAX_ASKS_PER_FIELD) {
+    out.missing_fields = [];
+    out.completion_ready = true;
+    telemetryInc('loopPreventions');
+  }
+
+  // Если для диагностики уже есть и symptoms, и conditions — можно завершать.
+  if (out.missing_fields.length === 0 && hasSymptoms && (merged?.intent === 'service' || hasConditions)) {
+    out.completion_ready = true;
+  }
+
+  return out;
+}
+
+async function planDialogStepWithLlm({ userMessage, merged, session, askedQuestions }) {
+  const env = getEnv();
+  const model = env.LLM_EXTRACTION_MODEL?.trim() || env.LLM_MODEL;
+  const fallbackMissing = getMissingFields(merged);
+  try {
+    const startedAt = Date.now();
+    const raw = await chatCompletion({
+      model,
+      temperature: 0,
+      timeoutMs: 8_000,
+      format: DIALOG_STEP_FORMAT_SCHEMA,
+      messages: [
+        { role: 'system', content: DIALOG_STEP_SYSTEM_PROMPT },
+        {
+          role: 'user',
+          content: dialogStepUserPrompt({
+            userMessage,
+            extracted: merged,
+            lastAssistantMessages: pickRecentAssistantMessages(session?.messages || []),
+            askedQuestions: (askedQuestions || []).map((x) => String(x?.question || '')).filter(Boolean),
+          }),
+        },
+      ],
+    });
+    const parsed = JSON.parse(raw);
+    telemetryObservePhase('dialog', Date.now() - startedAt);
+    const decision = normalizeDialogDecision(parsed, fallbackMissing);
+    return applyDialogGuardrails({
+      decision,
+      merged,
+      flow: { asked_questions: askedQuestions || [] },
+      userMessage,
+    });
+  } catch {
+    const decision = normalizeDialogDecision(null, fallbackMissing);
+    return applyDialogGuardrails({
+      decision,
+      merged,
+      flow: { asked_questions: askedQuestions || [] },
+      userMessage,
+    });
+  }
+}
+
 /**
  * @param {string} text
  */
@@ -102,8 +306,19 @@ export function normalizeConditions(text) {
   const src = String(text || '').trim();
   if (!src) return src;
   const low = src.toLowerCase();
+  if (
+    /((на\s+месте|стоит|при\s+стоянке).*(при\s+движении|едет|в\s+движении))|((при\s+движении|едет|в\s+движении).*(на\s+месте|стоит|при\s+стоянке))/i.test(
+      low,
+    )
+  ) {
+    return 'и на месте, и при движении';
+  }
+  if (/(когда\s+машина\s+стоит|при\s+стоянке|на\s+месте)/i.test(low)) return 'на месте';
+  if (/(когда\s+машина\s+едет|при\s+езде|в\s+движении)/i.test(low)) return 'при движении';
+
   const map = [
     [/на\s+ходу/i, 'при движении'],
+    [/при\s+езде/i, 'при движении'],
     [/при\s+движении/i, 'при движении'],
     [/при\s+запуске/i, 'при запуске двигателя'],
     [/на\s+холодную/i, 'на холодную'],
@@ -112,10 +327,15 @@ export function normalizeConditions(text) {
     [/на\s+кочках/i, 'на неровной дороге'],
     [/на\s+скорости/i, 'на скорости'],
     [/при\s+разгоне/i, 'при разгоне'],
+    [/при\s+нажатии\s+на\s+газ/i, 'при разгоне'],
+    [/на\s+газу/i, 'при разгоне'],
+    [/на\s+газ/i, 'при разгоне'],
     [/при\s+повороте/i, 'при повороте'],
+    [/на\s+месте/i, 'на месте'],
     [/на\s+холостом/i, 'на холостом ходу'],
     [/после\s+прогрева/i, 'после прогрева'],
-    [/в\s+пробке/i, 'в пробке'],
+    [/в\s+пробк(е|ах)/i, 'в пробке'],
+    [/по\s+пробк(ам|е)/i, 'в пробке'],
   ];
   let out = src;
   for (const [rx, rep] of map) {
@@ -126,7 +346,29 @@ export function normalizeConditions(text) {
   }
   if (low.includes('при движении')) return 'при движении';
   if (low.includes('на ходу')) return 'при движении';
+  if (low.includes('при езде')) return 'при движении';
+  if (/\bедет\b/.test(low)) return 'при движении';
+  if (/\bстоит\b/.test(low)) return 'на месте';
+  if (low.includes('на газ')) return 'при разгоне';
   return out;
+}
+
+function inferConditionsFromReply(message, state = {}) {
+  const raw = String(message || '').trim();
+  if (!raw) return null;
+
+  const universal = tryExtractUniversalConditionAnswer(raw, state);
+  if (universal) return universal;
+
+  const low = raw.toLowerCase();
+  const hasSymptoms = isFieldFilled('symptoms', state?.symptoms);
+  const contextHint =
+    CONDITION_HINTS.test(low) ||
+    /(когда|если|при|после|до|во\s+время|только|всегда|постоянно|иногда|периодически)/i.test(low);
+  if (!contextHint || (!hasSymptoms && raw.length < 25)) return null;
+
+  const normalized = normalizeConditions(raw).replace(/\s+/g, ' ').trim();
+  return normalized.length > 1 ? normalized.slice(0, 180) : null;
 }
 
 /**
@@ -192,6 +434,9 @@ export function getNextQuestion(state) {
   if (!isFieldFilled('car_model', data.car_model)) {
     return { field: 'car_model', question: FLOW_QUESTIONS.car_model };
   }
+  if (!isFieldFilled('year', data.year)) {
+    return { field: 'year', question: 'Укажите год выпуска автомобиля.' };
+  }
   if (!isFieldFilled('mileage', data.mileage)) {
     return { field: 'mileage', question: FLOW_QUESTIONS.mileage };
   }
@@ -213,12 +458,30 @@ export function getNextQuestion(state) {
  * @param {Array<{ field: string, question: string }>} askedQuestions
  */
 export function shouldAskQuestion(session, questionMeta, askedQuestions = []) {
+  const normalizeQuestionKey = (q) =>
+    String(q || '')
+      .toLowerCase()
+      .replace(/[!?.,:;()[\]"]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/пожалуйста/g, '')
+      .replace(/уточните/g, 'укажите')
+      .replace(/подскажите/g, 'укажите')
+      .replace(/какой\s+именно/g, 'какой')
+      .trim();
+
+  const isSameMeaning = (a, b) => {
+    const x = normalizeQuestionKey(a);
+    const y = normalizeQuestionKey(b);
+    if (!x || !y) return false;
+    return x === y || x.includes(y) || y.includes(x);
+  };
+
   const lastAssistant = getLastAssistantContent(session?.messages || []);
-  if (lastAssistant && questionMeta?.question && lastAssistant.trim() === questionMeta.question.trim()) {
+  if (lastAssistant && questionMeta?.question && isSameMeaning(lastAssistant, questionMeta.question)) {
     return false;
   }
   if (
-    askedQuestions.some((x) => x.question && questionMeta?.question && x.question.trim() === questionMeta.question.trim())
+    askedQuestions.some((x) => x.question && questionMeta?.question && isSameMeaning(x.question, questionMeta.question))
   ) {
     return false;
   }
@@ -311,6 +574,16 @@ function isModelStopWord(token) {
   return /^(пробег|км|тыс|год|года|двигатель|мотор|неисправность|симптомы|симптом)$/i.test(token);
 }
 
+/**
+ * Маркерные слова, которые больше похожи на симптом, чем на марку.
+ * @param {string} token
+ */
+function isLikelySymptomToken(token) {
+  return /^(стук|шум|гул|свист|скрежет|треск|дым|троит|глохнет|перегрев|течет|утечка|масло|чек|ошибка)$/i.test(
+    token,
+  );
+}
+
 function normalizeExtractedFromLlm(raw) {
   const obj = raw && typeof raw === 'object' ? raw : {};
   const text = (v) => {
@@ -339,15 +612,18 @@ function normalizeExtractedFromLlm(raw) {
 
 function extractMileageRegex(t) {
   const low = t.toLowerCase();
+  const groupedNumber = '(?:\\d{1,3}(?:[\\s.,]\\d{3}){1,3}|\\d{4,7})';
   let m =
-    t.match(/пробег\D{0,12}(\d[\d\s]{2,7})/i) ||
-    t.match(/\b(\d{2,3})\s*тыс(?:\s*км)?\b/i) ||
-    t.match(/\b(\d{3,7})\s*км\b/i) ||
+    t.match(new RegExp(`(${groupedNumber})\\s*(?:км)?\\s*пробег`, 'i')) ||
+    t.match(new RegExp(`пробег\\D{0,12}(${groupedNumber})`, 'i')) ||
+    t.match(/(\d{2,3})\s*тыс(?:\s*км)?/i) ||
+    t.match(/(\d{3,7})\s*км/i) ||
     t.match(/\b(\d{4,7})\b(?!\s*год)/i);
   if (!m) return null;
-  const raw = String(m[1]).replace(/\s+/g, '');
+  const raw = String(m[1]).replace(/[.,\s]+/g, '');
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
+  if (n >= 1950 && n <= 2035 && /\b(19|20)\d{2}\b/.test(raw)) return null;
   if (/тыс/i.test(t) || (/пробег/i.test(low) && n < 1000)) return n * 1000;
   if (n >= 1000 && n < 1000000) return n;
   return n;
@@ -359,7 +635,7 @@ function extractYearRegex(t) {
 }
 
 const CONDITION_HINTS =
-  /при\s+(движении|запуске|торможении|разгоне|повороте)|на\s+(холодную|горячую|ходу|кочках|скорости)|на\s+холост|после\s+прогрева|в\s+пробке|выключен\w*\s+(мотор|двигател)\w*|на\s+выключенном|мотор\s+выключен|двигател\w*\s+выключен|engine\s+off|заглушен\w*\s+(мотор|двигател)\w*/i;
+  /при\s+(движении|езде|запуске|торможении|разгоне|повороте|нажатии\s+на\s+газ)|на\s+(холодную|горячую|ходу|кочках|скорости|месте|газу)|на\s+газ|на\s+холост|после\s+прогрева|в\s+пробк(е|ах)|по\s+пробк(ам|е)|выключен\w*\s+(мотор|двигател)\w*|на\s+выключенном|мотор\s+выключен|двигател\w*\s+выключен|engine\s+off|заглушен\w*\s+(мотор|двигател)\w*|когда\s+машина\s+(стоит|едет)|\b(стоит|едет)\b|в\s+движении|при\s+стоянке|из[-\s]*под\s+капот/i;
 
 /**
  * Ответы вроде «всегда» на вопрос про условия — rule-based, т.к. LLM часто даёт conditions: null.
@@ -388,7 +664,25 @@ export function tryExtractUniversalConditionAnswer(message, base) {
 }
 
 const SYMPTOM_HINTS =
-  /пропуск|троит|оборот|стук|скрип|вибрац|тормож|рывк|дым|перегрев|гре(ет|ется)|температур|кипит|запуск|глох|биение|плава|чек|короб|рул|подвеск|старт/i;
+  /пропуск|троит|оборот|стук|скрип|вибрац|тормож|рывк|подергив|дым|перегрев|гре(ет|ется)|температур|кипит|запуск|глох|биение|плава|чек|короб|передач|переключен|рул|подвеск|старт|рев(е|ё)т|громк|гул|свист|скрежет|треск|шум/i;
+
+function stripVehicleIntroFromSymptomText(text, extracted) {
+  let s = String(text || '').trim();
+  if (!s) return s;
+  const esc = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const make = String(extracted?.car_make || '').trim();
+  const model = String(extracted?.car_model || '').trim();
+  const year = Number(extracted?.year);
+  const mileage = Number(extracted?.mileage);
+
+  if (make) s = s.replace(new RegExp(`\\b${esc(make)}\\b`, 'i'), ' ');
+  if (model) s = s.replace(new RegExp(`\\b${esc(model)}\\b`, 'i'), ' ');
+  if (Number.isFinite(year)) s = s.replace(new RegExp(`\\b${year}\\b`, 'g'), ' ');
+  if (Number.isFinite(mileage)) s = s.replace(new RegExp(`\\b${mileage}\\b`, 'g'), ' ');
+  s = s.replace(/\bпробег\b/gi, ' ');
+  s = s.replace(/[,:;]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return s;
+}
 
 /**
  * Rule-based pre-extraction до вызова LLM.
@@ -460,6 +754,36 @@ export function preExtractFromRules(message, base = {}) {
     }
   }
 
+  // Эвристика: первое слово в полной реплике (особенно рядом с годом/пробегом) часто и есть марка.
+  if (!out.car_make) {
+    const firstRaw = String(compact.split(/\s+/)[0] || '');
+    const firstToken = sanitizeModelToken(firstRaw);
+    const hasContextNums = extractYearRegex(t) != null || extractMileageRegex(t) != null;
+    if (
+      firstToken &&
+      hasContextNums &&
+      isValidVehicleText(firstToken) &&
+      !isModelStopWord(firstToken) &&
+      !isLikelySymptomToken(firstToken)
+    ) {
+      out.car_make = firstToken;
+    }
+  }
+
+  // Ответ на «уточните марку»: одно слово при неизвестной марке.
+  if (!out.car_make && compact.length <= 28 && !/\d{4,}/.test(compact)) {
+    const token = sanitizeModelToken(compact.split(/\s+/)[0]);
+    if (
+      token &&
+      isValidVehicleText(token) &&
+      !isModelStopWord(token) &&
+      !isLikelySymptomToken(token) &&
+      !/^(тыс|км|пробег|год|года)$/i.test(token)
+    ) {
+      out.car_make = token;
+    }
+  }
+
   // Ответ на «уточните модель»: одно слово при уже известной марке
   if (out.car_make && !out.car_model && compact.length <= 28 && !/\d{4,}/.test(compact)) {
     const token = sanitizeModelToken(compact.split(/\s+/)[0]);
@@ -482,6 +806,22 @@ export function preExtractFromRules(message, base = {}) {
     if (SYMPTOM_HINTS.test(low) && !/^\d+\s*тыс/i.test(t) && t.length < 180) {
       out.symptoms = normalizeSymptoms(t);
     }
+  }
+
+  // Мягкий fallback: если пришло осмысленное описание (даже без словаря rules),
+  // записываем его как symptoms, чтобы не зацикливать вопрос.
+  if (!out.symptoms && !isSimpleExtractionMessage(t) && t.length >= 12 && t.length <= 220) {
+    const candidate = stripVehicleIntroFromSymptomText(t, out);
+    const words = candidate.split(/\s+/).filter(Boolean);
+    const looksOnlyLikeConditions = CONDITION_HINTS.test(candidate) && words.length <= 6;
+    if (!looksOnlyLikeConditions && words.length >= 2) {
+      out.symptoms = normalizeSymptoms(candidate);
+    }
+  }
+
+  // Частый кейс утечек, который может не пройти через текущий SYMPTOM_HINTS.
+  if (!out.symptoms && /(теч|вытек|подтека|лужа|капает)/i.test(low) && /(масл|антифриз|охлажда|жидк)/i.test(low)) {
+    out.symptoms = /масл/i.test(low) ? 'утечка масла' : 'утечка технической жидкости';
   }
 
   // Плановое ТО / замены: фразы вроде «замена масла» не попадают под SYMPTOM_HINTS, а LLM может не вернуть поле
@@ -549,7 +889,7 @@ export function isSimpleExtractionMessage(message) {
 }
 
 /**
- * Пропускаем вызов Ollama, если правила уже разобрали сообщение.
+ * Пропускаем вызов LLM, если правила уже разобрали сообщение.
  * @param {string} message
  * @param {Record<string, unknown>} base
  * @param {Record<string, unknown>} pre
@@ -559,11 +899,56 @@ export function shouldSkipLlmExtraction(message, base, pre) {
   if (!msg) return true;
   if (isSimpleExtractionMessage(msg)) return true;
 
+  const hadMake = isFieldFilled('car_make', base?.car_make);
+  const hasMakeNow = isFieldFilled('car_make', pre?.car_make);
+  if (!hadMake && !hasMakeNow) {
+    // Для марок вне локального словаря (например Changan) всегда даем шанс LLM.
+    return false;
+  }
+
+  const hadSymptoms = isFieldFilled('symptoms', base?.symptoms);
+  const hasSymptomsNow = isFieldFilled('symptoms', pre?.symptoms);
+  if (!hadSymptoms && !hasSymptomsNow) {
+    // Если rules не извлекли симптомы, даём шанс LLM дособрать смысл.
+    return false;
+  }
+
   const delta = countFieldsChangedByPre(base, pre);
   if (delta >= 2) return true;
   if (delta > 0 && msg.length <= 140) return true;
 
   return false;
+}
+
+function applyLastAskedFieldHint(merged, flow, userMessage) {
+  const out = { ...merged };
+  const lastAsked = flow?.asked_questions?.length ? flow.asked_questions[flow.asked_questions.length - 1] : null;
+  const reply = String(userMessage || '').trim();
+  if (!lastAsked?.field || !reply) return out;
+
+  const token = sanitizeModelToken(reply.split(/\s+/)[0] || '');
+  const isSingleToken = reply.split(/\s+/).filter(Boolean).length === 1;
+
+  if (lastAsked.field === 'car_make' && !isFieldFilled('car_make', out.car_make)) {
+    if (isSingleToken && token && isValidVehicleText(token) && !isModelStopWord(token) && !isLikelySymptomToken(token)) {
+      out.car_make = token;
+      return out;
+    }
+  }
+
+  if (lastAsked.field === 'car_model' && !isFieldFilled('car_model', out.car_model)) {
+    if (isSingleToken && token && isValidModelText(token) && !isModelStopWord(token)) {
+      out.car_model = token;
+      return out;
+    }
+  }
+
+  if (lastAsked.field === 'conditions' && !isFieldFilled('conditions', out.conditions)) {
+    const inferred = inferConditionsFromReply(reply, out);
+    if (inferred) out.conditions = inferred;
+  }
+
+  return out;
 }
 
 export function preferPreExtractedServiceSymptoms(pre, merged) {
@@ -595,7 +980,7 @@ export async function extractConsultationData(message, currentState = {}) {
     const raw = await chatCompletion({
       model: extractionModel,
       temperature: 0,
-      timeoutMs: 45_000,
+      timeoutMs: 10_000,
       keepAlive: env.LLM_KEEP_ALIVE,
       format: EXTRACTION_FORMAT_SCHEMA,
       options: {
@@ -651,7 +1036,7 @@ async function generateContextualFollowupQuestion({
     const raw = await chatCompletion({
       model,
       temperature: 0.2,
-      timeoutMs: 15_000,
+      timeoutMs: 7_000,
       messages: [
         {
           role: 'system',
@@ -677,6 +1062,18 @@ async function generateContextualFollowupQuestion({
   } catch {
     return null;
   }
+}
+
+/**
+ * Для поля symptoms используем фиксированный вопрос.
+ * Иначе LLM иногда уходит в частные уточнения (например "оригинал/аналог"),
+ * и пользовательский ответ перестаёт содержать сам запрос.
+ * @param {{ field: string }} questionMeta
+ */
+export function shouldUseContextualFollowupQuestion(questionMeta) {
+  // В проде такие вопросы иногда уходят в технические детали, которые клиент не обязан знать.
+  // Оставляем детерминированные вопросы из flow-конфига.
+  return false;
 }
 
 function parseFlowState(raw) {
@@ -713,7 +1110,17 @@ function resolveQuestionAvoidingRepeat(meta, session, askedQuestions, _mergedSta
   return alt;
 }
 
-const MAX_ASKS_PER_FIELD = 3;
+const MAX_ASKS_PER_FIELD = 2;
+
+function hasMinimumDataForDiagnosis(data) {
+  if (!isFieldFilled('car_make', data?.car_make)) return false;
+  if (!isFieldFilled('car_model', data?.car_model)) return false;
+  if (!isFieldFilled('year', data?.year)) return false;
+  if (!isFieldFilled('mileage', data?.mileage)) return false;
+  if (!isFieldFilled('symptoms', data?.symptoms)) return false;
+  if (detectConsultationIntent(String(data?.symptoms || '')) === 'service') return true;
+  return isFieldFilled('conditions', data?.conditions);
+}
 
 /**
  * Прогресс по шагам: марка, модель, пробег, запрос; для diagnostic — ещё условия.
@@ -723,15 +1130,16 @@ export function progressFromConsultationSteps(data) {
   let n = 0;
   if (isFieldFilled('car_make', data.car_make)) n++;
   if (isFieldFilled('car_model', data.car_model)) n++;
+  if (isFieldFilled('year', data.year)) n++;
   if (isFieldFilled('mileage', data.mileage)) n++;
   if (isFieldFilled('symptoms', data.symptoms)) n++;
   if (!isFieldFilled('symptoms', data.symptoms)) {
-    return Math.min(100, Math.round((n / 4) * 100));
+    return Math.min(100, Math.round((n / 5) * 100));
   }
   if (detectConsultationIntent(String(data.symptoms || '')) === 'service') {
-    return Math.min(100, Math.round((n / 4) * 100));
+    return Math.min(100, Math.round((n / 5) * 100));
   }
-  const total = 5;
+  const total = 6;
   if (isFieldFilled('conditions', data.conditions)) n++;
   return Math.min(100, Math.round((n / total) * 100));
 }
@@ -752,6 +1160,7 @@ export function progressFromServiceFields(data) {
  * @param {((event: {phase: string, data?: unknown}) => void) | undefined} onProgress
  */
 export async function buildConsultationState(session, userMessage, onProgress) {
+  const turnStartedAt = Date.now();
   const flow =
     parseFlowState(session?.flowState) || {
       asked_questions: [],
@@ -774,23 +1183,45 @@ export async function buildConsultationState(session, userMessage, onProgress) {
   };
 
   onProgress?.({ phase: 'extracting' });
+  const extractStartedAt = Date.now();
   const extractedNew = await extractConsultationData(userMessage, existing);
   let merged = mergeExtractedData(existing, extractedNew);
   merged = postProcessMerged(merged);
+  merged = applyLastAskedFieldHint(merged, flow, userMessage);
+  telemetryObservePhase('extracting', Date.now() - extractStartedAt);
   onProgress?.({ phase: 'extracted', data: merged });
 
-  if (isFieldFilled('symptoms', merged.symptoms)) {
+  const env = getEnv();
+  const useLlmFirstFlow = env.CONSULTATION_FLOW_MODE === 'llm_first';
+  const deadlineAtMs = turnStartedAt + Number(env.DIAGNOSIS_TURN_BUDGET_MS || 35_000);
+  const remainingBudgetMs = () => Math.max(0, deadlineAtMs - Date.now());
+
+  let llmDialog = null;
+  if (useLlmFirstFlow && remainingBudgetMs() > Math.max(1500, Number(env.DIAGNOSIS_MIN_REMAINING_MS || 6000) / 2)) {
+    llmDialog = await planDialogStepWithLlm({
+      userMessage,
+      merged,
+      session,
+      askedQuestions: flow.asked_questions,
+    });
+    merged.intent = llmDialog.intent === 'unknown' ? null : llmDialog.intent;
+  } else if (useLlmFirstFlow) {
+    telemetryInc('budgetCutoffs');
+  } else if (isFieldFilled('symptoms', merged.symptoms) && isExplicitSymptomsText(merged.symptoms)) {
     const det = detectConsultationIntent(String(merged.symptoms));
     merged.intent = det === 'service' ? 'service' : 'diagnostic';
-    if (merged.intent === 'service') {
-      const st = detectServiceType(String(merged.symptoms));
-      if (st !== 'unknown') merged.service_type = st;
-      else if (flow.service_type) merged.service_type = flow.service_type;
-    } else {
-      merged.service_type = null;
-    }
   } else {
     merged.intent = null;
+  }
+  if (!isExplicitSymptomsText(merged.symptoms)) {
+    merged.intent = null;
+  }
+
+  if (merged.intent === 'service') {
+    const st = detectServiceType(String(merged.symptoms || ''));
+    if (st !== 'unknown') merged.service_type = st;
+    else if (flow.service_type) merged.service_type = flow.service_type;
+  } else {
     merged.service_type = null;
   }
 
@@ -805,19 +1236,51 @@ export async function buildConsultationState(session, userMessage, onProgress) {
     };
   }
 
+  // Приоритет детерминированного состояния, чтобы LLM не переспрашивал уже покрытые поля.
   let missing = getMissingFields(merged);
 
   const fieldAskCount = (field) =>
     flow.asked_questions.filter((q) => q.field === field).length;
-  const exhausted = missing.filter((f) => fieldAskCount(f) >= MAX_ASKS_PER_FIELD);
+  // Никогда не "сдаемся" по базовым полям, иначе отчет строится из воздуха.
+  const skippableFields = new Set(['conditions']);
+  const exhausted = missing.filter((f) => skippableFields.has(f) && fieldAskCount(f) >= MAX_ASKS_PER_FIELD);
   if (exhausted.length) {
     missing = missing.filter((f) => !exhausted.includes(f));
+    if (exhausted.includes('conditions') && !isFieldFilled('conditions', merged.conditions)) {
+      const inferred = inferConditionsFromReply(userMessage, merged) || normalizeConditions(userMessage);
+      if (inferred && inferred.length > 1) merged.conditions = inferred;
+      missing = getMissingFields(merged);
+    }
   }
 
-  if (missing.length === 0) {
+  // Anti-loop: если symptoms уже спрашивали несколько раз и пользователь всё же дал описание,
+  // прекращаем дублировать один и тот же вопрос.
+  if (
+    missing.includes('symptoms') &&
+    fieldAskCount('symptoms') >= MAX_ASKS_PER_FIELD &&
+    isFieldFilled('symptoms', merged.symptoms)
+  ) {
+    missing = missing.filter((f) => f !== 'symptoms');
+    telemetryInc('loopPreventions');
+  }
+
+  const shouldComplete =
+    missing.length === 0 &&
+    hasMinimumDataForDiagnosis(merged) &&
+    (!useLlmFirstFlow ||
+      llmDialog?.completion_ready === true ||
+      exhausted.length > 0 ||
+      (llmDialog?.intent === 'service' && isFieldFilled('symptoms', merged.symptoms)) ||
+      (merged.intent === 'diagnostic' && isFieldFilled('conditions', merged.conditions)));
+
+  if (shouldComplete) {
     onProgress?.({ phase: 'diagnosing' });
     const { generateDiagnosis } = await import('../modules/consultations/consultationAi.service.js');
-    const diagnosis = await generateDiagnosis(merged);
+    const diagnosis = await generateDiagnosis(merged, {
+      timeBudgetMs: Number(env.DIAGNOSIS_TURN_BUDGET_MS || 35_000),
+      deadlineAtMs,
+      onProgress,
+    });
 
     const isService = merged.intent === 'service';
     const st = isService ? detectServiceType(String(merged.symptoms || '')) : null;
@@ -834,26 +1297,85 @@ export async function buildConsultationState(session, userMessage, onProgress) {
         stage: 'result',
         intent: merged.intent || 'diagnostic',
         service_type: st || merged.service_type || null,
+        decision_path: {
+          mode: useLlmFirstFlow ? 'llm_first' : 'hybrid',
+          completion_reason: 'ready_for_diagnosis',
+          budget_remaining_ms: remainingBudgetMs(),
+        },
       },
     };
   }
 
-  const meta = getNextQuestion({ ...merged, ...Object.fromEntries(exhausted.map((f) => [f, '__skip__'])) });
+  const llmField = (missing[0] && String(missing[0])) || 'symptoms';
+  const llmMeta =
+    useLlmFirstFlow && missing.length > 0 && llmDialog?.next_question
+      ? { field: llmField, question: llmDialog.next_question }
+      : null;
+
+  const meta =
+    llmMeta ||
+    getNextQuestion({ ...merged, ...Object.fromEntries(exhausted.map((f) => [f, '__skip__'])) });
+  if (!meta && hasMinimumDataForDiagnosis(merged)) {
+    onProgress?.({ phase: 'diagnosing' });
+    const { generateDiagnosis } = await import('../modules/consultations/consultationAi.service.js');
+    const diagnosis = await generateDiagnosis(merged, {
+      timeBudgetMs: Number(env.DIAGNOSIS_TURN_BUDGET_MS || 35_000),
+      deadlineAtMs,
+      onProgress,
+    });
+    return {
+      stage: 'result',
+      assistant_message: diagnosis.summary + '\n\nВы можете сохранить отчёт и оформить заявку в сервис.',
+      extracted_data: merged,
+      diagnosis,
+      missing_fields: [],
+      service_type: merged.service_type || null,
+      flowState: {
+        asked_questions: flow.asked_questions,
+        stage: 'result',
+        intent: merged.intent || 'diagnostic',
+        service_type: merged.service_type || null,
+      },
+    };
+  }
   if (!meta) {
-    throw new Error('consultationFlow: getNextQuestion returned null while mandatory fields are missing');
+    // Защита от преждевременного завершения: продолжаем сбор обязательных полей.
+    const fallbackMeta = getNextQuestion(merged) || { field: 'symptoms', question: FLOW_QUESTIONS.symptoms };
+    const newAsked = [...flow.asked_questions, { field: fallbackMeta.field, question: fallbackMeta.question }];
+    return {
+      stage: 'clarification',
+      assistant_message: fallbackMeta.question,
+      extracted_data: merged,
+      diagnosis: null,
+      missing_fields: getMissingFields(merged),
+      flowState: {
+        asked_questions: newAsked,
+        stage: 'clarification',
+        intent: merged.intent,
+        service_type: merged.service_type,
+        decision_path: {
+          mode: useLlmFirstFlow ? 'llm_first' : 'hybrid',
+          next_field: fallbackMeta.field,
+          used_llm_dialog: Boolean(llmMeta),
+          budget_remaining_ms: remainingBudgetMs(),
+        },
+      },
+    };
   }
 
   const resolved = resolveQuestionAvoidingRepeat(meta, session, flow.asked_questions, merged);
   const finalMeta = resolved || meta;
   let assistantQuestion = finalMeta.question;
   // При неполном описании проблемы используем контекстный follow-up от LLM (plain text).
-  const contextualQuestion = await generateContextualFollowupQuestion({
-    userMessage,
-    merged,
-    nextField: finalMeta.field,
-    fallbackQuestion: finalMeta.question,
-  });
-  if (contextualQuestion) assistantQuestion = contextualQuestion;
+  if (shouldUseContextualFollowupQuestion(finalMeta) && !(useLlmFirstFlow && llmMeta)) {
+    const contextualQuestion = await generateContextualFollowupQuestion({
+      userMessage,
+      merged,
+      nextField: finalMeta.field,
+      fallbackQuestion: finalMeta.question,
+    });
+    if (contextualQuestion) assistantQuestion = contextualQuestion;
+  }
 
   const newAsked = [...flow.asked_questions, { field: finalMeta.field, question: assistantQuestion }];
 
@@ -868,6 +1390,12 @@ export async function buildConsultationState(session, userMessage, onProgress) {
       stage: 'clarification',
       intent: merged.intent,
       service_type: merged.service_type,
+      decision_path: {
+        mode: useLlmFirstFlow ? 'llm_first' : 'hybrid',
+        next_field: finalMeta.field,
+        used_llm_dialog: Boolean(llmMeta),
+        budget_remaining_ms: remainingBudgetMs(),
+      },
     },
   };
 }

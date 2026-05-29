@@ -6,6 +6,7 @@ import {
   isSimpleExtractionMessage,
   preferPreExtractedServiceSymptoms,
   preExtractFromRules,
+  shouldAskQuestion,
   shouldSkipLlmExtraction,
   tryExtractUniversalConditionAnswer,
 } from '../../src/services/consultationFlowService.js';
@@ -26,12 +27,26 @@ describe('preExtractFromRules — плановые работы', () => {
     const merged = {
       car_make: 'BMW',
       car_model: 'X5',
+      year: 2020,
       mileage: 140000,
       symptoms: 'замена масла двс',
       conditions: null,
     };
     expect(getMissingFields(merged)).toEqual([]);
     expect(getNextQuestion(merged)).toBeNull();
+  });
+
+  it('если год не указан, следующий вопрос — про год выпуска', () => {
+    const merged = {
+      car_make: 'Audi',
+      car_model: 'A3',
+      year: null,
+      mileage: 43222,
+      symptoms: 'стучит двигатель',
+      conditions: null,
+    };
+    const q = getNextQuestion(merged);
+    expect(q?.field).toBe('year');
   });
 
   it('корректно извлекает модель с запятой в сообщении "Mazda 3, 32333, ..."', () => {
@@ -144,5 +159,71 @@ describe('preferPreExtractedServiceSymptoms', () => {
     const merged = { symptoms: 'замена масла и фильтра' };
     const out = preferPreExtractedServiceSymptoms(pre, merged);
     expect(out.symptoms).toBe('замена масла и фильтра');
+  });
+});
+
+describe('shouldAskQuestion semantic dedup', () => {
+  it('не задает повторно вопрос с тем же смыслом при другой пунктуации', () => {
+    const session = {
+      messages: [{ sender: 'ASSISTANT', content: 'Укажите пробег автомобиля, пожалуйста.' }],
+    };
+    const allowed = shouldAskQuestion(session, { field: 'mileage', question: 'Укажите пробег автомобиля?' }, []);
+    expect(allowed).toBe(false);
+  });
+
+  it('не задает повторно похожий вопрос из истории asked_questions', () => {
+    const asked = [{ field: 'conditions', question: 'В каких условиях проявляется проблема?' }];
+    const allowed = shouldAskQuestion(
+      { messages: [] },
+      { field: 'conditions', question: 'Уточните, в каких условиях проявляется проблема' },
+      asked,
+    );
+    expect(allowed).toBe(false);
+  });
+});
+
+describe('regressions: loops and free-form extraction', () => {
+  it('не запрашивает conditions повторно, если условия уже даны свободной фразой', () => {
+    const base = {
+      car_make: 'Changan',
+      car_model: 'CS55',
+      year: 2024,
+      mileage: 5000,
+      symptoms: 'утечка масла',
+    };
+    const out = preExtractFromRules('Когда машина стоит или едет, из-под капота течет масло', base);
+    expect(out.conditions).toBeTruthy();
+    const missing = getMissingFields({
+      car_make: out.car_make,
+      car_model: out.car_model,
+      year: out.year,
+      mileage: out.mileage,
+      symptoms: out.symptoms,
+      conditions: out.conditions,
+    });
+    expect(missing).not.toContain('conditions');
+  });
+
+  it('извлекает редкую марку из однословного ответа (Changan)', () => {
+    const out = preExtractFromRules('Changan', {});
+    expect(out.car_make).toBe('Changan');
+  });
+
+  it('корректно выделяет утечку масла и условия в свободной формулировке', () => {
+    const first = preExtractFromRules(
+      'Чанган, 2024 года, пробег 5.000, что-то вытекает на землю под капотом, видимо масло',
+      {},
+    );
+    expect(first.car_make).toBeTruthy();
+    expect(first.year).toBe(2024);
+    expect(first.mileage).toBe(5000);
+    expect(String(first.symptoms || '').toLowerCase()).toContain('утеч');
+
+    const second = preExtractFromRules(
+      'Когда машина стоит или едет из-под нее течет масло',
+      first,
+    );
+    expect(second.conditions).toBeTruthy();
+    expect(String(second.conditions).toLowerCase()).not.toContain('уточните');
   });
 });

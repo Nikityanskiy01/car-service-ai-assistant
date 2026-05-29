@@ -23,8 +23,8 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 **Purpose**: Repository layout and tooling per [plan.md](./plan.md).
 
 - [X] T001 [—] Create directory tree `backend/`, `frontend/` with subpaths from plan (html, css, js, dashboards, assets, prisma, modules)
-- [X] T002 [—] Add `backend/package.json` with Express, Prisma, cors, helmet, express-rate-limit, jsonwebtoken, bcrypt (or argon2), zod, dotenv, telegraf (or node-telegram-bot-api), devDependencies jest, supertest, nodemon
-- [X] T003 [P] [—] Add `backend/.env.example` with DATABASE_URL, JWT_*, LLM_*, TELEGRAM_*, PORT, CORS_ORIGIN (see [quickstart.md](./quickstart.md))
+- [X] T002 [—] Add `backend/package.json` with Express, Prisma, cors, helmet, express-rate-limit, jsonwebtoken, bcrypt (or argon2), zod, dotenv, devDependencies jest, supertest, nodemon
+- [X] T003 [P] [—] Add `backend/.env.example` with DATABASE_URL, JWT_*, LLM_*, PORT, CORS_ORIGIN (see [quickstart.md](./quickstart.md))
 - [X] T004 [P] [—] Configure ESLint for `backend/` (JavaScript, Node)
 - [X] T005 [P] [—] Configure Jest + Supertest for `backend/tests/`
 - [X] T006 [P] [—] Add Playwright config at repo root (e.g. `playwright.config.js`) targeting `frontend/*.html`
@@ -69,7 +69,7 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 ### Implementation for User Story 1
 
 - [X] T022 [US1] `backend/src/modules/consultations/` router: POST/GET sessions, GET session detail, POST `/:sessionId/messages` (calls AI module, persists USER+ASSISTANT messages, updates ExtractedDiagnosticData + progress)
-- [X] T023 [US1] `backend/src/modules/ai/` LLM HTTP client (env LLM_BASE_URL, LLM_MODEL), prompt/JSON contract, map to diagnostics + recommendations; throw structured error on outage (FR-025b)
+- [X] T023 [US1] `backend/src/modules/ai/` LLM HTTP client (env LLM_CLOUD_BASE_URL, LLM_MODEL), prompt/JSON contract, map to diagnostics + recommendations; throw structured error on outage (FR-025b)
 - [X] T024 [US1] Enforce FR-025a in service layer before allowing “complete” / request creation; persist preliminary disclaimer + confidence + cost “from” + probabilities
 - [X] T025 [US1] `backend/src/modules/serviceRequests/` POST create from `consultationSessionId` (CLIENT only, session owner); status NEW (FR-028a)
 - [X] T026 [P] [US1] `frontend/register.html` + `frontend/js/auth.js` (submit register, store token)
@@ -82,14 +82,13 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 
 ---
 
-## Phase 4: User Story 2 — Manager intake & Telegram (P2)
+## Phase 4: User Story 2 — Manager intake (P2)
 
-**Goal**: Manager lists/filters requests, views detail + full AI transcript, updates status, follow-up thread, receives Telegram on new request.
+**Goal**: Manager lists/filters requests, views detail + full AI transcript, updates status and follow-up thread.
 
 ### Tests for User Story 2 (MANDATORY) ⚠️
 
 - [X] T031 [P] [US2] **Integration** `backend/tests/integration/service-requests-manager.test.js` (list, filter, get detail, PATCH status)
-- [X] T032 [P] [US2] **Integration** `backend/tests/integration/telegram-notification.test.js` — mock Telegram sender; assert Notification row + payload after request creation (FR-029–030)
 - [X] T033 [P] [US2] **Integration** `backend/tests/integration/request-messages.test.js` — post/list thread; 409 when status Completed/Cancelled (FR-016c)
 - [X] T034 [P] [US2] **E2E** Playwright `tests/e2e/us2-manager-dashboard.spec.js` — manager login, open request, change status, send follow-up (seed data or prior US1 flow)
 
@@ -97,11 +96,9 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 
 - [X] T035 [US2] Extend `serviceRequests` router: GET `/api/service-requests` (MANAGER), GET/PATCH `/:id`, include client phone/email in detail DTO (FR-014, FR-016b); поддержка **оптимистичной блокировки** (`expectedVersion` или integer `version` в PATCH → 409 при конфликте, см. T064)
 - [X] T036 [US2] `backend/src/modules/requestMessages/` GET/POST `/api/service-requests/:id/messages` with FR-016c guard
-- [X] T037 [US2] `backend/src/modules/notifications/` — send Telegram on request create (after DB commit); persist Notification + retry fields (FR-030)
 - [X] T038 [US2] `frontend/dashboards/manager.html` + `frontend/js/dashboards/manager.js` — table, filters, detail panel, status select, thread UI
-- [X] T039 [US2] Document manager `TELEGRAM_MANAGER_CHAT_IDS` setup in README / quickstart
 
-**Checkpoint**: US2 operational with notifications.
+**Checkpoint**: US2 operational.
 
 ---
 
@@ -153,7 +150,7 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 - [X] T053 [P] [—] **Security** automated suite `backend/tests/security/` or Jest tags: XSS-safe JSON responses, SQLi via Prisma only, JWT tampering, cross-role access (TR-006)
 - [X] T054 [—] **Performance** script `tests/perf/k6-consultation.js` (or Artillery) — document p95 methodology for FR-042a–042b; optional FR-042c sampling notes
 - [X] T055 [—] **Manual** TR-007 checklist execution; record results for thesis appendix (usability, mobile, manager/admin flows) — см. [`docs/manual-acceptance-tr007.md`](../../docs/manual-acceptance-tr007.md)
-- [X] T056 [P] [—] Root `README.md` — how to run backend, frontend, Prisma, Ollama, Telegram
+- [X] T056 [P] [—] Root `README.md` — how to run backend, frontend, Prisma, LLM API
 - [X] T057 [—] Align implemented routes with [contracts/openapi.yaml](./contracts/openapi.yaml); update contract when API changes
 
 ---
@@ -188,7 +185,7 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 
 ### Critical automated coverage (TR-008)
 
-Registration/login, RBAC, consultation workflow + completion gate, result generation, service request creation, Telegram trigger (mocked OK in CI), manager processing, responsive UI (Playwright viewports), **серверное сохранение отчёта** — covered by T016–T017, T020–T021, T031–T034, T046–T047, T053, **T058–T059**; бронирование — **T060–T061**; конкуренция статусов — **T063**.
+Registration/login, RBAC, consultation workflow + completion gate, result generation, service request creation, manager processing, responsive UI (Playwright viewports), **серверное сохранение отчёта** — covered by T016–T017, T020–T021, T031–T034, T046–T047, T053, **T058–T059**; бронирование — **T060–T061**; конкуренция статусов — **T063**.
 
 ---
 

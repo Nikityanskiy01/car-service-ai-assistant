@@ -8,7 +8,7 @@
 |-----------|--------|
 | Node.js | 22 LTS+ (фиксируется в `.nvmrc`) |
 | npm | идёт с Node |
-| Docker + Docker Compose | для PostgreSQL и Ollama |
+| Docker + Docker Compose | для PostgreSQL и контейнеров приложения |
 
 ## 1. Клонирование
 
@@ -17,7 +17,7 @@ git clone <url-репозитория>
 cd car-service-ai-assistant
 ```
 
-## 2. Docker-контейнеры (БД + LLM)
+## 2. Docker-контейнеры
 
 ```bash
 docker compose up -d
@@ -25,7 +25,8 @@ docker compose up -d
 
 Поднимает:
 - **PostgreSQL 16** на порту `5433` (пользователь `fox`, пароль `fox`, БД `foxmotors`)
-- **Ollama** на порту `11434` — автоматически скачивает модель `qwen2.5:7b` при первом запуске
+- **Backend API** на `3000`
+- **Frontend** на `8080`
 
 ## 3. Backend
 
@@ -55,7 +56,7 @@ cd backend
 npm run llm:check
 ```
 
-Если видите `LLM OK` — нейросеть работает. Если ошибка — проверьте, что Ollama запущена: `docker compose ps`.
+Если видите `LLM OK` — нейросеть работает. Если ошибка — проверьте `LLM_CLOUD_BASE_URL` и `LLM_API_KEY` в `backend/.env`.
 
 ## 5. Открыть в браузере
 
@@ -77,17 +78,16 @@ http://127.0.0.1:3000/
 - `admin@fox.local` / `Admin12345!` — администратор
 - `manager@fox.local` / `Admin12345!` — менеджер
 
-## Ollama без Docker
+## Cloud LLM (VseLLM)
 
-Если предпочитаете локальную установку:
+Используется OpenAI-compatible endpoint:
 
-1. Скачайте [Ollama](https://ollama.com/) и установите
-2. `ollama pull qwen2.5:7b`
-3. В `backend/.env`:
-   ```
-   LLM_BASE_URL=http://127.0.0.1:11434
-   LLM_MODEL=qwen2.5:7b
-   ```
+```env
+LLM_PROVIDER=openai
+LLM_CLOUD_BASE_URL=https://api.vsellm.ru/v1
+LLM_API_KEY=vsellm_xxx
+LLM_MODEL=qwen/qwen3-coder-next
+```
 
 ## Типичные проблемы
 
@@ -96,5 +96,5 @@ http://127.0.0.1:3000/
 | Порт 3000 занят | Смените `PORT` в `.env` |
 | Prisma: таблица не найдена | `npx prisma migrate deploy` из `backend/` |
 | Страница не открывается | Проверьте хост/порт, сверьте `CORS_ORIGIN` |
-| ИИ не отвечает (503) | `docker compose ps` — запущена ли Ollama; `docker compose exec ollama ollama list` — скачана ли модель |
+| ИИ не отвечает (503) | Проверить `LLM_API_KEY`, `LLM_CLOUD_BASE_URL`, баланс/лимиты у провайдера |
 | PostgreSQL недоступен | `docker compose ps`, проверьте `DATABASE_URL` |

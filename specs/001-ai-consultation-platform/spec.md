@@ -67,8 +67,8 @@ list, details, status transitions, and notification reception.
    **Then** each item shows client info, vehicle info, short issue summary, and current status.
 2. **Given** a selected request, **When** the manager opens details, **Then** the full
    consultation dialogue, extracted diagnostic data, and generated summary are available.
-3. **Given** a new request creation event, **When** notification delivery succeeds, **Then**
-   the manager receives a Telegram message containing required short request details.
+3. **Given** a new request creation event, **When** request is persisted, **Then**
+   the manager sees it in dashboard list with required short request details.
 4. **Given** an existing service request, **When** the manager opens request details, **Then**
    the client phone number and optional profile email are shown for telephone or external email
    contact, and **When** either party sends an in-app follow-up message, **Then** it appears in
@@ -125,7 +125,6 @@ desktop and mobile viewport profiles.
 - Client attempts to submit a request before all six mandatory extracted fields are complete.
 - Client disconnects mid-consultation and later resumes from another device.
 - Extracted vehicle parameters conflict with free-text user statements.
-- Telegram API is unavailable when a request is created.
 - Client or manager attempts to post a new in-app follow-up message when the service request
   status is Completed or Cancelled.
 - Manager updates the same request status concurrently from two sessions.
@@ -181,7 +180,6 @@ desktop and mobile viewport profiles.
 - **FR-015**: Managers MUST be able to update each service request status using only the
   canonical values: New, In progress, Scheduled, Completed, Cancelled, and use the dashboard as
   an operational processing tool.
-- **FR-016**: System MUST send manager Telegram notifications when new requests are created.
 - **FR-016a**: For each service request, the system MUST provide an in-app message thread scoped
   exclusively to that request, in which the owning client and managers MAY exchange follow-up
   messages; unauthorized users MUST NOT view or post in that thread.
@@ -239,14 +237,6 @@ desktop and mobile viewport profiles.
   carry exactly one status at a time from the canonical set: New, In progress, Scheduled,
   Completed, Cancelled.
 
-#### Telegram Notifications
-
-- **FR-029**: For every newly created request, system MUST send a Telegram notification that
-  contains client name, phone, vehicle info, short issue description, and short consultation
-  summary.
-- **FR-030**: If notification delivery fails, system MUST preserve request data and mark
-  notification status for retry/monitoring.
-
 #### Website and Dashboard Structure
 
 - **FR-031**: Website MUST provide Home, About, Gallery, Our Works, Location/Map, AI
@@ -291,8 +281,7 @@ desktop and mobile viewport profiles.
 
 #### Integrations
 
-- **FR-043**: System MUST integrate with a locally hosted AI model for consultation processing.
-- **FR-044**: System MUST integrate with Telegram Bot messaging for manager notifications.
+- **FR-043**: System MUST integrate with an OpenAI-compatible AI model for consultation processing.
 
 ### Constitution Alignment *(mandatory)*
 
@@ -326,7 +315,6 @@ desktop and mobile viewport profiles.
 - **ServiceRequest**: Operational request created from consultation output for manager processing;
   includes a single status field with allowed values New, In progress, Scheduled, Completed,
   Cancelled (initial value New).
-- **Notification**: Outbound event record for manager alerts including delivery status history.
 - **RequestFollowUpMessage**: In-app message tied to exactly one service request; sender is the
   client or a manager authorized for that request; content and timestamp are retained for audit
   and dashboard display (distinct from AI consultation **Message** entities).
@@ -341,8 +329,6 @@ desktop and mobile viewport profiles.
   fields before request creation.
 - **SC-003**: At least 95% of new service requests appear in manager dashboard within 5 seconds
   after client submission.
-- **SC-004**: At least 95% of successful request creations trigger manager notification delivery
-  within 30 seconds, with failed deliveries visible for follow-up.
 - **SC-005**: At least 90% of critical user journeys (registration/login, consultation,
   request creation, manager processing) complete successfully on mobile and desktop acceptance
   tests.
@@ -359,7 +345,6 @@ desktop and mobile viewport profiles.
 - Phone number is the primary manager contact field for service request follow-up.
 - Consultation and request history retention follows standard operational needs of service
   centers and is available to authorized users.
-- Initial release supports one primary notification channel (Telegram) for manager alerts.
 - AI model responses are moderated by system validation rules before final structured output is
   persisted.
 
@@ -384,8 +369,7 @@ desktop and mobile viewport profiles.
   administrator content management flow, and mobile interaction quality.
 - **TR-008 Mandatory Critical Coverage**: Automated tests MUST cover registration/login,
   role-based access, AI consultation workflow, consultation result generation, service request
-  generation, Telegram notification trigger, manager request processing, and responsive UI
-  behavior.
+  generation, manager request processing, and responsive UI behavior.
 
 ## Acceptance Criteria
 

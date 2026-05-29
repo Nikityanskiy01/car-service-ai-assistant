@@ -34,7 +34,7 @@ cp backend/.env.production.example backend/.env
 
 Обязательно отредактировать:
 - `.env.proxmox` (`POSTGRES_PASSWORD`, при необходимости `LLM_MODEL`, bind-порты);
-- `backend/.env` (`JWT_SECRET`, `CORS_ORIGIN`, Telegram параметры, при облачной LLM: `LLM_PROVIDER=openai`, `LLM_CLOUD_BASE_URL`, `LLM_API_KEY`).
+- `backend/.env` (`JWT_SECRET`, `CORS_ORIGIN`, `LLM_PROVIDER=openai`, `LLM_CLOUD_BASE_URL`, `LLM_API_KEY`).
 
 ## 3) Nginx + HTTPS (домен)
 
@@ -118,7 +118,7 @@ bash deploy/ops/restore-postgres.sh /opt/backups/postgres/<backup-file>.sql.gz
 ## 8) Acceptance checklist
 
 - `https://your-domain.example` открывается и редиректит с `http`.
-- `docker compose --env-file .env.proxmox ps` показывает `healthy` для `frontend/backend/db/ollama`.
+- `docker compose --env-file .env.proxmox ps` показывает `healthy` для `frontend/backend/db`.
 - Пользовательские потоки работают: регистрация, логин, консультация, создание заявки.
 - После `sudo reboot` сервис автоматически доступен без ручного запуска.
 - Бэкап создан и восстановление проверено минимум один раз.

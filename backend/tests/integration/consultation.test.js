@@ -6,6 +6,16 @@ import { app, registerClient, truncateAll } from '../helpers.js';
 describe('consultation lifecycle', () => {
   beforeEach(() => truncateAll());
 
+  it('exposes diagnostics telemetry health endpoints', async () => {
+    const health = await request(app).get('/api/health/ai-diagnostics');
+    expect(health.status).toBe(200);
+    expect(health.body).toHaveProperty('latency.message');
+
+    const gates = await request(app).get('/api/health/ai-diagnostics/gates');
+    expect(gates.status).toBe(200);
+    expect(gates.body).toHaveProperty('pass');
+  });
+
   it('blocks service request until mandatory fields; completes after rule+extraction turns', async () => {
     const { token } = await registerClient();
 

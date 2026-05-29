@@ -36,7 +36,7 @@ clarifications in spec (six-field completion gate, five request statuses, FR-016
 | **ReferenceMaterial** | Справочный контент / база знаний |
 | **DiagnosticRecommendation** | Возможные неисправности с вероятностью для сессии |
 | **ServiceRequest** | Заявка после завершённой консультации; снимки данных; статус |
-| **Notification** | Попытки отправки Telegram и аудит |
+| **Notification** | Внутренние события уведомлений и аудит |
 | **RequestFollowUpMessage** | Внутренняя переписка по заявке (FR-016a–c) |
 | **ConsultationReport** | Сохранённый на сервере снимок результата консультации (клиент, сессия, `snapshotJson`, метка/время) — FR-012 |
 | **ServiceBooking** | Запись клиента на визит в сервис: клиент, опциональная заявка, предпочтительное время, статус, заметки — FR-012, FR-020 |

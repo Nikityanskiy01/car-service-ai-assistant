@@ -19,13 +19,11 @@ const schema = z.object({
       process.env.NODE_ENV !== 'production' || (typeof v === 'string' && v.trim().length > 0),
     { message: 'CORS_ORIGIN is required in production' },
   ),
-  LLM_PROVIDER: z.enum(['ollama', 'openai']).default('ollama'),
+  LLM_PROVIDER: z.enum(['openai']).default('openai'),
   LLM_FALLBACK_ENABLED: z
     .enum(['true', 'false', '1', '0'])
     .default('false')
     .transform((v) => v === 'true' || v === '1'),
-  LLM_FALLBACK_PROVIDER: z.enum(['ollama', 'openai']).optional(),
-  LLM_BASE_URL: z.string().default('http://127.0.0.1:11434'),
   LLM_CLOUD_BASE_URL: z.string().default('https://api.openai.com/v1'),
   LLM_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().default('qwen2.5:7b'),
@@ -36,16 +34,29 @@ const schema = z.object({
   LLM_DIAGNOSIS_MODEL: z.string().optional(),
   LLM_DIAGNOSIS_NUM_PREDICT: z.coerce.number().default(420),
   LLM_DIAGNOSIS_TIMEOUT_MS: z.coerce.number().default(240000),
+  CONSULTATION_FLOW_MODE: z.enum(['hybrid', 'llm_first']).default('hybrid'),
+  DIAGNOSIS_MODE: z.enum(['hybrid', 'llm_only']).default('hybrid'),
+  DIAGNOSIS_TURN_BUDGET_MS: z.coerce.number().int().min(5000).default(20000),
+  DIAGNOSIS_MIN_REMAINING_MS: z.coerce.number().int().min(1000).default(6000),
+  DIAGNOSIS_FAST_PATH_ENABLED: z
+    .enum(['true', 'false', '1', '0'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  DIAGNOSIS_COMPLEXITY_THRESHOLD: z.coerce.number().int().min(1).max(10).default(4),
   DIAGNOSIS_AGENT_MODE: z.enum(['classic', 'llmfactory']).default('llmfactory'),
+  DIAGNOSIS_AGENT_PROFILE: z.enum(['full', 'compact']).default('compact'),
+  DIAGNOSIS_AGENT_USE_HINTS: z
+    .enum(['true', 'false', '1', '0'])
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
   DIAGNOSIS_AGENT_TIMEOUT_MS: z.coerce.number().int().min(5000).default(90000),
   DIAGNOSIS_AGENT_MAX_RETRIES: z.coerce.number().int().min(0).max(3).default(1),
+  SSE_HEARTBEAT_MS: z.coerce.number().int().min(5000).default(25000),
   LLM_KEEP_ALIVE: z.string().default('30m'),
   LLM_ENABLED: z
     .enum(['true', 'false', '1', '0'])
     .default('true')
     .transform((v) => v === 'true' || v === '1'),
-  TELEGRAM_BOT_TOKEN: z.string().optional(),
-  TELEGRAM_MANAGER_CHAT_IDS: z.string().optional(),
 });
 
 let cached;
@@ -53,8 +64,8 @@ let cached;
 export function getEnv() {
   if (process.env.NODE_ENV !== 'test' && cached) return cached;
   const parsed = schema.parse(process.env);
-  if (parsed.LLM_PROVIDER === 'openai' && !String(parsed.LLM_API_KEY || '').trim()) {
-    throw new Error('LLM_API_KEY is required when LLM_PROVIDER=openai');
+  if (!String(parsed.LLM_API_KEY || '').trim()) {
+    throw new Error('LLM_API_KEY is required');
   }
   if (process.env.NODE_ENV !== 'test') cached = parsed;
   return parsed;

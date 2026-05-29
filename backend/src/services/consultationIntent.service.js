@@ -19,7 +19,9 @@ const SERVICE_MARKERS = [
   'замена масла',
   'поменять масло',
   'заменить масло',
+  'замена масляного фильтра',
   'замена фильтра',
+  'масло и фильтр',
   'замена колодок',
   'замена ремня',
   'шиномонтаж',
@@ -65,9 +67,17 @@ export function detectConsultationIntent(message) {
 
   if (hasService) {
     const stripped = low.replace(longestService, '').replace(/[,.\s]+/g, ' ').trim();
-    const filler = /^[\s\d]*(?:тыс(?:яч)?|км|год[а-я]*|пробег|мазда|mazda|bmw|toyota|kia|hyundai|honda|nissan|audi|vw|volkswagen|mercedes|лада|ваз|форд|шкода|рено|опель|пежо|субару|шевроле|чери|хавал|geely|haval|лексус|вольво|порше|фиат|ситроен|mitsubishi|suzuki|[a-zа-яё]{1,3}\d{1,4}|\d{4}\s*г(?:од)?)\b/gi;
+    const filler =
+      /^[\s\d]*(?:и|или|по|для|на|в|двс|мотор|двигател[ьяею]|фильтр(?:а|ов)?|масл(?:о|а)?|оригинал(?:ьн(?:ый|ое|ые))?|аналог|регламент|то|т\.о\.|тыс(?:яч)?|км|год[а-я]*|пробег|мазда|mazda|bmw|toyota|kia|hyundai|honda|nissan|audi|vw|volkswagen|mercedes|лада|ваз|форд|шкода|рено|опель|пежо|субару|шевроле|чери|хавал|geely|haval|лексус|вольво|порше|фиат|ситроен|mitsubishi|suzuki|[a-zа-яё]{1,3}\d{1,4}|\d{4}\s*г(?:од)?)\b/gi;
     const remainder = stripped.replace(filler, '').replace(/\s+/g, ' ').trim();
-    if (remainder.length > 12) return 'diagnostic';
+    if (
+      /(?:стук|шум|вибрац|глох|троит|перегрев|ошибка|чек|не\s+завод|не\s+едет|пина(?:ет|ется)|рывк)/i.test(
+        remainder,
+      )
+    ) {
+      return 'diagnostic';
+    }
+    if (remainder.length > 24) return 'diagnostic';
     return 'service';
   }
 

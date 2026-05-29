@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Клиент-серверное веб-приложение: статический фронтенд, REST API на Node.js, PostgreSQL, локальная LLM через Ollama, опционально Telegram для менеджеров.
+Клиент-серверное веб-приложение: статический фронтенд, REST API на Node.js, PostgreSQL, cloud LLM через OpenAI-compatible API.
 
 ```mermaid
 flowchart TB
@@ -19,20 +19,18 @@ flowchart TB
   end
   subgraph data [Данные и интеграции]
     PG[(PostgreSQL)]
-    Ollama[Ollama Qwen2.5]
-    TG[Telegram Bot API]
+    LLM[OpenAI-compatible LLM]
   end
   Browser --> API
   API --> Auth
   API --> Consult
   Consult --> AI
-  AI --> Ollama
+  AI --> LLM
   API --> SR
   API --> Admin
   Auth --> PG
   Consult --> PG
   SR --> PG
-  SR --> TG
 ```
 
 ## Структура репозитория
@@ -43,7 +41,7 @@ flowchart TB
 | `backend/src/app.js` | Express, middleware, статика frontend |
 | `backend/src/routes/api.js` | Монтирование модулей `/api/*` |
 | `backend/src/modules/` | auth, consultations, serviceRequests, admin, analytics, bookings |
-| `backend/src/services/` | ollamaService, consultationFlowService, caseMemory |
+| `backend/src/services/` | llmService, consultationFlowService, caseMemory |
 | `backend/src/lib/` | diagnosticPlaybooks, pricing, workStats |
 | `backend/prisma/` | schema, migrations, seed |
 | `specs/001-ai-consultation-platform/` | ТЗ, OpenAPI, data-model |
@@ -52,7 +50,7 @@ flowchart TB
 
 1. Клиент/гость отправляет сообщения → `POST /api/consultations/:id/messages`.
 2. Сервер извлекает 6 полей (марка, модель, год, пробег, симптомы, условия).
-3. При полноте — `preAnalyzeSymptoms` + запрос к Ollama (JSON schema) → `mergeDiagnosis`.
+3. При полноте — `preAnalyzeSymptoms` + запрос к cloud LLM (JSON schema) → `mergeDiagnosis`.
 4. При недоступности LLM (FR-025b) — fallback на rule-based без падения сессии.
 5. Завершение → отчёт, `POST /api/service-requests` (клиент или гость).
 
@@ -66,7 +64,7 @@ flowchart TB
 
 ## Развёртывание
 
-Локально: `docker compose` (Postgres + Ollama) + `backend` (`npm run db:setup`, `npm run dev`).  
+Локально: `docker compose` (Postgres + backend + frontend) + `backend` (`npm run db:setup`, `npm run dev`).  
 Подробности: [setup.md](./setup.md).
 
 ## Связанные документы

@@ -9,8 +9,7 @@
 
 - Node.js **22 LTS** (см. корневой `.nvmrc`)
 - PostgreSQL **16+** (удобно через `docker compose` в корне репозитория)
-- **Ollama** — нативный API `/api/chat` (не OpenAI-compatible proxy)
-- Токен Telegram-бота (опционально для уведомлений)
+- OpenAI-compatible LLM endpoint (например, `https://api.vsellm.ru/v1`)
 
 ## Backend
 
@@ -28,8 +27,7 @@ npm run dev
 
 - `DATABASE_URL` — PostgreSQL
 - `JWT_SECRET`, `JWT_EXPIRES_IN`, `REFRESH_TOKEN_EXPIRES_DAYS`
-- `LLM_BASE_URL`, `LLM_MODEL`, `LLM_ENABLED`
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_MANAGER_CHAT_IDS`
+- `LLM_CLOUD_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_ENABLED`
 - `PORT` (например 3000)
 - `CORS_ORIGIN` — обязателен в **production**; в development можно не задавать (разрешены любые origin для удобства LAN)
 

@@ -7,8 +7,8 @@ function safePreview(text, maxLen = 500) {
 
 async function main() {
   const env = getEnv();
-  const base = env.LLM_BASE_URL.replace(/\/v1\/?$/, '').replace(/\/$/, '');
-  const url = `${base}/api/chat`;
+  const base = String(env.LLM_CLOUD_BASE_URL || '').replace(/\/$/, '');
+  const url = `${base}/chat/completions`;
 
   const body = {
     model: env.LLM_MODEL,
@@ -19,10 +19,17 @@ async function main() {
       },
       { role: 'user', content: 'Верни JSON с reply="ok".' },
     ],
-    format: {
-      type: 'object',
-      properties: { reply: { type: 'string' } },
-      required: ['reply'],
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'llm_check_schema',
+        strict: true,
+        schema: {
+          type: 'object',
+          properties: { reply: { type: 'string' } },
+          required: ['reply'],
+        },
+      },
     },
     temperature: 0,
     stream: false,
@@ -30,7 +37,10 @@ async function main() {
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${String(env.LLM_API_KEY || '').trim()}`,
+    },
     body: JSON.stringify(body),
   });
 
@@ -48,9 +58,9 @@ async function main() {
     process.exit(1);
   }
 
-  const content = data?.message?.content;
+  const content = data?.choices?.[0]?.message?.content;
   if (!content) {
-    console.error(`LLM check failed: missing message.content: ${safePreview(rawText)}`);
+    console.error(`LLM check failed: missing choices[0].message.content: ${safePreview(rawText)}`);
     process.exit(1);
   }
 
@@ -68,7 +78,7 @@ async function main() {
   }
 
   console.log('LLM OK');
-  console.log(JSON.stringify({ baseUrl: env.LLM_BASE_URL, model: env.LLM_MODEL, reply: assistantJson.reply }, null, 2));
+  console.log(JSON.stringify({ baseUrl: env.LLM_CLOUD_BASE_URL, model: env.LLM_MODEL, reply: assistantJson.reply }, null, 2));
 }
 
 main().catch((e) => {

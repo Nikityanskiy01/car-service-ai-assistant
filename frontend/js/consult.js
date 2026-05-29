@@ -100,6 +100,18 @@ function roundToHundreds(n) {
   return Math.ceil(Number(n) / 100) * 100;
 }
 
+function buildProbabilitySeriesFromConfidence(confidencePercent, count) {
+  const n = Math.max(0, Math.min(5, Number(count) || 0));
+  if (!n) return [];
+  const conf = Number(confidencePercent);
+  const confPct = Number.isFinite(conf) ? Math.max(0, Math.min(100, Math.round(conf))) : 55;
+  const top = Math.max(45, Math.min(92, confPct + 18));
+  const step = n <= 1 ? 0 : Math.max(8, Math.round((top - 22) / (n - 1)));
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(Math.max(15, top - i * step));
+  return out;
+}
+
 function buildCostFrom(costFromMinor) {
   const base = Number(costFromMinor);
   if (!Number.isFinite(base) || base <= 0) return null;
@@ -165,6 +177,23 @@ function isConsultSessionAccessDenied(e) {
     if (String(e.data.error || '') === 'Forbidden') return true;
   }
   return false;
+}
+
+function toSafeUiErrorMessage(raw, fallback = 'Произошла ошибка. Попробуйте еще раз.') {
+  const msg = String(raw || '').trim();
+  if (!msg) return fallback;
+  const low = msg.toLowerCase();
+  if (
+    low.includes('<html') ||
+    low.includes('<body') ||
+    low.includes('<title>') ||
+    low.includes('gateway time-out') ||
+    low.includes('openresty') ||
+    low.includes('nginx')
+  ) {
+    return 'Сервис временно недоступен или перегружен. Попробуйте повторить через несколько секунд.';
+  }
+  return msg;
 }
 
 async function tryClaimPendingGuest() {
@@ -275,10 +304,12 @@ export async function initConsultPage() {
     chatEl.scrollTop = chatEl.scrollHeight;
 
     const ext = data.extracted;
+    const flowStage = String(data?.flowState?.stage || '').toLowerCase();
     const done =
       data.status === 'COMPLETED' ||
       Number(data.progressPercent) >= 100 ||
-      sixComplete(ext) ||
+      flowStage === 'result' ||
+      flowStage === 'service_result' ||
       !!data.serviceRequest;
     const hasSym = hasSymptoms(ext);
     const plannedService = isPlannedServiceResult(data);
@@ -319,7 +350,8 @@ export async function initConsultPage() {
           ? 'Предварительная оценка и план проверок'
           : 'Станет доступно после описания запроса';
 
-    const costFrom = hasData ? buildCostFrom(data.costFromMinor) : null;
+    const fallbackCostFromState = buildCostFrom(data?.flowState?.estimated_cost_from);
+    const costFrom = hasData ? buildCostFrom(data.costFromMinor) || fallbackCostFromState : null;
     if (resultCostRange) {
       resultCostRange.textContent = costFrom ? `от ${fmtMoneyRub(costFrom)}` : '—';
     }
@@ -338,10 +370,18 @@ export async function initConsultPage() {
     }
 
     const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+    const flowCauses = Array.isArray(data?.flowState?.probable_causes)
+      ? data.flowState.probable_causes.map((x) => diagLineText(x)).filter(Boolean).slice(0, 5)
+      : [];
     const top = recs.slice(0, 5);
+    const fallbackPct = buildProbabilitySeriesFromConfidence(data.confidencePercent, flowCauses.length);
+    const hypothesisRows =
+      top.length > 0
+        ? top
+        : flowCauses.map((title, i) => ({ title, probabilityPercent: fallbackPct[i] ?? Math.max(15, Math.round(75 - i * 12)) }));
     if (resultHypothesesList) {
-      if (top.length > 0) {
-        resultHypothesesList.innerHTML = top
+      if (hypothesisRows.length > 0) {
+        resultHypothesesList.innerHTML = hypothesisRows
           .map((r) => {
             const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
             return `<div class="diag-hyp">
@@ -354,7 +394,7 @@ export async function initConsultPage() {
           })
           .join('');
         resultHypothesesList.querySelectorAll('.diag-hyp').forEach((wrap, i) => {
-          const r = top[i];
+          const r = hypothesisRows[i];
           if (!r) return;
           const pct = Math.max(0, Math.min(100, Number(r.probabilityPercent) || 0));
           const fill = wrap.querySelector('.diag-hyp__fill');
@@ -369,7 +409,7 @@ export async function initConsultPage() {
     if (resultChecksList) {
       const flowChecks = data.flowState?.recommended_checks;
       const checks = Array.isArray(flowChecks)
-        ? flowChecks.map((c) => typeof c === 'string' ? c.trim() : '').filter(Boolean).slice(0, 5)
+        ? flowChecks.map((c) => diagLineText(c)).filter(Boolean).slice(0, 5)
         : [];
       resultChecksList.innerHTML =
         checks.length > 0
@@ -462,11 +502,16 @@ export async function initConsultPage() {
         conf != null && Number.isFinite(Number(conf)) ? `Уверенность: ${Math.round(Number(conf))}%` : 'Уверенность: —';
     }
     if (sideCostValue) {
-      const hasCost = data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor)) && Number(data.costFromMinor) > 0;
-      sideCostValue.textContent = hasCost ? `от ${fmtMoneyRub(data.costFromMinor)}` : '—';
+      const sideCost =
+        buildCostFrom(data.costFromMinor) || buildCostFrom(data?.flowState?.estimated_cost_from) || null;
+      sideCostValue.textContent = sideCost ? `от ${fmtMoneyRub(sideCost)}` : '—';
     }
     if (sideCostHint) {
-      const hasCost = data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor)) && Number(data.costFromMinor) > 0;
+      const hasCost =
+        (data.costFromMinor != null && Number.isFinite(Number(data.costFromMinor)) && Number(data.costFromMinor) > 0) ||
+        (data?.flowState?.estimated_cost_from != null &&
+          Number.isFinite(Number(data.flowState.estimated_cost_from)) &&
+          Number(data.flowState.estimated_cost_from) > 0);
       sideCostHint.textContent = hasCost
         ? 'Минимальная оценка по данным сервиса'
         : 'Оценка появится после анализа';
@@ -799,6 +844,8 @@ export async function initConsultPage() {
 
         if (eventType === 'thinking' || eventType === 'progress') {
           showThinkingBubble(parsed.phase || 'started');
+        } else if (eventType === 'heartbeat') {
+          // keep stream alive, no UI action needed
         } else if (eventType === 'done') {
           finalData = parsed;
         } else if (eventType === 'error') {
@@ -851,9 +898,16 @@ export async function initConsultPage() {
     try {
       if (!sessionId) await startSession();
       setSendState(true, 'ИИ анализирует...');
-      // В проде SSE иногда рвётся на слабом соединении/после рестартов контейнера.
-      // Для стабильности отправляем обычный POST без стриминга.
-      await sendMessageClassic(text);
+      try {
+        await sendMessageSSE(text);
+      } catch (streamErr) {
+        // network/proxy edge-case before normal HTTP status: fallback to classic mode
+        if (streamErr?.status == null) {
+          await sendMessageClassic(text);
+        } else {
+          throw streamErr;
+        }
+      }
     } catch (e) {
       removeThinkingBubble();
       if (e.status === 503) {
@@ -865,7 +919,7 @@ export async function initConsultPage() {
       } else if (e.status === 401 && e.data?.code === 'GUEST_TOKEN_REQUIRED') {
         await startSession();
       } else {
-        errBox.textContent = e.message;
+        errBox.textContent = toSafeUiErrorMessage(e.message);
         errBox.className = 'alert alert--error';
         errBox.hidden = false;
       }

@@ -12,6 +12,8 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app/backend
 
+RUN apk add --no-cache ttf-dejavu fontconfig
+
 COPY --chown=node:node --from=deps /app/backend/node_modules ./node_modules
 COPY --chown=node:node --from=deps /app/backend/prisma ./prisma
 COPY --chown=node:node backend/src ./src

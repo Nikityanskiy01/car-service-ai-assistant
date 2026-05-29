@@ -9,6 +9,8 @@ import {
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import { isAppError } from '../../lib/errors.js';
+import { getEnv } from '../../config/env.js';
+import { telemetryInc } from '../../services/diagnosticsTelemetry.service.js';
 import * as consultationsService from './consultations.service.js';
 import * as serviceRequestsService from '../serviceRequests/serviceRequests.service.js';
 import * as referenceService from '../reference/reference.service.js';
@@ -152,6 +154,7 @@ consultationsRouter.post(
       res.status(201).json(serializeSessionDetail(session));
     } catch (e) {
       if (isAppError(e) && (e.statusCode === 503 || e.code === 'LLM_ERROR')) {
+        telemetryInc('http503');
         return res.status(503).json({
           error: e.message || 'AI module unavailable',
           code: 'LLM_ERROR',
@@ -170,6 +173,8 @@ consultationsRouter.post(
   blockStaffFromPosting,
   validateBody(messageSchema),
   asyncHandler(async (req, res) => {
+    const env = getEnv();
+    const heartbeatMs = Number(env.SSE_HEARTBEAT_MS || 25000);
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -181,6 +186,9 @@ consultationsRouter.post(
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       if (typeof res.flush === 'function') res.flush();
     };
+    const heartbeat = setInterval(() => {
+      send('heartbeat', { ts: Date.now() });
+    }, heartbeatMs);
 
     send('thinking', { phase: 'started' });
 
@@ -194,11 +202,14 @@ consultationsRouter.post(
       send('done', serializeSessionDetail(session));
     } catch (e) {
       if (isAppError(e) && (e.statusCode === 503 || e.code === 'LLM_ERROR')) {
+        telemetryInc('http503');
         send('error', { message: e.message || 'AI module unavailable', code: 'LLM_ERROR' });
       } else {
         const safeMessage = process.env.NODE_ENV === 'production' ? 'Internal error' : (e.message || 'Internal error');
         send('error', { message: safeMessage });
       }
+    } finally {
+      clearInterval(heartbeat);
     }
 
     res.end();

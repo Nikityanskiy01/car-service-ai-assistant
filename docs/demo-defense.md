@@ -55,8 +55,6 @@ E2E-аккаунты (если нужны): `admin@fox.local` / `Admin12345!`, `
 4. Сменить статус (например, «В работе»).
 5. Ответ в переписке по заявке.
 
-**Telegram (опционально):** если бот не настроен — показать таблицу `Notification` в БД или упомянуть mock в тестах.
-
 ### 4. Администратор (~1–2 мин)
 
 1. Войти `admin@example.com`.
@@ -90,7 +88,7 @@ E2E-аккаунты (если нужны): `admin@fox.local` / `Admin12345!`, `
 | Симптом | Действие |
 |---------|----------|
 | Docker daemon недоступен | Запустить Docker Desktop и повторить `docker compose up -d`; если до защиты < 5 минут — показать подготовленные скриншоты из `docs/screenshots/` |
-| `LLM unavailable` | `docker compose ps`, `npm run llm:check`, перезапуск Ollama |
+| `LLM unavailable` | `docker compose ps`, `npm run llm:check`, проверка `LLM_API_KEY`/`LLM_CLOUD_BASE_URL` |
 | Пустая БД | `npm run db:setup` |
 | 401 в кабинете | Очистить cookies, повторный вход |
 | Порт занят | `PORT=3001` в `.env` и обновить URL |

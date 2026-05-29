@@ -3,7 +3,6 @@ import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
 import { isExtractedComplete } from '../../lib/consultationProgress.js';
-import { notifyNewServiceRequest } from '../notifications/telegram.service.js';
 
 export async function createFromSession(sessionId, user) {
   const session = await prisma.consultationSession.findUnique({
@@ -38,7 +37,6 @@ export async function createFromSession(sessionId, user) {
   });
 
   const full = await findFullServiceRequest(sr.id);
-  await notifyNewServiceRequest(full);
   return full;
 }
 
@@ -87,7 +85,6 @@ export async function createFromGuestSession(sessionId, actor, { fullName, phone
   });
 
   const full = await findFullServiceRequest(sr.id);
-  await notifyNewServiceRequest(full);
   return full;
 }
 

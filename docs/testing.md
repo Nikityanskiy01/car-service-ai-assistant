@@ -30,10 +30,10 @@ $env:NODE_ENV="test"
 | Каталог | Содержание |
 |---------|------------|
 | `backend/tests/unit/` | Прогресс консультации, rule-based flow, ai-adapter (парсинг/merge), политики пароля |
-| `backend/tests/integration/` | auth, RBAC, consultation, service-requests, bookings, admin, contact, telegram (mock) |
+| `backend/tests/integration/` | auth, RBAC, consultation, service-requests, bookings, admin, contact |
 | `backend/tests/security/` | JWT, XSS, cross-role |
 
-Интеграционные тесты **не требуют Ollama** — LLM мокируется или обходится на уровне сервиса.
+Интеграционные тесты не требуют локальной LLM — сетевые вызовы мокируются или обходятся на уровне сервиса.
 
 ## E2E (Playwright)
 
