@@ -16,7 +16,7 @@ function bindBrokenImageFallbacks(root) {
       'error',
       () => {
         const n = String((idx % 6) + 1).padStart(2, '0');
-        const fallback = `/assets/placeholders/works-${n}.svg`;
+        const fallback = `/assets/images/works-${n}.jpg`;
         if (img.src.endsWith(fallback)) return;
         img.src = fallback;
       },

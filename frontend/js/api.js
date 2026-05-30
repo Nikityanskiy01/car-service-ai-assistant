@@ -46,6 +46,16 @@ function localizeApiError(status, data, fallbackStatusText) {
   if (englishMap.has(raw)) return englishMap.get(raw);
 
   if (status >= 500) {
+    const low = raw.toLowerCase();
+    if (
+      low.includes('<html') ||
+      low.includes('<body') ||
+      low.includes('bad gateway') ||
+      low.includes('gateway time-out') ||
+      low.includes('nginx')
+    ) {
+      return 'Сервис временно недоступен. Подождите несколько секунд и попробуйте снова.';
+    }
     if (raw && raw !== 'Internal server error') return raw;
     return 'Временная ошибка сервера. Попробуйте еще раз чуть позже.';
   }

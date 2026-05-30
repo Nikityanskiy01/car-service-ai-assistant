@@ -73,34 +73,34 @@ export async function chatCompletion({
   const base = resolveBaseUrl(env.LLM_CLOUD_BASE_URL);
   const targetModel = model || env.LLM_MODEL;
 
-  const body = {
-    model: targetModel,
-    messages,
-    temperature,
-    stream: false,
-  };
-  if (Number.isFinite(Number(maxTokens)) && Number(maxTokens) > 0) {
-    body.max_tokens = Math.round(Number(maxTokens));
-  }
-  if (options && typeof options === 'object') {
-    Object.assign(body, options);
-  }
-
-  if (format) {
-    body.response_format = {
-      type: 'json_schema',
-      json_schema: {
-        name: 'consultation_schema',
-        strict: true,
-        schema: format,
-      },
+  const buildBody = (useSchemaFormat) => {
+    const body = {
+      model: targetModel,
+      messages,
+      temperature,
+      stream: false,
     };
-  }
+    if (Number.isFinite(Number(maxTokens)) && Number(maxTokens) > 0) {
+      body.max_tokens = Math.round(Number(maxTokens));
+    }
+    if (options && typeof options === 'object') {
+      Object.assign(body, options);
+    }
+    if (useSchemaFormat && format) {
+      body.response_format = {
+        type: 'json_schema',
+        json_schema: {
+          name: 'consultation_schema',
+          strict: true,
+          schema: format,
+        },
+      };
+    }
+    return body;
+  };
 
-  let res;
-  const startedAt = Date.now();
-  try {
-    res = await fetch(`${base}/chat/completions`, {
+  const doFetch = (body) =>
+    fetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -109,6 +109,17 @@ export async function chatCompletion({
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
+
+  let res;
+  const startedAt = Date.now();
+  try {
+    // Некоторые qwen-модели у провайдера отдают HTTP 400 на response_format=json_schema.
+    // В этом случае делаем один ретрай без response_format.
+    res = await doFetch(buildBody(Boolean(format)));
+    if (!res.ok && format && res.status === 400) {
+      await res.text().catch(() => '');
+      res = await doFetch(buildBody(false));
+    }
   } catch (err) {
     telemetryObserveLlmLatency(Date.now() - startedAt);
     telemetryInc('llmErrors');

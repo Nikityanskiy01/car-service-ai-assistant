@@ -31,12 +31,13 @@
 }
 
 .brand__logo {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
   object-fit: contain;
   display: block;
   flex-shrink: 0;
+  background: transparent;
 }
 
 .nav {
@@ -44,6 +45,66 @@
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
   align-items: center;
+}
+
+.nav__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+
+.nav__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .site-header__inner {
+    flex-wrap: nowrap;
+  }
+
+  .nav {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .nav__links {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.55rem 0.85rem;
+    min-width: 0;
+  }
+
+  .nav__links a {
+    font-size: 0.88rem;
+  }
+
+  .nav__actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nav__links {
+    gap: 0.45rem 0.65rem;
+  }
+
+  .nav__links a {
+    font-size: 0.84rem;
+  }
+
+  .nav-auth .btn {
+    min-width: 96px;
+    padding: 0.55rem 0.9rem;
+  }
 }
 
 .nav a {
@@ -113,20 +174,21 @@
     padding-top: .5rem;
     border-top: 1px solid rgba(255,255,255,.08);
   }
+  .nav--collapsible .nav__links,
+  .nav--collapsible .nav__actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .nav--collapsible .nav__actions {
+    gap: .6rem;
+  }
   .nav--collapsible .nav-auth .btn {
     width: 100%;
     padding: .75rem 1rem;
     font-size: .95rem;
     min-height: 48px;
     border-radius: 12px;
-  }
-  .nav--collapsible .nav-cta {
-    width: 100%;
-    justify-content: center;
-    padding: .75rem 1rem;
-    min-height: 48px;
-    border-radius: 12px;
-    margin-top: .35rem;
   }
 }
 
@@ -1155,11 +1217,6 @@ table.data tr.is-selected th:first-child {
   box-shadow: inset 3px 0 0 0 var(--color-accent);
 }
 
-
-.nav-cta {
-  margin-left: 0.2rem;
-  white-space: nowrap;
-}
 
 .nav-auth {
   display: inline-flex;

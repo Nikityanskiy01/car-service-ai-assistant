@@ -25,6 +25,7 @@ import {
 import { getEnv } from '../config/env.js';
 import { chatCompletion } from './llmService.js';
 import { telemetryInc, telemetryObservePhase } from './diagnosticsTelemetry.service.js';
+import { safeJsonParse } from '../utils/safeJsonParse.js';
 
 const EXTRACTION_FIELD_KEYS = [
   'car_make',
@@ -279,7 +280,8 @@ async function planDialogStepWithLlm({ userMessage, merged, session, askedQuesti
         },
       ],
     });
-    const parsed = JSON.parse(raw);
+    const parsed = safeJsonParse(raw);
+    if (!parsed) throw new Error('dialog_step_invalid_json');
     telemetryObservePhase('dialog', Date.now() - startedAt);
     const decision = normalizeDialogDecision(parsed, fallbackMissing);
     return applyDialogGuardrails({
@@ -992,7 +994,8 @@ export async function extractConsultationData(message, currentState = {}) {
         { role: 'user', content: extractionUserPrompt(msg, pre) },
       ],
     });
-    const parsed = JSON.parse(raw);
+    const parsed = safeJsonParse(raw);
+    if (!parsed) throw new Error('extraction_invalid_json');
     const normalized = normalizeExtractedFromLlm(parsed || {});
     const mergedLlm = preferPreExtractedServiceSymptoms(pre, mergeExtractedData(pre, normalized));
     return postProcessMerged(mergedLlm);
@@ -1193,7 +1196,7 @@ export async function buildConsultationState(session, userMessage, onProgress) {
 
   const env = getEnv();
   const useLlmFirstFlow = env.CONSULTATION_FLOW_MODE === 'llm_first';
-  const deadlineAtMs = turnStartedAt + Number(env.DIAGNOSIS_TURN_BUDGET_MS || 35_000);
+  const deadlineAtMs = turnStartedAt + Number(env.DIAGNOSIS_TURN_BUDGET_MS || 70_000);
   const remainingBudgetMs = () => Math.max(0, deadlineAtMs - Date.now());
 
   let llmDialog = null;
@@ -1277,7 +1280,7 @@ export async function buildConsultationState(session, userMessage, onProgress) {
     onProgress?.({ phase: 'diagnosing' });
     const { generateDiagnosis } = await import('../modules/consultations/consultationAi.service.js');
     const diagnosis = await generateDiagnosis(merged, {
-      timeBudgetMs: Number(env.DIAGNOSIS_TURN_BUDGET_MS || 35_000),
+      timeBudgetMs: Number(env.DIAGNOSIS_TURN_BUDGET_MS || 70_000),
       deadlineAtMs,
       onProgress,
     });
@@ -1319,7 +1322,7 @@ export async function buildConsultationState(session, userMessage, onProgress) {
     onProgress?.({ phase: 'diagnosing' });
     const { generateDiagnosis } = await import('../modules/consultations/consultationAi.service.js');
     const diagnosis = await generateDiagnosis(merged, {
-      timeBudgetMs: Number(env.DIAGNOSIS_TURN_BUDGET_MS || 35_000),
+      timeBudgetMs: Number(env.DIAGNOSIS_TURN_BUDGET_MS || 70_000),
       deadlineAtMs,
       onProgress,
     });

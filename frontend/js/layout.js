@@ -74,7 +74,6 @@ export function mountHeaderFooter({ active = '' } = {}) {
         : '/dashboards/client.html';
 
   const dashClass = active === 'dash' ? 'is-active' : '';
-  const navCta = `<a href="/services.html" class="btn btn--primary nav-cta">Быстрая запись</a>`;
   const authBlock = authed
     ? `<a href="${dash}" class="${dashClass}">Кабинет</a>
        <button type="button" class="btn btn--ghost" id="logoutBtn">Выход</button>`
@@ -92,7 +91,7 @@ export function mountHeaderFooter({ active = '' } = {}) {
       <a class="brand" href="/index.html">
         <img
           class="brand__logo"
-          src="/assets/logo.svg"
+          src="/assets/logo.png"
           width="40"
           height="40"
           alt=""
@@ -102,14 +101,17 @@ export function mountHeaderFooter({ active = '' } = {}) {
       </a>
       <button type="button" class="nav-toggle" id="navToggle" aria-expanded="false" aria-label="Открыть меню">${hamburgerSvg}</button>
       <nav class="nav nav--collapsible" id="mainNav" aria-label="Основная навигация">
-        <a href="/index.html" class="${active === 'home' ? 'is-active' : ''}">Главная</a>
-        <a href="/services.html" class="${active === 'services' ? 'is-active' : ''}">Услуги</a>
-        <a href="/consult.html" class="${active === 'consult' ? 'is-active' : ''}">ИИ-консультация</a>
-        <a href="/works.html" class="${active === 'works' ? 'is-active' : ''}">Работы</a>
-        <a href="/gallery.html" class="${active === 'gallery' ? 'is-active' : ''}">Галерея</a>
-        <a href="/about.html#contacts" class="${active === 'about' || active === 'location' ? 'is-active' : ''}">О сервисе и контакты</a>
-        ${navCta}
-        ${authBlock}
+        <div class="nav__links">
+          <a href="/index.html" class="${active === 'home' ? 'is-active' : ''}">Главная</a>
+          <a href="/services.html" class="${active === 'services' ? 'is-active' : ''}">Услуги</a>
+          <a href="/consult.html" class="${active === 'consult' ? 'is-active' : ''}">ИИ-консультация</a>
+          <a href="/works.html" class="${active === 'works' ? 'is-active' : ''}">Работы</a>
+          <a href="/gallery.html" class="${active === 'gallery' ? 'is-active' : ''}">Галерея</a>
+          <a href="/about.html" class="${active === 'about' || active === 'location' ? 'is-active' : ''}">О сервисе и контакты</a>
+        </div>
+        <div class="nav__actions">
+          ${authBlock}
+        </div>
       </nav>
     </div>
   </header>`;
@@ -124,7 +126,7 @@ export function mountHeaderFooter({ active = '' } = {}) {
         </div>
         <nav class="site-footer__nav" aria-label="Навигация подвала">
           <a href="/consult.html">Консультация</a>
-          <a href="/about.html#contacts">О сервисе и контакты</a>
+          <a href="/about.html">О сервисе и контакты</a>
           <a href="/services.html">Услуги</a>
           <a href="/works.html">Работы</a>
           <a href="/gallery.html">Галерея</a>

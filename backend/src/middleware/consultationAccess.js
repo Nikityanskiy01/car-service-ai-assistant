@@ -1,6 +1,14 @@
 import crypto from 'crypto';
 import prisma from '../lib/prisma.js';
 
+function guestTokensMatch(expected, provided) {
+  if (typeof expected !== 'string' || typeof provided !== 'string') return false;
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
+}
+
 /**
  * После optionalAuthJwt. Проверяет доступ к сессии :sessionId (JWT-владелец, гость по X-Consultation-Guest-Token, менеджер).
  * Выставляет req.consultationActor: { kind: 'staff'|'owner'|'guest', user? }.
@@ -36,7 +44,7 @@ export async function consultationSessionAccess(req, res, next) {
     typeof hdr === 'string' &&
     hdr.length > 0 &&
     session.guestToken &&
-    crypto.timingSafeEqual(Buffer.from(session.guestToken), Buffer.from(hdr))
+    guestTokensMatch(session.guestToken, hdr)
   ) {
     req.consultationActor = { kind: 'guest' };
     return next();

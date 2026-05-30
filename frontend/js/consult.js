@@ -949,7 +949,7 @@ export async function initConsultPage() {
       await startSession();
     }
   } catch (e) {
-    errBox.textContent = e.message;
+    errBox.textContent = toSafeUiErrorMessage(e.message);
     errBox.className = 'alert alert--error';
     errBox.hidden = false;
   }

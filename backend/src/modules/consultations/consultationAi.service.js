@@ -1,5 +1,4 @@
 import {
-  DIAGNOSIS_FORMAT_SCHEMA,
   DIAGNOSIS_SYSTEM_PROMPT,
   diagnosisUserPrompt,
 } from '../../prompts/consultationPrompts.js';
@@ -604,20 +603,21 @@ export async function generateDiagnosis(data, options = {}) {
   }
 
   const runClassicDiagnosis = async () => {
-    const defaultModel = String(env.LLM_MODEL || '').trim();
-    const autoFastModel = defaultModel.includes('thinking') ? defaultModel.replace(/-thinking\b/, '') : defaultModel;
-    const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || autoFastModel || defaultModel;
+    const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || env.LLM_MODEL;
     const localBudget = remainingBudgetMs(deadlineAtMs);
     const envTimeout = Math.max(6_000, Number(env.LLM_DIAGNOSIS_TIMEOUT_MS || 30_000));
     const timeoutMs = Math.max(6_000, Math.min(envTimeout, Math.max(6_000, localBudget)));
+    const diagnosisUserContent = diagnosisUserPrompt(payload, relatedCases, pbHints, tw);
     const runEmergencyLlmDiagnosis = async () => {
-      const emergencyTimeoutMs = Math.max(1800, Math.min(4000, Math.max(1800, remainingBudgetMs(deadlineAtMs))));
+      const emergencyTimeoutMs = Math.max(
+        15_000,
+        Math.min(45_000, remainingBudgetMs(deadlineAtMs)),
+      );
       const emergencyRaw = await chatCompletion({
         model: diagnosisModel,
         temperature: 0.1,
         timeoutMs: emergencyTimeoutMs,
-        keepAlive: env.LLM_KEEP_ALIVE,
-        maxTokens: Math.min(500, Number(env.LLM_DIAGNOSIS_NUM_PREDICT || 700)),
+        maxTokens: Number(env.LLM_DIAGNOSIS_NUM_PREDICT || 700),
         messages: [
           {
             role: 'system',
@@ -627,7 +627,7 @@ export async function generateDiagnosis(data, options = {}) {
           {
             role: 'user',
             content:
-              `${diagnosisUserPrompt(payload, relatedCases, pbHints, tw)}\n\n` +
+              `${diagnosisUserContent}\n\n` +
               'Не используй шаблонные фразы. Верни 2-6 probable_causes и 1-6 recommended_checks строго по контексту обращения.',
           },
         ],
@@ -641,86 +641,54 @@ export async function generateDiagnosis(data, options = {}) {
         model: diagnosisModel,
         temperature: 0.15,
         timeoutMs,
-        keepAlive: env.LLM_KEEP_ALIVE,
         maxTokens: env.LLM_DIAGNOSIS_NUM_PREDICT,
-        format: DIAGNOSIS_FORMAT_SCHEMA,
-        options: {
-          num_ctx: 3072,
-        },
         messages: [
           { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
-          { role: 'user', content: diagnosisUserPrompt(payload, relatedCases, pbHints, tw) },
+          {
+            role: 'user',
+            content:
+              `${diagnosisUserContent}\n\n` +
+              'Верни только валидный JSON-объект с полями probable_causes, recommended_checks, urgency, confidence, estimated_cost_from, summary.',
+          },
         ],
       });
     try {
       const firstRaw = await callDiagnosisLlm();
       let parsed = safeJsonParse(firstRaw);
       if (!parsed) {
-        const secondRaw = await chatCompletion({
-          model: diagnosisModel,
-          temperature: 0,
-          timeoutMs,
-          maxTokens: env.LLM_DIAGNOSIS_NUM_PREDICT,
-          format: DIAGNOSIS_FORMAT_SCHEMA,
-          messages: [
-            { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content:
-                `${diagnosisUserPrompt(payload, relatedCases, pbHints, tw)}\n` +
-                'Исправь предыдущий ответ: верни только валидный JSON строго по схеме.',
-            },
-          ],
-        });
-        parsed = safeJsonParse(secondRaw);
-      }
-      if (!parsed) throw new Error('diagnosis: invalid json from llm');
-      const llmDiagnosis = normalizeDiagnosis(parsed);
-      let out = normalizeDiagnosisResult(llmDiagnosis);
-
-      // Иногда первая генерация получается слишком общей; делаем повторный короткий проход.
-      if (remainingBudgetMs(deadlineAtMs) > minRemaining && looksLikeDefaultDiagnosis(out)) {
-        try {
-          const repairRaw = await chatCompletion({
-            model: diagnosisModel,
-            temperature: 0.05,
-            timeoutMs,
-            keepAlive: env.LLM_KEEP_ALIVE,
-            maxTokens: env.LLM_DIAGNOSIS_NUM_PREDICT,
-            format: DIAGNOSIS_FORMAT_SCHEMA,
-            options: { num_ctx: 3072 },
-            messages: [
-              { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
-              {
-                role: 'user',
-                content:
-                  `${diagnosisUserPrompt(payload, relatedCases, pbHints, tw)}\n\n` +
-                  'Верни более конкретный результат: 2-6 probable_causes, 1-6 recommended_checks и минимальную цену estimated_cost_from > 0. ' +
-                  'Избегай общих фраз и верни только JSON по схеме.',
-              },
-            ],
-          });
-          const repairParsed = safeJsonParse(repairRaw);
-          if (repairParsed) {
-            const repaired = normalizeDiagnosis(repairParsed);
-            out = normalizeDiagnosisResult(repaired);
-          }
-        } catch {
-          // Оставляем исходный результат, если повторный проход не удался.
-        }
-      }
-
-      return out;
-    } catch (err) {
-      if (isTransientLlmFailure(err)) {
         try {
           return await runEmergencyLlmDiagnosis();
-        } catch {
+        } catch (repairErr) {
+          console.warn('diagnosis_llm_json_repair_failed', {
+            model: diagnosisModel,
+            reason: String(repairErr?.message || repairErr),
+            preview: String(firstRaw || '').slice(0, 200),
+          });
+          throw new Error('diagnosis: invalid json from llm');
+        }
+      }
+      const llmDiagnosis = normalizeDiagnosis(parsed);
+      return normalizeDiagnosisResult(llmDiagnosis);
+    } catch (err) {
+      console.warn('diagnosis_llm_primary_failed', {
+        model: diagnosisModel,
+        reason: String(err?.message || err),
+      });
+      const retriable =
+        isTransientLlmFailure(err) || String(err?.message || err).includes('invalid json');
+      if (retriable) {
+        try {
+          return await runEmergencyLlmDiagnosis();
+        } catch (emergencyErr) {
+          console.warn('diagnosis_llm_emergency_failed', {
+            model: diagnosisModel,
+            reason: String(emergencyErr?.message || emergencyErr),
+          });
           // Переходим к нижнему fallback только если даже emergency-проход не сработал.
         }
       }
       // Даже в strict LLM-first режиме не роняем консультацию на сетевых/таймаут ошибках LLM.
-      if (!allowLlmFallback && !isTransientLlmFailure(err)) {
+      if (!allowLlmFallback && !retriable) {
         throw new Error(`diagnosis_llm_failed: ${String(err?.message || err)}`);
       }
       telemetryInc('fallback');
