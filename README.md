@@ -43,9 +43,9 @@ docker compose --env-file .env.proxmox up -d --build
 
 Подробно: [`docs/proxmox-selfhost.md`](docs/proxmox-selfhost.md).
 
-### Облачная LLM вместо локальной
+### Cloud LLM (VseLLM)
 
-В `backend/.env` переключите провайдер:
+В `backend/.env` укажите облачный провайдер:
 
 ```env
 LLM_PROVIDER=openai
@@ -55,7 +55,7 @@ LLM_API_KEY=vsellm_xxx
 LLM_MODEL=qwen/qwen3-coder-next
 ```
 
-После этого `backend` будет использовать `/chat/completions` cloud-провайдера.
+Проверка: `cd backend && npm run llm:check` (ожидается `LLM OK`). Локальный Ollama и Telegram-бот **не используются**.
 
 ### Тестовые аккаунты
 
@@ -74,7 +74,6 @@ LLM_MODEL=qwen/qwen3-coder-next
 | [Установка и запуск](docs/setup.md) | Пошаговая инструкция, требования, типичные проблемы |
 | [Архитектура проекта](docs/architecture.md) | Стек, модули, поток консультации, RBAC |
 | [Тестирование](docs/testing.md) | Jest, Playwright, k6 — структура и запуск |
-| [Демо к защите](docs/demo-defense.md) | Золотой путь 7–10 мин, учётки, чеклист 3× прогона |
 | [Приёмка TR-007](docs/manual-acceptance-tr007.md) | Ручная приёмка T055 (usability, mobile, роли) |
 | [Self-host на Proxmox](docs/proxmox-selfhost.md) | VM bootstrap, Docker Compose, Nginx+TLS, systemd, backup, Remote SSH |
 | OpenAPI | [specs/001-ai-consultation-platform/contracts/openapi.yaml](specs/001-ai-consultation-platform/contracts/openapi.yaml) |
@@ -84,18 +83,11 @@ LLM_MODEL=qwen/qwen3-coder-next
 
 ## Спецификации
 
-Проектная документация (ТЗ, план, контракт API):
-
 ```
 specs/001-ai-consultation-platform/
 ├── spec.md             — спецификация (FR, TR, user stories)
-├── plan.md             — план реализации
-├── tasks.md            — чеклист задач
 ├── data-model.md       — модель данных
-├── research.md         — исследование технологий
-├── quickstart.md       — краткий старт
-├── contracts/openapi.yaml  — OpenAPI 3.0.3
-└── checklists/         — чеклисты требований
+└── contracts/openapi.yaml  — OpenAPI 3.0.3
 ```
 
 ## Лицензия

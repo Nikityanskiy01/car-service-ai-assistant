@@ -26,7 +26,7 @@ const schema = z.object({
     .transform((v) => v === 'true' || v === '1'),
   LLM_CLOUD_BASE_URL: z.string().default('https://api.openai.com/v1'),
   LLM_API_KEY: z.string().optional(),
-  LLM_MODEL: z.string().default('qwen2.5:7b'),
+  LLM_MODEL: z.string().default('qwen/qwen3-coder-next'),
   /** Быстрая модель только для JSON-извлечения полей (пусто = LLM_MODEL). */
   LLM_EXTRACTION_MODEL: z.string().optional(),
   LLM_EXTRACTION_NUM_PREDICT: z.coerce.number().default(280),
@@ -52,7 +52,6 @@ const schema = z.object({
   DIAGNOSIS_AGENT_TIMEOUT_MS: z.coerce.number().int().min(5000).default(90000),
   DIAGNOSIS_AGENT_MAX_RETRIES: z.coerce.number().int().min(0).max(3).default(1),
   SSE_HEARTBEAT_MS: z.coerce.number().int().min(5000).default(25000),
-  LLM_KEEP_ALIVE: z.string().default('30m'),
   LLM_ENABLED: z
     .enum(['true', 'false', '1', '0'])
     .default('true')

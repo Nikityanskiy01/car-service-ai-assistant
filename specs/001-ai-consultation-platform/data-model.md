@@ -1,7 +1,6 @@
 # Data Model: AI Consultation Platform
 
 **Spec**: [spec.md](./spec.md)  
-**Plan**: [plan.md](./plan.md)  
 **Date**: 2026-03-24
 
 Logical model for **PostgreSQL** via **Prisma** (JavaScript). Enumerations and rules match

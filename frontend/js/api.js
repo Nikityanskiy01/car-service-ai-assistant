@@ -63,23 +63,6 @@ function localizeApiError(status, data, fallbackStatusText) {
   return raw;
 }
 
-/** @deprecated Токены только в httpOnly-cookie; для проверки «вошёл ли» используйте getUser() */
-export function getToken() {
-  return null;
-}
-
-export function setToken() {
-  localStorage.removeItem('token');
-}
-
-export function getRefreshToken() {
-  return null;
-}
-
-export function setRefreshToken() {
-  localStorage.removeItem('refreshToken');
-}
-
 export function getUser() {
   try {
     const raw = localStorage.getItem('user');

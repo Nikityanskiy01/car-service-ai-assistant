@@ -21,6 +21,9 @@ coverage/
 backend/coverage/
 *.tmp
 Thumbs.db
+.tmp-pve*
+tmp-*
+scripts/__pycache__/
 
 # Локальные данные Cursor (правила в репозитории обычно не нужны — при необходимости уберите эту строку)
 .cursor/

@@ -4,7 +4,6 @@ import { runDiagnosisAgent } from '../../src/services/diagnosisAgent.service.js'
 const testEnv = {
   LLM_DIAGNOSIS_MODEL: 'gpt-4.1-mini',
   LLM_MODEL: 'gpt-4.1-mini',
-  LLM_KEEP_ALIVE: '30m',
   DIAGNOSIS_AGENT_TIMEOUT_MS: 15000,
   DIAGNOSIS_AGENT_MAX_RETRIES: 1,
 };

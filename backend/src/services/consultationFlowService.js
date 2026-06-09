@@ -5,7 +5,6 @@
 
 import {
   ALT_FLOW_QUESTIONS,
-  CATEGORY_CONDITIONS_QUESTIONS,
   CATEGORY_RULES,
   ENGINE_EXTRA_KEYWORDS,
   FLOW_QUESTIONS,
@@ -491,18 +490,6 @@ export function shouldAskQuestion(session, questionMeta, askedQuestions = []) {
 }
 
 /**
- * @param {SymptomCategory} category
- */
-export function getCategoryConditionsQuestion(category) {
-  return CATEGORY_CONDITIONS_QUESTIONS[category] || CATEGORY_CONDITIONS_QUESTIONS.unknown;
-}
-
-/** Совместимость со старым symptomClassifier */
-export function generateCategoryFollowupQuestion(category) {
-  return getCategoryConditionsQuestion(category);
-}
-
-/**
  * @param {Array<{ sender?: string, content?: string }>} messages
  */
 export function getLastAssistantContent(messages) {
@@ -983,12 +970,8 @@ export async function extractConsultationData(message, currentState = {}) {
       model: extractionModel,
       temperature: 0,
       timeoutMs: 10_000,
-      keepAlive: env.LLM_KEEP_ALIVE,
+      maxTokens: env.LLM_EXTRACTION_NUM_PREDICT,
       format: EXTRACTION_FORMAT_SCHEMA,
-      options: {
-        num_predict: env.LLM_EXTRACTION_NUM_PREDICT,
-        num_ctx: 2048,
-      },
       messages: [
         { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
         { role: 'user', content: extractionUserPrompt(msg, pre) },
@@ -1145,16 +1128,6 @@ export function progressFromConsultationSteps(data) {
   const total = 6;
   if (isFieldFilled('conditions', data.conditions)) n++;
   return Math.min(100, Math.round((n / total) * 100));
-}
-
-/** @deprecated Используйте progressFromConsultationSteps */
-export function progressFromMandatoryFields(data) {
-  return progressFromConsultationSteps(data);
-}
-
-/** @deprecated Используйте progressFromConsultationSteps */
-export function progressFromServiceFields(data) {
-  return progressFromConsultationSteps(data);
 }
 
 /**

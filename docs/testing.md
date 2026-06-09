@@ -29,11 +29,22 @@ $env:NODE_ENV="test"
 
 | Каталог | Содержание |
 |---------|------------|
-| `backend/tests/unit/` | Прогресс консультации, rule-based flow, ai-adapter (парсинг/merge), политики пароля |
-| `backend/tests/integration/` | auth, RBAC, consultation, service-requests, bookings, admin, contact |
+| `backend/tests/unit/` | Прогресс консультации, `consultation-flow`, `consultation-intent`, `consultation-prompts`, `diagnosis-agent`, `diagnostics-telemetry`, ai-adapter (парсинг/merge), политики пароля |
+| `backend/tests/integration/` | auth, RBAC, consultation, service-requests, bookings, admin, contact, analytics |
 | `backend/tests/security/` | JWT, XSS, cross-role |
 
-Интеграционные тесты не требуют локальной LLM — сетевые вызовы мокируются или обходятся на уровне сервиса.
+Интеграционные тесты не требуют живой LLM — сетевые вызовы мокируются или обходятся на уровне сервиса.
+
+### ИИ-диагностика (для главы 3 ВКР)
+
+| Файл | Что проверяет |
+|------|----------------|
+| `diagnosis-agent.test.js` | шаги LLMFactory-агента, Zod-контракты |
+| `diagnostics-telemetry.test.js` | счётчики и перцентили телеметрии |
+| `consultation-intent.test.js` | intent diagnostic / service |
+| `ai-adapter.test.js` | FR-025b: fallback при недоступной модели |
+
+Ручная проверка телеметрии ИИ: `GET /api/health/ai-diagnostics` и `GET /api/health/ai-diagnostics/gates`.
 
 ## E2E (Playwright)
 

@@ -89,6 +89,20 @@ LLM_API_KEY=vsellm_xxx
 LLM_MODEL=qwen/qwen3-coder-next
 ```
 
+### Режимы диагностики (опционально)
+
+См. полный список в `backend/.env.example`:
+
+```env
+CONSULTATION_FLOW_MODE=llm_first
+DIAGNOSIS_AGENT_MODE=llmfactory
+DIAGNOSIS_AGENT_PROFILE=compact
+DIAGNOSIS_TURN_BUDGET_MS=20000
+DIAGNOSIS_FAST_PATH_ENABLED=true
+```
+
+Проверка после изменений: `npm run llm:check` и один прогон консультации на `/consult.html` (SSE + итоговый диагноз).
+
 ## Типичные проблемы
 
 | Симптом | Решение |

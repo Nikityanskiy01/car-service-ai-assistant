@@ -143,9 +143,7 @@ async function runStep({
         model,
         temperature: 0.15,
         timeoutMs,
-        keepAlive: env.LLM_KEEP_ALIVE,
         format,
-        options: { num_ctx: 4096 },
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

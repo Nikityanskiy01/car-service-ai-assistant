@@ -1,5 +1,1 @@
-export {
-  detectSymptomCategory,
-  generateCategoryFollowupQuestion,
-  getCategoryConditionsQuestion,
-} from './consultationFlowService.js';
+export { detectSymptomCategory } from './consultationFlowService.js';
