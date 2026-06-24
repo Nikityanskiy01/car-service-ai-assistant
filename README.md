@@ -76,6 +76,8 @@ LLM_MODEL=qwen/qwen3-coder-next
 | [Тестирование](docs/testing.md) | Jest, Playwright, k6 — структура и запуск |
 | [Приёмка TR-007](docs/manual-acceptance-tr007.md) | Ручная приёмка T055 (usability, mobile, роли) |
 | [Self-host на Proxmox](docs/proxmox-selfhost.md) | VM bootstrap, Docker Compose, Nginx+TLS, systemd, backup, Remote SSH |
+| [Шпаргалка на защиту](docs/defense-cheatsheet.md) | Одностраничная памятка + demo |
+| [10 вопросов комиссии](docs/defense-rehearsal-qa.md) | Репетиция с эталонными ответами |
 | OpenAPI | [specs/001-ai-consultation-platform/contracts/openapi.yaml](specs/001-ai-consultation-platform/contracts/openapi.yaml) |
 | Модель данных | [specs/001-ai-consultation-platform/data-model.md](specs/001-ai-consultation-platform/data-model.md) |
 
