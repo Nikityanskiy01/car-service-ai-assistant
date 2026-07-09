@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: AI Fox Motors API
+  title: Car Service AI Assistant API
   description: >
     REST JSON API for the car service consultation IS. Backend: Node.js + Express (JavaScript).
     Consumers: HTML/CSS/JS frontend via fetch. JWT Bearer auth; roles CLIENT, MANAGER, ADMINISTRATOR.

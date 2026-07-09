@@ -59,6 +59,10 @@ export async function kpiDashboard() {
   );
 
   return {
+    consultations: consultationsTotal,
+    serviceRequests: requestsTotal,
+    bookings: bookingsTotal,
+    conversion: `${conversionConsultationToRequest}%`,
     funnel: {
       consultationsTotal,
       requestsTotal,

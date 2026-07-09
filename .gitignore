@@ -4,6 +4,7 @@ backend/node_modules/
 .env.proxmox
 backend/.env
 backend/prisma/prisma/
+frontend/.env.local
 backend/prisma/*.db
 backend/prisma/*.db-journal
 backend.zip

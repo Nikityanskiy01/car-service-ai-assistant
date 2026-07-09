@@ -1,4 +1,5 @@
 import fs from 'fs';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
@@ -29,8 +30,7 @@ export function createApp() {
   const app = express();
   const env = getEnv();
   const frontendRoot = resolveFrontendRoot(env);
-  const frontend404 = path.join(frontendRoot, '404.html');
-  const frontend500 = path.join(frontendRoot, '500.html');
+  const frontendIndex = path.join(frontendRoot, 'index.html');
 
   if (env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
@@ -43,23 +43,11 @@ export function createApp() {
           ? {
               directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", 'https://unpkg.com', 'https://api-maps.yandex.ru'],
-                styleSrc: ["'self'", 'https://fonts.googleapis.com'],
-                imgSrc: [
-                  "'self'",
-                  'data:',
-                  'https://images.unsplash.com',
-                  'https://*.yandex.net',
-                  'https://*.yandex.ru',
-                ],
-                fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-                connectSrc: [
-                  "'self'",
-                  'https://api-maps.yandex.ru',
-                  'https://suggest-maps.yandex.ru',
-                  'https://geocode-maps.yandex.ru',
-                  'https://*.maps.yandex.net',
-                ],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'", 'data:'],
+                fontSrc: ["'self'"],
+                connectSrc: ["'self'"],
                 frameSrc: ["'none'"],
                 workerSrc: ["'self'", 'blob:'],
                 objectSrc: ["'none'"],
@@ -81,9 +69,21 @@ export function createApp() {
   );
   app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
+  app.use((req, res, next) => {
+    const incoming = req.headers['x-request-id'];
+    const requestId = typeof incoming === 'string' && incoming.trim() ? incoming.trim() : crypto.randomUUID();
+    req.id = requestId;
+    res.setHeader('X-Request-Id', requestId);
+    next();
+  });
 
   if (env.NODE_ENV !== 'test') {
-    app.use(pinoHttp({ logger }));
+    app.use(
+      pinoHttp({
+        logger,
+        genReqId: (req) => req.id,
+      }),
+    );
   }
 
   const limiter = rateLimit({
@@ -104,19 +104,16 @@ export function createApp() {
     if (req.path.startsWith('/api') || !env.SERVE_FRONTEND) {
       return res.status(404).json({ error: 'Not found' });
     }
-    return res.status(404).sendFile(frontend404);
+    const isGetLike = req.method === 'GET' || req.method === 'HEAD';
+    const hasFileExt = path.extname(req.path).length > 0;
+    if (isGetLike && !hasFileExt && fs.existsSync(frontendIndex)) {
+      return res.sendFile(frontendIndex);
+    }
+    return res.status(404).json({ error: 'Not found' });
   });
 
   // Keep JSON errors for API, nice page for frontend.
   app.use((err, req, res, next) => {
-    if (req.path?.startsWith?.('/api')) return errorHandler(err, req, res, next);
-    if (env.SERVE_FRONTEND) {
-      try {
-        return res.status(500).sendFile(frontend500);
-      } catch {
-        return errorHandler(err, req, res, next);
-      }
-    }
     return errorHandler(err, req, res, next);
   });
 

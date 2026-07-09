@@ -8,6 +8,7 @@ import {
   BOOTSTRAP_ASSISTANT_MESSAGE,
   buildConsultationState,
   progressFromConsultationSteps,
+  progressFromStage,
 } from '../../services/consultationFlowService.js';
 
 const sessionDetailInclude = {
@@ -106,7 +107,7 @@ export async function bootstrapOpeningTurn(sessionId) {
       where: { id: sessionId },
       data: {
         preliminaryNote,
-        flowState: { asked_questions: [], stage: 'clarification', intent: null, service_type: null },
+        flowState: { asked_questions: [], stage: 'INITIAL', intent: null, service_type: null },
       },
     }),
   ]);
@@ -244,11 +245,12 @@ export async function postMessage(sessionId, actor, content, onProgress) {
     },
   );
 
-  const complete = ai.stage === 'result' || ai.stage === 'service_result';
+  const isManualReview = ai.stage === 'MANUAL_REVIEW_REQUIRED';
+  const complete = ai.stage === 'COMPLETED' || isManualReview;
 
   const progressPercent = complete
     ? 100
-    : Math.min(100, progressFromConsultationSteps(ai.extracted_data));
+    : Math.min(100, progressFromStage(ai.stage) || progressFromConsultationSteps(ai.extracted_data));
   const diagnosis = ai.diagnosis;
   const recommendations =
     diagnosis?.probable_causes?.length > 0
@@ -261,11 +263,13 @@ export async function postMessage(sessionId, actor, content, onProgress) {
       : [];
   const aiReply = ai.assistant_message;
   const confidencePercent =
-    diagnosis && Number.isFinite(Number(diagnosis.confidence))
+    diagnosis && diagnosis.analysis_available !== false && Number.isFinite(Number(diagnosis.confidence))
       ? Math.max(0, Math.min(100, Math.round(Number(diagnosis.confidence) * 100)))
       : null;
   const costFromMinor =
-    diagnosis?.estimated_cost_from != null && Number(diagnosis.estimated_cost_from) > 0
+    diagnosis?.analysis_available !== false &&
+    diagnosis?.estimated_cost_from != null &&
+    Number(diagnosis.estimated_cost_from) > 0
       ? Math.round(Number(diagnosis.estimated_cost_from))
       : complete
         ? estimateCostFromMinor(mergedExtracted, { recommendations })
@@ -306,6 +310,32 @@ export async function postMessage(sessionId, actor, content, onProgress) {
         preliminaryNote: 'Результат предварительный и не заменяет очную диагностику автомобиля специалистом.',
         flowState: {
           ...(ai.flowState ?? {}),
+          ...(diagnosis
+            ? {
+                diagnosis: {
+                  summary: String(diagnosis.summary || ''),
+                  urgency: String(diagnosis.urgency || 'low'),
+                  confidence: Number.isFinite(Number(diagnosis.confidence))
+                    ? Math.max(0, Math.min(1, Number(diagnosis.confidence)))
+                    : null,
+                  estimated_cost_from:
+                    diagnosis.estimated_cost_from != null && Number.isFinite(Number(diagnosis.estimated_cost_from))
+                      ? Math.max(0, Math.round(Number(diagnosis.estimated_cost_from)))
+                      : null,
+                  recommended_checks: Array.isArray(diagnosis.recommended_checks)
+                    ? diagnosis.recommended_checks.map((x) => String(x)).filter(Boolean).slice(0, 8)
+                    : [],
+                  status: String(diagnosis.status || 'SUCCESS'),
+                  analysis_available: diagnosis.analysis_available !== false,
+                  reason: diagnosis.reason ? String(diagnosis.reason) : null,
+                  disclaimer: String(diagnosis.disclaimer || ''),
+                  execution_meta:
+                    diagnosis.execution_meta && typeof diagnosis.execution_meta === 'object'
+                      ? diagnosis.execution_meta
+                      : null,
+                },
+              }
+            : {}),
           ...(diagnosis?.recommended_checks?.length ? { recommended_checks: diagnosis.recommended_checks } : {}),
         },
       },

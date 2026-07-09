@@ -1,13 +1,13 @@
-# Архитектура Fox Motors — AI Auto Service
+# Архитектура интеллектуального ассистента автосервиса
 
 ## Обзор
 
-Клиент-серверное веб-приложение: статический фронтенд, REST API на Node.js, PostgreSQL, локальная LLM через Ollama, опционально Telegram для менеджеров.
+Клиент-серверное веб-приложение: React SPA (Vite), REST API на Node.js, PostgreSQL, локальная или облачная LLM, опционально Telegram для менеджеров.
 
 ```mermaid
 flowchart TB
   subgraph client [Клиент]
-    Browser[Браузер HTML/CSS/JS]
+    Browser[Браузер ReactSPA]
   end
   subgraph server [Сервер Node.js Express]
     API[REST /api]
@@ -39,7 +39,7 @@ flowchart TB
 
 | Путь | Назначение |
 |------|------------|
-| `frontend/` | Публичные страницы, `consult.html`, дашборды ролей |
+| `frontend/src/` | React SPA: публичные страницы, консультация, кабинеты ролей |
 | `backend/src/app.js` | Express, middleware, статика frontend |
 | `backend/src/routes/api.js` | Монтирование модулей `/api/*` |
 | `backend/src/modules/` | auth, consultations, serviceRequests, admin, analytics, bookings |
@@ -66,7 +66,7 @@ flowchart TB
 
 ## Развёртывание
 
-Локально: `docker compose` (Postgres + Ollama) + `backend` (`npm run db:setup`, `npm run dev`).  
+Локально: `docker compose` (Postgres + Ollama) + `npm run dev` (frontend + backend).  
 Подробности: [setup.md](./setup.md).
 
 ## Связанные документы

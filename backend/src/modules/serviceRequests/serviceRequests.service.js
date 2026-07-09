@@ -4,6 +4,7 @@ import { AppError } from '../../lib/errors.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
 import { isExtractedComplete } from '../../lib/consultationProgress.js';
 import { notifyNewServiceRequest } from '../notifications/telegram.service.js';
+import { dispatchOutbox, enqueueOutboxEvent, processPendingJobs } from '../integrations/integrations.service.js';
 
 export async function createFromSession(sessionId, user) {
   const session = await prisma.consultationSession.findUnique({
@@ -38,6 +39,14 @@ export async function createFromSession(sessionId, user) {
   });
 
   const full = await findFullServiceRequest(sr.id);
+  await enqueueOutboxEvent({
+    eventType: 'request.created',
+    entityType: 'service_request',
+    entityId: sr.id,
+    payloadJson: { source: 'consultation', actor: 'client' },
+  });
+  await dispatchOutbox();
+  await processPendingJobs();
   await notifyNewServiceRequest(full);
   return full;
 }
@@ -87,6 +96,14 @@ export async function createFromGuestSession(sessionId, actor, { fullName, phone
   });
 
   const full = await findFullServiceRequest(sr.id);
+  await enqueueOutboxEvent({
+    eventType: 'request.created',
+    entityType: 'service_request',
+    entityId: sr.id,
+    payloadJson: { source: 'consultation', actor: 'guest' },
+  });
+  await dispatchOutbox();
+  await processPendingJobs();
   await notifyNewServiceRequest(full);
   return full;
 }
@@ -212,7 +229,16 @@ export async function patchRequestStatus(requestId, user, { status, expectedVers
   if (result.count === 0) {
     throw new AppError(409, 'Version conflict', 'CONFLICT');
   }
-  return prisma.serviceRequest.findUnique({ where: { id: requestId } });
+  const row = await prisma.serviceRequest.findUnique({ where: { id: requestId } });
+  await enqueueOutboxEvent({
+    eventType: 'request.updated',
+    entityType: 'service_request',
+    entityId: requestId,
+    payloadJson: { status },
+  });
+  await dispatchOutbox();
+  await processPendingJobs();
+  return row;
 }
 
 export async function bulkPatchStatuses(user, { ids, status }) {

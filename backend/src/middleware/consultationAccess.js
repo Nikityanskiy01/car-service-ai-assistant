@@ -32,11 +32,13 @@ export async function consultationSessionAccess(req, res, next) {
   }
 
   const hdr = req.headers['x-consultation-guest-token'];
+  const expected = typeof session.guestToken === 'string' ? Buffer.from(session.guestToken) : null;
+  const provided = typeof hdr === 'string' && hdr.length > 0 ? Buffer.from(hdr) : null;
   if (
-    typeof hdr === 'string' &&
-    hdr.length > 0 &&
-    session.guestToken &&
-    crypto.timingSafeEqual(Buffer.from(session.guestToken), Buffer.from(hdr))
+    expected &&
+    provided &&
+    expected.length === provided.length &&
+    crypto.timingSafeEqual(expected, provided)
   ) {
     req.consultationActor = { kind: 'guest' };
     return next();

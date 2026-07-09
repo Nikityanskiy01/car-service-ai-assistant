@@ -35,15 +35,12 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      LLM_BASE_URL: http://ollama:11434
       NODE_ENV: production
       SERVE_FRONTEND: "false"
     ports:
       - "${BACKEND_BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-3000}:3000"
     depends_on:
       db:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
     init: true
     tmpfs:
@@ -83,23 +80,8 @@ services:
     networks:
       - app_net
 
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/root/.ollama
-    entrypoint: ["/bin/sh", "-c", "/bin/ollama serve & sleep 5 && ollama pull ${LLM_MODEL:-qwen2.5:7b}; wait"]
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    restart: unless-stopped
-    networks:
-      - app_net
-
 volumes:
   pgdata:
-  ollama_data:
 
 networks:
   app_net:

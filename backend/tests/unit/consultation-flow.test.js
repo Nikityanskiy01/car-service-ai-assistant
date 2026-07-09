@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   countFieldsChangedByPre,
+  detectSymptomCategory,
   getMissingFields,
   getNextQuestion,
   isSimpleExtractionMessage,
@@ -122,5 +123,56 @@ describe('preferPreExtractedServiceSymptoms', () => {
     const merged = { symptoms: 'замена масла и фильтра' };
     const out = preferPreExtractedServiceSymptoms(pre, merged);
     expect(out.symptoms).toBe('замена масла и фильтра');
+  });
+});
+
+describe('mileage/year extraction regression', () => {
+  it('Skoda Octavia 2020 -> year only, mileage null', () => {
+    const out = preExtractFromRules('Skoda Octavia 2020', {});
+    expect(out.car_make).toBe('Skoda');
+    expect(out.car_model).toBe('Octavia');
+    expect(out.year).toBe(2020);
+    expect(out.mileage).toBeNull();
+  });
+
+  it('Skoda Octavia 2020, пробег 130000 км -> parse both year and mileage', () => {
+    const out = preExtractFromRules('Skoda Octavia 2020, пробег 130000 км', {});
+    expect(out.year).toBe(2020);
+    expect(out.mileage).toBe(130000);
+  });
+
+  it('Skoda Octavia, пробег 2020 км -> mileage set, year not hallucinated', () => {
+    const out = preExtractFromRules('Skoda Octavia, пробег 2020 км', {});
+    expect(out.mileage).toBe(2020);
+    expect(out.year).toBeNull();
+  });
+
+  it('Пробег около 120 тыс. км -> 120000', () => {
+    const out = preExtractFromRules('Пробег около 120 тыс. км', {});
+    expect(out.mileage).toBe(120000);
+  });
+
+  it('2020 км после ремонта -> do not auto-treat as odometer mileage', () => {
+    const out = preExtractFromRules('2020 км после ремонта', {});
+    expect(out.mileage).toBeNull();
+  });
+
+  it('year correction keeps latest value', () => {
+    const initial = preExtractFromRules('Skoda Octavia 2019', {});
+    const corrected = preExtractFromRules('ошибся, 2020', initial);
+    expect(corrected.year).toBe(2020);
+  });
+
+  it('unstable idle rpm keeps engine context and requests mileage', () => {
+    const out = preExtractFromRules('Нестабильные обороты на холостом ходу', {});
+    expect(detectSymptomCategory(String(out.symptoms || ''))).toBe('engine');
+    const missing = getMissingFields({
+      car_make: 'Skoda',
+      car_model: 'Octavia',
+      symptoms: out.symptoms,
+      conditions: out.conditions,
+      mileage: null,
+    });
+    expect(missing).toContain('mileage');
   });
 });

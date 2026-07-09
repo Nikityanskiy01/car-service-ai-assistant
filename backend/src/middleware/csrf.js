@@ -2,7 +2,7 @@ import { COOKIE_ACCESS, COOKIE_CSRF, COOKIE_REFRESH } from '../lib/authCookies.j
 
 /**
  * Double-submit CSRF: при наличии auth-cookie требуется заголовок X-CSRF-Token,
- * совпадающий с cookie fm_csrf. Без auth-cookie (гость) — проверка не требуется.
+ * совпадающий с cookie car_service_csrf. Без auth-cookie (гость) — проверка не требуется.
  * В test окружении отключено.
  */
 export function csrfProtection(req, res, next) {

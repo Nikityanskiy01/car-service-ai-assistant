@@ -9,6 +9,11 @@ import { bookingsRouter } from '../modules/bookings/bookings.router.js';
 import { contactRouter } from '../modules/contact/contact.router.js';
 import { consultationsRouter } from '../modules/consultations/consultations.router.js';
 import { contentRouter } from '../modules/content/content.router.js';
+import {
+  integrationsAdminRouter,
+  integrationsManagerRouter,
+  integrationsPublicWebhookRouter,
+} from '../modules/integrations/integrations.router.js';
 import { requestMessagesRouter } from '../modules/requestMessages/requestMessages.router.js';
 import { serviceRequestsRouter } from '../modules/serviceRequests/serviceRequests.router.js';
 import { usersRouter } from '../modules/users/users.router.js';
@@ -36,6 +41,9 @@ api.use('/service-requests', serviceRequestsRouter);
 api.use('/service-requests/:requestId/messages', requestMessagesRouter);
 api.use('/bookings', bookingsRouter);
 api.use('/admin', adminRouter);
+api.use('/admin', integrationsAdminRouter);
 api.use('/analytics', analyticsRouter);
+api.use('/manager', integrationsManagerRouter);
+api.use('/webhooks', integrationsPublicWebhookRouter);
 
 export default api;

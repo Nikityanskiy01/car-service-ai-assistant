@@ -1,0 +1,63 @@
+import type { IntegrationConnectionStatus, IntegrationProvider } from '../types/integration';
+import type { ServiceRequestStatus } from '../types/serviceRequest';
+
+export const SERVICE_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string> = {
+  NEW: 'Новая',
+  IN_PROGRESS: 'В работе',
+  SCHEDULED: 'Запланирована',
+  COMPLETED: 'Завершена',
+  CANCELLED: 'Отменена',
+};
+
+export const ROLE_LABELS: Record<string, string> = {
+  CLIENT: 'Клиент',
+  MANAGER: 'Менеджер',
+  ADMINISTRATOR: 'Администратор',
+};
+
+export const INTEGRATION_PROVIDER_LABELS: Record<IntegrationProvider, string> = {
+  ONE_C: '1С:Предприятие',
+  AUTODEALER_DESKTOP: 'АвтоДилер (Desktop)',
+  AUTODEALER_WEB: 'АвтоДилер Web',
+  AUTODEALER_ONLINE: 'АвтоДилер Онлайн',
+  BITRIX24: 'Bitrix24',
+  AMOCRM: 'amoCRM',
+  YCLIENTS: 'YCLIENTS',
+  MOYSKLAD: 'МойСклад',
+  MEGAPLAN: 'Мегаплан',
+  GENERIC_REST: 'Универсальный REST',
+  GENERIC_WEBHOOK: 'Webhook',
+  FILE_EXCHANGE: 'Файловый обмен',
+};
+
+export const INTEGRATION_STATUS_LABELS: Record<IntegrationConnectionStatus, string> = {
+  NOT_CONFIGURED: 'Не настроено',
+  REQUIRES_SETUP: 'Требуется настройка',
+  TESTING: 'Проверяется',
+  CONNECTED: 'Подключено',
+  LIMITED: 'Работает с ограничениями',
+  AUTH_ERROR: 'Ошибка авторизации',
+  UNAVAILABLE: 'Недоступно',
+  PAUSED: 'Синхронизация приостановлена',
+};
+
+export const INTEGRATION_JOB_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Ожидает',
+  PROCESSING: 'Выполняется',
+  SUCCEEDED: 'Успешно',
+  RETRYING: 'Повтор',
+  FAILED: 'Ошибка',
+  DEAD_LETTER: 'Требует внимания',
+  CANCELLED: 'Отменена',
+};
+
+export const URGENCY_LABELS: Record<string, string> = {
+  LOW: 'Низкая',
+  MEDIUM: 'Средняя',
+  HIGH: 'Высокая',
+  CRITICAL: 'Критическая',
+};
+
+export function formatRequestNumber(id: string): string {
+  return id.slice(0, 8).toUpperCase();
+}

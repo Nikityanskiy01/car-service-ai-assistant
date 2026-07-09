@@ -79,15 +79,24 @@ export function isFieldFilled(field, value) {
 }
 
 /**
- * Недостающие поля: марка → модель → пробег → описание запроса → условия (только diagnostic).
+ * Недостающие поля: марка → модель → описание запроса → условия (только diagnostic).
+ * Пробег — желательное поле, но не всегда блокирует анализ.
  * @param {Record<string, unknown>} data
  */
 export function getMissingFields(data) {
-  const base = ['car_make', 'car_model', 'mileage', 'symptoms'];
+  const base = ['car_make', 'car_model', 'symptoms'];
   const missing = base.filter((k) => !isFieldFilled(k, data[k]));
   if (missing.length) return missing;
-  if (detectConsultationIntent(String(data.symptoms || '')) === 'service') {
+  const symptomsText = String(data.symptoms || '');
+  if (detectConsultationIntent(symptomsText) === 'service') {
     return [];
+  }
+  if (isCriticalSafetySymptom(symptomsText)) {
+    return [];
+  }
+  const category = detectSymptomCategory(symptomsText);
+  if (category === 'engine' && !isFieldFilled('mileage', data.mileage)) {
+    return ['mileage'];
   }
   if (!isFieldFilled('conditions', data.conditions)) {
     return ['conditions'];
@@ -135,23 +144,26 @@ export function normalizeConditions(text) {
 export function normalizeSymptoms(text) {
   let s = String(text || '').trim();
   if (!s) return s;
-  const low = s.toLowerCase();
-  const pairs = [
-    [/не\s+заводится/i, 'не запускается'],
-    [/не\s+заводит/i, 'не запускается'],
-    [/троит/i, 'двигатель троит'],
-    [/глохнет/i, 'двигатель глохнет'],
-    [/плавают\s+обороты/i, 'плавают обороты'],
-    [/биение\s+руля/i, 'биение руля'],
-    [/^стук$/i, 'посторонний стук'],
-  ];
-  for (const [rx, rep] of pairs) {
-    if (rx.test(low)) {
-      s = rep;
-      break;
-    }
-  }
+  s = s.replace(/не\s+заводит(?:ся)?/gi, 'не запускается');
+  s = s.replace(/\bтроит\b/gi, 'двигатель троит');
+  s = s.replace(/\bглохнет\b/gi, 'двигатель глохнет');
+  s = s.replace(/плавают\s+обороты/gi, 'плавают обороты');
+  s = s.replace(/нестабильн\w*\s+оборот\w*/gi, 'плавают обороты');
+  s = s.replace(/биение\s+руля/gi, 'биение руля');
+  if (/^стук$/i.test(s)) s = 'посторонний стук';
   return s;
+}
+
+function isCriticalSafetySymptom(symptoms) {
+  const text = String(symptoms || '').toLowerCase();
+  return (
+    (text.includes('педаль тормоза') && (text.includes('провал') || text.includes('тормозит хуже'))) ||
+    text.includes('пар из-под капота') ||
+    text.includes('дым из-под капота') ||
+    text.includes('утечка топлива') ||
+    (text.includes('запах') && text.includes('бензин')) ||
+    (text.includes('давлен') && text.includes('масл') && text.includes('красн'))
+  );
 }
 
 /**
@@ -178,7 +190,7 @@ export function detectSymptomCategory(symptoms) {
 }
 
 /**
- * Строгий порядок: марка → модель → пробег → запрос → условия (только diagnostic).
+ * Порядок уточнений: марка → модель → симптом → пробег (опционально) → условия.
  * @param {Record<string, unknown>} state
  * @returns {{ field: string, question: string } | null}
  */
@@ -190,11 +202,11 @@ export function getNextQuestion(state) {
   if (!isFieldFilled('car_model', data.car_model)) {
     return { field: 'car_model', question: FLOW_QUESTIONS.car_model };
   }
-  if (!isFieldFilled('mileage', data.mileage)) {
-    return { field: 'mileage', question: FLOW_QUESTIONS.mileage };
-  }
   if (!isFieldFilled('symptoms', data.symptoms)) {
     return { field: 'symptoms', question: FLOW_QUESTIONS.symptoms };
+  }
+  if (!isFieldFilled('mileage', data.mileage)) {
+    return { field: 'mileage', question: FLOW_QUESTIONS.mileage };
   }
   if (detectConsultationIntent(String(data.symptoms || '')) === 'service') {
     return null;
@@ -314,25 +326,61 @@ function normalizeExtractedFromLlm(raw) {
   };
 }
 
-function extractMileageRegex(t) {
+function extractMileageRegex(t, base = {}) {
   const low = t.toLowerCase();
-  let m =
-    t.match(/пробег\D{0,12}(\d[\d\s]{2,7})/i) ||
-    t.match(/\b(\d{2,3})\s*тыс(?:\s*км)?\b/i) ||
-    t.match(/\b(\d{3,7})\s*км\b/i) ||
-    t.match(/\b(\d{4,7})\b(?!\s*год)/i);
-  if (!m) return null;
-  const raw = String(m[1]).replace(/\s+/g, '');
-  const n = Number(raw);
+  const normalized = low.replace(/\s+/g, ' ').trim();
+  const explicitUnknown = /(не\s+знаю|неизвест|без\s+пробега|пробег\s+не\s+указан)/i.test(normalized);
+  if (explicitUnknown) return null;
+
+  const hasMileageContext = /пробег|одометр|на\s+одометре|тыс/.test(normalized);
+  const hasVehicleContext =
+    Boolean(base?.car_make) ||
+    Boolean(base?.car_model) ||
+    /\b(skoda|toyota|kia|bmw|audi|vw|volkswagen|honda|hyundai|nissan|ford|лада|шкода|тойота)\b/i.test(t);
+
+  const explicitMileageMatch =
+    t.match(/(?:пробег|одометр|на\s+одометре)\D{0,20}(\d[\d\s]{1,7})\s*(тыс(?:\.|яч(?:а|и)?)?)?/i) ||
+    t.match(/\b(\d{2,3})\s*тыс(?:\.|яч(?:а|и)?)\s*(?:км)?\b/i);
+  if (explicitMileageMatch) {
+    const raw = String(explicitMileageMatch[1]).replace(/\s+/g, '');
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    const isThousands =
+      /тыс/i.test(String(explicitMileageMatch[0])) || (/пробег/i.test(low) && n > 0 && n < 1000);
+    return isThousands ? n * 1000 : n;
+  }
+
+  const kmMatch = t.match(/\b(\d{3,7})\s*км\b(?!\s*\/\s*ч)/i);
+  if (!kmMatch) {
+    const plainNumber = String(t || '').trim();
+    if (/^\d{3,7}$/.test(plainNumber) && hasVehicleContext) {
+      const n = Number(plainNumber);
+      if (Number.isFinite(n) && (n < 1950 || n > 2035)) return n;
+    }
+    return null;
+  }
+
+  const n = Number(String(kmMatch[1]).replace(/\s+/g, ''));
   if (!Number.isFinite(n)) return null;
-  if (/тыс/i.test(t) || (/пробег/i.test(low) && n < 1000)) return n * 1000;
-  if (n >= 1000 && n < 1000000) return n;
+  if (!hasMileageContext && (n >= 1950 && n <= 2035)) return null;
+  if (!hasMileageContext && !hasVehicleContext) {
+    if (/после\s+ремонта|после\s+замены|проехал|поездк|маршрут/i.test(normalized)) return null;
+  }
   return n;
 }
 
 function extractYearRegex(t) {
-  const m = t.match(/\b(19[7-9]\d|20[0-3]\d)\b/);
-  return m ? Number(m[1]) : null;
+  const matches = [...String(t || '').matchAll(/\b(19[7-9]\d|20[0-3]\d)\b/g)];
+  for (const m of matches) {
+    const year = Number(m[1]);
+    const idx = m.index ?? -1;
+    const left = String(t).slice(Math.max(0, idx - 20), idx).toLowerCase();
+    const right = String(t).slice(idx + String(m[0]).length, idx + String(m[0]).length + 16).toLowerCase();
+    const mileageContext = /пробег|одометр/.test(left) || /\s*км\b/.test(right);
+    if (mileageContext) continue;
+    return year;
+  }
+  return null;
 }
 
 const CONDITION_HINTS =
@@ -379,9 +427,9 @@ export function preExtractFromRules(message, base = {}) {
   const low = t.toLowerCase();
 
   const y = extractYearRegex(t);
-  if (y && !out.year) out.year = y;
+  if (y) out.year = y;
 
-  const mileage = extractMileageRegex(t);
+  const mileage = extractMileageRegex(t, base);
   if (mileage != null) out.mileage = mileage;
 
   if (!out.car_make || !out.car_model) {
@@ -553,12 +601,12 @@ export async function extractConsultationData(message, currentState = {}) {
   const msg = String(message || '').trim();
   const base = mergeExtractedData(EMPTY_CONSULTATION_STATE, currentState);
   const pre = preExtractFromRules(msg, base);
+  const env = getEnv();
 
-  if (shouldSkipLlmExtraction(msg, base, pre)) {
+  if (!env.LLM_FORCE_EXTRACTION && shouldSkipLlmExtraction(msg, base, pre)) {
     return postProcessMerged(pre);
   }
 
-  const env = getEnv();
   const extractionModel = env.LLM_EXTRACTION_MODEL?.trim() || env.LLM_MODEL;
 
   try {
@@ -590,9 +638,10 @@ function parseFlowState(raw) {
   if (raw == null) return null;
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) {
     const asked = Array.isArray(raw.asked_questions) ? raw.asked_questions : [];
-    let stage = 'clarification';
-    if (raw.stage === 'result') stage = 'result';
-    else if (raw.stage === 'service_result') stage = 'service_result';
+    let stage = 'CLARIFYING';
+    if (raw.stage === 'result' || raw.stage === 'service_result' || raw.stage === 'COMPLETED') stage = 'COMPLETED';
+    else if (raw.stage === 'MANUAL_REVIEW_REQUIRED') stage = 'MANUAL_REVIEW_REQUIRED';
+    else if (typeof raw.stage === 'string' && raw.stage) stage = raw.stage;
     return {
       asked_questions: asked
         .filter((x) => x && typeof x === 'object')
@@ -602,7 +651,7 @@ function parseFlowState(raw) {
       service_type: typeof raw.service_type === 'string' && raw.service_type ? raw.service_type : null,
     };
   }
-  return { asked_questions: [], stage: 'clarification', intent: null, service_type: null };
+  return { asked_questions: [], stage: 'CLARIFYING', intent: null, service_type: null };
 }
 
 function pickAlternateQuestion(meta) {
@@ -627,20 +676,34 @@ const MAX_ASKS_PER_FIELD = 3;
  * @param {Record<string, unknown>} data
  */
 export function progressFromConsultationSteps(data) {
-  let n = 0;
-  if (isFieldFilled('car_make', data.car_make)) n++;
-  if (isFieldFilled('car_model', data.car_model)) n++;
-  if (isFieldFilled('mileage', data.mileage)) n++;
-  if (isFieldFilled('symptoms', data.symptoms)) n++;
-  if (!isFieldFilled('symptoms', data.symptoms)) {
-    return Math.min(100, Math.round((n / 4) * 100));
+  const stage = deriveConsultationStage(data, []);
+  return progressFromStage(stage);
+}
+
+export function progressFromStage(stage) {
+  const map = {
+    INITIAL: 0,
+    COLLECTING_VEHICLE: 20,
+    COLLECTING_SYMPTOMS: 45,
+    CLARIFYING: 65,
+    READY_FOR_ANALYSIS: 80,
+    ANALYZING: 90,
+    COMPLETED: 100,
+    MANUAL_REVIEW_REQUIRED: 100,
+    FAILED: 100,
+  };
+  return map[String(stage)] ?? 0;
+}
+
+export function deriveConsultationStage(data, missingFields = []) {
+  if (missingFields.includes('car_make') || missingFields.includes('car_model')) return 'COLLECTING_VEHICLE';
+  if (missingFields.includes('symptoms')) return 'COLLECTING_SYMPTOMS';
+  if (missingFields.includes('conditions') || missingFields.includes('mileage')) return 'CLARIFYING';
+  if (!isFieldFilled('symptoms', data?.symptoms)) return 'COLLECTING_SYMPTOMS';
+  if (!isFieldFilled('conditions', data?.conditions) && detectConsultationIntent(String(data?.symptoms || '')) !== 'service') {
+    return 'CLARIFYING';
   }
-  if (detectConsultationIntent(String(data.symptoms || '')) === 'service') {
-    return Math.min(100, Math.round((n / 4) * 100));
-  }
-  const total = 5;
-  if (isFieldFilled('conditions', data.conditions)) n++;
-  return Math.min(100, Math.round((n / total) * 100));
+  return 'READY_FOR_ANALYSIS';
 }
 
 /** @deprecated Используйте progressFromConsultationSteps */
@@ -662,7 +725,7 @@ export async function buildConsultationState(session, userMessage, onProgress) {
   const flow =
     parseFlowState(session?.flowState) || {
       asked_questions: [],
-      stage: 'clarification',
+      stage: 'CLARIFYING',
       intent: null,
       service_type: null,
     };
@@ -701,9 +764,9 @@ export async function buildConsultationState(session, userMessage, onProgress) {
     merged.service_type = null;
   }
 
-  if (flow.stage === 'result' || flow.stage === 'service_result') {
+  if (flow.stage === 'COMPLETED') {
     return {
-      stage: flow.stage,
+      stage: 'COMPLETED',
       assistant_message: 'Консультация завершена. Нажмите «Новая сессия» для нового запроса.',
       extracted_data: merged,
       diagnosis: null,
@@ -725,20 +788,23 @@ export async function buildConsultationState(session, userMessage, onProgress) {
     onProgress?.({ phase: 'diagnosing' });
     const { generateDiagnosis } = await import('../modules/consultations/consultationAi.service.js');
     const diagnosis = await generateDiagnosis(merged);
+    const isManual = String(diagnosis?.status || '').toUpperCase() === 'MANUAL_REVIEW_REQUIRED';
 
     const isService = merged.intent === 'service';
     const st = isService ? detectServiceType(String(merged.symptoms || '')) : null;
 
     return {
-      stage: 'result',
-      assistant_message: diagnosis.summary + '\n\nВы можете сохранить отчёт и оформить заявку в сервис.',
+      stage: isManual ? 'MANUAL_REVIEW_REQUIRED' : 'COMPLETED',
+      assistant_message: isManual
+        ? diagnosis.summary
+        : diagnosis.summary + '\n\nВы можете сохранить отчёт и оформить заявку в сервис.',
       extracted_data: merged,
       diagnosis,
       missing_fields: [],
       service_type: st || merged.service_type || null,
       flowState: {
         asked_questions: flow.asked_questions,
-        stage: 'result',
+        stage: isManual ? 'MANUAL_REVIEW_REQUIRED' : 'COMPLETED',
         intent: merged.intent || 'diagnostic',
         service_type: st || merged.service_type || null,
       },
@@ -755,14 +821,14 @@ export async function buildConsultationState(session, userMessage, onProgress) {
   const newAsked = [...flow.asked_questions, { field: finalMeta.field, question: finalMeta.question }];
 
   return {
-    stage: 'clarification',
+    stage: deriveConsultationStage(merged, missing),
     assistant_message: finalMeta.question,
     extracted_data: merged,
     diagnosis: null,
     missing_fields: missing,
     flowState: {
       asked_questions: newAsked,
-      stage: 'clarification',
+      stage: deriveConsultationStage(merged, missing),
       intent: merged.intent,
       service_type: merged.service_type,
     },

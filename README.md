@@ -1,52 +1,60 @@
-# Fox Motors — AI Auto Service
+# Интеллектуальный ассистент автосервиса
 
-Веб-система первичной ИИ-консультации для автосервиса.
+Веб-приложение для предварительной ИИ-консультации, управления заявками и записи на обслуживание.
 
-**Стек:** Express + Prisma + PostgreSQL | HTML/CSS/JS | Ollama / OpenAI-compatible LLM | Telegram  
+## Стек
 
-Версия Node для разработки: см. [`.nvmrc`](.nvmrc) (рекомендуется **22 LTS**).
+- frontend: React + Vite + TypeScript + React Router
+- backend: Node.js + Express + Prisma
+- database: PostgreSQL
+- AI: Ollama / OpenAI-compatible
 
-## Быстрый старт
-
-Перед стартом убедиться, что Docker Desktop запущен (доступен Docker daemon).
+## Команды
 
 ```bash
-docker compose up -d                 # PostgreSQL + Ollama (модель скачается автоматически)
-cd backend
-npm install
-cp .env.example .env
-npm run db:setup                     # миграции + seed
-npm run dev                          # http://127.0.0.1:3000
+npm run dev
+npm run dev:frontend
+npm run dev:backend
+npm run build
+npm run start
+npm run test
+npm run test:frontend
+npm run test:backend
+npm run test:e2e
+npm run lint
+npm run seed:demo
 ```
 
-Для PowerShell вместо `cp` используйте:
+## Быстрый локальный запуск
 
-```powershell
-Copy-Item .env.example .env
+```bash
+docker compose up -d
+npm --prefix frontend install
+npm --prefix backend install
+cp backend/.env.example backend/.env
+npm --prefix backend run db:setup
+npm run dev
 ```
 
-## Production (Docker Compose)
+Приложение в development: `http://127.0.0.1:5173`.
 
-Для self-host в production используется раздельный стек контейнеров:
-- `frontend` (nginx со статикой и прокси `/api`);
-- `backend` (Express API + Prisma migrations on start);
-- `db` (PostgreSQL 16);
-- `ollama` (локальная LLM).
+## Демо-режим и white-label
 
-Быстрый запуск на сервере:
+- White-label конфигурация фронтенда: `frontend/src/config/productConfig.ts`.
+- Переключение светлой/тёмной темы и бренд-цветов: `frontend/src/theme/ThemeProvider.tsx`.
+- Для демонстрационной среды используйте `npm run seed:demo`.
+- Demo login включается через `DEMO_MODE=true` и переменные `DEMO_*` в `backend/.env`.
+- Быстрый вход под ролями в UI доступен только при включённом `DEMO_MODE`.
+
+## Production
 
 ```bash
 cp .env.proxmox.example .env.proxmox
 cp backend/.env.production.example backend/.env
-# отредактировать секреты и домен
 docker compose --env-file .env.proxmox up -d --build
 ```
 
-Подробно: [`docs/proxmox-selfhost.md`](docs/proxmox-selfhost.md).
-
-### Облачная LLM вместо локальной
-
-В `backend/.env` переключите провайдер:
+## Облачная LLM
 
 ```env
 LLM_PROVIDER=openai
@@ -57,50 +65,11 @@ LLM_API_KEY=sk-...
 LLM_MODEL=gpt-4.1-mini
 ```
 
-После этого `backend` будет использовать `/chat/completions` облачного провайдера.  
-Если облако недоступно, сервис автоматически переключится на fallback-провайдер (`ollama` или `openai`).
-
-### Тестовые аккаунты
-
-| Email | Пароль | Роль |
-|-------|--------|------|
-| `user@example.com` | `1q2w3e4r` | Клиент |
-| `manager@example.com` | `1q2w3e4r5t` | Менеджер |
-| `admin@example.com` | `1q2w3e4r5t6y` | Администратор |
-
 ## Документация
 
-Полная документация находится в папке [`docs/`](docs/):
-
-| Документ | Описание |
-|----------|----------|
-| [Установка и запуск](docs/setup.md) | Пошаговая инструкция, требования, типичные проблемы |
-| [Архитектура проекта](docs/architecture.md) | Стек, модули, поток консультации, RBAC |
-| [Тестирование](docs/testing.md) | Jest, Playwright, k6 — структура и запуск |
-| [Демо к защите](docs/demo-defense.md) | Золотой путь 7–10 мин, учётки, чеклист 3× прогона |
-| [Приёмка TR-007](docs/manual-acceptance-tr007.md) | Ручная приёмка T055 (usability, mobile, роли) |
-| [Self-host на Proxmox](docs/proxmox-selfhost.md) | VM bootstrap, Docker Compose, Nginx+TLS, systemd, backup, Remote SSH |
-| OpenAPI | [specs/001-ai-consultation-platform/contracts/openapi.yaml](specs/001-ai-consultation-platform/contracts/openapi.yaml) |
-| Модель данных | [specs/001-ai-consultation-platform/data-model.md](specs/001-ai-consultation-platform/data-model.md) |
-
-Страницы фронтенда: помимо главной и консультации — [`services.html`](frontend/services.html) (каталог услуг), [`book-service.html`](frontend/book-service.html) (запись без аккаунта).
-
-## Спецификации
-
-Проектная документация (ТЗ, план, контракт API):
-
-```
-specs/001-ai-consultation-platform/
-├── spec.md             — спецификация (FR, TR, user stories)
-├── plan.md             — план реализации
-├── tasks.md            — чеклист задач
-├── data-model.md       — модель данных
-├── research.md         — исследование технологий
-├── quickstart.md       — краткий старт
-├── contracts/openapi.yaml  — OpenAPI 3.0.3
-└── checklists/         — чеклисты требований
-```
-
-## Лицензия
-
-Проект создан как ВКР (выпускная квалификационная работа).
+- **[Быстрый старт для коллеги](docs/ONBOARDING.md)** — порты, логины, типичные проблемы
+- [Установка и запуск](docs/setup.md)
+- [Архитектура](docs/architecture.md)
+- [Тестирование](docs/testing.md)
+- [Self-host на Proxmox](docs/proxmox-selfhost.md)
+- [OpenAPI](specs/001-ai-consultation-platform/contracts/openapi.yaml)

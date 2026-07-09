@@ -22,8 +22,8 @@ describe('ai-adapter — парсинг и нормализация ответа
       summary: '',
     });
     expect(out.confidence).toBeLessThanOrEqual(1);
-    expect(out.probable_causes.length).toBeGreaterThanOrEqual(1);
-    expect(['low', 'medium', 'high']).toContain(out.urgency);
+    expect(out.probable_causes.length).toBe(0);
+    expect(['low', 'medium', 'high', 'critical']).toContain(out.urgency);
   });
 
   it('mergeDiagnosis объединяет rule-based и LLM без дублей', () => {
@@ -66,7 +66,18 @@ describe('ai-adapter — парсинг и нормализация ответа
       estimated_cost_from: null,
       summary: 'По текущим данным невозможно сделать надежный вывод.',
     });
-    expect(fallback.recommended_checks.length).toBeGreaterThan(0);
+    expect(Array.isArray(fallback.recommended_checks)).toBe(true);
+  });
+
+  it('manual-review статус не маскируется под успешный анализ', () => {
+    const out = normalizeDiagnosisResult({
+      status: 'MANUAL_REVIEW_REQUIRED',
+      analysis_available: false,
+      reason: 'LLM_UNAVAILABLE',
+    });
+    expect(out.status).toBe('MANUAL_REVIEW_REQUIRED');
+    expect(out.analysis_available).toBe(false);
+    expect(out.probable_causes).toEqual([]);
   });
 });
 

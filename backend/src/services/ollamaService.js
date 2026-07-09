@@ -144,21 +144,52 @@ async function requestProviderCompletion(
     keepAlive,
   });
 
-  let res;
-  try {
-    res = await fetch(url, {
+  const runRequest = async (requestBody) => {
+    return fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(timeoutMs),
     });
+  };
+
+  let res;
+  try {
+    res = await runRequest(body);
   } catch (err) {
-    const msg = err.name === 'TimeoutError' ? 'request timed out' : `unreachable: ${err.message}`;
+    const isTimeout =
+      err?.name === 'TimeoutError' ||
+      err?.name === 'AbortError' ||
+      /aborted|timeout/i.test(String(err?.message || ''));
+    const msg = isTimeout ? 'request timed out' : `unreachable: ${err.message}`;
     throw new Error(msg);
   }
 
   if (!res.ok) {
     const t = await res.text().catch(() => '');
+    const canRetryWithoutSchema =
+      provider === 'openai' &&
+      Boolean(body?.response_format) &&
+      res.status === 400 &&
+      /response[_\s-]?format|json[_\s-]?schema|model id|litellm\.badrequesterror/i.test(t);
+    if (canRetryWithoutSchema) {
+      const retryBody = { ...body };
+      delete retryBody.response_format;
+      const retryRes = await runRequest(retryBody);
+      if (!retryRes.ok) {
+        const retryText = await retryRes.text().catch(() => '');
+        throw new Error(`http ${retryRes.status} ${retryText.slice(0, 200)}`);
+      }
+      const retryData = await retryRes.json();
+      const retryContent = normalizeOpenAiContent(retryData?.choices?.[0]?.message?.content);
+      if (!retryContent) throw new Error('empty content');
+      return {
+        content: String(retryContent),
+        provider,
+        model: targetModel,
+        streamed: false,
+      };
+    }
     throw new Error(`http ${res.status} ${t.slice(0, 200)}`);
   }
 
@@ -168,7 +199,12 @@ async function requestProviderCompletion(
       ? normalizeOpenAiContent(data?.choices?.[0]?.message?.content)
       : data?.message?.content;
   if (!content) throw new Error('empty content');
-  return String(content);
+  return {
+    content: String(content),
+    provider,
+    model: targetModel,
+    streamed: false,
+  };
 }
 
 /**
@@ -196,6 +232,39 @@ export async function chatCompletion({
   timeoutMs = 120_000,
   keepAlive,
 }) {
+  const detailed = await chatCompletionWithMeta({
+    messages,
+    model,
+    temperature,
+    format,
+    options,
+    timeoutMs,
+    keepAlive,
+  });
+  return detailed.content;
+}
+
+/**
+ * Unified chat completion with execution metadata.
+ * @param {{
+ *   messages: Array<{role: string, content: string}>,
+ *   model?: string,
+ *   temperature?: number,
+ *   format?: Record<string, unknown>,
+ *   options?: Record<string, unknown>,
+ *   timeoutMs?: number,
+ *   keepAlive?: string,
+ * }} params
+ */
+export async function chatCompletionWithMeta({
+  messages,
+  model,
+  temperature = 0,
+  format,
+  options,
+  timeoutMs = 120_000,
+  keepAlive,
+}) {
   const env = getEnv();
 
   if (!env.LLM_ENABLED) {
@@ -208,13 +277,16 @@ export async function chatCompletion({
   const providersToTry = [provider, fallbackProvider].filter((p, i, arr) => p && arr.indexOf(p) === i);
   const failures = [];
 
+  const startedAt = Date.now();
+  let attemptCount = 0;
   for (const p of providersToTry) {
     if (!canUseProvider(p, env)) {
       failures.push(`${p}: not configured`);
       continue;
     }
     try {
-      return await requestProviderCompletion(p, {
+      attemptCount += 1;
+      const out = await requestProviderCompletion(p, {
         env,
         targetModel,
         messages,
@@ -224,6 +296,13 @@ export async function chatCompletion({
         timeoutMs,
         keepAlive,
       });
+      return {
+        ...out,
+        requestedProvider: provider,
+        status: p === provider ? 'SUCCESS' : 'FALLBACK',
+        attemptCount,
+        durationMs: Date.now() - startedAt,
+      };
     } catch (err) {
       failures.push(`${p}: ${err.message}`);
     }

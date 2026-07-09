@@ -68,7 +68,7 @@ export const CATEGORY_RULES = [
   { category: 'electrical', patterns: ['не работает электрика', 'мигают фары', 'ошибки электроники'] },
   { category: 'starting_system', patterns: ['не запускается', 'стартер', 'не схватывает'] },
   { category: 'fuel_system', patterns: ['запах бензина', 'большой расход', 'плохо разгоняется'] },
-  { category: 'engine', patterns: ['плавают обороты', 'потеря мощности', 'check engine', 'троит'] },
+  { category: 'engine', patterns: ['плавают обороты', 'нестабильные обороты', 'потеря мощности', 'check engine', 'троит'] },
 ];
 
-export const ENGINE_EXTRA_KEYWORDS = ['детонация', 'чек двигателя', 'check engine'];
+export const ENGINE_EXTRA_KEYWORDS = ['детонация', 'чек двигателя', 'check engine', 'обороты', 'холостой ход'];

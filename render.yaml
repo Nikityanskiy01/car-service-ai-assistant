@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: car-service-ai-assistant-api
+    env: node
+    rootDir: backend
+    buildCommand: npm ci && npm run prisma:generate
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: static
+    name: car-service-ai-assistant-web
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist

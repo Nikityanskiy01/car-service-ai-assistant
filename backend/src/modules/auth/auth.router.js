@@ -39,6 +39,12 @@ const loginSchema = z.object({
 
 });
 
+const demoLoginSchema = z.object({
+
+  role: z.enum(['CLIENT', 'MANAGER', 'ADMINISTRATOR']),
+
+});
+
 
 
 const env = getEnv();
@@ -92,6 +98,63 @@ authRouter.post(
     setAuthCookies(res, out);
 
     res.status(201).json(authJsonPayload(out));
+
+  }),
+
+);
+
+authRouter.get(
+
+  '/demo-accounts',
+
+  asyncHandler(async (_req, res) => {
+
+    if (!env.DEMO_MODE) throw new AppError(404, 'Not found', 'NOT_FOUND');
+
+    res.json({
+
+      enabled: true,
+
+      accounts: [
+
+        { role: 'CLIENT', label: 'Клиент' },
+
+        { role: 'MANAGER', label: 'Менеджер' },
+
+        { role: 'ADMINISTRATOR', label: 'Администратор' },
+
+      ],
+
+    });
+
+  }),
+
+);
+
+authRouter.post(
+
+  '/demo-login',
+
+  authLimiter,
+
+  validateBody(demoLoginSchema),
+
+  asyncHandler(async (req, res) => {
+
+    if (!env.DEMO_MODE) throw new AppError(404, 'Not found', 'NOT_FOUND');
+
+    const role = req.validatedBody.role;
+    const credsByRole = {
+      CLIENT: { email: env.DEMO_CLIENT_EMAIL, password: env.DEMO_CLIENT_PASSWORD },
+      MANAGER: { email: env.DEMO_MANAGER_EMAIL, password: env.DEMO_MANAGER_PASSWORD },
+      ADMINISTRATOR: { email: env.DEMO_ADMIN_EMAIL, password: env.DEMO_ADMIN_PASSWORD },
+    };
+
+    const out = await authService.login(credsByRole[role]);
+
+    setAuthCookies(res, out);
+
+    res.json(authJsonPayload(out));
 
   }),
 

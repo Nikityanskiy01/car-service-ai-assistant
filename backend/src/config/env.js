@@ -37,12 +37,27 @@ const schema = z.object({
   LLM_DIAGNOSIS_NUM_PREDICT: z.coerce.number().default(420),
   LLM_DIAGNOSIS_TIMEOUT_MS: z.coerce.number().default(240000),
   LLM_KEEP_ALIVE: z.string().default('30m'),
+  LLM_FORCE_EXTRACTION: z
+    .enum(['true', 'false', '1', '0'])
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
   LLM_ENABLED: z
     .enum(['true', 'false', '1', '0'])
     .default('true')
     .transform((v) => v === 'true' || v === '1'),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_MANAGER_CHAT_IDS: z.string().optional(),
+  INTEGRATION_ENCRYPTION_KEY: z.string().optional(),
+  DEMO_MODE: z
+    .enum(['true', 'false', '1', '0'])
+    .default('false')
+    .transform((v) => v === 'true' || v === '1'),
+  DEMO_CLIENT_EMAIL: z.string().email().optional().default('client@example.local'),
+  DEMO_CLIENT_PASSWORD: z.string().optional().default('1q2w3e4r'),
+  DEMO_MANAGER_EMAIL: z.string().email().optional().default('manager@example.local'),
+  DEMO_MANAGER_PASSWORD: z.string().optional().default('1q2w3e4r5t'),
+  DEMO_ADMIN_EMAIL: z.string().email().optional().default('admin@example.local'),
+  DEMO_ADMIN_PASSWORD: z.string().optional().default('1q2w3e4r5t6y'),
 });
 
 let cached;

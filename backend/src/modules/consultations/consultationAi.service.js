@@ -6,10 +6,11 @@ import {
 import { getEnv } from '../../config/env.js';
 import { getRelevantCases } from '../../services/caseMemory.service.js';
 import { isFieldFilled } from '../../services/consultationFlowService.js';
-import { chatCompletion } from '../../services/ollamaService.js';
+import { chatCompletionWithMeta } from '../../services/ollamaService.js';
 import { pickPlaybook, playbookToAiHints } from '../../lib/diagnosticPlaybooks.js';
 import { topWorksForCategory, topWorksForCategoryAndMake } from '../../lib/workStats.js';
 import { safeJsonParse } from '../../utils/safeJsonParse.js';
+import { logger } from '../../lib/logger.js';
 
 export {
   buildConsultationState,
@@ -43,13 +44,17 @@ export function coerceDiagnosisLine(x) {
 
 function safeDiagnosisFallback() {
   return {
-    probable_causes: ['Требуется очная проверка основных узлов по заявленным симптомам'],
-    recommended_checks: ['Провести первичную диагностику в сервисе', 'Проверить автомобиль на подъемнике'],
-    urgency: 'low',
-    confidence: 0.35,
+    probable_causes: [],
+    recommended_checks: [],
+    urgency: 'medium',
+    confidence: 0,
     estimated_cost_from: null,
     summary:
-      'По текущим данным невозможно сделать надежный вывод. Рекомендуем очную диагностику для уточнения причин.',
+      'Интеллектуальный анализ временно недоступен. Введённые данные сохранены. Вы можете повторить анализ или передать обращение менеджеру для ручной обработки.',
+    status: 'MANUAL_REVIEW_REQUIRED',
+    analysis_available: false,
+    reason: 'LLM_UNAVAILABLE',
+    disclaimer: 'Результат предварительный и не заменяет техническую диагностику автомобиля специалистом.',
   };
 }
 
@@ -64,7 +69,67 @@ function isGenericDiagnosisText(text) {
   );
 }
 
-const URGENCY_RANK = { low: 1, medium: 2, high: 3 };
+const URGENCY_RANK = { low: 1, medium: 2, high: 3, critical: 4 };
+const GENERIC_CAUSE_BLOCKLIST = [
+  'требуется очная проверка',
+  'рекомендуется провести диагностику',
+  'необходимо обратиться в сервис',
+  'возможны различные причины',
+];
+
+function isManualStatus(value) {
+  return String(value || '').toUpperCase() === 'MANUAL_REVIEW_REQUIRED';
+}
+
+function validateDiagnosisQuality(result) {
+  /** @type {string[]} */
+  const issues = [];
+  const summary = String(result?.summary || '').trim();
+  const causes = Array.isArray(result?.probable_causes) ? result.probable_causes : [];
+  const checks = Array.isArray(result?.recommended_checks) ? result.recommended_checks : [];
+  if (summary.length < 40) issues.push('summary_too_short');
+  if (causes.length < 2) issues.push('too_few_causes');
+  if (checks.length < 2) issues.push('too_few_checks');
+  const firstCause = String(causes[0] || '').trim().toLowerCase();
+  if (firstCause && firstCause === summary.toLowerCase()) issues.push('summary_equals_cause');
+  if (causes.some((x) => GENERIC_CAUSE_BLOCKLIST.some((m) => String(x).toLowerCase().includes(m)))) {
+    issues.push('generic_cause_detected');
+  }
+  const conf = Number(result?.confidence);
+  if (!Number.isFinite(conf) || conf < 0 || conf > 1) issues.push('confidence_out_of_range');
+  return { valid: issues.length === 0, issues };
+}
+
+function buildManualReviewDiagnosis({ reason, executionMeta, ruleBased }) {
+  const rb = ruleBased || {};
+  const urgency = ['low', 'medium', 'high', 'critical'].includes(String(rb.urgency || ''))
+    ? String(rb.urgency)
+    : 'medium';
+  const topChecks = Array.isArray(rb.recommended_checks) ? rb.recommended_checks.slice(0, 2) : [];
+  let summary =
+    'Интеллектуальный анализ временно недоступен. Введённые данные сохранены. Вы можете повторить анализ или передать обращение менеджеру для ручной обработки.';
+  if (urgency === 'critical') {
+    summary =
+      'Обнаружены признаки потенциально опасной неисправности. Рекомендуется прекратить эксплуатацию автомобиля и организовать эвакуацию в сервис. ' +
+      summary;
+  } else if (urgency === 'high') {
+    summary =
+      'По симптомам требуется приоритетная проверка автомобиля в ближайшее время. ' +
+      summary;
+  }
+  if (topChecks.length) {
+    summary += ` Рекомендуемые первичные проверки: ${topChecks.join('; ')}.`;
+  }
+  return {
+    ...safeDiagnosisFallback(),
+    probable_causes: Array.isArray(rb.probable_causes) ? rb.probable_causes.slice(0, 5) : [],
+    recommended_checks: Array.isArray(rb.recommended_checks) ? rb.recommended_checks.slice(0, 5) : [],
+    urgency,
+    reason: reason || 'LLM_UNAVAILABLE',
+    execution_meta: executionMeta || null,
+    summary,
+  };
+}
 
 function maxUrgency(a, b) {
   const ra = a in URGENCY_RANK ? URGENCY_RANK[a] : 1;
@@ -224,7 +289,41 @@ export function preAnalyzeSymptoms(data) {
     raiseUrgency('high');
   }
 
-  // Доп. эвристика срочности по ключевым словам (если правила не задали high)
+  // Критические ключи безопасности
+  if (
+    joined.includes('педаль тормоза') &&
+    (joined.includes('провал') || joined.includes('не тормозит') || joined.includes('тормозит хуже'))
+  ) {
+    rulesMatched++;
+    pushCause('Падение давления в тормозном контуре');
+    pushCause('Утечка тормозной жидкости или неисправность главного тормозного цилиндра');
+    pushCheck('Немедленно прекратить эксплуатацию и доставить автомобиль эвакуатором');
+    pushCheck('Проверить герметичность контура и уровень тормозной жидкости');
+    raiseUrgency('critical');
+  }
+  if (joined.includes('пар из-под капота') || joined.includes('дым из-под капота')) {
+    rulesMatched++;
+    pushCause('Критический перегрев силового агрегата или утечка рабочей жидкости');
+    pushCheck('Остановиться в безопасном месте, заглушить двигатель, не открывать горячую крышку системы охлаждения');
+    raiseUrgency('critical');
+  }
+  if (
+    (joined.includes('запах') && joined.includes('бензин')) ||
+    joined.includes('утечка топлива')
+  ) {
+    rulesMatched++;
+    pushCause('Разгерметизация топливной магистрали');
+    pushCheck('Прекратить эксплуатацию, исключить источники огня и организовать эвакуацию');
+    raiseUrgency('critical');
+  }
+  if (joined.includes('давлен') && joined.includes('масл') && (joined.includes('красн') || joined.includes('горит'))) {
+    rulesMatched++;
+    pushCause('Критическое снижение давления масла в двигателе');
+    pushCheck('Немедленно заглушить двигатель и не запускать до проверки системы смазки');
+    raiseUrgency('critical');
+  }
+
+  // Доп. эвристика срочности по ключевым словам
   if (joined.includes('тормоз') || joined.includes('торможен')) raiseUrgency('high');
   if (joined.includes('перегрев') || joined.includes('кипит') || joined.includes('температур')) {
     raiseUrgency('high');
@@ -248,6 +347,13 @@ export function preAnalyzeSymptoms(data) {
     (joined.includes('двигатель') && joined.includes('останов'))
   ) {
     raiseUrgency('high');
+  }
+  if (
+    joined.includes('не тормозит') ||
+    (joined.includes('рул') && joined.includes('не слушается')) ||
+    (joined.includes('fire') || joined.includes('пожар'))
+  ) {
+    raiseUrgency('critical');
   }
 
   if (urgency === 'low') {
@@ -278,7 +384,9 @@ export function preAnalyzeSymptoms(data) {
 function normalizeDiagnosis(raw) {
   const fallback = safeDiagnosisFallback();
   const obj = raw && typeof raw === 'object' ? raw : {};
-  const urgency = ['low', 'medium', 'high'].includes(String(obj.urgency || '')) ? String(obj.urgency) : fallback.urgency;
+  const urgency = ['low', 'medium', 'high', 'critical'].includes(String(obj.urgency || ''))
+    ? String(obj.urgency)
+    : fallback.urgency;
   const conf = Number(obj.confidence);
   const confidence = Number.isFinite(conf) ? Math.max(0, Math.min(1, conf)) : fallback.confidence;
   const causes = Array.isArray(obj.probable_causes)
@@ -297,6 +405,12 @@ function normalizeDiagnosis(raw) {
     confidence,
     estimated_cost_from: Number.isFinite(cost) ? Math.max(0, Math.round(cost)) : null,
     summary: String(obj.summary || '').trim(),
+    disclaimer:
+      String(obj.disclaimer || '').trim() ||
+      'Результат предварительный и не заменяет техническую диагностику автомобиля специалистом.',
+    status: isManualStatus(obj.status) ? 'MANUAL_REVIEW_REQUIRED' : 'SUCCESS',
+    analysis_available: !isManualStatus(obj.status),
+    reason: obj.reason ? String(obj.reason) : null,
   };
 }
 
@@ -359,24 +473,26 @@ function dedupeStringsPreserveOrder(arr) {
  * @param {Record<string, unknown>} result
  */
 export function normalizeDiagnosisResult(result) {
+  if (isManualStatus(result?.status) || result?.analysis_available === false) {
+    return {
+      ...safeDiagnosisFallback(),
+      status: 'MANUAL_REVIEW_REQUIRED',
+      analysis_available: false,
+      reason: String(result?.reason || 'LLM_UNAVAILABLE'),
+      execution_meta: result?.execution_meta || null,
+    };
+  }
   const urgencyRaw = String(result?.urgency || '').toLowerCase();
-  const urgency = ['low', 'medium', 'high'].includes(urgencyRaw) ? urgencyRaw : 'low';
+  const urgency = ['low', 'medium', 'high', 'critical'].includes(urgencyRaw) ? urgencyRaw : 'low';
 
   let probable_causes = Array.isArray(result?.probable_causes)
     ? result.probable_causes.map((x) => coerceDiagnosisLine(x)).filter(Boolean)
     : [];
   probable_causes = probable_causes.slice(0, 5);
-  if (probable_causes.length === 0) {
-    probable_causes = ['Требуется дополнительная проверка системы по заявленным симптомам'];
-  }
-
   let recommended_checks = Array.isArray(result?.recommended_checks)
     ? result.recommended_checks.map((x) => coerceDiagnosisLine(x)).filter(Boolean)
     : [];
   recommended_checks = recommended_checks.slice(0, 5);
-  if (recommended_checks.length === 0) {
-    recommended_checks = ['Компьютерная диагностика', 'Осмотр автомобиля в сервисе'];
-  }
 
   let confidence = Number(result?.confidence);
   if (!Number.isFinite(confidence)) confidence = 0.45;
@@ -398,6 +514,13 @@ export function normalizeDiagnosisResult(result) {
     confidence,
     estimated_cost_from,
     summary,
+    status: 'SUCCESS',
+    analysis_available: true,
+    reason: null,
+    disclaimer:
+      String(result?.disclaimer || '').trim() ||
+      'Результат предварительный и не заменяет техническую диагностику автомобиля специалистом.',
+    execution_meta: result?.execution_meta || null,
   };
 }
 
@@ -427,8 +550,8 @@ export function mergeDiagnosis(ruleBased, llmDiagnosis) {
   ]).slice(0, 5);
 
   const urgency = maxUrgency(
-    ['low', 'medium', 'high'].includes(String(rb.urgency)) ? String(rb.urgency) : 'low',
-    ['low', 'medium', 'high'].includes(String(base.urgency)) ? String(base.urgency) : 'low',
+    ['low', 'medium', 'high', 'critical'].includes(String(rb.urgency)) ? String(rb.urgency) : 'low',
+    ['low', 'medium', 'high', 'critical'].includes(String(base.urgency)) ? String(base.urgency) : 'low',
   );
 
   let confidence = Number(base.confidence);
@@ -442,9 +565,18 @@ export function mergeDiagnosis(ruleBased, llmDiagnosis) {
     estimated_cost_from = null;
   }
 
-  const summary = !isWeakSummary(base.summary)
+  let summary = !isWeakSummary(base.summary)
     ? base.summary
     : buildRuleBasedSummary(probable_causes);
+
+  if (urgency === 'critical') {
+    const lowSummary = summary.toLowerCase();
+    if (!lowSummary.includes('прекрат') && !lowSummary.includes('эвакуатор')) {
+      summary =
+        'Возможна критическая неисправность. Рекомендуется прекратить эксплуатацию автомобиля и организовать доставку в сервис эвакуатором. ' +
+        summary;
+    }
+  }
 
   return normalizeDiagnosisResult({
     probable_causes,
@@ -463,14 +595,6 @@ export function mergeDiagnosis(ruleBased, llmDiagnosis) {
  */
 export async function generateDiagnosis(data) {
   const cond = data?.conditions ?? data?.problemConditions;
-  if (
-    !isFieldFilled('mileage', data.mileage) ||
-    !isFieldFilled('symptoms', data.symptoms) ||
-    !isFieldFilled('conditions', cond)
-  ) {
-    return safeDiagnosisFallback();
-  }
-
   const payload = {
     car_make: data.car_make ?? null,
     car_model: data.car_model ?? null,
@@ -483,6 +607,10 @@ export async function generateDiagnosis(data) {
   };
 
   const ruleBased = preAnalyzeSymptoms(payload);
+  const hasCriticalSafety = String(ruleBased?.urgency || '').toLowerCase() === 'critical';
+  if (!isFieldFilled('symptoms', data.symptoms) || (!isFieldFilled('conditions', cond) && !hasCriticalSafety)) {
+    return buildManualReviewDiagnosis({ reason: 'INSUFFICIENT_DATA', ruleBased });
+  }
 
   const pb = pickPlaybook(payload, String(data.symptoms || ''));
   const pbHints = playbookToAiHints(pb);
@@ -501,8 +629,8 @@ export async function generateDiagnosis(data) {
   }
   const env = getEnv();
   const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || env.LLM_MODEL;
-  const callDiagnosisLlm = async () =>
-    chatCompletion({
+  const callDiagnosisLlm = async (extraInstructions = '') =>
+    chatCompletionWithMeta({
       model: diagnosisModel,
       temperature: 0.15,
       timeoutMs: env.LLM_DIAGNOSIS_TIMEOUT_MS,
@@ -514,27 +642,89 @@ export async function generateDiagnosis(data) {
       },
       messages: [
         { role: 'system', content: DIAGNOSIS_SYSTEM_PROMPT },
-        { role: 'user', content: diagnosisUserPrompt(payload, relatedCases, pbHints, tw) },
+        {
+          role: 'user',
+          content:
+            diagnosisUserPrompt(payload, relatedCases, pbHints, tw) +
+            (extraInstructions ? `\n\nТребуется исправить JSON по замечаниям:\n${extraInstructions}` : ''),
+        },
       ],
     });
   try {
-    const firstRaw = await callDiagnosisLlm();
-    let parsed = safeJsonParse(firstRaw);
+    const startedAt = new Date().toISOString();
+    const first = await callDiagnosisLlm();
+    const executionMeta = {
+      provider: first.provider === 'openai' ? 'vsellm' : first.provider,
+      model: first.model || diagnosisModel || null,
+      requestId: `diag-${Date.now()}`,
+      startedAt,
+      completedAt: new Date().toISOString(),
+      durationMs: Number.isFinite(first.durationMs) ? first.durationMs : null,
+      attemptCount: Number.isFinite(first.attemptCount) ? first.attemptCount : 1,
+      streamed: Boolean(first.streamed),
+      status: first.status === 'FALLBACK' ? 'FALLBACK' : 'SUCCESS',
+      errorCode: null,
+    };
+    logger.info(
+      {
+        event: 'vsellm_response_received',
+        provider: executionMeta.provider,
+        model: executionMeta.model,
+        durationMs: executionMeta.durationMs,
+        attempts: executionMeta.attemptCount,
+      },
+      'diagnosis llm response received',
+    );
+    let parsed = safeJsonParse(first.content);
     if (!parsed) {
-      const secondRaw = await callDiagnosisLlm();
-      parsed = safeJsonParse(secondRaw);
+      const repaired = await callDiagnosisLlm('Ответ должен быть строго валидным JSON по целевой схеме.');
+      parsed = safeJsonParse(repaired.content);
     }
     if (!parsed) throw new Error('diagnosis: invalid json from llm');
     const llmDiagnosis = normalizeDiagnosis(parsed);
-    return mergeDiagnosis(ruleBased, llmDiagnosis);
-  } catch {
-    return mergeDiagnosis(ruleBased, {
-      probable_causes: [],
-      recommended_checks: [],
-      urgency: ruleBased.urgency || 'medium',
-      confidence: 0.25,
-      estimated_cost_from: null,
-      summary: '',
+    const merged = mergeDiagnosis(ruleBased, llmDiagnosis);
+    const quality = validateDiagnosisQuality(merged);
+    if (!quality.valid) {
+      logger.warn(
+        { event: 'vsellm_validation_failed', issues: quality.issues, model: executionMeta.model },
+        'diagnosis quality validation failed',
+      );
+      const repaired = await callDiagnosisLlm(`Нарушения: ${quality.issues.join(', ')}`);
+      const repairedParsed = safeJsonParse(repaired.content);
+      if (repairedParsed) {
+        const repairedMerged = mergeDiagnosis(ruleBased, normalizeDiagnosis(repairedParsed));
+        const repairedQuality = validateDiagnosisQuality(repairedMerged);
+        if (repairedQuality.valid) {
+          return normalizeDiagnosisResult({ ...repairedMerged, execution_meta: executionMeta });
+        }
+      }
+      return buildManualReviewDiagnosis({ reason: 'LLM_VALIDATION_FAILED', executionMeta, ruleBased });
+    }
+    return normalizeDiagnosisResult({ ...merged, execution_meta: executionMeta });
+  } catch (err) {
+    logger.warn(
+      {
+        event: 'fallback_activated',
+        code: 'LLM_UNAVAILABLE',
+        err: err instanceof Error ? err.message : String(err || ''),
+      },
+      'diagnosis switched to manual review',
+    );
+    return buildManualReviewDiagnosis({
+      reason: 'LLM_UNAVAILABLE',
+      ruleBased,
+      executionMeta: {
+        provider: 'fallback',
+        model: diagnosisModel || null,
+        requestId: `diag-${Date.now()}`,
+        startedAt: new Date().toISOString(),
+        completedAt: null,
+        durationMs: null,
+        attemptCount: 1,
+        streamed: false,
+        status: 'FAILED',
+        errorCode: 'LLM_UNAVAILABLE',
+      },
     });
   }
 }

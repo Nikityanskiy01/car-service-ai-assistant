@@ -1,5 +1,15 @@
 # Тестирование
 
+## Быстрый прогон
+
+```bash
+npm run lint
+npm run build
+npm run test:frontend
+npm run test:backend
+npm run test:e2e
+```
+
 ## Backend (Jest + Supertest)
 
 Требование: запущенный Docker daemon (для PostgreSQL в контейнере) или локальная PostgreSQL с доступной тестовой БД.
@@ -8,7 +18,7 @@
 cd backend
 npm ci
 # PostgreSQL для тестов (см. .github/workflows/ci.yml)
-export DATABASE_URL=postgresql://fox:fox@localhost:5432/foxmotors_test
+export DATABASE_URL=postgresql://car_service_app:change-me@localhost:5432/car_service_test
 export TEST_DATABASE_URL=$DATABASE_URL
 export JWT_SECRET=ci-test-jwt-secret-min-32-chars-long!!
 export NODE_ENV=test
@@ -19,7 +29,7 @@ npm test
 PowerShell-эквивалент переменных окружения:
 
 ```powershell
-$env:DATABASE_URL="postgresql://fox:fox@localhost:5432/foxmotors_test"
+$env:DATABASE_URL="postgresql://car_service_app:change-me@localhost:5432/car_service_test"
 $env:TEST_DATABASE_URL=$env:DATABASE_URL
 $env:JWT_SECRET="ci-test-jwt-secret-min-32-chars-long!!"
 $env:NODE_ENV="test"
@@ -40,12 +50,38 @@ $env:NODE_ENV="test"
 ```bash
 # из корня репозитория
 npm install
-cd backend && npm run dev   # или reuseExistingServer в CI
-# другой терминал:
+npm --prefix backend install
+npm --prefix frontend install
 npm run test:e2e
 ```
 
-Спеки: `tests/e2e/us1-client-consultation.spec.js` … `us4-public-pages.spec.js`.
+Спеки: `tests/e2e/migration-flow.spec.js`.
+
+Визуальный smoke-check и скриншоты для демо:
+
+```bash
+npx playwright test tests/e2e/ui-review.spec.js
+```
+
+Артефакты сохраняются в `artifacts/ui-review/`.
+
+## Frontend (Vitest + React Testing Library)
+
+Покрываются ключевые сценарии:
+- API-клиент (refresh после 401, CSRF заголовок);
+- route guards (auth + role);
+- формы входа/регистрации/гостевой записи;
+- базовый рендер консультации;
+- SSE parser;
+- React 404.
+
+## Demo seed
+
+```bash
+npm run seed:demo
+```
+
+Команда заполняет демонстрационную среду и не вызывается автоматически в production.
 
 ## Нагрузка (k6)
 
@@ -64,9 +100,10 @@ k6 run tests/perf/k6-consultation.js
 
 GitHub Actions [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
-- `lint` — ESLint backend
-- `audit` — npm audit (high)
-- `test` — Prisma migrate + Jest
+- `lint` — frontend + backend ESLint
+- `build` — production build frontend + prisma generate
+- `test-frontend` — Vitest
+- `test-backend` — Prisma migrate + Jest
 - `e2e` — Playwright (при наличии job)
 
 ## Критический путь (соответствие ВКР)

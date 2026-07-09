@@ -19,7 +19,7 @@ export const DIAGNOSIS_FORMAT_SCHEMA = {
   properties: {
     probable_causes: { type: 'array', items: { type: 'string' } },
     recommended_checks: { type: 'array', items: { type: 'string' } },
-    urgency: { type: 'string', enum: ['low', 'medium', 'high'] },
+    urgency: { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
     confidence: { type: 'number' },
     estimated_cost_from: { type: ['integer', 'null'] },
     summary: { type: 'string' },
@@ -66,7 +66,7 @@ export const DIAGNOSIS_SYSTEM_PROMPT = `Ты ассистент автосерв
   Пример: «Замер толщины тормозных дисков микрометром», «Осмотр пыльников суппортов на целостность», «Проверка хода поршней суппортов».
 
 Всегда:
-- urgency: low / medium / high.
+- urgency: low / medium / high / critical.
 - confidence: число от 0 до 1 (уверенность в оценке, обычно 0.7–0.95).
 - estimated_cost_from: МИНИМАЛЬНАЯ стоимость в рублях. Это нижняя граница. НИКОГДА не указывай максимум.
 - summary: 2–4 предложения. Назови главное, что будет сделано, и на что обратить внимание.

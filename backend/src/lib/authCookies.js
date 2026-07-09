@@ -1,9 +1,9 @@
 import crypto from 'crypto';
 import { getEnv } from '../config/env.js';
 
-export const COOKIE_ACCESS = 'fm_at';
-export const COOKIE_REFRESH = 'fm_rt';
-export const COOKIE_CSRF = 'fm_csrf';
+export const COOKIE_ACCESS = 'car_service_at';
+export const COOKIE_REFRESH = 'car_service_rt';
+export const COOKIE_CSRF = 'car_service_csrf';
 
 function parseJwtExpiresToMs(exp) {
   const m = String(exp).match(/^(\d+)([smhd])$/i);

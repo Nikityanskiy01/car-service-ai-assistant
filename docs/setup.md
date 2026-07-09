@@ -1,6 +1,6 @@
 # Установка и запуск
 
-Пошаговая инструкция по развёртыванию AI Fox Motors локально.
+Пошаговая инструкция по локальному запуску.
 
 ## Требования
 
@@ -24,28 +24,27 @@ docker compose up -d
 ```
 
 Поднимает:
-- **PostgreSQL 16** на порту `5433` (пользователь `fox`, пароль `fox`, БД `foxmotors`)
-- **Ollama** на порту `11434` — автоматически скачивает модель `qwen2.5:7b` при первом запуске
+- **PostgreSQL 16**
+- **Ollama** (опционально, если используется локальный LLM)
 
 ## 3. Backend
 
 ```bash
-cd backend
-npm install
-cp .env.example .env    # при первом запуске
-npm run db:setup        # миграции + seed
-npm run dev             # запуск в режиме разработки (nodemon)
+npm --prefix backend install
+npm --prefix frontend install
+cp backend/.env.example backend/.env
+npm --prefix backend run db:setup
+npm run dev
 ```
 
-Сервер слушает `http://127.0.0.1:3000` и раздаёт фронтенд из `../frontend`.
+Frontend в development работает на `http://127.0.0.1:5173`, backend API — на `http://127.0.0.1:3000`.
 
-### Альтернативный ручной порядок
+### Альтернативный ручной порядок (backend отдельно)
 
 ```bash
-cd backend
-npx prisma migrate deploy   # применить миграции
-npm run db:seed              # создать тестовых пользователей
-npm run dev
+npm --prefix backend run prisma:migrate
+npm --prefix backend run db:seed
+npm --prefix backend run dev
 ```
 
 ## 4. Проверка LLM
@@ -59,23 +58,15 @@ npm run llm:check
 
 ## 5. Открыть в браузере
 
-```
-http://127.0.0.1:3000/
-```
-
-Или `http://<ваш-LAN-IP>:3000` с другого устройства в сети (CORS разрешает в development).
+`http://127.0.0.1:5173/`
 
 ## Тестовые учётные записи
 
 | Email | Пароль | Роль |
 |-------|--------|------|
-| `user@example.com` | `1q2w3e4r` | Клиент |
-| `manager@example.com` | `1q2w3e4r5t` | Менеджер |
-| `admin@example.com` | `1q2w3e4r5t6y` | Администратор |
-
-Дополнительно (E2E):
-- `admin@fox.local` / `Admin12345!` — администратор
-- `manager@fox.local` / `Admin12345!` — менеджер
+| `client@example.local` | `1q2w3e4r` | Клиент |
+| `manager@example.local` | `1q2w3e4r5t` | Менеджер |
+| `admin@example.local` | `1q2w3e4r5t6y` | Администратор |
 
 ## Ollama без Docker
 

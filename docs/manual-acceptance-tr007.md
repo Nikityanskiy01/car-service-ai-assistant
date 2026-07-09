@@ -1,9 +1,9 @@
 # Протокол ручной приёмки TR-007 (T055)
 
-**Система:** Fox Motors — AI Auto Service  
+**Система:** Интеллектуальный ассистент автосервиса  
 **Требование:** TR-007 Manual Acceptance ([spec.md](../specs/001-ai-consultation-platform/spec.md))  
 **Дата прохождения:** 2026-05-26  
-**Исполнитель:** Пойманов Н.В.  
+**Исполнитель:** тестовый стенд  
 **Среда:** Windows 10, Chrome; viewport mobile 375×812 (DevTools)
 
 ## Методика
