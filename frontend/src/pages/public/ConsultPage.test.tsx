@@ -40,7 +40,7 @@ describe('consult page', () => {
     });
   });
 
-  it('boots session and renders chat form', async () => {
+  it('auto-boots session and renders chat form', async () => {
     render(
       <MemoryRouter>
         <ThemeProvider>
@@ -52,8 +52,9 @@ describe('consult page', () => {
         </ThemeProvider>
       </MemoryRouter>,
     );
-    await userEvent.click(screen.getByRole('button', { name: 'Начать новую сессию' }));
-    expect(await screen.findByPlaceholderText(/Опишите симптомы/i)).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText(/Марка, модель, пробег/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Начать новую сессию/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Новая сессия/i })).toBeInTheDocument();
   });
 
   it('does not abort active stream on intermediate rerenders', async () => {
@@ -79,7 +80,7 @@ describe('consult page', () => {
     );
 
     await userEvent.type(
-      screen.getByPlaceholderText(/Опишите симптомы/i),
+      await screen.findByPlaceholderText(/Марка, модель, пробег/i),
       'Вибрация при торможении на скорости',
     );
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }));

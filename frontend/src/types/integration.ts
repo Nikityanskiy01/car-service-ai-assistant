@@ -87,6 +87,7 @@ export type IntegrationJob = {
 export type IntegrationConflict = {
   id: string;
   connectionId: string;
+  connectionName?: string | null;
   entityType: string;
   entityId: string;
   fieldName: string;

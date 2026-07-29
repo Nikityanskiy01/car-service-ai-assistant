@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" role="img" aria-label="">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c2232"/>
+      <stop offset="100%" stop-color="#0b0d12"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#g)"/>
+  <rect x="0" y="430" width="800" height="70" fill="#12151e"/>
+  <rect x="0" y="430" width="800" height="8" fill="#ea580c"/>
+  <rect x="230" y="150" width="340" height="220" rx="18" fill="#222836" stroke="#fb923c" stroke-width="3"/>
+  <rect x="270" y="190" width="100" height="140" rx="10" fill="#0f121a"/>
+  <rect x="390" y="190" width="100" height="140" rx="10" fill="#0f121a"/>
+  <circle cx="320" cy="260" r="28" fill="#ea580c" opacity="0.85"/>
+  <circle cx="440" cy="260" r="28" fill="#fb923c" opacity="0.75"/>
+  <text x="400" y="475" text-anchor="middle" fill="#a1a1aa" font-family="Manrope, Arial, sans-serif" font-size="18">Плановое ТО</text>
+</svg>

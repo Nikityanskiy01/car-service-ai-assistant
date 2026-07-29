@@ -37,7 +37,7 @@ export function progressFromExtracted(ext) {
  */
 export function mergeExtracted(existing, partial) {
   const out = { ...existing };
-  const fields = ['make', 'model', 'year', 'mileage', 'symptoms', 'problemConditions'];
+  const fields = ['make', 'model', 'year', 'mileage', 'symptoms', 'problemConditions', 'obdCodes'];
   for (const f of fields) {
     if (partial[f] === undefined || partial[f] === null) continue;
     if (f === 'year' || f === 'mileage') {

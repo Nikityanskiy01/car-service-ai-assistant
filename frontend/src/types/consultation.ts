@@ -12,6 +12,21 @@ export interface ConsultationExtractedData {
   mileage?: number | null;
   symptoms?: string | null;
   problemConditions?: string | null;
+  obdCodes?: string | null;
+}
+
+export interface ObdCodeInterpretation {
+  code: string;
+  title: string;
+  plain: string;
+  known?: boolean;
+}
+
+export interface PhotoObservations {
+  observations?: string[];
+  summary?: string;
+  disclaimer?: string;
+  analyzedAt?: string;
 }
 
 export interface ConsultationRecommendation {
@@ -30,6 +45,7 @@ export interface ConsultationDiagnosisSnapshot {
   confidence?: number | null;
   estimated_cost_from?: number | null;
   recommended_checks?: string[];
+  probable_causes?: string[];
   status?: 'SUCCESS' | 'MANUAL_REVIEW_REQUIRED' | string;
   analysis_available?: boolean;
   reason?: string | null;
@@ -50,7 +66,18 @@ export interface ConsultationDiagnosisSnapshot {
 
 export interface ConsultationFlowState {
   stage?: string | null;
+  diagnosis_job_id?: string | null;
+  diagnosis_job_status?: string | null;
+  obd_interpretations?: ObdCodeInterpretation[];
+  photo_observations?: PhotoObservations | null;
 }
+
+export type ConsultationDiagnosisJob = {
+  id: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | string;
+  errorMessage?: string | null;
+  updatedAt?: string;
+};
 
 export interface ConsultationDetail {
   id: string;
@@ -64,4 +91,5 @@ export interface ConsultationDetail {
   recommendations?: ConsultationRecommendation[];
   diagnosis?: ConsultationDiagnosisSnapshot | null;
   flowState?: ConsultationFlowState | null;
+  diagnosisJob?: ConsultationDiagnosisJob | null;
 }

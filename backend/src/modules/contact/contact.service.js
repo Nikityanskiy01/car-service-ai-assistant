@@ -1,5 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
+import { notifyNewServiceRequest } from '../notifications/telegram.service.js';
+import { dispatchOutbox, enqueueOutboxEvent, processPendingJobs } from '../integrations/integrations.service.js';
 
 /**
  * Нормализация телефона: только цифры, ведущая 8 → 7, 10 цифр без кода → +7…
@@ -27,25 +29,142 @@ export function isValidPhoneDigits(digits) {
 /**
  * @param {{ fullName: string; phone: string; message?: string | null }}
  */
-export async function createSubmission({ fullName, phone, message }) {
+export async function createSubmission({ fullName, phone, message, source }) {
   const digits = normalizePhone(phone);
   if (!isValidPhoneDigits(digits)) {
     throw new AppError(400, 'Укажите корректный номер телефона', 'BAD_REQUEST');
   }
   const msg = message != null ? String(message).trim() : '';
+  const src = String(source || 'contact_form').trim().slice(0, 80) || 'contact_form';
   return prisma.contactSubmission.create({
     data: {
       fullName: fullName.trim(),
       phone: digits,
       message: msg.length ? msg.slice(0, 4000) : null,
+      source: src,
+      status: 'NEW',
     },
   });
 }
 
-export async function listSubmissions({ take = 100 } = {}) {
+export function serializeSubmission(row) {
+  return {
+    id: row.id,
+    fullName: row.fullName,
+    phone: row.phone,
+    message: row.message,
+    source: row.source || 'contact_form',
+    status: row.status,
+    processedAt: row.processedAt?.toISOString?.() ?? row.processedAt ?? null,
+    convertedRequestId: row.convertedRequestId,
+    closedReason: row.closedReason,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export async function listSubmissions({ take = 100, status } = {}) {
+  const where = {};
+  if (status) where.status = status;
   const rows = await prisma.contactSubmission.findMany({
+    where,
     orderBy: { createdAt: 'desc' },
     take: Math.min(Math.max(take, 1), 200),
   });
-  return rows;
+  return rows.map(serializeSubmission);
+}
+
+export async function updateSubmissionStatus(id, { status, closedReason }) {
+  const row = await prisma.contactSubmission.findUnique({ where: { id } });
+  if (!row) throw new AppError(404, 'Обращение не найдено', 'NOT_FOUND');
+  if (row.status === 'CONVERTED') {
+    throw new AppError(409, 'Обращение уже конвертировано в заявку', 'CONFLICT');
+  }
+  const data = { status, processedAt: new Date() };
+  if (status === 'CLOSED') {
+    data.closedReason = closedReason ? String(closedReason).slice(0, 500) : null;
+  }
+  const updated = await prisma.contactSubmission.update({ where: { id }, data });
+  return serializeSubmission(updated);
+}
+
+export async function convertSubmissionToRequest(contactId, managerId) {
+  const contact = await prisma.contactSubmission.findUnique({ where: { id: contactId } });
+  if (!contact) throw new AppError(404, 'Обращение не найдено', 'NOT_FOUND');
+  if (contact.status === 'CONVERTED' && contact.convertedRequestId) {
+    return { requestId: contact.convertedRequestId, alreadyConverted: true };
+  }
+
+  const symptoms = contact.message?.trim() || 'Обращение с формы на сайте';
+
+  const requestId = await prisma.$transaction(async (tx) => {
+    const session = await tx.consultationSession.create({
+      data: {
+        status: 'COMPLETED',
+        progressPercent: 100,
+        guestName: contact.fullName,
+        guestPhone: contact.phone,
+        flowState: {
+          stage: 'COMPLETED',
+          source: 'contact_form',
+          diagnosis: {
+            summary: symptoms,
+            urgency: 'medium',
+            confidence: null,
+            analysis_available: false,
+            status: 'MANUAL_REVIEW_REQUIRED',
+          },
+        },
+      },
+    });
+
+    await tx.extractedDiagnosticData.create({
+      data: {
+        sessionId: session.id,
+        symptoms,
+      },
+    });
+
+    const sr = await tx.serviceRequest.create({
+      data: {
+        guestName: contact.fullName,
+        guestPhone: contact.phone,
+        consultationSessionId: session.id,
+        status: 'NEW',
+        version: 1,
+        snapshotSymptoms: symptoms.slice(0, 2000),
+        assignedManagerId: managerId,
+      },
+    });
+
+    await tx.contactSubmission.update({
+      where: { id: contactId },
+      data: {
+        status: 'CONVERTED',
+        processedAt: new Date(),
+        convertedRequestId: sr.id,
+      },
+    });
+
+    return sr.id;
+  });
+
+  const full = await prisma.serviceRequest.findUnique({
+    where: { id: requestId },
+    include: {
+      client: { select: { id: true, fullName: true, phone: true, email: true } },
+      consultationSession: { include: { extracted: true } },
+    },
+  });
+
+  await enqueueOutboxEvent({
+    eventType: 'request.created',
+    entityType: 'service_request',
+    entityId: requestId,
+    payloadJson: { source: 'contact_form', contactId },
+  });
+  await dispatchOutbox();
+  await processPendingJobs();
+  if (full) await notifyNewServiceRequest(full);
+
+  return { requestId, alreadyConverted: false };
 }

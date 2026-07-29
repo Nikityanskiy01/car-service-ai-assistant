@@ -7,7 +7,7 @@ describe('admin users', () => {
   beforeEach(() => truncateAll());
 
   it('role change and block; forbidden for non-admin', async () => {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'adm@test.local',
@@ -29,12 +29,12 @@ describe('admin users', () => {
 
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'adm@test.local', password: 'password123' });
+      .send({ email: 'adm@test.local', password: 'Password123!ab' });
     const at = login.body.accessToken;
 
     const clientLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'vic@test.local', password: 'password123' });
+      .send({ email: 'vic@test.local', password: 'Password123!ab' });
     const deny = await request(app)
       .get('/api/admin/users')
       .set('Authorization', `Bearer ${clientLogin.body.accessToken}`);
@@ -57,7 +57,7 @@ describe('admin users', () => {
 
     const login2 = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'vic@test.local', password: 'password123' });
+      .send({ email: 'vic@test.local', password: 'Password123!ab' });
     expect(login2.status).toBe(403);
   });
 });

@@ -17,14 +17,20 @@ async function loginWithFallback(page, role) {
   }
   const creds = {
     клиент: [
+      { email: 'client@example.local', password: 'Client-Demo-2026!' },
+      { email: 'client@example.local', password: 'demo' },
       { email: 'client@example.local', password: '1q2w3e4r' },
       { email: 'user@example.com', password: '1q2w3e4r' },
     ],
     менеджер: [
+      { email: 'manager@example.local', password: 'Manager-Demo-2026!' },
+      { email: 'manager@example.local', password: 'demo' },
       { email: 'manager@example.local', password: '1q2w3e4r5t' },
       { email: 'manager@example.com', password: '1q2w3e4r5t' },
     ],
     администратор: [
+      { email: 'admin@example.local', password: 'Admin-Demo-2026!' },
+      { email: 'admin@example.local', password: 'demo' },
       { email: 'admin@example.local', password: '1q2w3e4r5t6y' },
       { email: 'admin@example.com', password: '1q2w3e4r5t6y' },
     ],

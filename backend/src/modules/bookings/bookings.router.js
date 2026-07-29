@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authJwt } from '../../middleware/authJwt.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
+import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
 import { validateBody } from '../../middleware/validate.js';
 import * as bookingsService from './bookings.service.js';
 
@@ -20,11 +21,14 @@ const createGuestSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
   serviceTitle: z.string().trim().max(200).optional().nullable(),
   categoryLabel: z.string().trim().max(200).optional().nullable(),
+  consentPersonalData: z.literal(true, {
+    errorMap: () => ({ message: 'Необходимо согласие на обработку персональных данных' }),
+  }),
 });
 
 const patchSchema = z
   .object({
-    status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED']).optional(),
+    status: z.enum(['PENDING', 'CONFIRMED', 'ARRIVED', 'NO_SHOW', 'CANCELLED']).optional(),
     preferredAt: z.string().min(4).optional(),
     notes: z.string().max(2000).optional().nullable(),
     guestName: z.string().trim().min(1).max(120).optional(),
@@ -33,10 +37,17 @@ const patchSchema = z
   })
   .refine((o) => Object.keys(o).length > 0, { message: 'Укажите хотя бы одно поле' });
 
+const clientPatchSchema = z.object({
+  status: z.literal('CANCELLED'),
+});
+
 export const bookingsRouter = Router();
+
+const guestWriteLimiter = createPublicWriteLimiter(20);
 
 bookingsRouter.post(
   '/guest',
+  guestWriteLimiter,
   validateBody(createGuestSchema),
   asyncHandler(async (req, res) => {
     const b = await bookingsService.createGuestBooking(req.validatedBody);
@@ -72,8 +83,16 @@ bookingsRouter.get(
 );
 
 bookingsRouter.get(
+  '/:bookingId',
+  asyncHandler(async (req, res) => {
+    const b = await bookingsService.getBooking(req.params.bookingId, req.user);
+    res.json(serialize(b));
+  }),
+);
+
+bookingsRouter.get(
   '/:bookingId/audit',
-  requireRole('ADMINISTRATOR'),
+  requireRole('MANAGER', 'ADMINISTRATOR'),
   asyncHandler(async (req, res) => {
     const items = await bookingsService.listBookingAudit(req.params.bookingId, req.user);
     res.json(items);
@@ -82,11 +101,32 @@ bookingsRouter.get(
 
 bookingsRouter.patch(
   '/:bookingId',
-  requireRole('MANAGER', 'ADMINISTRATOR'),
-  validateBody(patchSchema),
   asyncHandler(async (req, res) => {
-    const b = await bookingsService.patchBooking(req.params.bookingId, req.user, req.validatedBody);
-    res.json(serialize(b));
+    if (req.user.role === 'CLIENT') {
+      const parsed = clientPatchSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        return res.status(400).json({
+          error: first?.message || 'Validation failed',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const b = await bookingsService.patchClientBooking(req.params.bookingId, req.user, parsed.data);
+      return res.json(serialize(b));
+    }
+    if (req.user.role === 'MANAGER' || req.user.role === 'ADMINISTRATOR') {
+      const parsed = patchSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const first = parsed.error.issues[0];
+        return res.status(400).json({
+          error: first?.message || 'Validation failed',
+          code: 'VALIDATION_ERROR',
+        });
+      }
+      const b = await bookingsService.patchBooking(req.params.bookingId, req.user, parsed.data);
+      return res.json(serialize(b));
+    }
+    return res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
   }),
 );
 
@@ -103,6 +143,15 @@ function serialize(b) {
     status: b.status,
     notes: b.notes,
     client: b.client,
-    serviceRequest: b.serviceRequest,
+    serviceRequest: b.serviceRequest
+      ? {
+          id: b.serviceRequest.id,
+          status: b.serviceRequest.status,
+          assignedManagerId: b.serviceRequest.assignedManagerId,
+          snapshotMake: b.serviceRequest.snapshotMake,
+          snapshotModel: b.serviceRequest.snapshotModel,
+          snapshotSymptoms: b.serviceRequest.snapshotSymptoms,
+        }
+      : b.serviceRequest,
   };
 }

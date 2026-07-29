@@ -1,17 +1,23 @@
 import type { ConsultationRecommendation } from '../../types/consultation';
 import type { ConsultationDiagnosisSnapshot } from '../../types/consultation';
+import type { ConsultationDetail } from '../../types/consultation';
 import { ConfidenceIndicator } from './ConfidenceIndicator';
+import { CriticalSafetyBanner } from './CriticalSafetyBanner';
+import { DiagnosisActions } from './DiagnosisActions';
 import { EstimatedPriceCard } from './EstimatedPriceCard';
+import { MasterChecksChecklist } from './MasterChecksChecklist';
+import { ObdCodesSummary } from './ObdCodesSummary';
 import { PossibleCausesList } from './PossibleCausesList';
-import { RecommendedChecks } from './RecommendedChecks';
 import { UrgencyBadge } from './UrgencyBadge';
 
 export function DiagnosticSummary({
+  detail,
   recommendations,
   diagnosis,
   fallbackCost,
   fallbackConfidence,
 }: {
+  detail?: ConsultationDetail | null;
   recommendations: ConsultationRecommendation[];
   diagnosis?: ConsultationDiagnosisSnapshot | null;
   fallbackCost?: number | null;
@@ -47,12 +53,13 @@ export function DiagnosticSummary({
         ? top.probabilityPercent
         : fallbackConfidence || 0;
   const summaryText = String(diagnosis?.summary || '').trim() || top?.summary || top?.title || '';
+  const isCritical = String(diagnosis?.urgency || top?.urgency || '').toLowerCase() === 'critical';
   const diagnosisChecks = Array.isArray(diagnosis?.recommended_checks)
     ? diagnosis.recommended_checks
     : [];
-  const mergedRecommendations = diagnosisChecks.length
-    ? [{ checks: diagnosisChecks }]
-    : recommendations;
+  const checksFromRecs = recommendations.flatMap((item) => item.checks || []).filter(Boolean);
+  const allChecks = diagnosisChecks.length ? diagnosisChecks : checksFromRecs;
+  const obdItems = detail?.flowState?.obd_interpretations || [];
 
   return (
     <section className="diagnostic-summary" aria-label="Предварительный результат анализа">
@@ -60,15 +67,19 @@ export function DiagnosticSummary({
         <h3>Предварительный результат анализа</h3>
         <UrgencyBadge urgency={diagnosis?.urgency || top?.urgency} />
       </header>
+      {isCritical ? <CriticalSafetyBanner /> : null}
       <p>{summaryText || 'Результат сформируется после уточнения ключевых параметров обращения.'}</p>
       <div className="analysis-grid">
         <ConfidenceIndicator value={confidence} />
         <EstimatedPriceCard amount={diagnosis?.estimated_cost_from ?? top?.costFromMinor ?? fallbackCost} />
       </div>
-      <PossibleCausesList recommendations={recommendations} />
-      <RecommendedChecks recommendations={mergedRecommendations} />
+      <ObdCodesSummary items={obdItems} />
+      <PossibleCausesList recommendations={recommendations} overallConfidence={diagnosis?.confidence} />
+      <MasterChecksChecklist checks={allChecks} />
+      <DiagnosisActions detail={detail ?? null} />
       <p className="analysis-disclaimer">
         {diagnosis?.execution_meta?.provider ? `Источник: ${diagnosis.execution_meta.provider}. ` : ''}
+        {detail?.flowState?.photo_observations?.disclaimer ? `${detail.flowState.photo_observations.disclaimer} ` : ''}
         {diagnosis?.disclaimer ||
           'Результат сформирован на основе предоставленных данных и не заменяет техническую диагностику автомобиля специалистом.'}
       </p>

@@ -5,9 +5,19 @@ import {
 } from '../../prompts/consultationPrompts.js';
 import { getEnv } from '../../config/env.js';
 import { getRelevantCases } from '../../services/caseMemory.service.js';
+import { getConfirmedFewShotExamples } from '../../services/consultationFeedback.service.js';
+import { runDiagnosisQueued } from '../../services/diagnosisQueue.service.js';
+import { recordDiagnosisCacheHit, recordLlmValidationFailure } from '../../services/llmMetrics.service.js';
+import {
+  buildDiagnosisCacheKey,
+  getDiagnosisCache,
+  setDiagnosisCache,
+} from '../../lib/diagnosisCache.js';
 import { isFieldFilled } from '../../services/consultationFlowService.js';
 import { chatCompletionWithMeta } from '../../services/ollamaService.js';
 import { pickPlaybook, playbookToAiHints } from '../../lib/diagnosticPlaybooks.js';
+import { formatObdForPrompt } from '../../lib/obdCodeCatalog.js';
+import { parseObdCodes } from '../../lib/obdCodes.js';
 import { topWorksForCategory, topWorksForCategoryAndMake } from '../../lib/workStats.js';
 import { safeJsonParse } from '../../utils/safeJsonParse.js';
 import { logger } from '../../lib/logger.js';
@@ -593,7 +603,18 @@ export function mergeDiagnosis(ruleBased, llmDiagnosis) {
  * LLM заполняет probable_causes, recommended_checks, urgency, confidence, estimated_cost_from, summary;
  * правила дополняют и повышают срочность/уверенность при совпадении сценариев.
  */
+function cacheDiagnosisIfSuccessful(cacheKey, result) {
+  if (result?.analysis_available !== false && result?.status !== 'MANUAL_REVIEW_REQUIRED') {
+    setDiagnosisCache(cacheKey, result);
+  }
+  return result;
+}
+
 export async function generateDiagnosis(data) {
+  return runDiagnosisQueued(() => generateDiagnosisCore(data));
+}
+
+export async function generateDiagnosisCore(data) {
   const cond = data?.conditions ?? data?.problemConditions;
   const payload = {
     car_make: data.car_make ?? null,
@@ -603,13 +624,26 @@ export async function generateDiagnosis(data) {
     symptoms: data.symptoms ?? null,
     conditions: cond ?? null,
     urgency_signs: data.urgency_signs ?? null,
+    obd_codes: data.obd_codes ?? null,
     category: data.category ?? null,
   };
+  const obdCodes = parseObdCodes(`${payload.obd_codes || ''} ${payload.symptoms || ''}`);
+  const obdInterpretations = formatObdForPrompt(obdCodes);
+  const photoObservations = Array.isArray(data.photo_observations)
+    ? data.photo_observations.map((x) => String(x)).filter(Boolean).slice(0, 8)
+    : [];
 
   const ruleBased = preAnalyzeSymptoms(payload);
   const hasCriticalSafety = String(ruleBased?.urgency || '').toLowerCase() === 'critical';
   if (!isFieldFilled('symptoms', data.symptoms) || (!isFieldFilled('conditions', cond) && !hasCriticalSafety)) {
     return buildManualReviewDiagnosis({ reason: 'INSUFFICIENT_DATA', ruleBased });
+  }
+
+  const cacheKey = buildDiagnosisCacheKey(payload);
+  const cached = getDiagnosisCache(cacheKey);
+  if (cached) {
+    recordDiagnosisCacheHit();
+    return cached;
   }
 
   const pb = pickPlaybook(payload, String(data.symptoms || ''));
@@ -623,9 +657,15 @@ export async function generateDiagnosis(data) {
 
   let relatedCases = [];
   try {
-    relatedCases = await getRelevantCases(payload, 3);
+    relatedCases = await getRelevantCases(payload);
   } catch {
     relatedCases = [];
+  }
+  let confirmedExamples = [];
+  try {
+    confirmedExamples = await getConfirmedFewShotExamples();
+  } catch {
+    confirmedExamples = [];
   }
   const env = getEnv();
   const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || env.LLM_MODEL;
@@ -645,7 +685,15 @@ export async function generateDiagnosis(data) {
         {
           role: 'user',
           content:
-            diagnosisUserPrompt(payload, relatedCases, pbHints, tw) +
+            diagnosisUserPrompt(
+              payload,
+              relatedCases,
+              pbHints,
+              tw,
+              obdInterpretations,
+              photoObservations,
+              confirmedExamples,
+            ) +
             (extraInstructions ? `\n\nТребуется исправить JSON по замечаниям:\n${extraInstructions}` : ''),
         },
       ],
@@ -685,6 +733,7 @@ export async function generateDiagnosis(data) {
     const merged = mergeDiagnosis(ruleBased, llmDiagnosis);
     const quality = validateDiagnosisQuality(merged);
     if (!quality.valid) {
+      recordLlmValidationFailure();
       logger.warn(
         { event: 'vsellm_validation_failed', issues: quality.issues, model: executionMeta.model },
         'diagnosis quality validation failed',
@@ -695,12 +744,15 @@ export async function generateDiagnosis(data) {
         const repairedMerged = mergeDiagnosis(ruleBased, normalizeDiagnosis(repairedParsed));
         const repairedQuality = validateDiagnosisQuality(repairedMerged);
         if (repairedQuality.valid) {
-          return normalizeDiagnosisResult({ ...repairedMerged, execution_meta: executionMeta });
+          return cacheDiagnosisIfSuccessful(
+            cacheKey,
+            normalizeDiagnosisResult({ ...repairedMerged, execution_meta: executionMeta }),
+          );
         }
       }
       return buildManualReviewDiagnosis({ reason: 'LLM_VALIDATION_FAILED', executionMeta, ruleBased });
     }
-    return normalizeDiagnosisResult({ ...merged, execution_meta: executionMeta });
+    return cacheDiagnosisIfSuccessful(cacheKey, normalizeDiagnosisResult({ ...merged, execution_meta: executionMeta }));
   } catch (err) {
     logger.warn(
       {

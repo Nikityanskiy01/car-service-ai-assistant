@@ -74,6 +74,31 @@ export async function createBooking(user, { preferredAt, serviceRequestId, notes
   });
 }
 
+export async function getBooking(bookingId, user) {
+  const row = await prisma.serviceBooking.findUnique({
+    where: { id: bookingId },
+    include: {
+      client: { select: { id: true, fullName: true, phone: true, email: true } },
+      serviceRequest: {
+        select: {
+          id: true,
+          status: true,
+          snapshotMake: true,
+          snapshotModel: true,
+          snapshotSymptoms: true,
+        },
+      },
+    },
+  });
+  if (!row) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (user.role === 'CLIENT') {
+    if (row.clientId !== user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    return row;
+  }
+  if (user.role === 'MANAGER' || user.role === 'ADMINISTRATOR') return row;
+  throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+}
+
 export async function listBookings(user, { limit = 50, offset = 0 } = {}) {
   const take = Math.min(limit, 100);
   if (user.role === 'MANAGER' || user.role === 'ADMINISTRATOR') {
@@ -83,7 +108,7 @@ export async function listBookings(user, { limit = 50, offset = 0 } = {}) {
       skip: offset,
       include: {
         client: { select: { id: true, fullName: true, phone: true, email: true } },
-        serviceRequest: { select: { id: true, status: true } },
+        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
       },
     });
   }
@@ -129,6 +154,43 @@ export async function listBookingAudit(bookingId, user) {
  *   guestEmail?: string | null;
  * }} body
  */
+export async function patchClientBooking(bookingId, user, { status }) {
+  if (user.role !== 'CLIENT') throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  if (status !== 'CANCELLED') {
+    throw new AppError(400, 'Клиент может только отменить запись', 'BAD_REQUEST');
+  }
+
+  const prev = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
+  if (!prev) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (prev.clientId !== user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  if (prev.status === 'CANCELLED') {
+    return prisma.serviceBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        client: { select: { id: true, fullName: true, phone: true, email: true } },
+        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
+      },
+    });
+  }
+
+  return prisma.serviceBooking.update({
+    where: { id: bookingId },
+    data: { status: 'CANCELLED' },
+    include: {
+      client: { select: { id: true, fullName: true, phone: true, email: true } },
+      serviceRequest: {
+        select: {
+          id: true,
+          status: true,
+          snapshotMake: true,
+          snapshotModel: true,
+          snapshotSymptoms: true,
+        },
+      },
+    },
+  });
+}
+
 export async function patchBooking(bookingId, user, body) {
   if (user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {
     throw new AppError(403, 'Forbidden', 'FORBIDDEN');
@@ -205,7 +267,7 @@ export async function patchBooking(bookingId, user, body) {
       where: { id: bookingId },
       include: {
         client: { select: { id: true, fullName: true, phone: true, email: true } },
-        serviceRequest: { select: { id: true, status: true } },
+        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
       },
     });
   }
@@ -216,7 +278,7 @@ export async function patchBooking(bookingId, user, body) {
       data,
       include: {
         client: { select: { id: true, fullName: true, phone: true, email: true } },
-        serviceRequest: { select: { id: true, status: true } },
+        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
       },
     });
     await tx.serviceBookingAuditLog.create({

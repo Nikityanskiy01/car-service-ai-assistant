@@ -36,7 +36,12 @@ describe('ai consultation access and persistence', () => {
     const createReq = await request(app)
       .post(`/api/consultations/${sessionId}/service-request-guest`)
       .set('X-Consultation-Guest-Token', guestToken)
-      .send({ fullName: 'Гостевой клиент', phone: '+79990000000', email: null });
+      .send({
+        fullName: 'Гостевой клиент',
+        phone: '+79990000000',
+        email: null,
+        consentPersonalData: true,
+      });
     expect(createReq.status).toBe(201);
 
     const dbSession = await prisma.consultationSession.findUnique({
@@ -85,7 +90,7 @@ describe('ai consultation access and persistence', () => {
   });
 
   it('allows manager staff visibility but blocks manager posting to consultation', async () => {
-    const hash = await bcrypt.hash('password123', 10);
+    const hash = await bcrypt.hash('Password123!ab', 10);
     await prisma.user.create({
       data: {
         email: 'manager_ai@test.local',
@@ -106,7 +111,7 @@ describe('ai consultation access and persistence', () => {
 
     const mgrLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'manager_ai@test.local', password: 'password123' });
+      .send({ email: 'manager_ai@test.local', password: 'Password123!ab' });
     expect(mgrLogin.status).toBe(200);
     const managerToken = mgrLogin.body.accessToken;
 

@@ -5,10 +5,12 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { DataTable } from '../../components/ui/DataTable';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
 import { RoleBadge } from '../../components/ui/RoleBadge';
 import { Select } from '../../components/ui/Select';
+import { resolveAdminBreadcrumbs } from '../../config/adminRoutes';
 import { ROLE_LABELS } from '../../lib/labels';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { AdminUser } from '../../types/dashboard';
@@ -65,9 +67,16 @@ export function AdminUsersPage() {
 
   return (
     <div className="stack dashboard-page">
-      <PageHeader title="Сотрудники и клиенты" description="Роли, блокировка и контроль доступа." />
+      <PageHeader
+        title="Пользователи"
+        description="Роли, блокировка и контроль доступа."
+        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/team/users')}
+      />
 
       <Card>
+        {users.length === 0 ? (
+          <EmptyState title="Пользователей нет" description="После регистрации список появится здесь." />
+        ) : (
         <DataTable
           columns={[
             { key: 'fullName', label: 'Имя' },
@@ -103,6 +112,7 @@ export function AdminUsersPage() {
             ),
           }))}
         />
+        )}
       </Card>
 
       <ConfirmDialog

@@ -4,12 +4,18 @@ import { AppError } from '../../lib/errors.js';
 import { isExtractedComplete, mergeExtracted } from '../../lib/consultationProgress.js';
 import { estimateCostFromMinor } from '../../lib/pricing.js';
 import { coerceDiagnosisLine } from './consultationAi.service.js';
+import { indexConsultationCase } from '../../services/caseMemoryIndexer.service.js';
+import { lookupObdCodes } from '../../lib/obdCodeCatalog.js';
+import { parseObdCodes } from '../../lib/obdCodes.js';
+import { analyzeVehiclePhoto } from '../../services/visionService.js';
 import {
   BOOTSTRAP_ASSISTANT_MESSAGE,
   buildConsultationState,
   progressFromConsultationSteps,
   progressFromStage,
 } from '../../services/consultationFlowService.js';
+import { createAndEnqueueDiagnosisJob } from '../../services/diagnosisJob.service.js';
+import { detectServiceType } from '../../services/consultationIntent.service.js';
 
 const sessionDetailInclude = {
   client: { select: { id: true, fullName: true, phone: true, email: true, emailProfile: true } },
@@ -18,6 +24,7 @@ const sessionDetailInclude = {
   recommendations: true,
   serviceCategory: true,
   serviceRequest: true,
+  diagnosisJob: true,
 };
 
 /**
@@ -234,6 +241,7 @@ export async function postMessage(sessionId, actor, content, onProgress) {
       mileage: afterUser.extracted?.mileage ?? null,
       symptoms: afterUser.extracted?.symptoms ?? null,
       problemConditions: afterUser.extracted?.problemConditions ?? null,
+      obdCodes: afterUser.extracted?.obdCodes ?? null,
     },
     {
       make: ai.extracted_data.car_make,
@@ -242,16 +250,49 @@ export async function postMessage(sessionId, actor, content, onProgress) {
       mileage: ai.extracted_data.mileage,
       symptoms: ai.extracted_data.symptoms,
       problemConditions: ai.extracted_data.conditions,
+      obdCodes: ai.extracted_data.obd_codes,
     },
   );
 
+  const priorFlow =
+    session.flowState && typeof session.flowState === 'object' && !Array.isArray(session.flowState)
+      ? session.flowState
+      : {};
+
+  if (ai.stage === 'DIAGNOSIS_QUEUED') {
+    await persistConsultationTurn(sessionId, { ai, mergedExtracted, priorFlow, actor });
+    const job = await createAndEnqueueDiagnosisJob(sessionId, ai.diagnosis_payload || {});
+    await prisma.consultationSession.update({
+      where: { id: sessionId },
+      data: {
+        flowState: {
+          ...priorFlow,
+          ...(ai.flowState ?? {}),
+          diagnosis_job_id: job.id,
+          diagnosis_job_status: 'PENDING',
+          stage: 'DIAGNOSIS_QUEUED',
+        },
+      },
+    });
+    return getSessionDetail(sessionId, actor);
+  }
+
+  await persistConsultationTurn(sessionId, { ai, mergedExtracted, priorFlow, actor });
+  return getSessionDetail(sessionId, actor);
+}
+
+async function persistConsultationTurn(sessionId, { ai, mergedExtracted, priorFlow, actor }) {
   const isManualReview = ai.stage === 'MANUAL_REVIEW_REQUIRED';
+  const isQueued = ai.stage === 'DIAGNOSIS_QUEUED';
   const complete = ai.stage === 'COMPLETED' || isManualReview;
 
-  const progressPercent = complete
-    ? 100
-    : Math.min(100, progressFromStage(ai.stage) || progressFromConsultationSteps(ai.extracted_data));
+  const progressPercent = isQueued
+    ? 85
+    : complete
+      ? 100
+      : Math.min(100, progressFromStage(ai.stage) || progressFromConsultationSteps(ai.extracted_data));
   const diagnosis = ai.diagnosis;
+  const obdCodesList = parseObdCodes(mergedExtracted.obdCodes || '');
   const recommendations =
     diagnosis?.probable_causes?.length > 0
       ? diagnosis.probable_causes
@@ -288,6 +329,7 @@ export async function postMessage(sessionId, actor, content, onProgress) {
         mileage: mergedExtracted.mileage ?? null,
         symptoms: mergedExtracted.symptoms ?? null,
         problemConditions: mergedExtracted.problemConditions ?? null,
+        obdCodes: mergedExtracted.obdCodes ?? null,
       },
     }),
     prisma.diagnosticRecommendation.deleteMany({ where: { sessionId } }),
@@ -310,6 +352,8 @@ export async function postMessage(sessionId, actor, content, onProgress) {
         preliminaryNote: 'Результат предварительный и не заменяет очную диагностику автомобиля специалистом.',
         flowState: {
           ...(ai.flowState ?? {}),
+          ...(priorFlow.photo_observations ? { photo_observations: priorFlow.photo_observations } : {}),
+          ...(obdCodesList.length ? { obd_interpretations: lookupObdCodes(obdCodesList) } : {}),
           ...(diagnosis
             ? {
                 diagnosis: {
@@ -324,6 +368,9 @@ export async function postMessage(sessionId, actor, content, onProgress) {
                       : null,
                   recommended_checks: Array.isArray(diagnosis.recommended_checks)
                     ? diagnosis.recommended_checks.map((x) => String(x)).filter(Boolean).slice(0, 8)
+                    : [],
+                  probable_causes: Array.isArray(diagnosis.probable_causes)
+                    ? diagnosis.probable_causes.map((x) => String(x)).filter(Boolean).slice(0, 8)
                     : [],
                   status: String(diagnosis.status || 'SUCCESS'),
                   analysis_available: diagnosis.analysis_available !== false,
@@ -342,7 +389,18 @@ export async function postMessage(sessionId, actor, content, onProgress) {
     }),
   ]);
 
-  if (complete && actor.kind === 'owner' && actor.user?.id) {
+  if (complete) {
+    void indexConsultationCase(sessionId).catch((err) => {
+      import('../../lib/logger.js').then(({ logger }) =>
+        logger.warn(
+          { sessionId, err: err instanceof Error ? err.message : String(err) },
+          'case memory index failed',
+        ),
+      );
+    });
+  }
+
+  if (complete && actor?.kind === 'owner' && actor.user?.id) {
     try {
       await autoSaveReport(sessionId, actor.user.id);
     } catch (e) {
@@ -350,8 +408,56 @@ export async function postMessage(sessionId, actor, content, onProgress) {
       logger.warn({ err: e, sessionId }, 'autoSaveReport failed');
     }
   }
+}
 
-  return getSessionDetail(sessionId, actor);
+export async function finalizeDiagnosisForSession(sessionId, diagnosis, payload) {
+  const session = await prisma.consultationSession.findUnique({
+    where: { id: sessionId },
+    include: { extracted: true, serviceRequest: true },
+  });
+  if (!session || session.serviceRequest) return;
+
+  const mergedExtracted = {
+    make: payload.car_make ?? session.extracted?.make ?? null,
+    model: payload.car_model ?? session.extracted?.model ?? null,
+    year: payload.year ?? session.extracted?.year ?? null,
+    mileage: payload.mileage ?? session.extracted?.mileage ?? null,
+    symptoms: payload.symptoms ?? session.extracted?.symptoms ?? null,
+    problemConditions: payload.conditions ?? session.extracted?.problemConditions ?? null,
+    obdCodes: payload.obd_codes ?? session.extracted?.obdCodes ?? null,
+  };
+
+  const isManual = String(diagnosis?.status || '').toUpperCase() === 'MANUAL_REVIEW_REQUIRED';
+  const isService = payload.intent === 'service';
+  const st = isService ? detectServiceType(String(mergedExtracted.symptoms || '')) : null;
+
+  const priorFlow =
+    session.flowState && typeof session.flowState === 'object' && !Array.isArray(session.flowState)
+      ? session.flowState
+      : {};
+
+  const ai = {
+    stage: isManual ? 'MANUAL_REVIEW_REQUIRED' : 'COMPLETED',
+    assistant_message: isManual
+      ? String(diagnosis?.summary || 'Требуется ручная обработка.')
+      : `${String(diagnosis?.summary || '')}\n\nВы можете сохранить отчёт и оформить заявку в сервис.`,
+    diagnosis,
+    extracted_data: payload,
+    flowState: {
+      ...priorFlow,
+      stage: isManual ? 'MANUAL_REVIEW_REQUIRED' : 'COMPLETED',
+      intent: payload.intent || priorFlow.intent || 'diagnostic',
+      service_type: st || payload.service_type || priorFlow.service_type || null,
+      diagnosis_job_status: 'COMPLETED',
+    },
+  };
+
+  await persistConsultationTurn(sessionId, {
+    ai,
+    mergedExtracted,
+    priorFlow,
+    actor: session.clientId ? { kind: 'owner', user: { id: session.clientId } } : { kind: 'guest' },
+  });
 }
 
 async function autoSaveReport(sessionId, userId) {
@@ -448,4 +554,69 @@ export async function listMyReports(userId, { limit = 50, offset = 0 } = {}) {
     take: Math.min(limit, 100),
     skip: offset,
   });
+}
+
+/**
+ * @param {string} sessionId
+ * @param {ConsultationActor} actor
+ * @param {{ mimeType: string, imageBase64: string }} payload
+ */
+export async function analyzeConsultationPhoto(sessionId, actor, payload) {
+  const session = await prisma.consultationSession.findUnique({
+    where: { id: sessionId },
+    include: { extracted: true, serviceRequest: true },
+  });
+  if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
+  assertActorCanPost(session, actor);
+  if (session.status === 'COMPLETED' || session.serviceRequest) {
+    throw new AppError(400, 'Consultation is closed', 'CLOSED');
+  }
+
+  const mimeType = String(payload?.mimeType || '').trim();
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
+    throw new AppError(400, 'Unsupported image type', 'BAD_REQUEST');
+  }
+  const imageBase64 = String(payload?.imageBase64 || '').trim();
+  if (imageBase64.length < 100 || imageBase64.length > 6_000_000) {
+    throw new AppError(400, 'Invalid image payload', 'BAD_REQUEST');
+  }
+
+  const vision = await analyzeVehiclePhoto({ mimeType, imageBase64 });
+  const priorFlow =
+    session.flowState && typeof session.flowState === 'object' && !Array.isArray(session.flowState)
+      ? session.flowState
+      : {};
+
+  const photo_observations = {
+    observations: vision.observations || [],
+    summary: vision.summary || '',
+    disclaimer: vision.disclaimer || '',
+    analyzedAt: new Date().toISOString(),
+  };
+
+  await prisma.consultationSession.update({
+    where: { id: sessionId },
+    data: {
+      flowState: {
+        ...priorFlow,
+        photo_observations,
+      },
+    },
+  });
+
+  await prisma.message.create({
+    data: {
+      sessionId,
+      sender: 'SYSTEM',
+      content:
+        vision.observations?.length
+          ? `📷 По фото: ${vision.observations.slice(0, 3).join('; ')}`
+          : '📷 Фото получено. Для анализа уточните симптомы текстом.',
+    },
+  });
+
+  return {
+    photo_observations,
+    analysis_available: vision.analysis_available !== false,
+  };
 }

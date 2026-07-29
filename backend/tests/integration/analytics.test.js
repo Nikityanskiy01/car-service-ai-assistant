@@ -7,7 +7,7 @@ describe('analytics', () => {
   beforeEach(() => truncateAll());
 
   it('GET /api/analytics/summary — только ADMINISTRATOR', async () => {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'adm-an@test.local',
@@ -29,10 +29,10 @@ describe('analytics', () => {
 
     const adminLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'adm-an@test.local', password: 'password123' });
+      .send({ email: 'adm-an@test.local', password: 'Password123!ab' });
     const clientLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'cli-an@test.local', password: 'password123' });
+      .send({ email: 'cli-an@test.local', password: 'Password123!ab' });
 
     const deny = await request(app)
       .get('/api/analytics/summary')

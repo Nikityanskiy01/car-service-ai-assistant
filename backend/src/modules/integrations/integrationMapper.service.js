@@ -9,7 +9,7 @@ export function toCanonicalCustomer(serviceRequest) {
     phone: client?.phone || guestPhone || null,
     email: client?.emailProfile || client?.email || serviceRequest?.guestEmail || null,
     externalIds: {},
-    consentToPersonalData: null,
+    consentToPersonalData: true,
     consentToMarketing: null,
     comment: null,
     createdAt: serviceRequest?.createdAt?.toISOString?.() || new Date().toISOString(),

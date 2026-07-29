@@ -12,6 +12,8 @@
 
 ## 1. Первый запуск
 
+**Требования:** Node.js 22+ (см. `.nvmrc`), npm, Docker + Docker Compose.
+
 ```bash
 git clone https://github.com/Nikityanskiy01/car-service-ai-assistant.git
 cd car-service-ai-assistant
@@ -34,7 +36,17 @@ npm run dev
 | Backend API (Docker) | http://127.0.0.1:3000/api |
 | PostgreSQL (хост) | localhost:5433 |
 
-Подробнее: [docs/setup.md](setup.md).
+`docker compose` поднимает PostgreSQL 16 и (опционально) Ollama.
+
+Альтернатива без `db:setup`:
+
+```bash
+npm --prefix backend run prisma:migrate
+npm --prefix backend run db:seed
+npm --prefix backend run dev
+```
+
+Ollama без Docker: установите [Ollama](https://ollama.com/), `ollama pull qwen2.5:7b`, в `.env` — `LLM_BASE_URL=http://127.0.0.1:11434` и `LLM_MODEL=qwen2.5:7b`.
 
 ---
 
@@ -85,9 +97,9 @@ VITE_API_PROXY_TARGET=http://127.0.0.1:3001
 
 | Роль | Email | Пароль |
 |------|--------|--------|
-| Клиент | `client@example.local` | `1q2w3e4r` |
-| Менеджер | `manager@example.local` | `1q2w3e4r5t` |
-| Админ | `admin@example.local` | `1q2w3e4r5t6y` |
+| Клиент | `client@example.local` | `Client-Demo-2026!` |
+| Менеджер | `manager@example.local` | `Manager-Demo-2026!` |
+| Админ | `admin@example.local` | `Admin-Demo-2026!` |
 
 Проверка пользователей в БД:
 
@@ -118,11 +130,35 @@ node scripts/verify-login.mjs
 
 ### Администратор
 
-- Обзор — `/dashboard/admin`
-- Пользователи — `/dashboard/admin/users`
-- Интеграции — `/dashboard/admin/integrations`
-- Аналитика — `/dashboard/admin/analytics`
-- Журнал — `/dashboard/admin/audit`
+Навигация: **7 зон** в сайдбаре. Полная спека: [admin-redesign-spec.md](./admin-redesign-spec.md).
+
+| Зона | URL |
+|------|-----|
+| **Пульт** | `/dashboard/admin` |
+| **Аналитика** | `/dashboard/admin/analytics` |
+| **Операции → Заявки** | `/dashboard/admin/operations/requests` |
+| **Операции → Записи** | `/dashboard/admin/operations/bookings` |
+| **Операции → Клиенты** | `/dashboard/admin/operations/clients` |
+| **Операции → Обращения** | `/dashboard/admin/operations/contacts` |
+| **Команда → Пользователи** | `/dashboard/admin/team/users` |
+| **Команда → Активность** | `/dashboard/admin/team/activity` |
+| **ИИ → Статус** | `/dashboard/admin/ai/status` |
+| **ИИ → Сценарии** | `/dashboard/admin/ai/scenarios` |
+| **ИИ → Справочники** | `/dashboard/admin/ai/reference` |
+| **ИИ → Память кейсов** | `/dashboard/admin/ai/memory` |
+| **ИИ → Обратная связь** | `/dashboard/admin/ai/feedback` |
+| **Сайт → Контент** | `/dashboard/admin/site/items` |
+| **Сайт → Блоки** | `/dashboard/admin/site/blocks` |
+| **Сайт → Оформление** | `/dashboard/admin/site/appearance` |
+| **Сайт → Юр. данные** | `/dashboard/admin/site/legal` |
+| **Интеграции** | `/dashboard/admin/integrations` |
+| **Интеграции → Очередь** | `/dashboard/admin/integrations/jobs` |
+| **Интеграции → Конфликты** | `/dashboard/admin/integrations/conflicts` |
+| **Безопасность → Журнал** | `/dashboard/admin/security/audit` |
+
+**Горячие клавиши:** `Ctrl+K` — command palette (поиск по разделам и действиям).
+
+Старые URL (`/dashboard/admin/users`, `/dashboard/admin/audit`) редиректят на новые.
 
 ---
 
@@ -192,9 +228,10 @@ LLM_MODEL=qwen2.5:7b
 
 ## 7. Документация
 
-- [Установка](setup.md)
 - [Архитектура](architecture.md)
 - [Тестирование](testing.md)
+- [Self-host Proxmox](proxmox-selfhost.md)
+- [Демо-сценарий](demo-defense.md)
 - [OpenAPI](../specs/001-ai-consultation-platform/contracts/openapi.yaml)
 
 ---

@@ -14,7 +14,7 @@ describe('auth', () => {
 
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email, password: 'password123' });
+      .send({ email, password: 'Password123!ab' });
     expect(login.status).toBe(200);
     expect(login.body.accessToken).toBeTruthy();
   });
@@ -27,6 +27,7 @@ describe('auth', () => {
         password: 'onlyletters',
         fullName: 'Test',
         phone: '8-999-111-22-33',
+        consentPersonalData: true,
       });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/цифр/i);
@@ -40,6 +41,7 @@ describe('auth', () => {
         password: '12345678',
         fullName: 'Test',
         phone: '8-999-111-22-44',
+        consentPersonalData: true,
       });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/букв/i);
@@ -53,6 +55,7 @@ describe('auth', () => {
         password: 'Пароль123',
         fullName: 'Test',
         phone: '8-999-111-22-55',
+        consentPersonalData: true,
       });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/кирилл/i);
@@ -63,11 +66,25 @@ describe('auth', () => {
       .post('/api/auth/register')
       .send({
         email: 'badphone@test.local',
-        password: 'password123',
+        password: 'Password123!ab',
         fullName: 'Test',
         phone: '12',
+        consentPersonalData: true,
       });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/телефон/i);
+  });
+
+  it('register rejects without consent', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'noconsent@test.local',
+        password: 'Password123!ab',
+        fullName: 'Test',
+        phone: '8-999-111-22-66',
+        consentPersonalData: false,
+      });
+    expect(res.status).toBe(400);
   });
 });

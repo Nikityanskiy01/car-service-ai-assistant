@@ -1,12 +1,24 @@
+import type { ServiceBooking } from '../../types/dashboard';
+
 interface BookingItem {
   id: string;
   preferredAt: string;
   status: string;
   guestName?: string | null;
-  client?: { fullName?: string | null } | null;
+  guestPhone?: string | null;
+  notes?: string | null;
+  serviceRequestId?: string | null;
+  client?: { fullName?: string | null; phone?: string | null } | null;
+  serviceRequest?: { id: string; status: string } | null;
 }
 
-export function BookingCalendar({ bookings }: { bookings: BookingItem[] }) {
+export function BookingCalendar({
+  bookings,
+  onSelect,
+}: {
+  bookings: BookingItem[];
+  onSelect?: (booking: ServiceBooking) => void;
+}) {
   const grouped = bookings.reduce<Record<string, BookingItem[]>>((acc, booking) => {
     const day = new Date(booking.preferredAt).toLocaleDateString();
     acc[day] = acc[day] || [];
@@ -27,9 +39,29 @@ export function BookingCalendar({ bookings }: { bookings: BookingItem[] }) {
               <ul>
                 {items.map((item) => (
                   <li key={item.id}>
-                    <strong>{new Date(item.preferredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong>
-                    <span>{item.client?.fullName || item.guestName || 'Клиент'}</span>
-                    <small>{item.status}</small>
+                    {onSelect ? (
+                      <button type="button" className="booking-list-btn" onClick={() => onSelect(item as ServiceBooking)}>
+                        <strong>
+                          {new Date(item.preferredAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </strong>
+                        <span>{item.client?.fullName || item.guestName || 'Клиент'}</span>
+                        <small>{item.status}</small>
+                      </button>
+                    ) : (
+                      <>
+                        <strong>
+                          {new Date(item.preferredAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </strong>
+                        <span>{item.client?.fullName || item.guestName || 'Клиент'}</span>
+                        <small>{item.status}</small>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

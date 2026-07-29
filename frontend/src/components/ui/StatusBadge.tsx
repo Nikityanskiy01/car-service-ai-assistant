@@ -4,6 +4,8 @@ import type { ServiceRequestStatus } from '../../types/serviceRequest';
 const GENERIC_LABELS: Record<string, string> = {
   PENDING: 'Ожидает',
   CONFIRMED: 'Подтверждена',
+  ARRIVED: 'Приехал',
+  NO_SHOW: 'Не приехал',
   CANCELLED: 'Отменена',
   COMPLETED: 'Завершена',
 };

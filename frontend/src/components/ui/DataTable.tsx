@@ -2,7 +2,7 @@ export function DataTable({
   columns,
   rows,
 }: {
-  columns: Array<{ key: string; label: string }>;
+  columns: Array<{ key: string; label: React.ReactNode }>;
   rows: Array<Record<string, React.ReactNode>>;
 }) {
   return (

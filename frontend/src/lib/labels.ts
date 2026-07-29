@@ -52,10 +52,23 @@ export const INTEGRATION_JOB_STATUS_LABELS: Record<string, string> = {
 };
 
 export const URGENCY_LABELS: Record<string, string> = {
-  LOW: 'Низкая',
-  MEDIUM: 'Средняя',
-  HIGH: 'Высокая',
-  CRITICAL: 'Критическая',
+  low: 'Низкая',
+  medium: 'Средняя',
+  high: 'Высокая',
+  critical: 'Критическая',
+};
+
+export const CONTACT_STATUS_LABELS: Record<string, string> = {
+  NEW: 'Новое',
+  IN_PROGRESS: 'В работе',
+  CONVERTED: 'Конвертировано',
+  CLOSED: 'Закрыто',
+};
+
+export const CONTACT_SOURCE_LABELS: Record<string, string> = {
+  contact_form: 'Форма контактов',
+  about_page: 'Страница «О нас»',
+  widget: 'Виджет',
 };
 
 export function formatRequestNumber(id: string): string {

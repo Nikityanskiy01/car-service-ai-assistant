@@ -152,7 +152,7 @@ description: "Task list — AI consultation platform (Express + vanilla frontend
 
 - [X] T053 [P] [—] **Security** automated suite `backend/tests/security/` or Jest tags: XSS-safe JSON responses, SQLi via Prisma only, JWT tampering, cross-role access (TR-006)
 - [X] T054 [—] **Performance** script `tests/perf/k6-consultation.js` (or Artillery) — document p95 methodology for FR-042a–042b; optional FR-042c sampling notes
-- [X] T055 [—] **Manual** TR-007 checklist execution; record results for thesis appendix (usability, mobile, manager/admin flows) — см. [`docs/manual-acceptance-tr007.md`](../../docs/manual-acceptance-tr007.md)
+- [X] T055 [—] **Manual** TR-007 checklist execution; record results in acceptance doc (usability, mobile, manager/admin flows) — см. [`docs/manual-acceptance-tr007.md`](../../docs/manual-acceptance-tr007.md)
 - [X] T056 [P] [—] Root `README.md` — how to run backend, frontend, Prisma, Ollama, Telegram
 - [X] T057 [—] Align implemented routes with [contracts/openapi.yaml](./contracts/openapi.yaml); update contract when API changes
 

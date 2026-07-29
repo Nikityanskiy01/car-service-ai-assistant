@@ -6,6 +6,7 @@ import { DataTable } from '../../components/ui/DataTable';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
+import { resolveAdminBreadcrumbs } from '../../config/adminRoutes';
 import { usePageMeta } from '../../hooks/usePageMeta';
 
 export function AdminCmsPage() {
@@ -27,8 +28,9 @@ export function AdminCmsPage() {
   return (
     <div className="stack dashboard-page">
       <PageHeader
-        title="Содержимое сайта"
-        description="Блоки главной, услуг, работ и галереи. Редактирование через формы — в следующих версиях API."
+        title="Услуги и галерея"
+        description="Блоки главной, услуг, работ и галереи. Полное редактирование — в фазе C."
+        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/site/items')}
       />
       <Card>
         {!items.length ? (

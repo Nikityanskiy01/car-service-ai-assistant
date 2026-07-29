@@ -17,6 +17,8 @@ export function csrfProtection(req, res, next) {
   if (method === 'POST' && fullPath === '/api/auth/register') return next();
   if (method === 'POST' && fullPath === '/api/auth/refresh') return next();
 
+  if (fullPath.startsWith('/api/webhooks/')) return next();
+
   const hasAuthCookie = !!(req.cookies?.[COOKIE_ACCESS] || req.cookies?.[COOKIE_REFRESH]);
   if (!hasAuthCookie) return next();
 

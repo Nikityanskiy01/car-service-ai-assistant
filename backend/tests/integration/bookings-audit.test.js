@@ -21,7 +21,7 @@ describe('bookings patch + audit (staff)', () => {
   }
 
   async function createStaff(email, role) {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     return prisma.user.create({
       data: {
         email,
@@ -40,7 +40,7 @@ describe('bookings patch + audit (staff)', () => {
 
     const mgrLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr-audit@test.local', password: 'password123' });
+      .send({ email: 'mgr-audit@test.local', password: 'Password123!ab' });
     const mgrToken = mgrLogin.body.accessToken;
 
     const patch = await request(app)
@@ -60,7 +60,7 @@ describe('bookings patch + audit (staff)', () => {
 
     const admLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'adm-audit@test.local', password: 'password123' });
+      .send({ email: 'adm-audit@test.local', password: 'Password123!ab' });
     const admToken = admLogin.body.accessToken;
 
     const auditRes = await request(app)
@@ -78,7 +78,7 @@ describe('bookings patch + audit (staff)', () => {
     await createStaff('mgr-only@test.local', 'MANAGER');
     const mgrLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr-only@test.local', password: 'password123' });
+      .send({ email: 'mgr-only@test.local', password: 'Password123!ab' });
     const mgrToken = mgrLogin.body.accessToken;
 
     const auditRes = await request(app)
@@ -92,7 +92,7 @@ describe('bookings patch + audit (staff)', () => {
     await createStaff('mgr-same@test.local', 'MANAGER');
     const mgrLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr-same@test.local', password: 'password123' });
+      .send({ email: 'mgr-same@test.local', password: 'Password123!ab' });
     const mgrToken = mgrLogin.body.accessToken;
 
     const patch = await request(app)

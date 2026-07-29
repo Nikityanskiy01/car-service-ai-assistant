@@ -15,7 +15,7 @@ gallery, works, location, login, register, consult, three dashboards). Shared **
 (`base`, `layout`, `components`) and **ES modules** under `frontend/js/` for `fetch` to REST,
 token storage, chat UI, and dashboard tables.
 
-**Rationale**: Matches thesis requirement for explicit HTML5/CSS3/JS without React/Vite; keeps
+**Rationale**: Matches project requirement for explicit HTML5/CSS3/JS without React/Vite; keeps
 deployment simple (Express `static` middleware or any static host).
 
 **Alternatives**: Single-page bundle with Vite — rejected by user brief; improves DX but violates
@@ -30,7 +30,7 @@ stated constraint.
 `notifications`, `admin`, `reference`). **Central** error middleware and **Zod/Joi** validation
 on body/query.
 
-**Rationale**: User-mandated stack; clear mapping to thesis chapter “архитектура серверной части”.
+**Rationale**: User-mandated stack; clear separation of server architecture layers.
 
 **Alternatives**: NestJS — not used per new brief; Fastify — possible but Express specified.
 

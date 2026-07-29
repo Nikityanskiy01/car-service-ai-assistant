@@ -1,23 +1,27 @@
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Menu, Search } from 'lucide-react';
-import { useAuth } from '../../../auth/AuthProvider';
-import { useAppRuntime } from '../../../app/providers/AppRuntimeProvider';
+import { AdminStatusStrip } from '../../admin/AdminStatusStrip';
+import { RoleSwitcher } from '../../dashboard/RoleSwitcher';
+import { useAdminSystemStatus } from '../../../hooks/useAdminSystemStatus';
 import { ThemeToggle } from '../ThemeToggle';
-import { DemoModeBanner } from '../../product/DemoModeBanner';
-import { Button } from '../../ui/Button';
-import { UserAvatar } from '../../ui/UserAvatar';
+import { UserMenu } from './UserMenu';
 
 export function DashboardTopbar({
   title,
+  roleLabel,
   onMenuClick,
   integrationIssues,
+  adminZone,
+  onCommandPalette,
 }: {
   title: string;
+  roleLabel?: string;
   onMenuClick: () => void;
   integrationIssues?: number;
+  adminZone?: boolean;
+  onCommandPalette?: () => void;
 }) {
-  const { user, logout } = useAuth();
-  const { demoMode } = useAppRuntime();
+  const systemStatus = useAdminSystemStatus(!!adminZone);
 
   return (
     <header className="dashboard-topbar">
@@ -25,36 +29,50 @@ export function DashboardTopbar({
         <button type="button" className="dashboard-topbar-menu" onClick={onMenuClick} aria-label="Открыть меню">
           <Menu size={18} />
         </button>
-        <h2 className="dashboard-topbar-title">{title}</h2>
+        <div className="dashboard-topbar-heading">
+          <h2 className="dashboard-topbar-title">{title}</h2>
+          {roleLabel ? <span className="dashboard-role-chip">{roleLabel}</span> : null}
+        </div>
       </div>
-      <div className="dashboard-topbar-center">
-        <label className="dashboard-search" aria-label="Поиск">
-          <Search size={16} />
-          <input type="search" placeholder="Поиск заявок и клиентов…" disabled title="Скоро" />
-        </label>
-      </div>
+      {adminZone ? (
+        <AdminStatusStrip
+          llm={systemStatus.llm}
+          integrationIssues={systemStatus.integrationIssues || integrationIssues || 0}
+          failedJobs={systemStatus.failedJobs}
+          newRequests={systemStatus.newRequests}
+          loading={systemStatus.loading}
+        />
+      ) : null}
       <div className="dashboard-topbar-right">
-        {integrationIssues ? (
+        {adminZone && onCommandPalette ? (
+          <button
+            type="button"
+            className="dashboard-command-trigger"
+            onClick={onCommandPalette}
+            aria-label="Командная палитра"
+            title="Командная палитра (Ctrl+K)"
+          >
+            <Search size={16} />
+            <span>Поиск</span>
+            <kbd>Ctrl+K</kbd>
+          </button>
+        ) : null}
+        <RoleSwitcher />
+        {!adminZone && integrationIssues ? (
           <Link to="/dashboard/admin/integrations" className="dashboard-integration-alert" title="Проблемы интеграций">
             <AlertTriangle size={16} />
             <span>{integrationIssues}</span>
           </Link>
         ) : null}
-        <DemoModeBanner enabled={demoMode} />
         <ThemeToggle />
-        {user ? (
-          <div className="dashboard-profile">
-            <UserAvatar name={user.fullName || user.email} />
-            <div className="dashboard-profile-meta">
-              <strong>{user.fullName || 'Пользователь'}</strong>
-              <small>{user.email}</small>
-            </div>
-            <Button variant="ghost" onClick={() => void logout()}>
-              Выйти
-            </Button>
-          </div>
-        ) : null}
+        <UserMenu profilePath={profilePath(roleLabel)} />
       </div>
     </header>
   );
+}
+
+function profilePath(roleLabel?: string) {
+  if (roleLabel === 'Администратор') return '/dashboard/admin/profile';
+  if (roleLabel === 'Менеджер') return '/dashboard/manager/profile';
+  return '/dashboard/client/profile';
 }

@@ -4,7 +4,7 @@ import prisma from '../../src/lib/prisma.js';
 import { app, registerClient, truncateAll } from '../helpers.js';
 
 async function seedManager() {
-  const hash = await bcrypt.hash('password123', 8);
+  const hash = await bcrypt.hash('Password123!ab', 8);
   return prisma.user.create({
     data: {
       email: 'mgr2@test.local',
@@ -41,7 +41,7 @@ describe('service requests manager', () => {
 
     const mgrLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr2@test.local', password: 'password123' });
+      .send({ email: 'mgr2@test.local', password: 'Password123!ab' });
     const mt = mgrLogin.body.accessToken;
 
     const list = await request(app).get('/api/service-requests').set('Authorization', `Bearer ${mt}`);

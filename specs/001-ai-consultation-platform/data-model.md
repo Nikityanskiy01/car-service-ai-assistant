@@ -25,7 +25,7 @@ clarifications in spec (six-field completion gate, five request statuses, FR-016
 | Entity | Purpose |
 |--------|---------|
 | **User** | Учётная запись: email, hash пароля, ФИО, телефон, опциональный email в профиле, роль, блокировка |
-| **Role** | Либо enum на User, либо таблица Role + User.roleId — для ВКР достаточно enum на User |
+| **Role** | Либо enum на User, либо таблица Role + User.roleId — для MVP достаточно enum на User |
 | **ConsultationSession** | Сессия ИИ-консультации: клиент, статус, прогресс %, уверенность, стоимость «от», связь с категорией услуги |
 | **Message** | Сообщения диалога консультации (не путать с перепиской по заявке) |
 | **ExtractedDiagnosticData** | 1:1 к сессии: марка, модель, год, пробег, симптомы, условия |

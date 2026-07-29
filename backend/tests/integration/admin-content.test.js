@@ -7,7 +7,7 @@ describe('admin reference', () => {
   beforeEach(() => truncateAll());
 
   async function adminToken() {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'adm2@test.local',
@@ -19,7 +19,7 @@ describe('admin reference', () => {
     });
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'adm2@test.local', password: 'password123' });
+      .send({ email: 'adm2@test.local', password: 'Password123!ab' });
     return login.body.accessToken;
   }
 

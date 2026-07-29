@@ -67,12 +67,12 @@ flowchart TB
 ## Развёртывание
 
 Локально: `docker compose` (Postgres + Ollama) + `npm run dev` (frontend + backend).  
-Подробности: [setup.md](./setup.md).
+Подробности: [ONBOARDING.md](./ONBOARDING.md).
 
 ## Связанные документы
 
-- [setup.md](./setup.md) — установка
+- [ONBOARDING.md](./ONBOARDING.md) — установка и запуск
 - [testing.md](./testing.md) — тесты
 - [manual-acceptance-tr007.md](./manual-acceptance-tr007.md) — TR-007
-- [demo-defense.md](./demo-defense.md) — сценарий защиты
+- [demo-defense.md](./demo-defense.md) — демо-сценарий
 - [specs/001-ai-consultation-platform/contracts/openapi.yaml](../specs/001-ai-consultation-platform/contracts/openapi.yaml) — REST API

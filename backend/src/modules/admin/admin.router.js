@@ -5,7 +5,10 @@ import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody } from '../../middleware/validate.js';
 import * as adminService from './admin.service.js';
+import * as adminAiMemoryService from './adminAiMemory.service.js';
+import * as siteSettingsService from './siteSettings.service.js';
 import * as referenceService from '../reference/reference.service.js';
+import { getLlmStatus } from '../../services/llmStatus.service.js';
 import { logger } from '../../lib/logger.js';
 
 const roleSchema = z.object({
@@ -111,7 +114,16 @@ const cmsItemSchema = z.object({
   description: z.string().max(5000).optional(),
   price: z.string().max(120).optional(),
   category: z.string().max(120).optional(),
-  imageUrl: z.string().url().max(2000).optional().or(z.literal('')),
+  imageUrl: z
+    .union([
+      z.literal(''),
+      z
+        .string()
+        .url()
+        .max(2000)
+        .refine((u) => /^https:/i.test(u), { message: 'imageUrl must be https://' }),
+    ])
+    .optional(),
   problem: z.string().max(2000).optional(),
   result: z.string().max(2000).optional(),
   term: z.string().max(200).optional(),
@@ -124,9 +136,121 @@ const cmsReorderSchema = z.object({
   ids: z.array(z.string().uuid()).min(1),
 });
 
+const memorySearchSchema = z.object({
+  symptoms: z.string().min(1).max(4000),
+  make: z.string().max(120).optional(),
+  model: z.string().max(120).optional(),
+  conditions: z.string().max(4000).optional(),
+  limit: z.number().int().min(1).max(20).optional(),
+});
+
+const memoryBackfillSchema = z.object({
+  limit: z.number().int().min(1).max(2000).optional(),
+  dryRun: z.boolean().optional(),
+});
+
+const siteSettingsPatchSchema = z
+  .object({
+    productName: z.string().min(1).max(200).optional(),
+    shortName: z.string().min(1).max(80).optional(),
+    description: z.string().max(500).optional(),
+    logoUrl: z.union([z.literal(''), z.string().url().max(2000)]).optional().nullable(),
+    supportEmail: z.union([z.literal(''), z.string().email().max(200)]).optional().nullable(),
+    phone: z.string().max(40).optional().nullable(),
+    address: z.string().max(300).optional().nullable(),
+    workingHours: z.string().max(120).optional(),
+    mapUrl: z.union([z.literal(''), z.string().url().max(2000)]).optional().nullable(),
+    assistantName: z.string().min(1).max(120).optional(),
+    footerCaption: z.string().max(300).optional(),
+    theme: z
+      .object({
+        primary: z.string().max(20).optional(),
+        secondary: z.string().max(20).optional(),
+        accent: z.string().max(20).optional(),
+      })
+      .optional(),
+    legal: z
+      .object({
+        legalName: z.string().max(300).optional(),
+        ogrn: z.string().max(20).optional(),
+        inn: z.string().max(20).optional(),
+        legalAddress: z.string().max(300).optional(),
+        privacyEmail: z.union([z.literal(''), z.string().email().max(200)]).optional(),
+      })
+      .optional(),
+  })
+  .refine((o) => Object.keys(o).length > 0, { message: 'At least one field required' });
+
 export const adminRouter = Router();
 adminRouter.use(authJwt);
 adminRouter.use(requireRole('ADMINISTRATOR'));
+
+adminRouter.get(
+  '/llm-status',
+  asyncHandler(async (req, res) => {
+    const probe = String(req.query.probe || '').toLowerCase() === 'true';
+    const status = await getLlmStatus({ probe });
+    res.json(status);
+  }),
+);
+
+adminRouter.get(
+  '/llm-eval',
+  asyncHandler(async (_req, res) => {
+    const { runConsultationEval } = await import('../eval/consultationEval.service.js');
+    const report = runConsultationEval();
+    res.json({
+      ok: report.ok,
+      total: report.total,
+      passed: report.passed,
+      failedCount: report.failed.length,
+      promptOk: !report.promptIssues?.length,
+      checkedAt: report.checkedAt,
+      failed: report.failed.slice(0, 5),
+    });
+  }),
+);
+
+adminRouter.get(
+  '/ai/memory/stats',
+  asyncHandler(async (_req, res) => {
+    res.json(await adminAiMemoryService.getCaseMemoryStats());
+  }),
+);
+
+adminRouter.post(
+  '/ai/memory/search',
+  validateBody(memorySearchSchema),
+  asyncHandler(async (req, res) => {
+    res.json(await adminAiMemoryService.searchCaseMemory(req.validatedBody));
+  }),
+);
+
+adminRouter.post(
+  '/ai/memory/backfill',
+  validateBody(memoryBackfillSchema),
+  asyncHandler(async (req, res) => {
+    const result = await adminAiMemoryService.runCaseMemoryBackfill(req.validatedBody);
+    logger.info({ action: 'CASE_MEMORY_BACKFILL', adminId: req.user.id, ...result }, 'admin case memory backfill');
+    res.json(result);
+  }),
+);
+
+adminRouter.get(
+  '/site-settings',
+  asyncHandler(async (_req, res) => {
+    res.json(await siteSettingsService.getSiteSettings());
+  }),
+);
+
+adminRouter.patch(
+  '/site-settings',
+  validateBody(siteSettingsPatchSchema),
+  asyncHandler(async (req, res) => {
+    siteSettingsService.validateSiteSettingsPatch(req.validatedBody);
+    res.json(await siteSettingsService.patchSiteSettings(req.user.id, req.validatedBody));
+  }),
+);
 
 adminRouter.get(
   '/users',

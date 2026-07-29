@@ -27,7 +27,7 @@ describe('rbac', () => {
   });
 
   it('allows manager list when user is MANAGER', async () => {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'mgr@test.local',
@@ -39,7 +39,7 @@ describe('rbac', () => {
     });
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr@test.local', password: 'password123' });
+      .send({ email: 'mgr@test.local', password: 'Password123!ab' });
     const res = await request(app)
       .get('/api/service-requests')
       .set('Authorization', `Bearer ${login.body.accessToken}`);

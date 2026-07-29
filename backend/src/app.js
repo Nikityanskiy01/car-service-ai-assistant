@@ -58,17 +58,29 @@ export function createApp() {
           : false,
     }),
   );
-  // В development запросы с того же ПК по LAN-IP (192.168.x.x) иначе не проходят CORS при origin=localhost только
+  // development: любой origin (LAN). production/test: только явный CORS_ORIGIN (без fallback true).
   const corsOrigin =
-    env.NODE_ENV === 'development' ? true : env.CORS_ORIGIN || true;
+    env.NODE_ENV === 'development'
+      ? true
+      : String(env.CORS_ORIGIN || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
   app.use(
     cors({
-      origin: corsOrigin,
+      origin: corsOrigin.length ? corsOrigin : false,
       credentials: true,
     }),
   );
   app.use(cookieParser());
-  app.use(express.json({ limit: '1mb' }));
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
   app.use((req, res, next) => {
     const incoming = req.headers['x-request-id'];
     const requestId = typeof incoming === 'string' && incoming.trim() ? incoming.trim() : crypto.randomUUID();

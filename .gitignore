@@ -23,17 +23,35 @@ backend/coverage/
 *.tmp
 Thumbs.db
 
-# Локальные данные Cursor (правила в репозитории обычно не нужны — при необходимости уберите эту строку)
+# Proxmox / ops leftovers — never commit
+.tmp-pve-*
+
+# Agent skill installs (use local ~/.cursor/skills; do not duplicate in repo)
+.agents/
+.augment/
+.claude/
+.codebuddy/
+.codewhale/
+.continue/
+.factory/
+.gemini/
+.kilocode/
+.kiro/
+.opencode/
+.qoder/
+.roo/
+.trae/
+.warp/
+.windsurf/
+
+# Локальные данные Cursor
 .cursor/
 
-# LaTeX / thesis build artifacts
-thesis/*.aux
-thesis/*.log
-thesis/*.out
-thesis/*.toc
-thesis/*.synctex.gz
-thesis/*.fdb_latexmk
-thesis/*.fls
+# Academic binary clutter (keep markdown docs only)
+docs/*.pdf
+docs/*.docx
+docs/*.pptx
+Sample/
 
 # Demo screenshots (optional local captures; keep folder)
 docs/screenshots/*

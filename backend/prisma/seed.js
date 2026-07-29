@@ -3,13 +3,31 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const [hashUserDemo, hashManagerDemo, hashAdminDemo] = await Promise.all([
-    bcrypt.hash('1q2w3e4r', 10),
-    bcrypt.hash('1q2w3e4r5t', 10),
-    bcrypt.hash('1q2w3e4r5t6y', 10),
-  ]);
+const accounts = [
+  {
+    email: 'client@example.local',
+    password: 'Client-Demo-2026!',
+    fullName: 'Иван Петров',
+    phone: '+79990000001',
+    role: 'CLIENT',
+  },
+  {
+    email: 'manager@example.local',
+    password: 'Manager-Demo-2026!',
+    fullName: 'Марина Орлова',
+    phone: '+79990000002',
+    role: 'MANAGER',
+  },
+  {
+    email: 'admin@example.local',
+    password: 'Admin-Demo-2026!',
+    fullName: 'Админ Демо',
+    phone: '+79990000003',
+    role: 'ADMINISTRATOR',
+  },
+];
 
+async function main() {
   await prisma.serviceCategory.upsert({
     where: { slug: 'diagnostics' },
     update: {},
@@ -31,62 +49,30 @@ async function main() {
     });
   }
 
-  await prisma.user.upsert({
-    where: { email: 'client@example.local' },
-    update: {
-      passwordHash: hashUserDemo,
-      fullName: 'Тестовый клиент',
-      phone: '+70000000100',
-      role: 'CLIENT',
-    },
-    create: {
-      email: 'client@example.local',
-      passwordHash: hashUserDemo,
-      fullName: 'Тестовый клиент',
-      phone: '+70000000100',
-      role: 'CLIENT',
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'manager@example.local' },
-    update: {
-      passwordHash: hashManagerDemo,
-      fullName: 'Тестовый менеджер',
-      phone: '+70000000101',
-      role: 'MANAGER',
-    },
-    create: {
-      email: 'manager@example.local',
-      passwordHash: hashManagerDemo,
-      fullName: 'Тестовый менеджер',
-      phone: '+70000000101',
-      role: 'MANAGER',
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'admin@example.local' },
-    update: {
-      passwordHash: hashAdminDemo,
-      fullName: 'Тестовый администратор',
-      phone: '+70000000102',
-      role: 'ADMINISTRATOR',
-    },
-    create: {
-      email: 'admin@example.local',
-      passwordHash: hashAdminDemo,
-      fullName: 'Тестовый администратор',
-      phone: '+70000000102',
-      role: 'ADMINISTRATOR',
-    },
-  });
+  for (const account of accounts) {
+    const passwordHash = await bcrypt.hash(account.password, 10);
+    await prisma.user.upsert({
+      where: { email: account.email },
+      update: {
+        passwordHash,
+        fullName: account.fullName,
+        phone: account.phone,
+        role: account.role,
+        blocked: false,
+      },
+      create: {
+        email: account.email,
+        passwordHash,
+        fullName: account.fullName,
+        phone: account.phone,
+        role: account.role,
+      },
+    });
+  }
 
   console.log(
     'Seed OK:\n' +
-      '  client@example.local / 1q2w3e4r (клиент)\n' +
-      '  manager@example.local / 1q2w3e4r5t (менеджер)\n' +
-      '  admin@example.local / 1q2w3e4r5t6y (админ)',
+      accounts.map((a) => `  ${a.email} / ${a.password} (${a.role})`).join('\n'),
   );
 }
 

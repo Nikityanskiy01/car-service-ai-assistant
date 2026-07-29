@@ -1,31 +1,25 @@
 import { passwordMeetsPolicy, PASSWORD_POLICY_MESSAGE } from '../../src/lib/passwordPolicy.js';
 
-describe('passwordPolicy', () => {
-  it('accepts 8+ chars with Latin letter and digit', () => {
-    expect(passwordMeetsPolicy('password123')).toBe(true);
-    expect(passwordMeetsPolicy('abc12345')).toBe(true);
+describe('password policy', () => {
+  it('accepts strong latin passwords', () => {
+    expect(passwordMeetsPolicy('Password123!ab')).toBe(true);
+    expect(passwordMeetsPolicy('Str0ng!Pass#99')).toBe(true);
   });
 
-  it('rejects Cyrillic in password', () => {
-    expect(passwordMeetsPolicy('Пароль99')).toBe(false);
-    expect(passwordMeetsPolicy('pass123кириллица')).toBe(false);
+  it('rejects cyrillic', () => {
+    expect(passwordMeetsPolicy('Пароль99Ab!x')).toBe(false);
+    expect(passwordMeetsPolicy('Pass123!кириллица')).toBe(false);
   });
 
-  it('rejects too short', () => {
-    expect(passwordMeetsPolicy('ab1')).toBe(false);
-    expect(passwordMeetsPolicy('1234567')).toBe(false);
+  it('rejects short / weak', () => {
+    expect(passwordMeetsPolicy('Ab1!')).toBe(false);
+    expect(passwordMeetsPolicy('password123')).toBe(false);
+    expect(passwordMeetsPolicy('Password1234')).toBe(false); // no special
+    expect(passwordMeetsPolicy('PASSWORD123!')).toBe(false); // no lower
+    expect(passwordMeetsPolicy('password123!')).toBe(false); // no upper
   });
 
-  it('rejects without digit', () => {
-    expect(passwordMeetsPolicy('abcdefgh')).toBe(false);
-  });
-
-  it('rejects without letter', () => {
-    expect(passwordMeetsPolicy('12345678')).toBe(false);
-  });
-
-  it('exports Russian policy message', () => {
-    expect(PASSWORD_POLICY_MESSAGE).toContain('8');
-    expect(PASSWORD_POLICY_MESSAGE).toMatch(/цифр/i);
+  it('exposes message', () => {
+    expect(PASSWORD_POLICY_MESSAGE).toMatch(/12/);
   });
 });

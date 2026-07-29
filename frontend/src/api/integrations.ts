@@ -84,6 +84,10 @@ export function listIntegrationConflicts(id: string) {
   return api<IntegrationConflict[]>(`/admin/integrations/${id}/conflicts`);
 }
 
+export function listAllIntegrationConflicts() {
+  return api<IntegrationConflict[]>(`/admin/integration-conflicts`);
+}
+
 export function retryIntegrationJob(jobId: string) {
   return api<IntegrationJob>(`/admin/integration-jobs/${jobId}/retry`, { method: 'POST', body: {} });
 }
@@ -101,6 +105,12 @@ export function resolveIntegrationConflict(
     method: 'POST',
     body: { resolution, note },
   });
+}
+
+export function listManagerIntegrations() {
+  return api<Array<Pick<IntegrationConnection, 'id' | 'name' | 'provider' | 'status' | 'enabled' | 'capabilities'>>>(
+    '/manager/integrations',
+  );
 }
 
 export function getRequestIntegrations(requestId: string) {

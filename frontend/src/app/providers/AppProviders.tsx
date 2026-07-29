@@ -1,13 +1,16 @@
 import { AuthProvider } from '../../auth/AuthProvider';
+import { ProductConfigProvider } from '../../config/ProductConfigProvider';
 import { AppRuntimeProvider } from './AppRuntimeProvider';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider>
-      <AppRuntimeProvider>
-        <AuthProvider>{children}</AuthProvider>
-      </AppRuntimeProvider>
-    </ThemeProvider>
+    <ProductConfigProvider>
+      <ThemeProvider>
+        <AppRuntimeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </AppRuntimeProvider>
+      </ThemeProvider>
+    </ProductConfigProvider>
   );
 }

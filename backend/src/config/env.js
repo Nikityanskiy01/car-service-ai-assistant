@@ -11,13 +11,20 @@ const schema = z.object({
     .default('true')
     .transform((v) => v === 'true' || v === '1'),
   DATABASE_URL: z.string().min(1),
-  JWT_SECRET: z.string().min(16),
+  JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default('30m'),
   REFRESH_TOKEN_EXPIRES_DAYS: z.coerce.number().default(7),
   CORS_ORIGIN: z.string().optional().refine(
     (v) =>
       process.env.NODE_ENV !== 'production' || (typeof v === 'string' && v.trim().length > 0),
     { message: 'CORS_ORIGIN is required in production' },
+  ),
+  INTEGRATION_ENCRYPTION_KEY: z.string().optional().refine(
+    (v) =>
+      process.env.NODE_ENV !== 'production' ||
+      process.env.NODE_ENV === 'test' ||
+      (typeof v === 'string' && v.trim().length >= 32),
+    { message: 'INTEGRATION_ENCRYPTION_KEY (min 32 chars) is required in production' },
   ),
   LLM_PROVIDER: z.enum(['ollama', 'openai']).default('ollama'),
   LLM_FALLBACK_ENABLED: z
@@ -45,19 +52,45 @@ const schema = z.object({
     .enum(['true', 'false', '1', '0'])
     .default('true')
     .transform((v) => v === 'true' || v === '1'),
-  TELEGRAM_BOT_TOKEN: z.string().optional(),
-  TELEGRAM_MANAGER_CHAT_IDS: z.string().optional(),
-  INTEGRATION_ENCRYPTION_KEY: z.string().optional(),
-  DEMO_MODE: z
+  /** Модель embeddings (Ollama: nomic-embed-text, OpenAI: text-embedding-3-small). */
+  LLM_EMBEDDING_MODEL: z.string().default('nomic-embed-text'),
+  CASE_MEMORY_SEMANTIC_ENABLED: z
+    .enum(['true', 'false', '1', '0'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  CASE_MEMORY_TOP_K: z.coerce.number().default(5),
+  CASE_MEMORY_LEXICAL_FALLBACK: z
+    .enum(['true', 'false', '1', '0'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  CONSULTATION_FEEDBACK_FEW_SHOT_ENABLED: z
+    .enum(['true', 'false', '1', '0'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  CONSULTATION_FEEDBACK_FEW_SHOT_LIMIT: z.coerce.number().default(3),
+  LLM_CIRCUIT_BREAKER_ENABLED: z
+    .enum(['true', 'false', '1', '0'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  LLM_CIRCUIT_FAILURE_THRESHOLD: z.coerce.number().default(5),
+  LLM_CIRCUIT_COOLDOWN_MS: z.coerce.number().default(60_000),
+  DIAGNOSIS_CACHE_ENABLED: z
+    .enum(['true', 'false', '1', '0'])
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  DIAGNOSIS_CACHE_TTL_MS: z.coerce.number().default(3_600_000),
+  DIAGNOSIS_CACHE_MAX_ENTRIES: z.coerce.number().default(200),
+  DIAGNOSIS_QUEUE_CONCURRENCY: z.coerce.number().default(2),
+  DIAGNOSIS_ASYNC_ENABLED: z
     .enum(['true', 'false', '1', '0'])
     .default('false')
     .transform((v) => v === 'true' || v === '1'),
-  DEMO_CLIENT_EMAIL: z.string().email().optional().default('client@example.local'),
-  DEMO_CLIENT_PASSWORD: z.string().optional().default('1q2w3e4r'),
-  DEMO_MANAGER_EMAIL: z.string().email().optional().default('manager@example.local'),
-  DEMO_MANAGER_PASSWORD: z.string().optional().default('1q2w3e4r5t'),
-  DEMO_ADMIN_EMAIL: z.string().email().optional().default('admin@example.local'),
-  DEMO_ADMIN_PASSWORD: z.string().optional().default('1q2w3e4r5t6y'),
+  /** Опционально: Redis для BullMQ async-диагноза. */
+  REDIS_URL: z.string().optional(),
+  LLM_VISION_MODEL: z.string().default('llava'),
+  LLM_VISION_TIMEOUT_MS: z.coerce.number().default(90000),
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_MANAGER_CHAT_IDS: z.string().optional(),
 });
 
 let cached;

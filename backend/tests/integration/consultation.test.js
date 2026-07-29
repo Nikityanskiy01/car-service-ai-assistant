@@ -94,7 +94,7 @@ describe('consultation lifecycle', () => {
   });
 
   it('manager can GET /consultations/staff and see sessions without guest token', async () => {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'mgr_staff_list@test.local',
@@ -114,7 +114,7 @@ describe('consultation lifecycle', () => {
 
     const mgrLogin = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr_staff_list@test.local', password: 'password123' });
+      .send({ email: 'mgr_staff_list@test.local', password: 'Password123!ab' });
     expect(mgrLogin.status).toBe(200);
     const mt = mgrLogin.body.accessToken;
 

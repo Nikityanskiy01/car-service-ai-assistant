@@ -1,0 +1,310 @@
+{
+  "version": 1,
+  "description": "Rule-based eval для preAnalyzeSymptoms — без живого LLM",
+  "scenarios": [
+    {
+      "id": "brake-disc-vibration",
+      "input": {
+        "symptoms": "биение руля при торможении",
+        "conditions": "при торможении на скорости"
+      },
+      "expect": { "minCauses": 1, "minUrgency": "high", "causeIncludes": ["диск"] }
+    },
+    {
+      "id": "brake-vibration-alt",
+      "input": {
+        "symptoms": "сильная вибрация руля при торможении",
+        "conditions": "на трассе"
+      },
+      "expect": { "minCauses": 2, "minUrgency": "high", "causeIncludes": ["диск"] }
+    },
+    {
+      "id": "suspension-knock-bump",
+      "input": {
+        "symptoms": "посторонний стук спереди",
+        "conditions": "на неровной дороге"
+      },
+      "expect": { "minCauses": 2, "causeIncludes": ["стабилизатор", "шаров"] }
+    },
+    {
+      "id": "suspension-knock-left",
+      "input": {
+        "symptoms": "стук слева в подвеске",
+        "conditions": "на кочках"
+      },
+      "expect": { "minCauses": 1, "urgencyIn": ["medium", "high", "critical"] }
+    },
+    {
+      "id": "engine-misfire",
+      "input": {
+        "symptoms": "двигатель троит на холостом ходу",
+        "conditions": "постоянно"
+      },
+      "expect": { "minCauses": 2, "causeIncludes": ["свеч"], "urgencyIn": ["medium", "high"] }
+    },
+    {
+      "id": "idle-misfire",
+      "input": {
+        "symptoms": "пропуски зажигания на холостых",
+        "conditions": "на холостом"
+      },
+      "expect": { "minCauses": 2, "causeIncludes": ["свеч", "форсун"] }
+    },
+    {
+      "id": "no-start-starter",
+      "input": {
+        "symptoms": "не запускается, стартер крутит но не схватывает",
+        "conditions": "утром"
+      },
+      "expect": { "minCauses": 2, "causeIncludes": ["топлив", "зажиган"] }
+    },
+    {
+      "id": "rough-idle",
+      "input": {
+        "symptoms": "плавают обороты на холостом",
+        "conditions": "после прогрева"
+      },
+      "expect": { "minCauses": 2, "causeIncludes": ["дроссель", "подсос"] }
+    },
+    {
+      "id": "overheat",
+      "input": {
+        "symptoms": "перегрев двигателя, температура растёт",
+        "conditions": "в пробке"
+      },
+      "expect": { "minCauses": 2, "minUrgency": "high", "causeIncludes": ["термостат", "радиатор"] }
+    },
+    {
+      "id": "critical-brake-pedal",
+      "input": {
+        "symptoms": "педаль тормоза проваливается, тормозит хуже",
+        "conditions": "постоянно"
+      },
+      "expect": { "urgency": "critical", "minChecks": 1 }
+    },
+    {
+      "id": "critical-steam",
+      "input": {
+        "symptoms": "пар из-под капота и рост температуры",
+        "conditions": "на ходу"
+      },
+      "expect": { "urgency": "critical", "checkIncludes": ["останов"] }
+    },
+    {
+      "id": "critical-fuel-smell",
+      "input": {
+        "symptoms": "запах бензина в салоне",
+        "conditions": "после парковки"
+      },
+      "expect": { "urgency": "critical" }
+    },
+    {
+      "id": "critical-fuel-leak",
+      "input": {
+        "symptoms": "утечка топлива под автомобилем",
+        "conditions": "на стоянке"
+      },
+      "expect": { "urgency": "critical" }
+    },
+    {
+      "id": "critical-oil-pressure",
+      "input": {
+        "symptoms": "красный индикатор давления масла горит постоянно",
+        "conditions": "на ходу"
+      },
+      "expect": { "urgency": "critical", "checkIncludes": ["заглуш"] }
+    },
+    {
+      "id": "critical-steering",
+      "input": {
+        "symptoms": "руль не слушается при движении",
+        "conditions": "на скорости"
+      },
+      "expect": { "minUrgency": "critical" }
+    },
+    {
+      "id": "critical-fire",
+      "input": {
+        "symptoms": "дым из-под капота и запах гари",
+        "conditions": "после остановки"
+      },
+      "expect": { "urgency": "critical" }
+    },
+    {
+      "id": "brake-keyword-high",
+      "input": {
+        "symptoms": "скрип при торможении",
+        "conditions": "в городе"
+      },
+      "expect": { "minUrgency": "high" }
+    },
+    {
+      "id": "temp-keyword-high",
+      "input": {
+        "symptoms": "температура двигателя выше нормы",
+        "conditions": "летом"
+      },
+      "expect": { "minUrgency": "high" }
+    },
+    {
+      "id": "steering-vibration-high",
+      "input": {
+        "symptoms": "сильная вибрация руля",
+        "conditions": "на скорости"
+      },
+      "expect": { "minUrgency": "high" }
+    },
+    {
+      "id": "engine-stall-high",
+      "input": {
+        "symptoms": "двигатель глохнет на светофоре",
+        "conditions": "на холостом"
+      },
+      "expect": { "minUrgency": "high" }
+    },
+    {
+      "id": "won't-start-medium",
+      "input": {
+        "symptoms": "машина не заводится с первого раза",
+        "conditions": "холодная"
+      },
+      "expect": { "urgencyIn": ["medium", "high", "critical"] }
+    },
+    {
+      "id": "front-right-knock",
+      "input": {
+        "symptoms": "грохот справа спереди",
+        "conditions": "на ямах"
+      },
+      "expect": { "minCauses": 1, "causeIncludes": ["стабилизатор", "амортизатор", "шаров"] }
+    },
+    {
+      "id": "check-engine-medium",
+      "input": {
+        "symptoms": "загорелся check engine, троит двигатель",
+        "conditions": "постоянно"
+      },
+      "expect": { "minCauses": 1, "urgencyIn": ["medium", "high", "critical"] }
+    },
+    {
+      "id": "ac-not-cold",
+      "input": {
+        "symptoms": "кондиционер не холодит",
+        "conditions": "жаркий день"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "battery-click",
+      "input": {
+        "symptoms": "щелчок реле, не заводится",
+        "conditions": "утром"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high", "critical"] }
+    },
+    {
+      "id": "clutch-slip",
+      "input": {
+        "symptoms": "пробуксовывает сцепление при разгоне",
+        "conditions": "на подъёме"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "gearbox-jerk",
+      "input": {
+        "symptoms": "рывки коробки передач при переключении",
+        "conditions": "на второй передаче"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "wheel-bearing-hum",
+      "input": {
+        "symptoms": "гул слева сзади на скорости",
+        "conditions": "выше 60 км/ч"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "exhaust-rattle",
+      "input": {
+        "symptoms": "дребезг снизу на холостых",
+        "conditions": "на парковке"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "power-steering-whine",
+      "input": {
+        "symptoms": "свист гур при повороте руля",
+        "conditions": "на месте"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "headlight-flicker",
+      "input": {
+        "symptoms": "мигают фары на холостом",
+        "conditions": "вечером"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "turbo-whistle",
+      "input": {
+        "symptoms": "свист турбины при разгоне",
+        "conditions": "на трассе"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "diesel-smoke-cold",
+      "input": {
+        "symptoms": "белый дым с выхлопа на холодную",
+        "conditions": "утром"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "diesel-black-smoke",
+      "input": {
+        "symptoms": "чёрный дым при разгоне дизель",
+        "conditions": "под нагрузкой"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "hybrid-ready-off",
+      "input": {
+        "symptoms": "гибрид не переходит в ready",
+        "conditions": "после зарядки"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high", "critical"] }
+    },
+    {
+      "id": "ev-charge-fail",
+      "input": {
+        "symptoms": "электромобиль не заряжается от станции",
+        "conditions": "на зарядке"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "tpms-warning",
+      "input": {
+        "symptoms": "горит индикатор давления в шинах",
+        "conditions": "после мойки"
+      },
+      "expect": { "urgencyIn": ["low", "medium", "high"] }
+    },
+    {
+      "id": "abs-light",
+      "input": {
+        "symptoms": "загорелась лампа abs, тормоза пульсируют",
+        "conditions": "после старта"
+      },
+      "expect": { "minUrgency": "high" }
+    }
+  ]
+}

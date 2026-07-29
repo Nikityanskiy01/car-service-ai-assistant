@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authJwt } from '../../middleware/authJwt.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
+import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import * as integrationsService from './integrations.service.js';
 import { INTEGRATION_CONNECTION_STATUS, INTEGRATION_JOB_STATUS, INTEGRATION_PROVIDERS } from './integration.constants.js';
@@ -146,6 +147,13 @@ integrationsAdminRouter.get(
 );
 
 integrationsAdminRouter.get(
+  '/integration-conflicts',
+  asyncHandler(async (_req, res) => {
+    res.json(await integrationsService.listConflicts());
+  }),
+);
+
+integrationsAdminRouter.get(
   '/integrations/:id/conflicts',
   asyncHandler(async (req, res) => {
     res.json(await integrationsService.listConflicts(req.params.id));
@@ -182,10 +190,17 @@ integrationsAdminRouter.post(
 );
 
 export const integrationsPublicWebhookRouter = Router();
+const webhookLimiter = createPublicWriteLimiter(60);
 integrationsPublicWebhookRouter.post(
   '/integrations/:connectionId',
+  webhookLimiter,
   asyncHandler(async (req, res) => {
-    const out = await integrationsService.handleIncomingWebhook(req.params.connectionId, req.body || null, req.headers);
+    const out = await integrationsService.handleIncomingWebhook(
+      req.params.connectionId,
+      req.body || null,
+      req.headers,
+      req.rawBody || null,
+    );
     res.status(202).json({
       id: out.id,
       status: 'accepted',
@@ -197,6 +212,25 @@ integrationsPublicWebhookRouter.post(
 export const integrationsManagerRouter = Router();
 integrationsManagerRouter.use(authJwt);
 integrationsManagerRouter.use(requireRole('MANAGER', 'ADMINISTRATOR'));
+
+integrationsManagerRouter.get(
+  '/integrations',
+  asyncHandler(async (_req, res) => {
+    const rows = await integrationsService.listConnections();
+    res.json(
+      rows
+        .filter((r) => r.enabled)
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          provider: r.provider,
+          status: r.status,
+          enabled: r.enabled,
+          capabilities: r.capabilities,
+        })),
+    );
+  }),
+);
 
 integrationsManagerRouter.get(
   '/requests/:requestId/integrations',

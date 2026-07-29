@@ -3,7 +3,13 @@ import { getEnv } from '../../config/env.js';
 
 function resolveEncryptionKey() {
   const env = getEnv();
-  const raw = String(env.INTEGRATION_ENCRYPTION_KEY || env.JWT_SECRET || '');
+  const dedicated = String(env.INTEGRATION_ENCRYPTION_KEY || '').trim();
+  if (env.NODE_ENV === 'production' && dedicated.length < 32) {
+    throw new Error('INTEGRATION_ENCRYPTION_KEY (min 32 chars) is required in production');
+  }
+  // Dev/test fallback to JWT_SECRET only when dedicated key is absent.
+  const raw = dedicated || String(env.JWT_SECRET || '');
+  if (!raw) throw new Error('INTEGRATION_ENCRYPTION_KEY or JWT_SECRET is required');
   return crypto.createHash('sha256').update(raw).digest();
 }
 

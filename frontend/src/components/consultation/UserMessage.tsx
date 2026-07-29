@@ -5,10 +5,10 @@ export function UserMessage({ message }: { message: ConsultationMessage }) {
   return (
     <article className="chat-bubble chat-bubble-user" aria-label="Сообщение пользователя">
       <header>
-        <UserRound size={14} />
-        <span>Клиент</span>
+        <UserRound size={14} aria-hidden="true" />
+        <span>Вы</span>
       </header>
-      <p>{message.content}</p>
+      <p className="chat-bubble-text">{message.content}</p>
     </article>
   );
 }

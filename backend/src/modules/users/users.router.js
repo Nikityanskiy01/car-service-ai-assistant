@@ -24,6 +24,14 @@ usersRouter.get(
   }),
 );
 
+usersRouter.get(
+  '/me/summary',
+  asyncHandler(async (req, res) => {
+    const summary = await usersService.getMeSummary(req.user.id);
+    res.json(summary);
+  }),
+);
+
 usersRouter.patch(
   '/me',
   validateBody(patchSchema),

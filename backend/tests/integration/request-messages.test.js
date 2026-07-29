@@ -25,7 +25,7 @@ describe('request follow-up messages', () => {
   beforeEach(() => truncateAll());
 
   it('posts and lists; blocks when completed', async () => {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'mgr3@test.local',
@@ -41,7 +41,7 @@ describe('request follow-up messages', () => {
 
     const ml = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr3@test.local', password: 'password123' });
+      .send({ email: 'mgr3@test.local', password: 'Password123!ab' });
     const mt = ml.body.accessToken;
 
     const p1 = await request(app)

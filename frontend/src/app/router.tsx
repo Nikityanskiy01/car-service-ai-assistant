@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { PageSuspenseFallback } from '../components/ui/PageSuspenseFallback';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
@@ -12,11 +13,28 @@ const GalleryPage = lazy(() => import('../pages/public/GalleryPage').then((m) =>
 const AboutPage = lazy(() => import('../pages/public/AboutPage').then((m) => ({ default: m.AboutPage })));
 const BookingPage = lazy(() => import('../pages/public/BookingPage').then((m) => ({ default: m.BookingPage })));
 const ConsultPage = lazy(() => import('../pages/public/ConsultPage').then((m) => ({ default: m.ConsultPage })));
+const PrivacyPage = lazy(() => import('../pages/public/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('../pages/public/TermsPage').then((m) => ({ default: m.TermsPage })));
 const LoginPage = lazy(() => import('../pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })));
-const ClientDashboardPage = lazy(() =>
-  import('../pages/dashboards/ClientDashboardPage').then((m) => ({ default: m.ClientDashboardPage })),
+const ClientOverviewPage = lazy(() =>
+  import('../pages/dashboards/client/ClientOverviewPage').then((m) => ({ default: m.ClientOverviewPage })),
 );
+const ClientCasesPage = lazy(() =>
+  import('../pages/dashboards/client/ClientCasesPage').then((m) => ({ default: m.ClientCasesPage })),
+);
+const ClientCaseDetailPage = lazy(() =>
+  import('../pages/dashboards/client/ClientCaseDetailPage').then((m) => ({ default: m.ClientCaseDetailPage })),
+);
+const ClientBookingsPage = lazy(() =>
+  import('../pages/dashboards/client/ClientBookingsPage').then((m) => ({ default: m.ClientBookingsPage })),
+);
+const ClientBookingDetailPage = lazy(() =>
+  import('../pages/dashboards/client/ClientBookingDetailPage').then((m) => ({
+    default: m.ClientBookingDetailPage,
+  })),
+);
+const ProfilePage = lazy(() => import('../pages/dashboards/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const ManagerWorkDeskPage = lazy(() =>
   import('../pages/manager/ManagerWorkDeskPage').then((m) => ({ default: m.ManagerWorkDeskPage })),
 );
@@ -35,6 +53,9 @@ const ManagerClientsPage = lazy(() =>
 const ManagerContactsPage = lazy(() =>
   import('../pages/manager/ManagerContactsPage').then((m) => ({ default: m.ManagerContactsPage })),
 );
+const ManagerAiQualityPage = lazy(() =>
+  import('../pages/manager/ManagerAiQualityPage').then((m) => ({ default: m.ManagerAiQualityPage })),
+);
 const AdminOverviewPage = lazy(() =>
   import('../pages/admin/AdminOverviewPage').then((m) => ({ default: m.AdminOverviewPage })),
 );
@@ -48,13 +69,47 @@ const AdminIntegrationDetailPage = lazy(() =>
 const AdminIntegrationJobsPage = lazy(() =>
   import('../pages/admin/AdminIntegrationJobsPage').then((m) => ({ default: m.AdminIntegrationJobsPage })),
 );
+const AdminIntegrationConflictsPage = lazy(() =>
+  import('../pages/admin/AdminIntegrationConflictsPage').then((m) => ({
+    default: m.AdminIntegrationConflictsPage,
+  })),
+);
 const AdminAnalyticsPage = lazy(() =>
   import('../pages/admin/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })),
 );
 const AdminAuditPage = lazy(() => import('../pages/admin/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage })));
-const AdminCmsPage = lazy(() => import('../pages/admin/AdminCmsPage').then((m) => ({ default: m.AdminCmsPage })));
-const AdminAppearancePage = lazy(() =>
-  import('../pages/admin/AdminAppearancePage').then((m) => ({ default: m.AdminAppearancePage })),
+const AdminSiteItemsPage = lazy(() =>
+  import('../pages/admin/site/AdminSiteItemsPage').then((m) => ({ default: m.AdminSiteItemsPage })),
+);
+const AdminSiteBlocksPage = lazy(() =>
+  import('../pages/admin/site/AdminSiteBlocksPage').then((m) => ({ default: m.AdminSiteBlocksPage })),
+);
+const AdminSiteAppearancePage = lazy(() =>
+  import('../pages/admin/site/AdminSiteAppearancePage').then((m) => ({ default: m.AdminSiteAppearancePage })),
+);
+const AdminSiteLegalPage = lazy(() =>
+  import('../pages/admin/site/AdminSiteLegalPage').then((m) => ({ default: m.AdminSiteLegalPage })),
+);
+const AdminTeamActivityPage = lazy(() =>
+  import('../pages/admin/team/AdminTeamActivityPage').then((m) => ({ default: m.AdminTeamActivityPage })),
+);
+const AdminPlaceholderPage = lazy(() =>
+  import('../pages/admin/AdminPlaceholderPage').then((m) => ({ default: m.AdminPlaceholderPage })),
+);
+const AdminAiStatusPage = lazy(() =>
+  import('../pages/admin/ai/AdminAiStatusPage').then((m) => ({ default: m.AdminAiStatusPage })),
+);
+const AdminAiScenariosPage = lazy(() =>
+  import('../pages/admin/ai/AdminAiScenariosPage').then((m) => ({ default: m.AdminAiScenariosPage })),
+);
+const AdminAiReferencePage = lazy(() =>
+  import('../pages/admin/ai/AdminAiReferencePage').then((m) => ({ default: m.AdminAiReferencePage })),
+);
+const AdminAiFeedbackPage = lazy(() =>
+  import('../pages/admin/ai/AdminAiFeedbackPage').then((m) => ({ default: m.AdminAiFeedbackPage })),
+);
+const AdminAiMemoryPage = lazy(() =>
+  import('../pages/admin/ai/AdminAiMemoryPage').then((m) => ({ default: m.AdminAiMemoryPage })),
 );
 const ForbiddenPage = lazy(() =>
   import('../pages/errors/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })),
@@ -77,6 +132,14 @@ const legacyRedirects: Record<string, string> = {
   '/dashboards/client.html': '/dashboard/client',
   '/dashboards/manager.html': '/dashboard/manager',
   '/dashboards/admin.html': '/dashboard/admin',
+  '/dashboard/admin/users': '/dashboard/admin/team/users',
+  '/dashboard/admin/requests': '/dashboard/admin/operations/requests',
+  '/dashboard/admin/bookings': '/dashboard/admin/operations/bookings',
+  '/dashboard/admin/content': '/dashboard/admin/site/items',
+  '/dashboard/admin/appearance': '/dashboard/admin/site/appearance',
+  '/dashboard/admin/audit': '/dashboard/admin/security/audit',
+  '/dashboard/client/requests': '/dashboard/client/cases',
+  '/dashboard/client/consultations': '/dashboard/client/cases?tab=drafts',
 };
 
 const legacyRoutes = Object.entries(legacyRedirects).map(([from, to]) => ({
@@ -97,6 +160,8 @@ export const router = createBrowserRouter([
       { path: 'about', element: withSuspense(<AboutPage />) },
       { path: 'consult', element: withSuspense(<ConsultPage />) },
       { path: 'booking', element: withSuspense(<BookingPage />) },
+      { path: 'privacy', element: withSuspense(<PrivacyPage />) },
+      { path: 'terms', element: withSuspense(<TermsPage />) },
       { path: 'login', element: withSuspense(<LoginPage />) },
       { path: 'register', element: withSuspense(<RegisterPage />) },
       { path: '403', element: withSuspense(<ForbiddenPage />) },
@@ -114,7 +179,59 @@ export const router = createBrowserRouter([
         path: 'client',
         element: (
           <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
-            {withSuspense(<ClientDashboardPage />)}
+            {withSuspense(<ClientOverviewPage />)}
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'client/cases',
+        element: (
+          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
+            {withSuspense(<ClientCasesPage />)}
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'client/cases/:caseId',
+        element: (
+          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
+            {withSuspense(<ClientCaseDetailPage />)}
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'client/requests',
+        element: <Navigate to="/dashboard/client/cases" replace />,
+      },
+      {
+        path: 'client/requests/:requestId',
+        element: <LegacyClientRequestRedirect />,
+      },
+      {
+        path: 'client/consultations',
+        element: <Navigate to="/dashboard/client/cases?tab=drafts" replace />,
+      },
+      {
+        path: 'client/bookings',
+        element: (
+          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
+            {withSuspense(<ClientBookingsPage />)}
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'client/bookings/:bookingId',
+        element: (
+          <RoleRoute roles={['CLIENT']}>
+            {withSuspense(<ClientBookingDetailPage />)}
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'client/profile',
+        element: (
+          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
+            {withSuspense(<ProfilePage />)}
           </RoleRoute>
         ),
       },
@@ -127,17 +244,43 @@ export const router = createBrowserRouter([
       { path: 'manager/calendar', element: withManager(<ManagerCalendarPage />) },
       { path: 'manager/clients', element: withManager(<ManagerClientsPage />) },
       { path: 'manager/contacts', element: withManager(<ManagerContactsPage />) },
+      { path: 'manager/ai-quality', element: withManager(<ManagerAiQualityPage />) },
+      { path: 'manager/profile', element: withManager(<ProfilePage />) },
       { path: 'admin', element: withAdmin(<AdminOverviewPage />) },
       { path: 'admin/analytics', element: withAdmin(<AdminAnalyticsPage />) },
-      { path: 'admin/users', element: withAdmin(<AdminUsersPage />) },
-      { path: 'admin/content', element: withAdmin(<AdminCmsPage />) },
-      { path: 'admin/appearance', element: withAdmin(<AdminAppearancePage />) },
-      { path: 'admin/requests', element: withManager(<ManagerRequestsPage />) },
-      { path: 'admin/bookings', element: withManager(<ManagerCalendarPage />) },
+      { path: 'admin/operations/requests', element: withAdmin(<ManagerRequestsPage adminZone />) },
+      { path: 'admin/operations/bookings', element: withAdmin(<ManagerCalendarPage adminZone />) },
+      { path: 'admin/operations/clients', element: withAdmin(<ManagerClientsPage adminZone />) },
+      { path: 'admin/operations/contacts', element: withAdmin(<ManagerContactsPage adminZone />) },
+      { path: 'admin/team/users', element: withAdmin(<AdminUsersPage />) },
+      {
+        path: 'admin/team/activity',
+        element: withAdmin(<AdminTeamActivityPage />),
+      },
+      { path: 'admin/ai/status', element: withAdmin(<AdminAiStatusPage />) },
+      { path: 'admin/ai/scenarios', element: withAdmin(<AdminAiScenariosPage />) },
+      { path: 'admin/ai/reference', element: withAdmin(<AdminAiReferencePage />) },
+      { path: 'admin/ai/memory', element: withAdmin(<AdminAiMemoryPage />) },
+      { path: 'admin/ai/feedback', element: withAdmin(<AdminAiFeedbackPage />) },
+      { path: 'admin/site/items', element: withAdmin(<AdminSiteItemsPage />) },
+      { path: 'admin/site/blocks', element: withAdmin(<AdminSiteBlocksPage />) },
+      { path: 'admin/site/appearance', element: withAdmin(<AdminSiteAppearancePage />) },
+      { path: 'admin/site/legal', element: withAdmin(<AdminSiteLegalPage />) },
+      { path: 'admin/users', element: <Navigate to="/dashboard/admin/team/users" replace /> },
+      { path: 'admin/requests', element: <Navigate to="/dashboard/admin/operations/requests" replace /> },
+      { path: 'admin/bookings', element: <Navigate to="/dashboard/admin/operations/bookings" replace /> },
+      { path: 'admin/content', element: <Navigate to="/dashboard/admin/site/items" replace /> },
+      { path: 'admin/appearance', element: <Navigate to="/dashboard/admin/site/appearance" replace /> },
+      { path: 'admin/audit', element: <Navigate to="/dashboard/admin/security/audit" replace /> },
       { path: 'admin/integrations', element: withAdmin(<AdminIntegrationsPage />) },
       { path: 'admin/integrations/jobs', element: withAdmin(<AdminIntegrationJobsPage />) },
+      {
+        path: 'admin/integrations/conflicts',
+        element: withAdmin(<AdminIntegrationConflictsPage />),
+      },
       { path: 'admin/integrations/:connectionId', element: withAdmin(<AdminIntegrationDetailPage />) },
-      { path: 'admin/audit', element: withAdmin(<AdminAuditPage />) },
+      { path: 'admin/security/audit', element: withAdmin(<AdminAuditPage />) },
+      { path: 'admin/profile', element: withAdmin(<ProfilePage />) },
     ],
   },
   { path: '*', element: withSuspense(<NotFoundPage />) },
@@ -152,5 +295,10 @@ function withAdmin(element: ReactNode) {
 }
 
 function withSuspense(element: ReactNode) {
-  return <Suspense fallback={<div className="page-suspense">Загрузка экрана...</div>}>{element}</Suspense>;
+  return <Suspense fallback={<PageSuspenseFallback />}>{element}</Suspense>;
+}
+
+function LegacyClientRequestRedirect() {
+  const { requestId = '' } = useParams();
+  return <Navigate to={`/dashboard/client/cases/${requestId}`} replace />;
 }

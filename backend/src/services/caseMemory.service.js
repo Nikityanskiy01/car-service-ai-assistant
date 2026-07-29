@@ -1,5 +1,10 @@
 import prisma from '../lib/prisma.js';
+import { getEnv } from '../config/env.js';
+import { cosineSimilarity, toFloatVector } from '../lib/vectorMath.js';
+import { createEmbedding } from './embeddingService.js';
+import { buildCaseMemoryDocument } from './caseMemoryIndexer.service.js';
 import { detectSymptomCategory } from './symptomClassifier.js';
+import { logger } from '../lib/logger.js';
 
 function tokenizeRu(text) {
   return String(text || '')
@@ -27,21 +32,48 @@ function recencyScore(updatedAt) {
   const ts = updatedAt instanceof Date ? updatedAt.getTime() : new Date(updatedAt).getTime();
   if (!Number.isFinite(ts)) return 0;
   const ageDays = Math.max(0, (Date.now() - ts) / (1000 * 60 * 60 * 24));
-  if (ageDays <= 14) return 0.25;
-  if (ageDays <= 60) return 0.15;
-  if (ageDays <= 180) return 0.08;
+  if (ageDays <= 14) return 0.12;
+  if (ageDays <= 60) return 0.08;
+  if (ageDays <= 180) return 0.04;
   return 0;
 }
 
+function categoryBoost(wanted, src) {
+  return wanted !== 'unknown' && src === wanted ? 0.1 : 0;
+}
+
+function vehicleBoost(wantedMake, wantedModel, make, model) {
+  let boost = 0;
+  if (wantedMake && sameText(wantedMake, make)) boost += 0.08;
+  if (wantedModel && sameText(wantedModel, model)) boost += 0.06;
+  return boost;
+}
+
 /**
- * Retrieve similar completed consultations to guide diagnosis prompt.
+ * @param {unknown} row
+ * @returns {{ make: string|null, model: string|null, symptomCategory: string|null, topRecommendations: string[], costFromMinor: number|null }}
+ */
+function toAnonymizedCase(row) {
+  const recs = Array.isArray(row?.topRecommendations)
+    ? row.topRecommendations.map((x) => String(x).slice(0, 120)).filter(Boolean)
+    : [];
+  return {
+    make: row?.make || null,
+    model: row?.model || null,
+    symptomCategory: row?.symptomCategory || null,
+    topRecommendations: recs.slice(0, 3),
+    costFromMinor: row?.costFromMinor ?? null,
+  };
+}
+
+/**
+ * Lexical retrieval (legacy).
  * @param {{ car_make?: string | null, car_model?: string | null, symptoms?: string | null, conditions?: string | null }} data
  * @param {number} limit
  */
-export async function getRelevantCases(data, limit = 3) {
-  const where = { status: 'COMPLETED' };
+export async function getRelevantCasesLexical(data, limit = 3) {
   const rows = await prisma.consultationSession.findMany({
-    where,
+    where: { status: 'COMPLETED' },
     orderBy: { updatedAt: 'desc' },
     take: 220,
     include: {
@@ -54,33 +86,117 @@ export async function getRelevantCases(data, limit = 3) {
   const wantedCategory = detectSymptomCategory(String(data?.symptoms || ''));
   const wantedMake = String(data?.car_make || '').trim().toLowerCase();
   const wantedModel = String(data?.car_model || '').trim().toLowerCase();
-  const scored = rows
+
+  return rows
     .map((s) => {
       const src = `${s?.extracted?.symptoms || ''} ${s?.extracted?.problemConditions || ''}`.trim();
-      const baseScore = overlapScore(query, src);
       const srcCategory = detectSymptomCategory(String(s?.extracted?.symptoms || ''));
-      const categoryBoost =
-        wantedCategory !== 'unknown' && srcCategory === wantedCategory ? 0.22 : 0;
-      const makeBoost = wantedMake && sameText(wantedMake, s?.extracted?.make) ? 0.2 : 0;
-      const modelBoost = wantedModel && sameText(wantedModel, s?.extracted?.model) ? 0.16 : 0;
-      const freshBoost = recencyScore(s?.updatedAt);
-      const score = baseScore + categoryBoost + makeBoost + modelBoost + freshBoost;
+      const score =
+        overlapScore(query, src) +
+        categoryBoost(wantedCategory, srcCategory) +
+        vehicleBoost(wantedMake, wantedModel, s?.extracted?.make, s?.extracted?.model) +
+        recencyScore(s?.updatedAt);
       return {
         score,
         case: {
           make: s?.extracted?.make || null,
           model: s?.extracted?.model || null,
-          symptoms: s?.extracted?.symptoms || null,
-          conditions: s?.extracted?.problemConditions || null,
-          topRecommendations: (s.recommendations || []).slice(0, 3).map((r) => r.title),
+          symptomCategory: srcCategory !== 'unknown' ? srcCategory : null,
+          topRecommendations: (s.recommendations || [])
+            .slice(0, 3)
+            .map((r) => String(r.title || '').slice(0, 120))
+            .filter(Boolean),
           costFromMinor: s.costFromMinor ?? null,
         },
       };
     })
-    .filter((x) => x.score > 0.16)
+    .filter((x) => x.score > 0.14)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((x) => x.case);
+}
 
-  return scored;
+/**
+ * Semantic retrieval via stored embeddings.
+ * @param {{ car_make?: string | null, car_model?: string | null, symptoms?: string | null, conditions?: string | null }} data
+ * @param {number} limit
+ */
+export async function getRelevantCasesSemantic(data, limit = 5) {
+  const env = getEnv();
+  if (!env.CASE_MEMORY_SEMANTIC_ENABLED) return [];
+
+  const document = buildCaseMemoryDocument(data);
+  if (!document.trim()) return [];
+
+  const queryVec = await createEmbedding(document);
+  if (!queryVec.length) return [];
+
+  const rows = await prisma.consultationCaseEmbedding.findMany({
+    orderBy: { updatedAt: 'desc' },
+    take: 400,
+  });
+
+  if (!rows.length) return [];
+
+  const wantedCategory = detectSymptomCategory(String(data?.symptoms || ''));
+  const wantedMake = String(data?.car_make || '').trim().toLowerCase();
+  const wantedModel = String(data?.car_model || '').trim().toLowerCase();
+
+  return rows
+    .map((row) => {
+      const vec = toFloatVector(row.embedding);
+      const semantic = cosineSimilarity(queryVec, vec);
+      const score =
+        semantic +
+        categoryBoost(wantedCategory, String(row.symptomCategory || 'unknown')) +
+        vehicleBoost(wantedMake, wantedModel, row.make, row.model) +
+        recencyScore(row.updatedAt);
+      return { score, case: toAnonymizedCase(row) };
+    })
+    .filter((x) => x.score > 0.35)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.case);
+}
+
+/**
+ * Hybrid: semantic first, lexical fallback / merge.
+ * @param {{ car_make?: string | null, car_model?: string | null, symptoms?: string | null, conditions?: string | null }} data
+ * @param {number} [limit]
+ */
+export async function getRelevantCases(data, limit) {
+  const env = getEnv();
+  const topK = Number.isFinite(limit) ? limit : env.CASE_MEMORY_TOP_K;
+
+  let semantic = [];
+  try {
+    semantic = await getRelevantCasesSemantic(data, topK);
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'semantic case memory failed');
+  }
+
+  if (semantic.length >= topK || !env.CASE_MEMORY_LEXICAL_FALLBACK) {
+    return semantic.slice(0, topK);
+  }
+
+  let lexical = [];
+  try {
+    lexical = await getRelevantCasesLexical(data, topK);
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'lexical case memory failed');
+  }
+
+  const merged = [];
+  const seen = new Set();
+  const push = (item) => {
+    const key = `${item.make}|${item.model}|${item.symptomCategory}|${(item.topRecommendations || []).join(',')}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(item);
+  };
+
+  for (const item of semantic) push(item);
+  for (const item of lexical) push(item);
+
+  return merged.slice(0, topK);
 }

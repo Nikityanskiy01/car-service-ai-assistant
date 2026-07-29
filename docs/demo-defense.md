@@ -1,8 +1,8 @@
-# Демо-сценарий к защите ВКР (золотой путь)
+# Демо-сценарий (золотой путь)
 
 **Длительность:** 7–10 минут live + резервные скриншоты при сбое LLM.  
 **URL:** `http://127.0.0.1:5173`  
-**Подготовка:** см. [setup.md](./setup.md).
+**Подготовка:** см. [ONBOARDING.md](./ONBOARDING.md).
 
 ## Подготовка окружения (один раз перед репетицией)
 
@@ -21,9 +21,9 @@ npm run dev
 
 | Роль | Email | Пароль |
 |------|-------|--------|
-| Клиент | `client@example.local` | `1q2w3e4r` |
-| Менеджер | `manager@example.local` | `1q2w3e4r5t` |
-| Администратор | `admin@example.local` | `1q2w3e4r5t6y` |
+| Клиент | `client@example.local` | `Client-Demo-2026!` |
+| Менеджер | `manager@example.local` | `Manager-Demo-2026!` |
+| Администратор | `admin@example.local` | `Admin-Demo-2026!` |
 
 ## Сценарий по шагам
 
@@ -55,12 +55,16 @@ npm run dev
 
 **Telegram (опционально):** если бот не настроен — показать таблицу `Notification` в БД или упомянуть mock в тестах.
 
-### 4. Администратор (~1–2 мин)
+### 4. Администратор (~2–3 мин)
 
-1. Войти `admin@example.local`.
-2. `/dashboard/admin`: пользователи (роль/блокировка).
-3. Кратко: справочник сценария или категории услуг.
-4. Виджет аналитики / KPI.
+1. Войти `admin@example.local` / `Admin-Demo-2026!`.
+2. **Пульт** `/dashboard/admin`: Status Strip (ИИ · CRM · очередь), Action Inbox, bento KPI.
+3. `Ctrl+K` — быстрый переход, например в **ИИ → Сценарии** или **Аналитика**.
+4. **ИИ-студия** `/dashboard/admin/ai/status`: статус LLM, Probe, eval badge; `/ai/scenarios` — справочник сценария.
+5. **Операции** `/dashboard/admin/operations/requests`: фильтры, bulk-действия, экспорт в CRM.
+6. **Аналитика** `/dashboard/admin/analytics?tab=funnel`: воронка и KPI за 30 дней.
+7. **Команда** `/dashboard/admin/team/users`: смена роли / блокировка.
+8. (Опционально) **Интеграции → Конфликты**, **Сайт → Оформление** (white-label в БД), **Журнал** `/security/audit`.
 
 ## Чеклист «3 прогона подряд»
 
@@ -80,14 +84,15 @@ npm run dev
 | `consult-result.png` | Блок диагностики и стоимости «от» |
 | `manager-request.png` | Карточка заявки менеджера |
 | `client-dashboard.png` | ЛК клиента, вкладка заявок |
-| `admin-users.png` | Панель администратора |
+| `admin-overview.png` | Пульт администратора (KPI + Action Inbox) |
+| `admin-ai-studio.png` | ИИ-студия: статус / сценарии |
 | `npm-test.png` | Терминал: `cd backend && npm test` (слайд 17) |
 
 ## Типовые сбои
 
 | Симптом | Действие |
 |---------|----------|
-| Docker daemon недоступен | Запустить Docker Desktop и повторить `docker compose up -d`; если до защиты < 5 минут — показать подготовленные скриншоты из `docs/screenshots/` |
+| Docker daemon недоступен | Запустить Docker Desktop и повторить `docker compose up -d`; если до демо < 5 минут — показать подготовленные скриншоты из `docs/screenshots/` |
 | `LLM unavailable` | `docker compose ps`, `npm run llm:check`, перезапуск Ollama |
 | Пустая БД | `npm run db:setup` |
 | 401 в кабинете | Очистить cookies, повторный вход |

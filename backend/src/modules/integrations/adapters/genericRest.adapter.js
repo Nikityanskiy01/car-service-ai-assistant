@@ -1,4 +1,5 @@
 import { DEFAULT_CAPABILITIES } from '../integration.constants.js';
+import { assertSafeOutboundUrl, joinSafeUrl } from '../../../lib/safeOutboundUrl.js';
 
 function safeJsonParse(value) {
   if (!value) return null;
@@ -35,7 +36,13 @@ export class GenericRestAdapter {
     const errors = [];
     const baseUrl = String(config?.baseUrl || '').trim();
     if (!baseUrl) errors.push('Укажите базовый URL');
-    if (baseUrl && !/^https?:\/\//i.test(baseUrl)) errors.push('Базовый URL должен начинаться с http:// или https://');
+    if (baseUrl) {
+      try {
+        assertSafeOutboundUrl(baseUrl, { allowHttp: false });
+      } catch (err) {
+        errors.push(err?.message || 'Небезопасный базовый URL');
+      }
+    }
     const authType = String(config?.authType || '').trim();
     if (authType && !['bearer', 'basic', 'none'].includes(authType)) {
       errors.push('Поддерживаются только authType: bearer/basic/none');
@@ -50,13 +57,16 @@ export class GenericRestAdapter {
     const authHeaders = this.#buildAuthHeaders(config);
     const startedAt = Date.now();
     try {
-      const res = await fetch(`${baseUrl}${healthPath}`, {
+      assertSafeOutboundUrl(baseUrl, { allowHttp: false });
+      const url = joinSafeUrl(baseUrl, healthPath);
+      const res = await fetch(url, {
         method: 'GET',
         headers: {
           Accept: 'application/json',
           ...authHeaders,
         },
         signal: AbortSignal.timeout(timeoutMs),
+        redirect: 'error',
       });
       const text = await res.text().catch(() => '');
       return {
@@ -83,6 +93,8 @@ export class GenericRestAdapter {
     const endpoint = String(config?.requestEndpoint || '/service-requests');
     const timeoutMs = Number(config?.timeoutMs) > 0 ? Number(config.timeoutMs) : 20_000;
     const authHeaders = this.#buildAuthHeaders(config);
+    assertSafeOutboundUrl(baseUrl, { allowHttp: false });
+    const url = joinSafeUrl(baseUrl, endpoint);
     const payload = {
       source: 'car-service-ai-assistant',
       request: {
@@ -98,7 +110,7 @@ export class GenericRestAdapter {
         consultationSummary: request.consultationSummary,
       },
     };
-    const res = await fetch(`${baseUrl}${endpoint}`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -108,6 +120,7 @@ export class GenericRestAdapter {
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(timeoutMs),
+      redirect: 'error',
     });
     const text = await res.text().catch(() => '');
     const parsed = safeJsonParse(text) || {};

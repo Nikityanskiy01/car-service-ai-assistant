@@ -78,3 +78,80 @@ export async function notifyNewServiceRequest(sr) {
     });
   }
 }
+
+/**
+ * @param {import('@prisma/client').ServiceRequest & { client?: object }} sr
+ */
+export async function notifySlaBreached(sr) {
+  const name = sr.client?.fullName || sr.guestName || '—';
+  const phone = sr.client?.phone || sr.guestPhone || '—';
+  const hours = Math.round((Date.now() - new Date(sr.createdAt).getTime()) / 3600000);
+  const payload = {
+    type: 'SLA_BREACH',
+    serviceRequestId: sr.id,
+    clientName: name,
+    phone,
+    hoursWithoutResponse: hours,
+  };
+  const payloadStr = JSON.stringify(payload);
+
+  const env = getEnv();
+  const notif = await prisma.notification.create({
+    data: {
+      serviceRequestId: sr.id,
+      payload: payloadStr,
+      status: 'PENDING',
+    },
+  });
+
+  if (!env.TELEGRAM_BOT_TOKEN) {
+    await prisma.notification.update({
+      where: { id: notif.id },
+      data: { status: 'SENT', attempts: 1 },
+    });
+    return;
+  }
+
+  const chatIds = (env.TELEGRAM_MANAGER_CHAT_IDS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (chatIds.length === 0) {
+    await prisma.notification.update({
+      where: { id: notif.id },
+      data: { status: 'FAILED', attempts: 1, lastError: 'No TELEGRAM_MANAGER_CHAT_IDS' },
+    });
+    return;
+  }
+
+  const bot = new Telegraf(env.TELEGRAM_BOT_TOKEN);
+  const text = [
+    '⚠️ Просрочка SLA',
+    `Заявка: ${sr.id.slice(0, 8)}`,
+    `Клиент: ${name}`,
+    `Тел.: ${phone}`,
+    `Без ответа: ${hours} ч`,
+    `Авто: ${sr.snapshotMake || '—'} ${sr.snapshotModel || '—'}`,
+  ].join('\n');
+
+  try {
+    for (const chatId of chatIds) {
+      await bot.telegram.sendMessage(chatId, text);
+    }
+    await prisma.notification.update({
+      where: { id: notif.id },
+      data: { status: 'SENT', attempts: 1 },
+    });
+  } catch (e) {
+    logger.warn({ err: e }, 'telegram SLA escalation failed');
+    await prisma.notification.update({
+      where: { id: notif.id },
+      data: {
+        status: 'FAILED',
+        attempts: { increment: 1 },
+        lastError: String(e.message || e).slice(0, 2000),
+      },
+    });
+  }
+}

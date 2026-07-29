@@ -1,6 +1,7 @@
 import prisma from '../../lib/prisma.js';
-import { AppError } from '../../lib/errors.js';
+import { AppError, isAppError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import { pickWebhookSignatureHeader, verifyWebhookHmac } from '../../lib/webhookHmac.js';
 import { decryptSecret, encryptSecret, maskSecret } from './integrationEncryption.service.js';
 import { getAdapter } from './integrationRegistry.service.js';
 import { toCanonicalServiceRequest } from './integrationMapper.service.js';
@@ -435,11 +436,24 @@ export async function listJobs(connectionId, { status, page = 1, pageSize = 20 }
 }
 
 export async function listConflicts(connectionId) {
-  return prisma.integrationConflict.findMany({
+  const rows = await prisma.integrationConflict.findMany({
     where: connectionId ? { connectionId } : undefined,
     orderBy: { createdAt: 'desc' },
     take: 200,
+    include: { connection: { select: { id: true, name: true } } },
   });
+  return rows.map((r) => ({
+    id: r.id,
+    connectionId: r.connectionId,
+    connectionName: r.connection?.name || null,
+    entityType: r.entityType,
+    entityId: r.internalEntityId,
+    fieldName: r.field,
+    localValue: r.localValue,
+    externalValue: r.externalValue,
+    status: r.status,
+    createdAt: r.createdAt.toISOString(),
+  }));
 }
 
 export async function resolveConflict(conflictId, resolution, note) {
@@ -491,27 +505,78 @@ export async function cancelJob(jobId) {
   });
 }
 
-export async function handleIncomingWebhook(connectionId, payload, headers = {}) {
+export async function handleIncomingWebhook(connectionId, payload, headers = {}, rawBody = null) {
+  const id = String(connectionId || '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new AppError(404, 'Webhook endpoint not found', 'NOT_FOUND');
+  }
+
+  let connection;
+  try {
+    connection = await getConnectionOrThrow(id);
+  } catch (err) {
+    if (isAppError(err) && err.statusCode === 404) {
+      throw new AppError(404, 'Webhook endpoint not found', 'NOT_FOUND');
+    }
+    throw err;
+  }
+  if (!connection.enabled) {
+    throw new AppError(404, 'Webhook endpoint not found', 'NOT_FOUND');
+  }
+
+  const secrets = withDecryptedSecrets(connection);
+  const webhookSecret = String(secrets.webhookSecret || secrets.webhook_secret || '').trim();
+  if (!webhookSecret) {
+    throw new AppError(401, 'Webhook secret is not configured', 'WEBHOOK_UNAUTHORIZED');
+  }
+
+  const signatureHeader = pickWebhookSignatureHeader(headers);
+  const bodyForMac =
+    rawBody && (Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(String(rawBody), 'utf8'));
+  const fallbackBody = Buffer.from(JSON.stringify(payload ?? null), 'utf8');
+  const signatureValid =
+    verifyWebhookHmac(bodyForMac || fallbackBody, signatureHeader, webhookSecret) ||
+    (bodyForMac ? verifyWebhookHmac(fallbackBody, signatureHeader, webhookSecret) : false);
+
+  if (!signatureValid) {
+    await prisma.integrationAuditEvent.create({
+      data: {
+        connectionId: id,
+        level: 'WARN',
+        action: 'WEBHOOK_REJECTED',
+        entityType: 'integration_connection',
+        entityId: id,
+        payloadJson: { reason: 'invalid_signature', signaturePresent: Boolean(signatureHeader) },
+      },
+    });
+    throw new AppError(401, 'Invalid webhook signature', 'WEBHOOK_UNAUTHORIZED');
+  }
+
   const eventId = String(headers['x-event-id'] || headers['x-request-id'] || headers['x-correlation-id'] || '');
-  const signature = String(headers['x-signature'] || headers['x-hook-signature'] || '');
+  const safeHeaders = {
+    'content-type': headers['content-type'] || null,
+    'user-agent': headers['user-agent'] || null,
+    'x-event-id': headers['x-event-id'] || null,
+    'x-request-id': headers['x-request-id'] || null,
+  };
   const row = await prisma.integrationWebhookEvent.create({
     data: {
-      connectionId,
+      connectionId: id,
       eventId: eventId || null,
       payloadJson: payload || null,
-      headersJson: headers,
-      signatureValid: Boolean(signature),
+      headersJson: safeHeaders,
+      signatureValid: true,
       status: 'RECEIVED',
     },
   });
   await prisma.integrationAuditEvent.create({
     data: {
-      connectionId,
+      connectionId: id,
       level: 'INFO',
       action: 'WEBHOOK_RECEIVED',
       entityType: 'integration_webhook_event',
       entityId: row.id,
-      payloadJson: { eventId: row.eventId, signaturePresent: Boolean(signature) },
+      payloadJson: { eventId: row.eventId, signatureValid: true },
     },
   });
   return row;

@@ -7,7 +7,7 @@ describe('service request optimistic locking', () => {
   beforeEach(() => truncateAll());
 
   it('returns 409 on stale expectedVersion', async () => {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'mgr4@test.local',
@@ -37,7 +37,7 @@ describe('service request optimistic locking', () => {
 
     const ml = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr4@test.local', password: 'password123' });
+      .send({ email: 'mgr4@test.local', password: 'Password123!ab' });
     const mt = ml.body.accessToken;
 
     const [a, b] = await Promise.all([

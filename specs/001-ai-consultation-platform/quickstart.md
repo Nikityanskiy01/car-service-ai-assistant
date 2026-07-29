@@ -3,7 +3,7 @@
 **Plan**: [plan.md](./plan.md) | **Spec**: [spec.md](./spec.md)  
 **Date**: 2026-03-24 (обновлено 2026-04-06)
 
-Актуальная пошаговая инструкция: [../../docs/setup.md](../../docs/setup.md).
+Актуальная пошаговая инструкция: [../../docs/ONBOARDING.md](../../docs/ONBOARDING.md).
 
 ## Prerequisites
 

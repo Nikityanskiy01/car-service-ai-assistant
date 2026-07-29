@@ -22,7 +22,6 @@ npm run test:frontend
 npm run test:backend
 npm run test:e2e
 npm run lint
-npm run seed:demo
 ```
 
 ## Быстрый локальный запуск
@@ -38,21 +37,21 @@ npm run dev
 
 Приложение в development: `http://127.0.0.1:5173`.
 
-## Демо-режим и white-label
-
-- White-label конфигурация фронтенда: `frontend/src/config/productConfig.ts`.
-- Переключение светлой/тёмной темы и бренд-цветов: `frontend/src/theme/ThemeProvider.tsx`.
-- Для демонстрационной среды используйте `npm run seed:demo`.
-- Demo login включается через `DEMO_MODE=true` и переменные `DEMO_*` в `backend/.env`.
-- Быстрый вход под ролями в UI доступен только при включённом `DEMO_MODE`.
-
 ## Production
 
 ```bash
 cp .env.proxmox.example .env.proxmox
 cp backend/.env.production.example backend/.env
+# задайте JWT_SECRET, INTEGRATION_ENCRYPTION_KEY, CORS_ORIGIN, DATABASE_URL
 docker compose --env-file .env.proxmox up -d --build
+# создайте пользователей (не коммитьте пароли):
+# PROD_ADMIN_EMAIL=... PROD_ADMIN_PASSWORD=... \
+# PROD_MANAGER_EMAIL=... PROD_MANAGER_PASSWORD=... \
+# PROD_CLIENT_EMAIL=... PROD_CLIENT_PASSWORD=... \
+#   npm --prefix backend run db:bootstrap:prod
 ```
+
+Демо-вход и `DEMO_MODE` удалены. Вход только по email/паролю.
 
 ## Облачная LLM
 
@@ -67,9 +66,9 @@ LLM_MODEL=gpt-4.1-mini
 
 ## Документация
 
-- **[Быстрый старт для коллеги](docs/ONBOARDING.md)** — порты, логины, типичные проблемы
-- [Установка и запуск](docs/setup.md)
+- **[Быстрый старт](docs/ONBOARDING.md)** — установка, порты, логины, LLM, типичные проблемы
 - [Архитектура](docs/architecture.md)
 - [Тестирование](docs/testing.md)
 - [Self-host на Proxmox](docs/proxmox-selfhost.md)
+- [Демо-сценарий](docs/demo-defense.md) · [Release readiness](docs/release-readiness.md)
 - [OpenAPI](specs/001-ai-consultation-platform/contracts/openapi.yaml)

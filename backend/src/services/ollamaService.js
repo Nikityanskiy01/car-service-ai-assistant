@@ -1,5 +1,17 @@
 import { getEnv } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
+import {
+  getCircuitBreakerSnapshot,
+  isCircuitOpen,
+  recordCircuitFailure,
+  recordCircuitSuccess,
+} from '../lib/llmCircuitBreaker.js';
+import {
+  recordCircuitOpenRejection,
+  recordLlmFailure,
+  recordLlmSuccess,
+} from './llmMetrics.service.js';
 
 const LLM_PROVIDERS = ['ollama', 'openai'];
 
@@ -271,6 +283,11 @@ export async function chatCompletionWithMeta({
     throw new AppError(503, 'LLM disabled via configuration', 'LLM_ERROR');
   }
 
+  if (isCircuitOpen()) {
+    recordCircuitOpenRejection();
+    throw new AppError(503, 'LLM temporarily unavailable (circuit open)', 'LLM_ERROR');
+  }
+
   const provider = env.LLM_PROVIDER;
   const fallbackProvider = resolveFallbackProvider(provider, env);
   const targetModel = model || env.LLM_MODEL;
@@ -296,6 +313,12 @@ export async function chatCompletionWithMeta({
         timeoutMs,
         keepAlive,
       });
+      recordCircuitSuccess();
+      recordLlmSuccess({
+        durationMs: Date.now() - startedAt,
+        status: p === provider ? 'SUCCESS' : 'FALLBACK',
+        provider: p,
+      });
       return {
         ...out,
         requestedProvider: provider,
@@ -304,9 +327,15 @@ export async function chatCompletionWithMeta({
         durationMs: Date.now() - startedAt,
       };
     } catch (err) {
+      recordCircuitFailure();
       failures.push(`${p}: ${err.message}`);
     }
   }
 
-  throw new AppError(503, `LLM unavailable (${failures.join(' | ')})`, 'LLM_ERROR');
+  recordLlmFailure({
+    durationMs: Date.now() - startedAt,
+    error: failures.join('; '),
+  });
+  logger.error({ failures }, 'all LLM providers failed');
+  throw new AppError(503, 'LLM temporarily unavailable', 'LLM_ERROR');
 }

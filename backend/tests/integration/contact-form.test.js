@@ -9,7 +9,12 @@ describe('contact form API', () => {
   it('POST creates submission without auth', async () => {
     const res = await request(app)
       .post('/api/contact')
-      .send({ fullName: 'Иван', phone: '+7 999 000-11-22', message: 'Здравствуйте' });
+      .send({
+        fullName: 'Иван',
+        phone: '+7 999 000-11-22',
+        message: 'Здравствуйте',
+        consentPersonalData: true,
+      });
     expect(res.status).toBe(201);
     expect(res.body.ok).toBe(true);
     expect(res.body.id).toBeTruthy();
@@ -19,8 +24,17 @@ describe('contact form API', () => {
     expect(row?.message).toBe('Здравствуйте');
   });
 
+  it('POST rejects without consent', async () => {
+    const res = await request(app)
+      .post('/api/contact')
+      .send({ fullName: 'Иван', phone: '+7 999 000-11-22', consentPersonalData: false });
+    expect(res.status).toBe(400);
+  });
+
   it('POST rejects invalid phone', async () => {
-    const res = await request(app).post('/api/contact').send({ fullName: 'Иван', phone: '123' });
+    const res = await request(app)
+      .post('/api/contact')
+      .send({ fullName: 'Иван', phone: '123', consentPersonalData: true });
     expect(res.status).toBe(400);
   });
 
@@ -31,7 +45,7 @@ describe('contact form API', () => {
   });
 
   it('GET lists for manager', async () => {
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'mgr-contact@test.local',
@@ -41,11 +55,13 @@ describe('contact form API', () => {
         role: 'MANAGER',
       },
     });
-    await request(app).post('/api/contact').send({ fullName: 'Гость', phone: '89991112233' });
+    await request(app)
+      .post('/api/contact')
+      .send({ fullName: 'Гость', phone: '89991112233', consentPersonalData: true });
 
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr-contact@test.local', password: 'password123' });
+      .send({ email: 'mgr-contact@test.local', password: 'Password123!ab' });
     const mt = login.body.accessToken;
 
     const list = await request(app).get('/api/contact').set('Authorization', `Bearer ${mt}`);

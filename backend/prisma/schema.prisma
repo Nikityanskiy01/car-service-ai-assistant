@@ -13,6 +13,13 @@ enum Role {
   ADMINISTRATOR
 }
 
+enum ContactSubmissionStatus {
+  NEW
+  IN_PROGRESS
+  CONVERTED
+  CLOSED
+}
+
 enum ServiceRequestStatus {
   NEW
   IN_PROGRESS
@@ -44,6 +51,8 @@ enum NotificationStatus {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  ARRIVED
+  NO_SHOW
   CANCELLED
 }
 
@@ -110,6 +119,19 @@ enum IntegrationOutboxStatus {
   FAILED
 }
 
+enum ConsultationFeedbackVerdict {
+  CORRECT
+  PARTIAL
+  INCORRECT
+}
+
+enum ConsultationDiagnosisJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -131,8 +153,26 @@ model User {
   adminAuditEvents     AdminAuditEvent[]        @relation("AdminAuditActor")
   siteContentVersions  SiteContentVersion[]     @relation("SiteContentVersionActor")
   refreshTokens        RefreshToken[]
+  consultationFeedbacks ConsultationFeedback[]
+  assignedServiceRequests ServiceRequest[] @relation("AssignedManagerRequests")
+  serviceRequestStatusLogs ServiceRequestStatusLog[]
 
   @@map("users")
+}
+
+model ServiceRequestStatusLog {
+  id         String   @id @default(uuid())
+  requestId  String   @map("request_id")
+  actorId    String?  @map("actor_id")
+  fromStatus String?  @map("from_status")
+  toStatus   String   @map("to_status")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor   User?          @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt(sort: Desc)])
+  @@map("service_request_status_logs")
 }
 
 model SiteContentBlock {
@@ -180,6 +220,15 @@ model AdminAuditEvent {
   @@index([entityType, createdAt(sort: Desc)])
   @@index([action, createdAt(sort: Desc)])
   @@map("admin_audit_events")
+}
+
+model SiteSettings {
+  id         String   @id @default("default")
+  configJson Json     @map("config_json")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  updatedBy  String?  @map("updated_by")
+
+  @@map("site_settings")
 }
 
 model ServiceCategory {
@@ -269,6 +318,9 @@ model ConsultationSession {
   messages        Message[]
   extracted       ExtractedDiagnosticData?
   recommendations DiagnosticRecommendation[]
+  caseEmbedding        ConsultationCaseEmbedding?
+  feedback        ConsultationFeedback?
+  diagnosisJob    ConsultationDiagnosisJob?
   serviceRequest  ServiceRequest?
   reports         ConsultationReport[]
 
@@ -299,6 +351,7 @@ model ExtractedDiagnosticData {
   mileage           Int?
   symptoms          String?
   problemConditions String? @map("problem_conditions")
+  obdCodes          String? @map("obd_codes")
   session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("extracted_diagnostic_data")
@@ -317,6 +370,68 @@ model DiagnosticRecommendation {
   @@map("diagnostic_recommendations")
 }
 
+/** Семантический индекс завершённых консультаций для case memory (RAG-lite). */
+model ConsultationCaseEmbedding {
+  sessionId          String   @id @map("session_id")
+  symptomCategory    String?  @map("symptom_category")
+  make               String?
+  model              String?
+  topRecommendations Json     @default("[]") @map("top_recommendations")
+  costFromMinor      Int?     @map("cost_from_minor")
+  /** JSON-массив float — cosine search в приложении; pgvector опционально позже. */
+  embedding          Json
+  dimensions         Int      @default(768)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([symptomCategory])
+  @@index([updatedAt(sort: Desc)])
+  @@map("consultation_case_embeddings")
+}
+
+/** Оценка менеджером точности ИИ-диагноза после обработки заявки. */
+model ConsultationFeedback {
+  id          String                      @id @default(uuid())
+  sessionId   String                      @unique @map("session_id")
+  managerId   String                      @map("manager_id")
+  verdict     ConsultationFeedbackVerdict
+  actualCause String?                     @map("actual_cause")
+  worksDone   String?                     @map("works_done")
+  repairAmountMinor Int?                  @map("repair_amount_minor")
+  workOrderNumber   String?               @map("work_order_number")
+  repairCompletedAt DateTime?             @map("repair_completed_at")
+  createdAt   DateTime                    @default(now()) @map("created_at")
+  updatedAt   DateTime                    @updatedAt @map("updated_at")
+
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  manager User                @relation(fields: [managerId], references: [id], onDelete: Restrict)
+
+  @@index([managerId])
+  @@index([verdict])
+  @@index([createdAt(sort: Desc)])
+  @@map("consultation_feedback")
+}
+
+/** Асинхронная задача LLM-диагноза (BullMQ + Redis). */
+model ConsultationDiagnosisJob {
+  id           String                         @id @default(uuid())
+  sessionId    String                         @unique @map("session_id")
+  status       ConsultationDiagnosisJobStatus @default(PENDING)
+  payloadJson  Json                           @map("payload_json")
+  resultJson   Json?                          @map("result_json")
+  errorMessage String?                        @map("error_message")
+  bullJobId    String?                        @map("bull_job_id")
+  createdAt    DateTime                       @default(now()) @map("created_at")
+  updatedAt    DateTime                       @updatedAt @map("updated_at")
+
+  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@map("consultation_diagnosis_jobs")
+}
+
 model ServiceRequest {
   id                    String                 @id @default(uuid())
   clientId              String?                @map("client_id")
@@ -329,17 +444,24 @@ model ServiceRequest {
   snapshotMake          String?                @map("snapshot_make")
   snapshotModel         String?                @map("snapshot_model")
   snapshotSymptoms      String?                @map("snapshot_symptoms")
+  assignedManagerId     String?                @map("assigned_manager_id")
+  firstResponseAt       DateTime?              @map("first_response_at")
+  clientMessagesReadAt  DateTime?              @map("client_messages_read_at")
+  slaNotifiedAt         DateTime?              @map("sla_notified_at")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
 
   client              User?                    @relation("ClientRequests", fields: [clientId], references: [id], onDelete: SetNull)
+  assignedManager     User?                    @relation("AssignedManagerRequests", fields: [assignedManagerId], references: [id], onDelete: SetNull)
   consultationSession ConsultationSession      @relation(fields: [consultationSessionId], references: [id], onDelete: Cascade)
   followUpMessages    RequestFollowUpMessage[]
   notifications       Notification[]
   bookings            ServiceBooking[]
+  statusLogs          ServiceRequestStatusLog[]
 
   @@index([clientId])
   @@index([status])
+  @@index([assignedManagerId])
   @@map("service_requests")
 }
 
@@ -347,14 +469,30 @@ model RequestFollowUpMessage {
   id        String   @id @default(uuid())
   requestId String   @map("request_id")
   authorId  String   @map("author_id")
-  body      String
+  body      String   @default("")
   createdAt DateTime @default(now()) @map("created_at")
 
-  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  author  User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  request     ServiceRequest              @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author      User                        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachments RequestFollowUpAttachment[]
 
   @@index([requestId])
   @@map("request_follow_up_messages")
+}
+
+model RequestFollowUpAttachment {
+  id           String   @id @default(uuid())
+  messageId    String   @map("message_id")
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  storageKey   String   @map("storage_key")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  message RequestFollowUpMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("request_follow_up_attachments")
 }
 
 model Notification {
@@ -441,13 +579,19 @@ model RefreshToken {
 
 /** Сообщения с публичной формы «Контакты» (location.html). */
 model ContactSubmission {
-  id        String   @id @default(uuid())
-  fullName  String   @map("full_name")
-  phone     String
-  message   String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id                 String                  @id @default(uuid())
+  fullName           String                  @map("full_name")
+  phone              String
+  message            String?
+  source             String                  @default("contact_form")
+  status             ContactSubmissionStatus @default(NEW)
+  processedAt        DateTime?               @map("processed_at")
+  convertedRequestId String?                 @map("converted_request_id")
+  closedReason       String?                 @map("closed_reason")
+  createdAt          DateTime                @default(now()) @map("created_at")
 
   @@index([createdAt(sort: Desc)])
+  @@index([status])
   @@map("contact_submissions")
 }
 

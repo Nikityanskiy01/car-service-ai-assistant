@@ -15,6 +15,7 @@ describe('guest bookings API', () => {
       serviceTitle: 'Замена масла',
       categoryLabel: 'ТО',
       notes: 'Toyota Camry',
+      consentPersonalData: true,
     });
     expect(res.status).toBe(201);
     expect(res.body.id).toBeTruthy();
@@ -35,9 +36,10 @@ describe('guest bookings API', () => {
       fullName: 'Пётр',
       phone: '89991234567',
       preferredAt,
+      consentPersonalData: true,
     });
 
-    const hash = await bcrypt.hash('password123', 8);
+    const hash = await bcrypt.hash('Password123!ab', 8);
     await prisma.user.create({
       data: {
         email: 'mgr-bk-guest@test.local',
@@ -49,7 +51,7 @@ describe('guest bookings API', () => {
     });
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'mgr-bk-guest@test.local', password: 'password123' });
+      .send({ email: 'mgr-bk-guest@test.local', password: 'Password123!ab' });
     const mt = login.body.accessToken;
 
     const list = await request(app).get('/api/bookings').set('Authorization', `Bearer ${mt}`);
@@ -66,6 +68,7 @@ describe('guest bookings API', () => {
         fullName: 'X',
         phone: '12',
         preferredAt: '2026-06-15T12:00:00.000Z',
+        consentPersonalData: true,
       });
     expect(res.status).toBe(400);
   });
@@ -75,6 +78,7 @@ describe('guest bookings API', () => {
       fullName: 'Ночь',
       phone: '+7 999 000-11-22',
       preferredAt: '2026-06-01T18:00:00.000Z',
+      consentPersonalData: true,
     });
     expect(res.status).toBe(400);
     expect(String(res.body?.error || '')).toMatch(/9:00|21:00|московск/i);

@@ -6,7 +6,7 @@ import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');

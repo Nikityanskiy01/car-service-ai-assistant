@@ -19,6 +19,8 @@ import {
   detectConsultationIntent,
   detectServiceType,
 } from './consultationIntent.service.js';
+import { shouldUseAsyncDiagnosis } from './diagnosisJob.service.js';
+import { mergeObdCodesString, parseObdCodes } from '../lib/obdCodes.js';
 import { getEnv } from '../config/env.js';
 import { chatCompletion } from './ollamaService.js';
 
@@ -42,6 +44,7 @@ export const EMPTY_CONSULTATION_STATE = {
   symptoms: null,
   conditions: null,
   urgency_signs: null,
+  obd_codes: null,
   category: null,
   /** @type {'diagnostic'|'service'|null} */
   intent: null,
@@ -322,6 +325,7 @@ function normalizeExtractedFromLlm(raw) {
     symptoms: text(obj.symptoms),
     conditions: text(obj.conditions),
     urgency_signs: text(obj.urgency_signs),
+    obd_codes: mergeObdCodesString(null, obj.obd_codes != null ? String(obj.obd_codes) : null),
     category: null,
   };
 }
@@ -510,6 +514,9 @@ export function preExtractFromRules(message, base = {}) {
     }
   }
 
+  const obd = mergeObdCodesString(out.obd_codes, parseObdCodes(t).join(', '));
+  if (obd) out.obd_codes = obd;
+
   return out;
 }
 
@@ -688,6 +695,7 @@ export function progressFromStage(stage) {
     CLARIFYING: 65,
     READY_FOR_ANALYSIS: 80,
     ANALYZING: 90,
+    DIAGNOSIS_QUEUED: 85,
     COMPLETED: 100,
     MANUAL_REVIEW_REQUIRED: 100,
     FAILED: 100,
@@ -738,6 +746,7 @@ export async function buildConsultationState(session, userMessage, onProgress) {
     symptoms: session?.extracted?.symptoms ?? null,
     conditions: session?.extracted?.problemConditions ?? null,
     urgency_signs: null,
+    obd_codes: session?.extracted?.obdCodes ?? null,
     category: null,
     intent: null,
     service_type: flow.service_type ?? null,
@@ -785,9 +794,57 @@ export async function buildConsultationState(session, userMessage, onProgress) {
   }
 
   if (missing.length === 0) {
+    onProgress?.({ phase: 'analyzing_symptoms' });
     onProgress?.({ phase: 'diagnosing' });
     const { generateDiagnosis } = await import('../modules/consultations/consultationAi.service.js');
-    const diagnosis = await generateDiagnosis(merged);
+    const flowPhoto =
+      session?.flowState &&
+      typeof session.flowState === 'object' &&
+      !Array.isArray(session.flowState) &&
+      session.flowState.photo_observations &&
+      typeof session.flowState.photo_observations === 'object'
+        ? session.flowState.photo_observations
+        : null;
+    const photoObservations = Array.isArray(flowPhoto?.observations)
+      ? flowPhoto.observations.map((x) => String(x)).filter(Boolean).slice(0, 8)
+      : [];
+
+    if (shouldUseAsyncDiagnosis()) {
+      const diagnosisPayload = {
+        car_make: merged.car_make ?? null,
+        car_model: merged.car_model ?? null,
+        year: merged.year ?? null,
+        mileage: merged.mileage ?? null,
+        symptoms: merged.symptoms ?? null,
+        conditions: merged.conditions ?? null,
+        urgency_signs: merged.urgency_signs ?? null,
+        obd_codes: merged.obd_codes ?? null,
+        category: merged.category ?? null,
+        intent: merged.intent ?? null,
+        service_type: merged.service_type ?? null,
+        photo_observations: photoObservations,
+      };
+      const isService = merged.intent === 'service';
+      const st = isService ? detectServiceType(String(merged.symptoms || '')) : null;
+      return {
+        stage: 'DIAGNOSIS_QUEUED',
+        assistant_message:
+          'Спасибо, все ключевые данные получены. Запускаем интеллектуальный анализ — результат появится через несколько секунд.',
+        extracted_data: merged,
+        diagnosis: null,
+        diagnosis_payload: diagnosisPayload,
+        missing_fields: [],
+        service_type: st || merged.service_type || null,
+        flowState: {
+          asked_questions: flow.asked_questions,
+          stage: 'DIAGNOSIS_QUEUED',
+          intent: merged.intent || 'diagnostic',
+          service_type: st || merged.service_type || null,
+        },
+      };
+    }
+
+    const diagnosis = await generateDiagnosis({ ...merged, photo_observations: photoObservations });
     const isManual = String(diagnosis?.status || '').toUpperCase() === 'MANUAL_REVIEW_REQUIRED';
 
     const isService = merged.intent === 'service';

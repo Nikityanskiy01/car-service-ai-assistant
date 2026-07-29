@@ -7,24 +7,32 @@ export function Tabs({
   items,
   value,
   onChange,
+  className = '',
 }: {
   items: TabItem[];
   value: string;
   onChange: (next: string) => void;
+  className?: string;
 }) {
   return (
-    <div className="tabs" role="tablist">
-      {items.map((item) => (
-        <button
-          key={item.id}
-          role="tab"
-          className={`tab ${value === item.id ? 'tab-active' : ''}`}
-          onClick={() => onChange(item.id)}
-          type="button"
-        >
-          {item.label}
-        </button>
-      ))}
+    <div className={`tabs ${className}`.trim()} role="tablist">
+      {items.map((item) => {
+        const selected = value === item.id;
+        return (
+          <button
+            key={item.id}
+            role="tab"
+            type="button"
+            id={`tab-${item.id}`}
+            aria-selected={selected}
+            aria-controls={`tabpanel-${item.id}`}
+            className={`tab ${selected ? 'tab-active' : ''}`}
+            onClick={() => onChange(item.id)}
+          >
+            {item.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

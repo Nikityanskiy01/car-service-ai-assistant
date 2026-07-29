@@ -1,20 +1,39 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Phone } from 'lucide-react';
 import {
   exportRequestToCrm,
   getRequestIntegrations,
-  listIntegrations,
+  listManagerIntegrations,
   retryRequestIntegration,
 } from '../../api/integrations';
 import {
+  assignRequestToMe,
+  assignRequestToManager,
+  getRequestStatusHistory,
   getServiceRequest,
   listRequestMessages,
   patchServiceRequestStatus,
   sendRequestMessage,
+  type StatusHistoryItem,
 } from '../../api/dashboard';
+import { ApiError } from '../../api/errors';
+import { prefillBookingFromConsultation } from '../../features/services/prefill';
+import {
+  getRequestConfidence,
+  getRequestUrgency,
+  getSessionDiagnosis,
+} from '../../lib/managerRequestHelpers';
+import { ConsultationPhotoGallery } from '../../components/consultation/ConsultationPhotoGallery';
+import { ConsultationStagesTimeline } from '../../components/consultation/ConsultationStagesTimeline';
 import { AssistantMessage } from '../../components/consultation/AssistantMessage';
-import { DiagnosticSummary } from '../../components/consultation/DiagnosticSummary';
+import { ConsultationFeedbackPanel } from '../../components/requests/ConsultationFeedbackPanel';
+import { RequestSummaryPanel } from '../../components/requests/RequestSummaryPanel';
+import { SimilarCasesPanel } from '../../components/requests/SimilarCasesPanel';
 import { UserMessage } from '../../components/consultation/UserMessage';
+import { ManagerPicker } from '../../components/manager/ManagerPicker';
+import { MessageAttachmentInput, type PendingAttachment } from '../../components/requests/MessageAttachmentInput';
+import { MessageAttachmentList } from '../../components/requests/MessageAttachmentList';
 import { RequestStatusSelector } from '../../components/requests/RequestStatusSelector';
 import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -27,19 +46,24 @@ import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
 import { Textarea } from '../../components/ui/Textarea';
+import { UrgencyBadge } from '../../components/consultation/UrgencyBadge';
+import { MESSAGE_TEMPLATES } from '../../lib/messageTemplates';
 import {
   formatRequestNumber,
   INTEGRATION_JOB_STATUS_LABELS,
   INTEGRATION_PROVIDER_LABELS,
+  SERVICE_REQUEST_STATUS_LABELS,
 } from '../../lib/labels';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { RequestIntegrationStatus } from '../../types/integration';
 import type { IntegrationConnection } from '../../types/integration';
 import type { ServiceRequestDetail, ServiceRequestStatus } from '../../types/serviceRequest';
 import type { FollowUpMessage } from '../../api/dashboard';
+import type { ConsultationDetail } from '../../types/consultation';
 
 export function ManagerRequestDetailPage() {
   const { requestId = '' } = useParams();
+  const navigate = useNavigate();
   usePageMeta({ title: 'Заявка', description: 'Подробная карточка обращения.' });
 
   const [loading, setLoading] = useState(true);
@@ -48,12 +72,15 @@ export function ManagerRequestDetailPage() {
   const [messages, setMessages] = useState<FollowUpMessage[]>([]);
   const [integrations, setIntegrations] = useState<RequestIntegrationStatus | null>(null);
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState('summary');
   const [reply, setReply] = useState('');
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [assignManagerId, setAssignManagerId] = useState('');
   const [sending, setSending] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportConnectionId, setExportConnectionId] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [statusHistory, setStatusHistory] = useState<StatusHistoryItem[]>([]);
 
   async function load() {
     if (!requestId) return;
@@ -80,51 +107,112 @@ export function ManagerRequestDetailPage() {
   }, [requestId]);
 
   useEffect(() => {
-    void listIntegrations()
-      .then((rows) => setConnections(rows.filter((c) => c.enabled)))
+    void listManagerIntegrations()
+      .then((rows) =>
+        setConnections(
+          rows.map((c) => ({
+            ...c,
+            capabilities: c.capabilities || { pushRequests: true },
+          })) as IntegrationConnection[],
+        ),
+      )
       .catch(() => setConnections([]));
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'history' || !requestId) return;
+    void getRequestStatusHistory(requestId)
+      .then((data) => setStatusHistory(data.items))
+      .catch(() => setStatusHistory([]));
+  }, [tab, requestId]);
 
   const owner = request?.client?.fullName || request?.guestName || 'Гость';
   const phone = request?.client?.phone || request?.guestPhone || '';
   const car = `${request?.snapshotMake || ''} ${request?.snapshotModel || ''}`.trim() || 'Не указан';
-  const recommendation = request?.consultationSession?.recommendations?.[0];
+  const session = request?.consultationSession;
+  const diagnosis = getSessionDiagnosis(session);
+  const confidence = getRequestConfidence(session);
+  const urgency = getRequestUrgency(session);
 
   const exportableConnections = useMemo(
     () => connections.filter((c) => c.capabilities?.pushRequests),
     [connections],
   );
+  const threadClosed = request?.status === 'COMPLETED' || request?.status === 'CANCELLED';
+
+  function openBooking() {
+    if (!request) return;
+    prefillBookingFromConsultation({
+      detail: {
+        extracted: session?.extracted,
+        diagnosis: diagnosis || undefined,
+      } as ConsultationDetail,
+      serviceRequestId: request.id,
+      fullName: owner,
+      phone: phone || undefined,
+    });
+    void navigate('/booking');
+  }
 
   async function changeStatus(status: ServiceRequestStatus) {
     if (!request) return;
     setActionError(null);
+    const previousStatus = request.status;
     try {
       const updated = await patchServiceRequestStatus(request.id, status, request.version);
       setRequest({ ...request, status: updated.status, version: updated.version });
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const fresh = await getServiceRequest(request.id);
+        setRequest(fresh);
+        setActionError(
+          `Конфликт версий: вы меняли статус на «${SERVICE_REQUEST_STATUS_LABELS[status]}», в системе сейчас «${SERVICE_REQUEST_STATUS_LABELS[fresh.status]}» (v${fresh.version}, было v${request.version} / «${SERVICE_REQUEST_STATUS_LABELS[previousStatus]}»).`,
+        );
+        return;
+      }
       setActionError(
-        e instanceof Error && e.message.includes('409')
-          ? 'Заявка была изменена другим сотрудником. Обновите данные и повторите.'
-          : e instanceof Error
-            ? e.message
-            : 'Не удалось изменить статус',
+        e instanceof Error ? e.message : 'Не удалось изменить статус',
       );
       await load();
     }
   }
 
   async function submitReply() {
-    if (!request || !reply.trim()) return;
+    if (!request || (!reply.trim() && !pendingAttachments.length)) return;
     setSending(true);
     setActionError(null);
     try {
-      const msg = await sendRequestMessage(request.id, reply.trim());
+      const msg = await sendRequestMessage(request.id, {
+        body: reply.trim(),
+        attachments: pendingAttachments.map(({ fileName, mimeType, contentBase64 }) => ({
+          fileName,
+          mimeType,
+          contentBase64,
+        })),
+      });
       setMessages((prev) => [...prev, msg]);
       setReply('');
+      setPendingAttachments([]);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Не удалось отправить сообщение');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleAssignManager() {
+    if (!request || !assignManagerId) return;
+    setActionError(null);
+    try {
+      const updated = await assignRequestToManager(request.id, assignManagerId);
+      setRequest({
+        ...request,
+        assignedManagerId: updated.assignedManagerId,
+        assignedManager: updated.assignedManager || request.assignedManager,
+        version: updated.version,
+      });
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Не удалось назначить менеджера');
     }
   }
 
@@ -160,16 +248,48 @@ export function ManagerRequestDetailPage() {
         title={`Заявка №${formatRequestNumber(request.id)}`}
         breadcrumbs={[
           { label: 'Рабочий стол', to: '/dashboard/manager' },
-          { label: 'Заявки', to: '/dashboard/manager/requests' },
+          { label: 'Очередь', to: '/dashboard/manager/requests' },
           { label: `№${formatRequestNumber(request.id)}` },
         ]}
         actions={
           <div className="request-detail-actions">
             {phone ? (
-              <Button variant="ghost" onClick={() => void navigator.clipboard.writeText(phone)}>
-                Скопировать телефон
-              </Button>
+              <>
+                <a href={`tel:${phone}`} className="btn btn-ghost">
+                  <Phone size={16} aria-hidden />
+                  Позвонить
+                </a>
+                <Button variant="ghost" onClick={() => void navigator.clipboard.writeText(phone)}>
+                  Скопировать телефон
+                </Button>
+              </>
             ) : null}
+            <Button variant="secondary" onClick={() => openBooking()}>
+              Назначить визит
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void assignRequestToMe(request.id).then(() => void load());
+              }}
+            >
+              Назначить на себя
+            </Button>
+            <div className="manager-assign-row">
+              <ManagerPicker
+                value={assignManagerId || request.assignedManagerId || ''}
+                onChange={setAssignManagerId}
+                allowEmpty
+                placeholder="Менеджер"
+              />
+              <Button
+                variant="ghost"
+                disabled={!assignManagerId}
+                onClick={() => void handleAssignManager()}
+              >
+                Назначить
+              </Button>
+            </div>
             {exportableConnections.length ? (
               <Button
                 onClick={() => {
@@ -180,14 +300,11 @@ export function ManagerRequestDetailPage() {
                 Передать в учётную систему
               </Button>
             ) : null}
-            <Link to="/booking">
-              <Button variant="secondary">Назначить визит</Button>
-            </Link>
           </div>
         }
       />
 
-      <Card className="request-summary-bar">
+      <Card className="request-summary-bar request-summary-bar-sticky">
         <div className="request-summary-grid">
           <div>
             <span className="label">Статус</span>
@@ -202,6 +319,13 @@ export function ManagerRequestDetailPage() {
             <strong>{car}</strong>
           </div>
           <div>
+            <span className="label">ИИ</span>
+            <div className="request-ai-badges">
+              {urgency ? <UrgencyBadge urgency={urgency} /> : <span className="muted">—</span>}
+              {confidence != null ? <span className="ai-confidence-pill">{confidence}%</span> : null}
+            </div>
+          </div>
+          <div>
             <span className="label">Дата</span>
             <strong>{new Date(request.createdAt).toLocaleString('ru-RU')}</strong>
           </div>
@@ -212,49 +336,54 @@ export function ManagerRequestDetailPage() {
         </div>
       </Card>
 
-      {actionError ? <div className="alert alert-danger">{actionError}</div> : null}
+      {actionError ? <div className="alert alert-error">{actionError}</div> : null}
 
       <Tabs
         value={tab}
         onChange={setTab}
         items={[
-          { id: 'overview', label: 'Обзор' },
-          { id: 'consultation', label: 'Консультация' },
-          { id: 'analysis', label: 'Результат анализа' },
-          { id: 'messages', label: 'Общение' },
-          { id: 'integration', label: 'Учётная система' },
-          { id: 'history', label: 'История' },
+          { id: 'summary', label: 'Сводка' },
+          { id: 'consultation', label: 'Диалог ИИ' },
+          { id: 'messages', label: 'Переписка' },
+          { id: 'works', label: 'Работы и оценка' },
+          { id: 'history', label: 'История и CRM' },
         ]}
       />
 
-      {tab === 'overview' && (
+      {tab === 'summary' && (
         <Card>
-          <h2>Проблема и собранные данные</h2>
-          <p>{request.snapshotSymptoms || 'Симптомы не указаны'}</p>
-          {request.consultationSession?.extracted ? (
-            <dl className="detail-dl">
-              {Object.entries(request.consultationSession.extracted)
-                .filter(([, v]) => v != null && v !== '')
-                .map(([key, value]) => (
-                  <div key={key}>
-                    <dt>{key}</dt>
-                    <dd>{String(value)}</dd>
-                  </div>
-                ))}
-            </dl>
-          ) : null}
-          {recommendation?.summary ? (
-            <p>
-              <strong>Рекомендация ИИ:</strong> {recommendation.summary}
-            </p>
-          ) : null}
+          <RequestSummaryPanel
+            request={request}
+            integrations={integrations}
+            onFeedbackSaved={(feedback) =>
+              setRequest((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      consultationSession: prev.consultationSession
+                        ? { ...prev.consultationSession, feedback }
+                        : prev.consultationSession,
+                    }
+                  : prev,
+              )
+            }
+          />
         </Card>
       )}
 
       {tab === 'consultation' && (
         <Card className="consultation-thread">
-          {request.consultationSession?.messages?.length ? (
-            request.consultationSession.messages.map((m) =>
+          <ConsultationStagesTimeline
+            progressPercent={session?.progressPercent}
+            hasDiagnosis={Boolean(diagnosis)}
+            messageCount={session?.messages?.length ?? 0}
+          />
+          <ConsultationPhotoGallery
+            photoObservations={session?.flowState?.photo_observations}
+            messageContents={(session?.messages || []).map((m) => m.content)}
+          />
+          {session?.messages?.length ? (
+            session.messages.map((m) =>
               m.sender === 'ASSISTANT' || m.sender === 'assistant' ? (
                 <AssistantMessage key={m.id} message={m} />
               ) : (
@@ -263,28 +392,6 @@ export function ManagerRequestDetailPage() {
             )
           ) : (
             <EmptyState title="Диалог пуст" description="Сообщения консультации не сохранены." />
-          )}
-        </Card>
-      )}
-
-      {tab === 'analysis' && (
-        <Card>
-          {recommendation ? (
-            <DiagnosticSummary
-              recommendations={[
-                {
-                  summary: recommendation.summary || undefined,
-                  confidence: recommendation.confidence ?? undefined,
-                  urgency: (recommendation.urgency as string) || undefined,
-                  checks: Array.isArray(recommendation.recommendedChecks)
-                    ? (recommendation.recommendedChecks as string[])
-                    : [],
-                  costFromMinor: recommendation.estimatedPriceFrom ?? undefined,
-                },
-              ]}
-            />
-          ) : (
-            <EmptyState title="Анализ не завершён" description="ИИ-анализ ещё не готов или требует уточнений." />
           )}
         </Card>
       )}
@@ -299,7 +406,8 @@ export function ManagerRequestDetailPage() {
                     <strong>{m.author?.fullName || 'Менеджер'}</strong>
                     <time>{new Date(m.createdAt).toLocaleString('ru-RU')}</time>
                   </header>
-                  <p>{m.body}</p>
+                  <p>{m.body || null}</p>
+                  <MessageAttachmentList attachments={m.attachments} />
                 </article>
               ))
             ) : (
@@ -307,92 +415,162 @@ export function ManagerRequestDetailPage() {
             )}
           </div>
           <div className="message-compose">
+            {threadClosed ? (
+              <p className="muted">Переписка закрыта — заявка завершена или отменена.</p>
+            ) : (
+              <>
+            <div className="message-templates" role="group" aria-label="Шаблоны ответов">
+              {MESSAGE_TEMPLATES.map((tpl) => (
+                <Button
+                  key={tpl.id}
+                  type="button"
+                  variant="ghost"
+                  className="message-template-btn"
+                  onClick={() => setReply(tpl.body)}
+                >
+                  {tpl.label}
+                </Button>
+              ))}
+            </div>
             <Textarea
               value={reply}
               onChange={(e) => setReply(e.target.value)}
               placeholder="Ответ клиенту…"
               rows={3}
             />
-            <Button disabled={sending || !reply.trim()} onClick={() => void submitReply()}>
+            <MessageAttachmentInput
+              files={pendingAttachments}
+              onChange={setPendingAttachments}
+              disabled={sending}
+            />
+            <Button
+              disabled={sending || (!reply.trim() && !pendingAttachments.length)}
+              onClick={() => void submitReply()}
+            >
               Отправить
             </Button>
+              </>
+            )}
           </div>
         </Card>
       )}
 
-      {tab === 'integration' && (
-        <Card>
-          <h2>Синхронизация с учётной системой</h2>
-          {!connections.length ? (
-            <EmptyState
-              title="Нет активных подключений"
-              description="Администратор может подключить CRM в разделе интеграций."
+      {tab === 'works' && (
+        <div className="stack">
+          <Card>
+            <ConsultationFeedbackPanel
+              requestId={request.id}
+              initial={session?.feedback}
+              onSaved={(feedback) =>
+                setRequest((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        consultationSession: prev.consultationSession
+                          ? { ...prev.consultationSession, feedback }
+                          : prev.consultationSession,
+                      }
+                    : prev,
+                )
+              }
             />
-          ) : null}
-          {integrations?.links?.length ? (
-            <ul className="integration-links">
-              {integrations.links.map((link) => (
-                <li key={link.connectionId}>
-                  <strong>{link.connectionName}</strong>
-                  <span>{INTEGRATION_PROVIDER_LABELS[link.provider]}</span>
-                  <span>Внешний номер: {link.externalEntityId}</span>
-                  {link.externalUrl ? (
-                    <a href={link.externalUrl} target="_blank" rel="noreferrer">
-                      Открыть во внешней системе
-                    </a>
-                  ) : null}
-                  <small>Синхронизировано: {new Date(link.synchronizedAt).toLocaleString('ru-RU')}</small>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted">Заявка ещё не передана во внешнюю систему.</p>
-          )}
-          {integrations?.jobs?.length ? (
-            <div className="integration-jobs">
-              <h3>Последние попытки</h3>
-              <ul>
-                {integrations.jobs.map((job) => (
-                  <li key={job.id}>
-                    <IntegrationStatusBadge status={job.status} />
-                    <span>{INTEGRATION_JOB_STATUS_LABELS[job.status] || job.status}</span>
-                    {job.lastErrorMessage ? <span className="danger">{job.lastErrorMessage}</span> : null}
-                    {['FAILED', 'RETRYING', 'DEAD_LETTER'].includes(job.status) ? (
-                      <Button variant="ghost" onClick={() => void handleRetry(job.connectionId)}>
-                        Повторить
-                      </Button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </Card>
+          </Card>
+          <Card>
+            <SimilarCasesPanel requestId={request.id} />
+          </Card>
+        </div>
       )}
 
       {tab === 'history' && (
-        <Card>
-          <ul className="activity-timeline">
-            <li>
-              <time>{new Date(request.createdAt).toLocaleString('ru-RU')}</time>
-              <span>Заявка создана</span>
-            </li>
-            {messages.map((m) => (
-              <li key={m.id}>
-                <time>{new Date(m.createdAt).toLocaleString('ru-RU')}</time>
-                <span>Отправлено сообщение менеджером</span>
+        <div className="stack">
+          <Card>
+            <h2>История</h2>
+            <ul className="activity-timeline">
+              <li>
+                <time>{new Date(request.createdAt).toLocaleString('ru-RU')}</time>
+                <span>Заявка создана</span>
               </li>
-            ))}
-            {integrations?.jobs
-              ?.filter((j) => j.status === 'SUCCEEDED')
-              .map((j) => (
-                <li key={j.id}>
-                  <time>{new Date(j.updatedAt).toLocaleString('ru-RU')}</time>
-                  <span>Заявка передана в учётную систему</span>
+              {statusHistory.map((row) => (
+                <li key={row.id}>
+                  <time>{new Date(row.createdAt).toLocaleString('ru-RU')}</time>
+                  <span>
+                    Статус: {row.fromStatus ? SERVICE_REQUEST_STATUS_LABELS[row.fromStatus as ServiceRequestStatus] || row.fromStatus : '—'} →{' '}
+                    {SERVICE_REQUEST_STATUS_LABELS[row.toStatus as ServiceRequestStatus] || row.toStatus}
+                    {row.actor?.fullName ? ` (${row.actor.fullName})` : ''}
+                  </span>
                 </li>
               ))}
-          </ul>
-        </Card>
+              {messages.map((m) => (
+                <li key={m.id}>
+                  <time>{new Date(m.createdAt).toLocaleString('ru-RU')}</time>
+                  <span>Отправлено сообщение менеджером</span>
+                </li>
+              ))}
+              {session?.feedback ? (
+                <li>
+                  <time>{new Date(session.feedback.updatedAt).toLocaleString('ru-RU')}</time>
+                  <span>Оценка диагноза ИИ сохранена</span>
+                </li>
+              ) : null}
+              {integrations?.jobs
+                ?.filter((j) => j.status === 'SUCCEEDED')
+                .map((j) => (
+                  <li key={j.id}>
+                    <time>{new Date(j.updatedAt).toLocaleString('ru-RU')}</time>
+                    <span>Заявка передана в учётную систему</span>
+                  </li>
+                ))}
+            </ul>
+          </Card>
+
+          <Card>
+            <h2>Синхронизация с учётной системой</h2>
+            {!connections.length ? (
+              <EmptyState
+                title="Нет активных подключений"
+                description="Администратор может подключить CRM в разделе интеграций."
+              />
+            ) : null}
+            {integrations?.links?.length ? (
+              <ul className="integration-links">
+                {integrations.links.map((link) => (
+                  <li key={link.connectionId}>
+                    <strong>{link.connectionName}</strong>
+                    <span>{INTEGRATION_PROVIDER_LABELS[link.provider]}</span>
+                    <span>Внешний номер: {link.externalEntityId}</span>
+                    {link.externalUrl ? (
+                      <a href={link.externalUrl} target="_blank" rel="noreferrer">
+                        Открыть во внешней системе
+                      </a>
+                    ) : null}
+                    <small>Синхронизировано: {new Date(link.synchronizedAt).toLocaleString('ru-RU')}</small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">Заявка ещё не передана во внешнюю систему.</p>
+            )}
+            {integrations?.jobs?.length ? (
+              <div className="integration-jobs">
+                <h3>Последние попытки</h3>
+                <ul>
+                  {integrations.jobs.map((job) => (
+                    <li key={job.id}>
+                      <IntegrationStatusBadge status={job.status} />
+                      <span>{INTEGRATION_JOB_STATUS_LABELS[job.status] || job.status}</span>
+                      {job.lastErrorMessage ? <span className="danger">{job.lastErrorMessage}</span> : null}
+                      {['FAILED', 'RETRYING', 'DEAD_LETTER'].includes(job.status) ? (
+                        <Button variant="ghost" onClick={() => void handleRetry(job.connectionId)}>
+                          Повторить
+                        </Button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </Card>
+        </div>
       )}
 
       <ConfirmDialog
@@ -410,10 +588,7 @@ export function ManagerRequestDetailPage() {
         <div className="export-connection-picker">
           <label>
             Подключение
-            <select
-              value={exportConnectionId}
-              onChange={(e) => setExportConnectionId(e.target.value)}
-            >
+            <select value={exportConnectionId} onChange={(e) => setExportConnectionId(e.target.value)}>
               <option value="">Выберите систему</option>
               {exportableConnections.map((c) => (
                 <option key={c.id} value={c.id}>

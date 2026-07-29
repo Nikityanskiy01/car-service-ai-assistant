@@ -2,12 +2,17 @@ import { getEnv } from './config/env.js';
 import { createApp } from './app.js';
 import { logger } from './lib/logger.js';
 import prisma from './lib/prisma.js';
+import { startDiagnosisWorker, stopDiagnosisWorker } from './services/diagnosisWorker.service.js';
+import { closeDiagnosisQueue } from './services/diagnosisJob.service.js';
+import { startSlaEscalationJob, stopSlaEscalationJob } from './jobs/slaEscalation.job.js';
 
 const env = getEnv();
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'server listening');
+  startDiagnosisWorker();
+  startSlaEscalationJob();
 });
 
 const SHUTDOWN_TIMEOUT_MS = 15_000;
@@ -21,6 +26,14 @@ async function gracefulShutdown(signal) {
       resolve();
     });
   });
+
+  try {
+    await stopDiagnosisWorker();
+    await closeDiagnosisQueue();
+    stopSlaEscalationJob();
+  } catch (err) {
+    logger.error({ err }, 'error closing diagnosis queue');
+  }
 
   try {
     await prisma.$disconnect();

@@ -7,13 +7,20 @@ import {
   blockStaffFromPosting,
 } from '../../middleware/consultationAccess.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
+import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import { isAppError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import * as consultationsService from './consultations.service.js';
+import { getDiagnosisJobForSession } from '../../services/diagnosisJob.service.js';
 import * as serviceRequestsService from '../serviceRequests/serviceRequests.service.js';
 import * as referenceService from '../reference/reference.service.js';
 import { buildConsultationPdfBuffer } from '../../lib/pdf/consultationPdf.js';
+
+const photoSchema = z.object({
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  imageBase64: z.string().min(100).max(6_000_000),
+});
 
 const messageSchema = z.object({
   content: z.string().min(1).max(4000),
@@ -31,6 +38,9 @@ const guestRequestSchema = z.object({
   fullName: z.string().min(2).max(120),
   phone: z.string().min(6).max(40),
   email: z.string().email().optional().nullable(),
+  consentPersonalData: z.literal(true, {
+    errorMap: () => ({ message: 'Необходимо согласие на обработку персональных данных' }),
+  }),
 });
 
 const staffSessionsQuerySchema = z.object({
@@ -40,8 +50,11 @@ const staffSessionsQuerySchema = z.object({
 
 export const consultationsRouter = Router();
 
+const createSessionLimiter = createPublicWriteLimiter(40);
+
 consultationsRouter.post(
   '/',
+  createSessionLimiter,
   optionalAuthJwt,
   asyncHandler(async (req, res) => {
     if (req.user?.role === 'CLIENT') {
@@ -125,6 +138,15 @@ consultationsRouter.get(
 );
 
 consultationsRouter.get(
+  '/:sessionId/diagnosis-job',
+  optionalAuthJwt,
+  consultationSessionAccess,
+  asyncHandler(async (req, res) => {
+    res.json(await getDiagnosisJobForSession(req.params.sessionId));
+  }),
+);
+
+consultationsRouter.get(
   '/:sessionId',
   optionalAuthJwt,
   consultationSessionAccess,
@@ -157,6 +179,36 @@ consultationsRouter.post(
           error: 'Сервис интеллектуального анализа временно недоступен. Вы можете сохранить обращение и передать его менеджеру.',
           code: 'LLM_ERROR',
           sessionStatus: 'AI_ERROR',
+        });
+      }
+      throw e;
+    }
+  }),
+);
+
+consultationsRouter.post(
+  '/:sessionId/analyze-photo',
+  optionalAuthJwt,
+  consultationSessionAccess,
+  blockStaffFromPosting,
+  validateBody(photoSchema),
+  asyncHandler(async (req, res) => {
+    try {
+      const result = await consultationsService.analyzeConsultationPhoto(
+        req.params.sessionId,
+        req.consultationActor,
+        req.validatedBody,
+      );
+      const session = await consultationsService.getSessionDetail(
+        req.params.sessionId,
+        req.consultationActor,
+      );
+      res.status(201).json({ ...result, session: serializeSessionDetail(session) });
+    } catch (e) {
+      if (isAppError(e) && (e.statusCode === 503 || e.code === 'LLM_ERROR')) {
+        return res.status(503).json({
+          error: 'Анализ фото временно недоступен. Опишите симптомы текстом.',
+          code: 'LLM_ERROR',
         });
       }
       throw e;
@@ -352,6 +404,9 @@ function serializeSession(s, { isGuest } = {}) {
 function serializeSessionList(s) {
   return {
     ...serializeSession(s),
+    make: s.extracted?.make ?? null,
+    model: s.extracted?.model ?? null,
+    symptoms: s.extracted?.symptoms ?? null,
     extracted: s.extracted,
     serviceRequest: s.serviceRequest,
   };
@@ -408,6 +463,14 @@ function serializeSessionDetail(s) {
     })),
     serviceRequest: s.serviceRequest,
     serviceCategory: s.serviceCategory,
+    diagnosisJob: s.diagnosisJob
+      ? {
+          id: s.diagnosisJob.id,
+          status: s.diagnosisJob.status,
+          errorMessage: s.diagnosisJob.errorMessage,
+          updatedAt: s.diagnosisJob.updatedAt.toISOString(),
+        }
+      : null,
   };
 }
 
