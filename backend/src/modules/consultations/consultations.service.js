@@ -16,6 +16,7 @@ import {
 } from '../../services/consultationFlowService.js';
 import { createAndEnqueueDiagnosisJob } from '../../services/diagnosisJob.service.js';
 import { detectServiceType } from '../../services/consultationIntent.service.js';
+import { linkSessionToVehicle } from '../vehicles/vehicles.service.js';
 
 const sessionDetailInclude = {
   client: { select: { id: true, fullName: true, phone: true, email: true, emailProfile: true } },
@@ -388,6 +389,22 @@ async function persistConsultationTurn(sessionId, { ai, mergedExtracted, priorFl
       },
     }),
   ]);
+
+  const sessionMeta = await prisma.consultationSession.findUnique({
+    where: { id: sessionId },
+    select: { clientId: true, vehicleId: true },
+  });
+  if (
+    sessionMeta?.clientId &&
+    !sessionMeta.vehicleId &&
+    (mergedExtracted.make || mergedExtracted.model)
+  ) {
+    await linkSessionToVehicle(sessionId, sessionMeta.clientId, {
+      make: mergedExtracted.make,
+      model: mergedExtracted.model,
+      year: mergedExtracted.year,
+    });
+  }
 
   if (complete) {
     void indexConsultationCase(sessionId).catch((err) => {

@@ -286,6 +286,7 @@ function serializeListItem(r) {
     snapshotMake: r.snapshotMake,
     snapshotModel: r.snapshotModel,
     snapshotSymptoms: r.snapshotSymptoms,
+    vehicleId: r.vehicleId ?? null,
     client: r.client,
     assignedManagerId: r.assignedManagerId,
     assignedManager: r.assignedManager,

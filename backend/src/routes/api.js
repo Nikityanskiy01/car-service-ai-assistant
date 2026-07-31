@@ -17,6 +17,7 @@ import {
 import { requestMessagesRouter } from '../modules/requestMessages/requestMessages.router.js';
 import { serviceRequestsRouter } from '../modules/serviceRequests/serviceRequests.router.js';
 import { usersRouter } from '../modules/users/users.router.js';
+import { vehiclesRouter } from '../modules/vehicles/vehicles.router.js';
 
 const api = Router();
 
@@ -36,6 +37,7 @@ api.use('/auth', authRouter);
 api.use('/contact', contactRouter);
 api.use('/content', contentRouter);
 api.use('/users', usersRouter);
+api.use('/vehicles', vehiclesRouter);
 api.use('/consultations', consultationsRouter);
 api.use('/service-requests', serviceRequestsRouter);
 api.use('/service-requests/:requestId/messages', requestMessagesRouter);

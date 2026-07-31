@@ -9,6 +9,7 @@ import { getRelevantCases } from '../../services/caseMemory.service.js';
 import { notifyNewServiceRequest } from '../notifications/telegram.service.js';
 import { dispatchOutbox, enqueueOutboxEvent, processPendingJobs } from '../integrations/integrations.service.js';
 import { exportRequestToConnection } from '../integrations/integrations.service.js';
+import { findOrCreateVehicleForClient, listVehiclesForDossier } from '../vehicles/vehicles.service.js';
 
 async function logStatusChange({ requestId, actorId, fromStatus, toStatus }) {
   if (fromStatus === toStatus) return;
@@ -55,11 +56,25 @@ export async function createFromSession(sessionId, user) {
   }
 
   const ext = session.extracted;
+  const vehicle = await findOrCreateVehicleForClient(user.id, {
+    make: ext.make,
+    model: ext.model,
+    year: ext.year,
+  });
+  const vehicleId = session.vehicleId || vehicle?.id || null;
+
   const sr = await prisma.$transaction(async (tx) => {
+    if (vehicleId && !session.vehicleId) {
+      await tx.consultationSession.update({
+        where: { id: sessionId },
+        data: { vehicleId },
+      });
+    }
     const created = await tx.serviceRequest.create({
       data: {
         clientId: user.id,
         consultationSessionId: sessionId,
+        vehicleId,
         status: 'NEW',
         version: 1,
         snapshotMake: ext.make,
@@ -497,7 +512,7 @@ export async function getClientDossier(user, clientId) {
     ltvMinor: feedbackAgg._sum.repairAmountMinor || 0,
     repairsWithAmount: feedbackAgg._count.id || 0,
   };
-  return { profile, requests, bookings, consultations, metrics };
+  return { profile, requests, bookings, consultations, metrics, vehicles: await listVehiclesForDossier(clientId) };
 }
 
 export async function getGuestDossier(user, phoneRaw) {

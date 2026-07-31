@@ -156,8 +156,43 @@ model User {
   consultationFeedbacks ConsultationFeedback[]
   assignedServiceRequests ServiceRequest[] @relation("AssignedManagerRequests")
   serviceRequestStatusLogs ServiceRequestStatusLog[]
+  clientVehicles           ClientVehicle[]
+  clientVehicleExclusions  ClientVehicleExclusion[]
 
   @@map("users")
+}
+
+model ClientVehicleExclusion {
+  id          String   @id @default(uuid())
+  clientId    String   @map("client_id")
+  fingerprint String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, fingerprint])
+  @@index([clientId])
+  @@map("client_vehicle_exclusions")
+}
+
+model ClientVehicle {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  make      String
+  model     String
+  year      Int?
+  vin       String?
+  notes     String?
+  source    String   @default("manual")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client               User                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  consultationSessions ConsultationSession[]
+  serviceRequests      ServiceRequest[]
+
+  @@index([clientId])
+  @@map("client_vehicles")
 }
 
 model ServiceRequestStatusLog {
@@ -299,6 +334,7 @@ model ReferenceMaterial {
 model ConsultationSession {
   id                String                    @id @default(uuid())
   clientId          String?                   @map("client_id")
+  vehicleId         String?                   @map("vehicle_id")
   guestToken        String?                   @unique @map("guest_token")
   guestName         String?                   @map("guest_name")
   guestPhone        String?                   @map("guest_phone")
@@ -314,6 +350,7 @@ model ConsultationSession {
   updatedAt         DateTime                  @updatedAt @map("updated_at")
 
   client          User?                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  vehicle         ClientVehicle?         @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   serviceCategory ServiceCategory?       @relation(fields: [serviceCategoryId], references: [id], onDelete: SetNull)
   messages        Message[]
   extracted       ExtractedDiagnosticData?
@@ -325,6 +362,7 @@ model ConsultationSession {
   reports         ConsultationReport[]
 
   @@index([clientId])
+  @@index([vehicleId])
   @@index([createdAt])
   @@index([status])
   @@map("consultation_sessions")
@@ -435,6 +473,7 @@ model ConsultationDiagnosisJob {
 model ServiceRequest {
   id                    String                 @id @default(uuid())
   clientId              String?                @map("client_id")
+  vehicleId             String?                @map("vehicle_id")
   guestName             String?                @map("guest_name")
   guestPhone            String?                @map("guest_phone")
   guestEmail            String?                @map("guest_email")
@@ -452,6 +491,7 @@ model ServiceRequest {
   updatedAt             DateTime               @updatedAt @map("updated_at")
 
   client              User?                    @relation("ClientRequests", fields: [clientId], references: [id], onDelete: SetNull)
+  vehicle             ClientVehicle?           @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   assignedManager     User?                    @relation("AssignedManagerRequests", fields: [assignedManagerId], references: [id], onDelete: SetNull)
   consultationSession ConsultationSession      @relation(fields: [consultationSessionId], references: [id], onDelete: Cascade)
   followUpMessages    RequestFollowUpMessage[]
@@ -460,6 +500,7 @@ model ServiceRequest {
   statusLogs          ServiceRequestStatusLog[]
 
   @@index([clientId])
+  @@index([vehicleId])
   @@index([status])
   @@index([assignedManagerId])
   @@map("service_requests")

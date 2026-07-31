@@ -2,8 +2,10 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../api/client';
 import { listBookings, listServiceRequests } from '../../../api/dashboard';
+import { formatVehicleTitle, getVehicle, type ClientVehicle } from '../../../api/vehicles';
 import { CaseCard } from '../../../components/client/CaseCard';
 import { PageHeader } from '../../../components/layout/dashboard/PageHeader';
+import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -14,6 +16,7 @@ import {
   buildClientCases,
   filterCasesByQuery,
   filterCasesByTab,
+  filterCasesByVehicle,
   parseClientCaseTab,
 } from '../../../features/client-cases/buildClientCases';
 import type {
@@ -29,10 +32,27 @@ export function ClientCasesPage() {
   usePageMeta({ title: 'Мои обращения', description: 'История диагностики, заявок и визитов.' });
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = parseClientCaseTab(searchParams.get('tab'));
-  const [search, setSearch] = useState('');
+  const vehicleId = searchParams.get('vehicleId');
+  const initialQuery = searchParams.get('q') || '';
+  const [search, setSearch] = useState(initialQuery);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cases, setCases] = useState<ClientCase[]>([]);
+  const [vehicleFilter, setVehicleFilter] = useState<ClientVehicle | null>(null);
+
+  useEffect(() => {
+    setSearch(initialQuery);
+  }, [initialQuery]);
+
+  useEffect(() => {
+    if (!vehicleId) {
+      setVehicleFilter(null);
+      return;
+    }
+    void getVehicle(vehicleId)
+      .then(setVehicleFilter)
+      .catch(() => setVehicleFilter(null));
+  }, [vehicleId]);
 
   useEffect(() => {
     void (async () => {
@@ -61,8 +81,19 @@ export function ClientCasesPage() {
 
   const filtered = useMemo(() => {
     const byTab = filterCasesByTab(cases, tab);
-    return filterCasesByQuery(byTab, search);
-  }, [cases, search, tab]);
+    const byVehicle = filterCasesByVehicle(
+      byTab,
+      vehicleFilter
+        ? {
+            id: vehicleFilter.id,
+            make: vehicleFilter.make,
+            model: vehicleFilter.model,
+            year: vehicleFilter.year,
+          }
+        : null,
+    );
+    return filterCasesByQuery(byVehicle, search);
+  }, [cases, search, tab, vehicleFilter]);
 
   const counts = useMemo(
     () => ({
@@ -79,8 +110,16 @@ export function ClientCasesPage() {
     setSearchParams(params, { replace: true });
   }
 
+  function clearVehicleFilter() {
+    const params = new URLSearchParams(searchParams);
+    params.delete('vehicleId');
+    setSearchParams(params, { replace: true });
+  }
+
   if (loading) return <Loader label="Загружаем обращения..." />;
   if (error) return <ErrorState message={error} />;
+
+  const vehicleTitle = vehicleFilter ? formatVehicleTitle(vehicleFilter) : null;
 
   return (
     <div className="stack dashboard-page">
@@ -108,6 +147,17 @@ export function ClientCasesPage() {
         ]}
       />
 
+      {vehicleId && vehicleTitle ? (
+        <div className="case-filter-banner">
+          <span>
+            Показаны обращения по автомобилю: <strong>{vehicleTitle}</strong>
+          </span>
+          <Button type="button" variant="ghost" onClick={clearVehicleFilter}>
+            Показать все
+          </Button>
+        </div>
+      ) : null}
+
       <div className="case-toolbar">
         <Input
           type="search"
@@ -122,18 +172,22 @@ export function ClientCasesPage() {
         {filtered.length === 0 ? (
           <EmptyState
             title={
-              tab === 'active'
-                ? 'Нет активных обращений'
-                : tab === 'drafts'
-                  ? 'Незавершённых диалогов нет'
-                  : 'Архив пуст'
+              vehicleTitle
+                ? `Нет обращений по ${vehicleTitle}`
+                : tab === 'active'
+                  ? 'Нет активных обращений'
+                  : tab === 'drafts'
+                    ? 'Незавершённых диалогов нет'
+                    : 'Архив пуст'
             }
             description={
-              tab === 'active'
-                ? 'Опишите симптомы в ИИ-чате — обращение появится здесь.'
-                : tab === 'drafts'
-                  ? 'Начните новую диагностику, если нужна помощь с автомобилем.'
-                  : 'Завершённые обращения появятся здесь автоматически.'
+              vehicleTitle
+                ? 'По этому автомобилю пока нет обращений в выбранной вкладке.'
+                : tab === 'active'
+                  ? 'Опишите симптомы в ИИ-чате — обращение появится здесь.'
+                  : tab === 'drafts'
+                    ? 'Начните новую диагностику, если нужна помощь с автомобилем.'
+                    : 'Завершённые обращения появятся здесь автоматически.'
             }
             action={
               tab !== 'archive' ? (

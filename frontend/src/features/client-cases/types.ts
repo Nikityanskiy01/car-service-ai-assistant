@@ -24,6 +24,8 @@ export type ClientCase = {
   urgency?: string | null;
   make?: string | null;
   model?: string | null;
+  year?: number | null;
+  vehicleId?: string | null;
 };
 
 export type ConsultationCaseInput = {
@@ -34,7 +36,8 @@ export type ConsultationCaseInput = {
   make?: string | null;
   model?: string | null;
   symptoms?: string | null;
-  extracted?: { make?: string | null; model?: string | null; symptoms?: string | null } | null;
+  vehicleId?: string | null;
+  extracted?: { make?: string | null; model?: string | null; symptoms?: string | null; year?: number | null } | null;
   serviceRequest?: { id: string; status: string } | null;
 };
 
@@ -45,6 +48,7 @@ export type RequestCaseInput = {
   snapshotMake?: string | null;
   snapshotModel?: string | null;
   snapshotSymptoms?: string | null;
+  vehicleId?: string | null;
   consultationSessionId?: string;
   consultationSession?: {
     id?: string;

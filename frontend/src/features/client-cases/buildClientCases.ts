@@ -95,6 +95,7 @@ export function buildClientCases(
       urgency: request.consultationSession?.diagnosis?.urgency ?? null,
       make: request.snapshotMake,
       model: request.snapshotModel,
+      vehicleId: request.vehicleId ?? null,
     });
   }
 
@@ -120,6 +121,8 @@ export function buildClientCases(
       consultationSessionId: consultation.id,
       make: consultation.make ?? consultation.extracted?.make,
       model: consultation.model ?? consultation.extracted?.model,
+      year: consultation.extracted?.year ?? null,
+      vehicleId: consultation.vehicleId ?? null,
     });
   }
 
@@ -154,6 +157,33 @@ export function filterCasesByQuery(cases: ClientCase[], query: string): ClientCa
     const haystack = [item.title, item.symptoms, item.make, item.model].filter(Boolean).join(' ').toLowerCase();
     return haystack.includes(q);
   });
+}
+
+export type VehicleFilter = {
+  id: string;
+  make: string;
+  model: string;
+  year?: number | null;
+};
+
+function matchesVehicle(caseItem: ClientCase, vehicle: VehicleFilter) {
+  if (caseItem.vehicleId === vehicle.id) return true;
+  const makeMatch = norm(caseItem.make) === norm(vehicle.make);
+  const modelMatch = norm(caseItem.model) === norm(vehicle.model);
+  if (!makeMatch || !modelMatch) return false;
+  if (vehicle.year != null && caseItem.year != null) {
+    return caseItem.year === vehicle.year;
+  }
+  return true;
+}
+
+function norm(value?: string | null) {
+  return String(value || '').trim().toLowerCase();
+}
+
+export function filterCasesByVehicle(cases: ClientCase[], vehicle: VehicleFilter | null): ClientCase[] {
+  if (!vehicle) return cases;
+  return cases.filter((item) => matchesVehicle(item, vehicle));
 }
 
 export function parseClientCaseTab(value: string | null): ClientCaseTab {

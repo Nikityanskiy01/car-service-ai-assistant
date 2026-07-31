@@ -389,6 +389,7 @@ function serializeSession(s, { isGuest } = {}) {
   return {
     id: s.id,
     status: s.status,
+    vehicleId: s.vehicleId ?? null,
     progressPercent: s.progressPercent,
     confidencePercent: s.confidencePercent,
     costFromMinor: s.costFromMinor,
