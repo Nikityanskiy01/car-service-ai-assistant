@@ -11,7 +11,7 @@ const publicLinks = [
   { to: '/consult', label: 'ИИ-диагностика' },
   { to: '/works', label: 'Работы' },
   { to: '/gallery', label: 'Галерея' },
-  { to: '/about', label: 'О сервисе и контакты' },
+  { to: '/about', label: 'О сервисе' },
 ];
 
 export function Header() {
@@ -53,16 +53,16 @@ export function Header() {
             ИИ-диагностика
           </Link>
           {user ? (
-            <>
+            <div className="fm-header-auth">
               <Link to={dashboardPath} className="fm-btn fm-btn-ghost">
                 Кабинет
               </Link>
               <button type="button" className="fm-btn fm-btn-ghost" onClick={() => void logout()}>
                 Выйти
               </button>
-            </>
+            </div>
           ) : (
-            <Link to="/login" className="fm-btn fm-btn-ghost">
+            <Link to="/login" className="fm-btn fm-btn-ghost fm-header-auth">
               Вход
             </Link>
           )}
@@ -88,6 +88,28 @@ export function Header() {
           <Link to="/booking" onClick={() => setMobileOpen(false)}>
             Записаться в сервис
           </Link>
+          <div className="fm-mobile-nav-divider" role="separator" aria-hidden="true" />
+          {user ? (
+            <>
+              <Link to={dashboardPath} onClick={() => setMobileOpen(false)}>
+                Личный кабинет
+              </Link>
+              <button
+                type="button"
+                className="fm-mobile-nav-logout"
+                onClick={() => {
+                  setMobileOpen(false);
+                  void logout();
+                }}
+              >
+                Выйти
+              </button>
+            </>
+          ) : (
+            <Link to="/login" onClick={() => setMobileOpen(false)}>
+              Вход
+            </Link>
+          )}
         </nav>
       ) : null}
     </header>

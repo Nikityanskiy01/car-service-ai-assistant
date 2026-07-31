@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
+import { invalidateAuthUserCache } from '../../middleware/authJwt.js';
 import * as referenceService from '../reference/reference.service.js';
 
 export async function listUsers({ limit = 100, offset = 0 } = {}) {
@@ -21,11 +22,13 @@ export async function listUsers({ limit = 100, offset = 0 } = {}) {
 export async function patchUserRole(userId, role) {
   const u = await prisma.user.findUnique({ where: { id: userId } });
   if (!u) throw new AppError(404, 'User not found', 'NOT_FOUND');
-  return prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { role },
     select: { id: true, email: true, role: true, blocked: true },
   });
+  invalidateAuthUserCache(userId);
+  return updated;
 }
 
 export async function blockUser(userId) {
@@ -33,6 +36,7 @@ export async function blockUser(userId) {
     where: { id: userId },
     data: { blocked: true },
   });
+  invalidateAuthUserCache(userId);
 }
 
 export async function unblockUser(userId) {
@@ -40,6 +44,7 @@ export async function unblockUser(userId) {
     where: { id: userId },
     data: { blocked: false },
   });
+  invalidateAuthUserCache(userId);
 }
 
 export async function listContentBlocks({ section } = {}) {

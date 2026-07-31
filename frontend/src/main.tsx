@@ -1,13 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+// Cyrillic weights for UI; latin-400 covers numbers/emails without 4 extra latin files.
 import '@fontsource/manrope/cyrillic-400.css';
 import '@fontsource/manrope/cyrillic-500.css';
 import '@fontsource/manrope/cyrillic-600.css';
 import '@fontsource/manrope/cyrillic-700.css';
 import '@fontsource/manrope/latin-400.css';
-import '@fontsource/manrope/latin-500.css';
-import '@fontsource/manrope/latin-600.css';
-import '@fontsource/manrope/latin-700.css';
 import { App } from './app/App';
 import { AppProviders } from './app/providers/AppProviders';
 import './styles/main.css';

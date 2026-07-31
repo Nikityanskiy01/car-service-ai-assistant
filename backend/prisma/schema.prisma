@@ -365,6 +365,8 @@ model ConsultationSession {
   @@index([vehicleId])
   @@index([createdAt])
   @@index([status])
+  @@index([updatedAt(sort: Desc)])
+  @@index([clientId, createdAt(sort: Desc)])
   @@map("consultation_sessions")
 }
 
@@ -378,6 +380,7 @@ model Message {
   session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
+  @@index([sessionId, createdAt])
   @@map("messages")
 }
 
@@ -449,6 +452,7 @@ model ConsultationFeedback {
   @@index([managerId])
   @@index([verdict])
   @@index([createdAt(sort: Desc)])
+  @@index([verdict, updatedAt(sort: Desc)])
   @@map("consultation_feedback")
 }
 
@@ -503,6 +507,9 @@ model ServiceRequest {
   @@index([vehicleId])
   @@index([status])
   @@index([assignedManagerId])
+  @@index([createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([clientId, createdAt(sort: Desc)])
   @@map("service_requests")
 }
 
@@ -518,6 +525,7 @@ model RequestFollowUpMessage {
   attachments RequestFollowUpAttachment[]
 
   @@index([requestId])
+  @@index([requestId, createdAt])
   @@map("request_follow_up_messages")
 }
 
@@ -586,6 +594,8 @@ model ServiceBooking {
 
   @@index([clientId])
   @@index([serviceRequestId])
+  @@index([preferredAt])
+  @@index([clientId, preferredAt])
   @@map("service_bookings")
 }
 

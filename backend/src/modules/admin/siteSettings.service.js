@@ -1,7 +1,10 @@
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
+import { createTtlCache } from '../../lib/ttlCache.js';
 
 const SETTINGS_ID = 'default';
+const settingsCache = createTtlCache(60_000);
+const SETTINGS_CACHE_KEY = 'site-settings';
 
 /** Defaults aligned with frontend productConfig starter. */
 export const DEFAULT_SITE_SETTINGS = {
@@ -75,15 +78,22 @@ function mergeSettings(base, patch) {
 }
 
 export async function getSiteSettings() {
+  const cached = settingsCache.get(SETTINGS_CACHE_KEY);
+  if (cached) return cached;
+
   const row = await prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
-  if (!row?.configJson) return { ...DEFAULT_SITE_SETTINGS, updatedAt: null };
-  return {
-    ...mergeSettings(DEFAULT_SITE_SETTINGS, row.configJson),
-    updatedAt: row.updatedAt?.toISOString() || null,
-  };
+  const value = !row?.configJson
+    ? { ...DEFAULT_SITE_SETTINGS, updatedAt: null }
+    : {
+        ...mergeSettings(DEFAULT_SITE_SETTINGS, row.configJson),
+        updatedAt: row.updatedAt?.toISOString() || null,
+      };
+  settingsCache.set(SETTINGS_CACHE_KEY, value);
+  return value;
 }
 
 export async function patchSiteSettings(actorId, patch) {
+  settingsCache.del(SETTINGS_CACHE_KEY);
   const current = await getSiteSettings();
   const merged = mergeSettings(current, patch);
   const row = await prisma.siteSettings.upsert({
@@ -107,10 +117,12 @@ export async function patchSiteSettings(actorId, patch) {
       payloadJson: { keys: Object.keys(patch || {}) },
     },
   });
-  return {
+  const result = {
     ...merged,
     updatedAt: row.updatedAt.toISOString(),
   };
+  settingsCache.set(SETTINGS_CACHE_KEY, result);
+  return result;
 }
 
 export function validateSiteSettingsPatch(patch) {

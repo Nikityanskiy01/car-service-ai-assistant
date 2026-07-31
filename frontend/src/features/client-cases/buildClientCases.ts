@@ -6,6 +6,7 @@ import type {
   ConsultationCaseInput,
   RequestCaseInput,
 } from './types';
+import { resolveClientCaseTopic } from './clientCaseTopic';
 
 function truncate(value: string, max: number) {
   if (value.length <= max) return value;
@@ -34,24 +35,24 @@ function computeProgress(
 ): { stage: ClientCaseStage; percent: number; label: string } {
   if (kind === 'draft') {
     if (consultationStatus === 'COMPLETED') {
-      return { stage: 'diagnosis', percent: 50, label: 'Диагностика завершена' };
+      return { stage: 'diagnosis', percent: 50, label: 'Диагностика готова — создайте обращение' };
     }
-    return { stage: 'diagnosis', percent: 25, label: 'Сбор симптомов' };
+    return { stage: 'diagnosis', percent: 25, label: 'Продолжите описание проблемы' };
   }
 
   if (requestStatus === 'COMPLETED') {
-    return { stage: 'done', percent: 100, label: 'Ремонт завершён' };
+    return { stage: 'done', percent: 100, label: 'Работы завершены' };
   }
   if (requestStatus === 'CANCELLED') {
-    return { stage: 'done', percent: 100, label: 'Обращение отменено' };
+    return { stage: 'done', percent: 100, label: 'Обращение закрыто' };
   }
   if (hasBooking || requestStatus === 'SCHEDULED') {
-    return { stage: 'booking', percent: 75, label: 'Запись назначена' };
+    return { stage: 'booking', percent: 75, label: 'Визит назначен' };
   }
   if (requestStatus === 'IN_PROGRESS') {
-    return { stage: 'request', percent: 55, label: 'В работе у мастера' };
+    return { stage: 'request', percent: 55, label: 'Сервис работает по обращению' };
   }
-  return { stage: 'request', percent: 40, label: 'Заявка принята' };
+  return { stage: 'request', percent: 40, label: 'Ждём ответа менеджера' };
 }
 
 export function buildClientCases(
@@ -76,6 +77,7 @@ export function buildClientCases(
     const booking = bookingByRequestId.get(request.id);
     const progress = computeProgress('request', request.status, undefined, Boolean(booking));
     const symptoms = request.snapshotSymptoms || '';
+    const session = request.consultationSession;
 
     cases.push({
       id: request.id,
@@ -92,10 +94,19 @@ export function buildClientCases(
       consultationSessionId: sessionId,
       bookingId: booking?.id,
       bookingPreferredAt: booking?.preferredAt,
-      urgency: request.consultationSession?.diagnosis?.urgency ?? null,
+      urgency: session?.diagnosis?.urgency ?? null,
       make: request.snapshotMake,
       model: request.snapshotModel,
       vehicleId: request.vehicleId ?? null,
+      topic: resolveClientCaseTopic({
+        kind: 'request',
+        symptoms,
+        requestStatus: request.status,
+        progressStage: progress.stage,
+        intent: session?.intent ?? null,
+        serviceType: session?.serviceType ?? null,
+        serviceCategoryName: session?.serviceCategoryName ?? null,
+      }),
     });
   }
 
@@ -123,6 +134,15 @@ export function buildClientCases(
       model: consultation.model ?? consultation.extracted?.model,
       year: consultation.extracted?.year ?? null,
       vehicleId: consultation.vehicleId ?? null,
+      topic: resolveClientCaseTopic({
+        kind: 'draft',
+        symptoms,
+        consultationStatus: consultation.status,
+        progressStage: progress.stage,
+        intent: consultation.intent ?? null,
+        serviceType: consultation.serviceType ?? null,
+        serviceCategoryName: consultation.serviceCategoryName ?? null,
+      }),
     });
   }
 

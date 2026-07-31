@@ -180,31 +180,38 @@
 **Маршрут:** `/dashboard/client/cases/:caseId`
 
 **caseId** может быть:
-- `serviceRequestId` — если это заявка
+- `serviceRequestId` — если это обращение
 - `consultationSessionId` — если черновик диагностики
 
-**Вкладки (`?tab=`):**
+**IA (Next Action First):**
+- Единый hero: авто · № · симптомы + встроенный `CaseNextStep` (tone/icon)
+- Без `PageHeader` / `StatusPipeline` на деталях
+- Тон страницы (`data-tone`) красит hero, вкладки и sticky
 
-| tab | Содержимое |
-|-----|------------|
-| `progress` | `StatusPipeline` + `CaseTimeline` + действия |
-| `diagnosis` | `DiagnosticSummary`, OBD, рекомендации |
-| `messages` | Bubble-chat с менеджером |
-| `booking` | Связанная запись или CTA «Записаться» |
+**Вкладки (`?tab=`):** сегменты с иконками
+
+| tab | Лейбл | Содержимое |
+|-----|-------|------------|
+| `progress` | Обзор | fact-chips + `CaseTimeline` + teaser визита |
+| `diagnosis` | Диагностика | `DiagnosticSummary` |
+| `messages` | Сообщения | Bubble-chat с менеджером |
+| `booking` | Визит | `CaseVisitPanel` (spotlight-карточка) |
 
 **CaseTimeline** (`frontend/src/components/client/CaseTimeline.tsx`):
-- 4 шага: ИИ-диагностика → Заявка → Запись → Ремонт
+- 4 шага с иконками и connector: Диагностика → Ответ сервиса → Визит → Готово
 - Состояния: `done` / `current` / `upcoming`
-- Человеческие подписи через `clientRequestStatusLabel`
 
-**Sticky footer (mobile):** «Написать» / «Продолжить» / «Записаться»
+**CaseNextStep** (`frontend/src/components/client/CaseNextStep.tsx` + `resolveCaseNextStep.ts`):
+- State machine + `tone` / `icon` по draft / request.status / наличию визита
 
-**Переписка:**
+**Sticky footer (mobile):** те же CTA, что в `CaseNextStep`
+
+**Сообщения:**
 - `GET/POST /service-requests/:id/messages`
 - Bubble UI: `.message-bubble.is-client` / `.is-staff`
 - Блокировка при `COMPLETED` / `CANCELLED`
 
-**Запись из обращения:** `prefillBookingFromConsultation()` → `/booking` с `serviceRequestId`
+**Визит из обращения:** `prefillBookingFromConsultation()` → `/booking` с `serviceRequestId`
 
 #### B4. Роутинг и legacy-редиректы
 

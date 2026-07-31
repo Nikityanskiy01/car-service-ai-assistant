@@ -403,6 +403,8 @@ function serializeSession(s, { isGuest } = {}) {
 }
 
 function serializeSessionList(s) {
+  const flow =
+    s.flowState && typeof s.flowState === 'object' && !Array.isArray(s.flowState) ? s.flowState : {};
   return {
     ...serializeSession(s),
     make: s.extracted?.make ?? null,
@@ -410,6 +412,9 @@ function serializeSessionList(s) {
     symptoms: s.extracted?.symptoms ?? null,
     extracted: s.extracted,
     serviceRequest: s.serviceRequest,
+    intent: flow.intent ?? null,
+    serviceType: flow.service_type ?? null,
+    serviceCategoryName: s.serviceCategory?.name ?? null,
   };
 }
 

@@ -1,6 +1,9 @@
 import prisma from '../lib/prisma.js';
 import { AppError } from '../lib/errors.js';
 import { getEnv } from '../config/env.js';
+import { createTtlCache } from '../lib/ttlCache.js';
+
+const fewShotCache = createTtlCache(10 * 60_000);
 
 function extractDiagnosisFromFlowState(flowState) {
   if (!flowState || typeof flowState !== 'object' || Array.isArray(flowState)) return null;
@@ -104,6 +107,7 @@ export async function upsertFeedbackForRequest(requestId, managerId, input) {
       manager: { select: { id: true, fullName: true } },
     },
   });
+  fewShotCache.clear();
   return serializeFeedback(row);
 }
 
@@ -281,6 +285,10 @@ export async function getConfirmedFewShotExamples(limit) {
   if (!env.CONSULTATION_FEEDBACK_FEW_SHOT_ENABLED) return [];
 
   const take = Math.min(Math.max(1, Number(limit) || env.CONSULTATION_FEEDBACK_FEW_SHOT_LIMIT), 8);
+  const cacheKey = `few-shot:${take}`;
+  const cached = fewShotCache.get(cacheKey);
+  if (cached) return cached;
+
   const rows = await prisma.consultationFeedback.findMany({
     where: {
       OR: [{ verdict: 'CORRECT' }, { verdict: 'PARTIAL', actualCause: { not: null } }],
@@ -297,5 +305,11 @@ export async function getConfirmedFewShotExamples(limit) {
     take,
   });
 
-  return rows.map(formatFewShotExample).filter((x) => x.confirmed_cause);
+  const examples = rows.map(formatFewShotExample).filter((x) => x.confirmed_cause);
+  fewShotCache.set(cacheKey, examples);
+  return examples;
+}
+
+export function invalidateFewShotCache() {
+  fewShotCache.clear();
 }

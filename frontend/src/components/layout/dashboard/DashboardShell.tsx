@@ -82,7 +82,8 @@ export function DashboardShell() {
     return () => {
       cancelled = true;
     };
-  }, [isClient, isClientUser, location.pathname]);
+    // Refresh badge once per client-shell mount, not on every client sub-route.
+  }, [isClient, isClientUser]);
 
   const defaultTitle = useMemo(() => {
     if (isAdmin) return resolveAdminRouteTitle(location.pathname);

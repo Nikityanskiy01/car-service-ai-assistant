@@ -11,35 +11,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { getClientDashboardSummary } from '../../../api/dashboard';
 import { listVehicles, type ClientVehicle } from '../../../api/vehicles';
 import { CaseCard } from '../../../components/client/CaseCard';
+import { ClientOverviewBookingSpotlight } from '../../../components/client/ClientOverviewBookingSpotlight';
 import { ClientOverviewFocusStack } from '../../../components/client/ClientOverviewFocusStack';
 import { ClientGarageAddCard, ClientGarageCard } from '../../../components/client/ClientGarageCard';
 import { ClientStatusHelpButton } from '../../../components/client/ClientStatusHelp';
-import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
 import type { ClientCase } from '../../../features/client-cases/types';
+import { resolveClientCaseTopic } from '../../../features/client-cases/clientCaseTopic';
 import { resolveClientOverviewSubtitle } from '../../../features/client-cases/resolveClientAlerts';
 import { resolveClientOverviewFocus } from '../../../features/client-cases/resolveClientOverviewFocus';
 import type { ClientDashboardSummary } from '../../../features/client-cases/resolveClientHero';
-import { clientBookingStatusDescription } from '../../../lib/clientStatusLabels';
-import { CLIENT_CALENDAR_FILE_HINT, resolveClientStatusTone } from '../../../lib/clientStatusLegend';
-import { buildBookingIcs, downloadBookingIcs } from '../../../lib/buildBookingIcs';
 import { useProductConfig } from '../../../config/ProductConfigProvider';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 import { formatActiveCasesLabel, formatUnreadMessagesLabel } from '../../../lib/russianPlural';
-import { ClientStatusBadge } from '../../../components/client/ClientStatusBadge';
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function toClientCase(item: ClientDashboardSummary['recentActiveCases'][number]): ClientCase {
   return {
@@ -55,6 +42,12 @@ function toClientCase(item: ClientDashboardSummary['recentActiveCases'][number])
     urgency: item.urgency,
     serviceRequestId: item.serviceRequestId ?? undefined,
     consultationSessionId: item.consultationSessionId ?? undefined,
+    topic: resolveClientCaseTopic({
+      kind: item.kind,
+      symptoms: item.symptoms,
+      requestStatus: item.kind === 'request' ? item.status : undefined,
+      progressStage: item.progressStage,
+    }),
   };
 }
 
@@ -99,14 +92,6 @@ export function ClientOverviewPage() {
   }, []);
 
   const focus = useMemo(() => (summary ? resolveClientOverviewFocus(summary) : null), [summary]);
-  const focusIncludesBooking = useMemo(
-    () =>
-      Boolean(
-        focus &&
-          (focus.primary.id === 'booking' || focus.secondary.some((item) => item.id === 'booking')),
-      ),
-    [focus],
-  );
   const subtitle = useMemo(
     () => (summary ? resolveClientOverviewSubtitle(summary) : ''),
     [summary],
@@ -159,6 +144,14 @@ export function ClientOverviewPage() {
         <ClientStatusHelpButton />
       </header>
 
+      {summary.nextBooking ? (
+        <ClientOverviewBookingSpotlight
+          booking={summary.nextBooking}
+          serviceName={productConfig.shortName}
+          serviceAddress={productConfig.address || ''}
+        />
+      ) : null}
+
       {focus ? <ClientOverviewFocusStack primary={focus.primary} secondary={focus.secondary} /> : null}
 
       {isNewcomer ? (
@@ -205,55 +198,6 @@ export function ClientOverviewPage() {
 
       <div className="client-overview-layout">
         <div className="client-overview-main">
-          {summary.nextBooking && !focusIncludesBooking ? (
-            <section className="client-overview-section client-overview-panel" aria-label="Ближайший визит">
-              <div className="card-section-header">
-                <h2>Ближайший визит</h2>
-                <Link to="/dashboard/client/bookings">Все записи</Link>
-              </div>
-              <article
-                className="client-overview-booking-spotlight"
-                data-status-tone={resolveClientStatusTone(summary.nextBooking.status)}
-              >
-                <Link
-                  to={`/dashboard/client/bookings/${summary.nextBooking.id}`}
-                  className="client-overview-booking-link"
-                >
-                  <span className="client-overview-booking-icon" aria-hidden>
-                    <CalendarDays size={22} />
-                  </span>
-                  <div className="client-overview-booking-body">
-                    <time className="client-overview-booking-date">
-                      {formatDate(summary.nextBooking.preferredAt)}
-                    </time>
-                    <p>{clientBookingStatusDescription(summary.nextBooking.status)}</p>
-                  </div>
-                </Link>
-                <div className="client-overview-booking-end">
-                  <ClientStatusBadge status={summary.nextBooking.status} />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="btn-sm"
-                    title={CLIENT_CALENDAR_FILE_HINT}
-                    aria-label="Скачать напоминание для календаря"
-                    onClick={() => {
-                      const ics = buildBookingIcs({
-                        id: summary.nextBooking!.id,
-                        preferredAt: summary.nextBooking!.preferredAt,
-                        title: `Визит — ${productConfig.shortName}`,
-                        location: productConfig.address,
-                      });
-                      downloadBookingIcs(ics, `booking-${summary.nextBooking!.id}.ics`);
-                    }}
-                  >
-                    В календарь
-                  </Button>
-                </div>
-              </article>
-            </section>
-          ) : null}
-
           {activeCases.length > 0 ? (
             <section className="client-overview-section client-overview-panel" aria-label="Активные обращения">
               <div className="card-section-header">

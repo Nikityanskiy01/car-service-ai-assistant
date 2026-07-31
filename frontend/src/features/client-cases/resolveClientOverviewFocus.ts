@@ -21,15 +21,6 @@ function truncate(value: string, max: number) {
   return `${value.slice(0, max - 3)}...`;
 }
 
-function formatBookingDate(value: string) {
-  return new Date(value).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function unreadTitle(count: number) {
   if (count === 1) return '1 новое сообщение';
   if (count < 5) return `${count} новых сообщения`;
@@ -43,13 +34,15 @@ function buildFocusItems(summary: ClientDashboardSummary): OverviewFocusItem[] {
   if (draft?.id) {
     const vehicle = [draft.make, draft.model].filter(Boolean).join(' ');
     const symptom = draft.symptom ? truncate(draft.symptom, 56) : '';
+    const hasMeaningfulSymptom =
+      symptom && !/продолжите описание/i.test(symptom) && symptom.length > 3;
     items.push({
       id: 'draft',
       kind: 'draft',
       accent: 'new',
       priority: 100,
       title: vehicle ? `Продолжить диагностику: ${vehicle}` : 'Диагностика не завершена',
-      description: symptom
+      description: hasMeaningfulSymptom
         ? `«${symptom}» — вернитесь в чат и уточните детали.`
         : 'Диалог не завершён — можно вернуться в чат и уточнить детали.',
       ctaLabel: 'Продолжить в чате',
@@ -71,26 +64,6 @@ function buildFocusItems(summary: ClientDashboardSummary): OverviewFocusItem[] {
       ctaLabel: 'Открыть обращения',
       ctaTo: '/dashboard/client/cases',
     });
-  }
-
-  if (summary.nextBooking) {
-    const daysUntil =
-      (new Date(summary.nextBooking.preferredAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-    if (daysUntil <= 7) {
-      items.push({
-        id: 'booking',
-        kind: 'booking',
-        accent: 'confirmed',
-        priority: daysUntil <= 2 ? 85 : 70,
-        title: `Визит: ${formatBookingDate(summary.nextBooking.preferredAt)}`,
-        description:
-          summary.nextBooking.status === 'CONFIRMED'
-            ? 'Запись подтверждена — ждём вас в сервисе.'
-            : 'Запись ожидает подтверждения менеджером.',
-        ctaLabel: 'Детали записи',
-        ctaTo: `/dashboard/client/bookings/${summary.nextBooking.id}`,
-      });
-    }
   }
 
   const primaryCase = summary.recentActiveCases[0];

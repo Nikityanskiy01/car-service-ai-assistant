@@ -62,6 +62,39 @@ export function DiagnosticSummary({
         ? top.probabilityPercent
         : fallbackConfidence || 0;
   const summaryText = String(diagnosis?.summary || '').trim() || top?.summary || top?.title || '';
+  const hasRealCause = recommendations.some((item) => {
+    const title = String(item.title || item.summary || '').trim();
+    return title.length > 0 && !/^неопредел/i.test(title);
+  });
+  const isWeak =
+    confidence <= 0 &&
+    !hasRealCause &&
+    (!summaryText || /уточнен/i.test(summaryText) || /недостаточно/i.test(summaryText));
+
+  if (isWeak) {
+    return (
+      <section className="diagnostic-summary is-weak" aria-label="Диагностика ожидает данных">
+        <header>
+          <h3>Диагностика ещё собирает данные</h3>
+        </header>
+        <p>
+          Пока недостаточно симптомов для уверенного разбора. Менеджер уточнит детали в переписке или на
+          визите — предварительные причины появятся здесь.
+        </p>
+        <p className="analysis-disclaimer">
+          Это не диагноз. Точный вывод возможен после очной проверки на посту.
+        </p>
+        {onCreateRequest ? (
+          <div className="diagnosis-actions">
+            <button type="button" className="btn btn-primary diagnosis-request-btn" onClick={onCreateRequest}>
+              Передать менеджеру
+            </button>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
   const isCritical = String(diagnosis?.urgency || top?.urgency || '').toLowerCase() === 'critical';
   const diagnosisChecks = Array.isArray(diagnosis?.recommended_checks)
     ? diagnosis.recommended_checks
@@ -69,6 +102,10 @@ export function DiagnosticSummary({
   const checksFromRecs = recommendations.flatMap((item) => item.checks || []).filter(Boolean);
   const allChecks = diagnosisChecks.length ? diagnosisChecks : checksFromRecs;
   const obdItems = detail?.flowState?.obd_interpretations || [];
+  const usableRecommendations = recommendations.filter((item) => {
+    const title = String(item.title || item.summary || '').trim();
+    return title.length > 0 && !/^неопредел/i.test(title);
+  });
 
   return (
     <section className="diagnostic-summary" aria-label="Предварительный результат анализа">
@@ -77,13 +114,16 @@ export function DiagnosticSummary({
         <UrgencyBadge urgency={diagnosis?.urgency || top?.urgency} />
       </header>
       {isCritical ? <CriticalSafetyBanner /> : null}
-      <p>{summaryText || 'Результат сформируется после уточнения ключевых параметров обращения.'}</p>
+      <p>{summaryText || 'Краткий разбор по описанным симптомам.'}</p>
       <div className="analysis-grid">
         <ConfidenceIndicator value={confidence} />
         <EstimatedPriceCard amount={diagnosis?.estimated_cost_from ?? top?.costFromMinor ?? fallbackCost} />
       </div>
       <ObdCodesSummary items={obdItems} />
-      <PossibleCausesList recommendations={recommendations} overallConfidence={diagnosis?.confidence} />
+      <PossibleCausesList
+        recommendations={usableRecommendations}
+        overallConfidence={diagnosis?.confidence}
+      />
       <MasterChecksChecklist checks={allChecks} />
       <DiagnosisActions detail={detail ?? null} onCreateRequest={onCreateRequest} />
       <p className="analysis-disclaimer">

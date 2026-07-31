@@ -19,6 +19,7 @@ import { siteImages, workImageAt } from '../../content/siteImages';
 import { useServices } from '../../features/services/useServices';
 import { useAsyncState } from '../../hooks/useAsyncState';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { cachedPublicFetch } from '../../lib/publicContentCache';
 
 const outcomes = [
   {
@@ -124,7 +125,9 @@ export function HomePage() {
     preloadImage: siteImages.hero.home,
   });
 
-  const worksState = useAsyncState<CmsWork[]>(() => api('/content/site-items?kind=work'));
+  const worksState = useAsyncState<CmsWork[]>(() =>
+    cachedPublicFetch('site-items:work', () => api('/content/site-items?kind=work')),
+  );
   const { services, count: servicesCount } = useServices();
 
   const works = (worksState.data?.length ? worksState.data : fallbackWorks).slice(0, 3);
@@ -165,7 +168,14 @@ export function HomePage() {
         </div>
 
         <aside className="fm-hero-visual" aria-label="Пример консультации">
-          <SiteImage className="fm-hero-photo" src={siteImages.hero.home} alt="" priority />
+          <SiteImage
+            className="fm-hero-photo"
+            src={siteImages.hero.home}
+            alt=""
+            priority
+            width={1536}
+            height={1024}
+          />
           <div className="fm-chat-card">
           <div className="fm-chat-head">
             <div>

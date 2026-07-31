@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
+import { MessageSquarePlus, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../../api/client';
 import { listBookings, listServiceRequests } from '../../../api/dashboard';
@@ -9,7 +10,6 @@ import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
-import { Input } from '../../../components/ui/Input';
 import { Loader } from '../../../components/ui/Loader';
 import { Tabs } from '../../../components/ui/Tabs';
 import {
@@ -19,6 +19,10 @@ import {
   filterCasesByVehicle,
   parseClientCaseTab,
 } from '../../../features/client-cases/buildClientCases';
+import {
+  groupClientCases,
+  presentClientCase,
+} from '../../../features/client-cases/presentClientCase';
 import type {
   BookingCaseInput,
   ClientCase,
@@ -28,21 +32,34 @@ import type {
 } from '../../../features/client-cases/types';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
+const EMPTY_COPY: Record<ClientCaseTab, { title: string; description: string; action: string }> = {
+  active: {
+    title: 'Пока нет активных обращений',
+    description: 'Опишите проблему в чате — здесь будет статус от заявки до визита.',
+    action: 'Описать проблему',
+  },
+  archive: {
+    title: 'В архиве пока пусто',
+    description: 'Завершённые и отменённые обращения сохраняются здесь.',
+    action: '',
+  },
+  drafts: {
+    title: 'Черновиков нет',
+    description: 'Если прервёте диагностику, незавершённый чат появится в этой вкладке.',
+    action: 'Начать диагностику',
+  },
+};
+
 export function ClientCasesPage() {
   usePageMeta({ title: 'Мои обращения', description: 'История диагностики, заявок и визитов.' });
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = parseClientCaseTab(searchParams.get('tab'));
   const vehicleId = searchParams.get('vehicleId');
-  const initialQuery = searchParams.get('q') || '';
-  const [search, setSearch] = useState(initialQuery);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cases, setCases] = useState<ClientCase[]>([]);
   const [vehicleFilter, setVehicleFilter] = useState<ClientVehicle | null>(null);
-
-  useEffect(() => {
-    setSearch(initialQuery);
-  }, [initialQuery]);
 
   useEffect(() => {
     if (!vehicleId) {
@@ -79,7 +96,16 @@ export function ClientCasesPage() {
     })();
   }, []);
 
-  const filtered = useMemo(() => {
+  const tabCounts = useMemo(
+    () => ({
+      active: filterCasesByTab(cases, 'active').length,
+      archive: filterCasesByTab(cases, 'archive').length,
+      drafts: filterCasesByTab(cases, 'drafts').length,
+    }),
+    [cases],
+  );
+
+  const shown = useMemo(() => {
     const byTab = filterCasesByTab(cases, tab);
     const byVehicle = filterCasesByVehicle(
       byTab,
@@ -93,16 +119,14 @@ export function ClientCasesPage() {
         : null,
     );
     return filterCasesByQuery(byVehicle, search);
-  }, [cases, search, tab, vehicleFilter]);
+  }, [cases, tab, vehicleFilter, search]);
 
-  const counts = useMemo(
-    () => ({
-      active: filterCasesByTab(cases, 'active').length,
-      archive: filterCasesByTab(cases, 'archive').length,
-      drafts: filterCasesByTab(cases, 'drafts').length,
-    }),
-    [cases],
-  );
+  const groups = useMemo(() => groupClientCases(shown), [shown]);
+
+  const attentionCase = useMemo(() => {
+    if (tab !== 'active' || search.trim()) return null;
+    return shown.find((item) => presentClientCase(item).attention) ?? null;
+  }, [shown, tab, search]);
 
   function setTab(next: ClientCaseTab) {
     const params = new URLSearchParams(searchParams);
@@ -120,18 +144,21 @@ export function ClientCasesPage() {
   if (error) return <ErrorState message={error} />;
 
   const vehicleTitle = vehicleFilter ? formatVehicleTitle(vehicleFilter) : null;
+  const empty = EMPTY_COPY[tab];
+  const useGroups = tab === 'active' && !search.trim() && groups.length > 1;
 
   return (
-    <div className="stack dashboard-page">
+    <div className="stack dashboard-page client-cases-page">
       <PageHeader
         title="Мои обращения"
-        description="Диагностика, заявки и визиты — в одной истории по каждому случаю."
+        description="Что сейчас с каждой заявкой — и куда нажать дальше."
         breadcrumbs={[
           { label: 'Кабинет', to: '/dashboard/client' },
           { label: 'Обращения' },
         ]}
         actions={
           <Link className="btn btn-primary" to="/consult">
+            <MessageSquarePlus size={18} aria-hidden />
             Новая диагностика
           </Link>
         }
@@ -139,72 +166,97 @@ export function ClientCasesPage() {
 
       <Tabs
         value={tab}
-        onChange={(id) => setTab(id as ClientCaseTab)}
+        onChange={(next) => setTab(next as ClientCaseTab)}
         items={[
-          { id: 'active', label: `Активные (${counts.active})` },
-          { id: 'archive', label: `Архив (${counts.archive})` },
-          { id: 'drafts', label: `Черновики (${counts.drafts})` },
+          { id: 'active', label: `Активные (${tabCounts.active})` },
+          { id: 'archive', label: `Архив (${tabCounts.archive})` },
+          { id: 'drafts', label: `Черновики (${tabCounts.drafts})` },
         ]}
       />
 
+      <div className="client-cases-toolbar">
+        <label className="client-cases-search">
+          <Search size={18} aria-hidden className="client-cases-search-icon" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Найти авто или симптомы"
+            aria-label="Поиск обращений"
+          />
+          {search ? (
+            <button
+              type="button"
+              className="client-cases-search-clear"
+              onClick={() => setSearch('')}
+              aria-label="Очистить поиск"
+            >
+              <X size={16} />
+            </button>
+          ) : null}
+        </label>
+      </div>
+
       {vehicleId && vehicleTitle ? (
-        <div className="case-filter-banner">
+        <div className="client-cases-filter-banner">
           <span>
-            Показаны обращения по автомобилю: <strong>{vehicleTitle}</strong>
+            Показаны обращения по <strong>{vehicleTitle}</strong>
           </span>
           <Button type="button" variant="ghost" onClick={clearVehicleFilter}>
-            Показать все
+            Все авто
           </Button>
         </div>
       ) : null}
 
-      <div className="case-toolbar">
-        <Input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Поиск по авто или симптомам"
-          aria-label="Поиск обращений"
-        />
-      </div>
-
-      <Card>
-        {filtered.length === 0 ? (
+      {shown.length === 0 ? (
+        <Card>
           <EmptyState
-            title={
-              vehicleTitle
-                ? `Нет обращений по ${vehicleTitle}`
-                : tab === 'active'
-                  ? 'Нет активных обращений'
-                  : tab === 'drafts'
-                    ? 'Незавершённых диалогов нет'
-                    : 'Архив пуст'
-            }
+            title={search || vehicleTitle ? 'Ничего не найдено' : empty.title}
             description={
-              vehicleTitle
-                ? 'По этому автомобилю пока нет обращений в выбранной вкладке.'
-                : tab === 'active'
-                  ? 'Опишите симптомы в ИИ-чате — обращение появится здесь.'
-                  : tab === 'drafts'
-                    ? 'Начните новую диагностику, если нужна помощь с автомобилем.'
-                    : 'Завершённые обращения появятся здесь автоматически.'
+              search || vehicleTitle
+                ? 'Измените запрос или сбросьте фильтр по автомобилю.'
+                : empty.description
             }
             action={
-              tab !== 'archive' ? (
-                <Link className="btn btn-secondary btn-sm" to="/consult">
-                  {tab === 'drafts' ? 'Начать диагностику' : 'Опишите симптомы в чате'}
+              tab !== 'archive' && !search && !vehicleTitle ? (
+                <Link className="btn btn-primary" to="/consult">
+                  {empty.action}
                 </Link>
               ) : undefined
             }
           />
-        ) : (
-          <div className="case-card-list">
-            {filtered.map((item) => (
-              <CaseCard key={item.id} clientCase={item} />
-            ))}
-          </div>
-        )}
-      </Card>
+        </Card>
+      ) : useGroups ? (
+        <div className="client-cases-groups">
+          {groups.map((group) => (
+            <section key={group.group} className="client-cases-group" data-group={group.group}>
+              <header className="client-cases-group-head">
+                <h2>{group.label}</h2>
+                <span>{group.items.length}</span>
+              </header>
+              <div className="client-cases-list">
+                {group.items.map((item) => (
+                  <CaseCard
+                    key={item.id}
+                    clientCase={item}
+                    featured={attentionCase?.id === item.id}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="client-cases-list">
+          {shown.map((item) => (
+            <CaseCard
+              key={item.id}
+              clientCase={item}
+              featured={attentionCase?.id === item.id}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

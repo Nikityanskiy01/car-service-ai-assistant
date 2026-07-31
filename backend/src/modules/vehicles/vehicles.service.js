@@ -228,8 +228,19 @@ export async function syncVehiclesFromHistory(clientId) {
   }
 }
 
-export async function listVehicles(clientId) {
+/** Debounce history sync so garage list stays fast on repeated opens. */
+const vehicleSyncAt = new Map();
+const VEHICLE_SYNC_TTL_MS = 5 * 60 * 1000;
+
+async function syncVehiclesFromHistoryThrottled(clientId) {
+  const last = vehicleSyncAt.get(clientId) || 0;
+  if (Date.now() - last < VEHICLE_SYNC_TTL_MS) return;
+  vehicleSyncAt.set(clientId, Date.now());
   await syncVehiclesFromHistory(clientId);
+}
+
+export async function listVehicles(clientId) {
+  await syncVehiclesFromHistoryThrottled(clientId);
 
   const vehicles = await prisma.clientVehicle.findMany({
     where: { clientId },
@@ -320,7 +331,7 @@ export async function deleteVehicle(clientId, vehicleId) {
 }
 
 export async function listVehiclesForDossier(clientId) {
-  await syncVehiclesFromHistory(clientId);
+  await syncVehiclesFromHistoryThrottled(clientId);
   const vehicles = await prisma.clientVehicle.findMany({
     where: { clientId },
     orderBy: [{ updatedAt: 'desc' }],

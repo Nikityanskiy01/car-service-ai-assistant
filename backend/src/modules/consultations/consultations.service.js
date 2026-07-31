@@ -157,6 +157,7 @@ export async function listSessions(clientId, { limit = 50, offset = 0 } = {}) {
     include: {
       extracted: true,
       serviceRequest: { select: { id: true, status: true } },
+      serviceCategory: { select: { name: true } },
     },
   });
 }

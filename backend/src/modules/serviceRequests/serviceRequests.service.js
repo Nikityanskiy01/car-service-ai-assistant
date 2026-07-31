@@ -271,12 +271,15 @@ export async function listRequests(
     client: { select: { id: true, fullName: true, phone: true, email: true } },
     assignedManager: { select: { id: true, fullName: true } },
   };
-  if (user.role === 'MANAGER' || user.role === 'ADMINISTRATOR') {
+  if (user.role === 'MANAGER' || user.role === 'ADMINISTRATOR' || user.role === 'CLIENT') {
     include.consultationSession = {
       select: {
+        id: true,
+        status: true,
         feedback: { select: { id: true, verdict: true } },
         flowState: true,
         confidencePercent: true,
+        serviceCategory: { select: { name: true } },
       },
     };
   }

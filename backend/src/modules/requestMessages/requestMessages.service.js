@@ -45,24 +45,16 @@ export async function listMessages(requestId, user) {
 }
 
 export async function countUnreadMessagesForClient(userId) {
-  const requests = await prisma.serviceRequest.findMany({
-    where: { clientId: userId },
-    select: { id: true, clientMessagesReadAt: true },
-  });
-  if (!requests.length) return 0;
-
-  let total = 0;
-  for (const req of requests) {
-    const count = await prisma.requestFollowUpMessage.count({
-      where: {
-        requestId: req.id,
-        author: { role: { not: 'CLIENT' } },
-        ...(req.clientMessagesReadAt ? { createdAt: { gt: req.clientMessagesReadAt } } : {}),
-      },
-    });
-    total += count;
-  }
-  return total;
+  const rows = await prisma.$queryRaw`
+    SELECT COUNT(*)::int AS count
+    FROM request_follow_up_messages m
+    INNER JOIN service_requests r ON r.id = m.request_id
+    INNER JOIN users a ON a.id = m.author_id
+    WHERE r.client_id = ${userId}
+      AND a.role <> 'CLIENT'
+      AND (r.client_messages_read_at IS NULL OR m.created_at > r.client_messages_read_at)
+  `;
+  return Number(rows?.[0]?.count || 0);
 }
 
 export async function postMessage(requestId, user, { body = '', attachments = [] } = {}) {

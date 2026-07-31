@@ -1,7 +1,18 @@
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../config/env.js';
 import { COOKIE_ACCESS } from '../lib/authCookies.js';
+import { createTtlCache } from '../lib/ttlCache.js';
 import prisma from '../lib/prisma.js';
+
+const AUTH_USER_SELECT = {
+  id: true,
+  role: true,
+  email: true,
+  blocked: true,
+};
+
+/** Short TTL — role/block changes propagate within ~45s without a round-trip every request. */
+const authUserCache = createTtlCache(45_000);
 
 function getAccessTokenString(req) {
   const c = req.cookies?.[COOKIE_ACCESS];
@@ -19,9 +30,26 @@ async function userFromToken(req) {
   const payload = jwt.verify(token, getEnv().JWT_SECRET, { algorithms: ['HS256'] });
   const sub = payload.sub;
   if (typeof sub !== 'string') return null;
-  const user = await prisma.user.findUnique({ where: { id: sub } });
-  if (!user || user.blocked) return null;
+
+  const cached = authUserCache.get(sub);
+  if (cached) {
+    if (cached.blocked) return null;
+    return { id: cached.id, role: cached.role, email: cached.email };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: sub },
+    select: AUTH_USER_SELECT,
+  });
+  if (!user) return null;
+  authUserCache.set(sub, user);
+  if (user.blocked) return null;
   return { id: user.id, role: user.role, email: user.email };
+}
+
+/** Invalidate cached auth identity (call after block/role/password changes). */
+export function invalidateAuthUserCache(userId) {
+  if (userId) authUserCache.del(userId);
 }
 
 export async function authJwt(req, res, next) {

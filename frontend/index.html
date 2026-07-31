@@ -27,8 +27,18 @@
       content="Узнайте причину неисправности за 2–4 минуты и запишитесь в сервис."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="/placeholders/hero-home.jpg" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- LCP hero: start download before JS bundle parses -->
+    <link
+      rel="preload"
+      as="image"
+      href="/placeholders/hero-home.webp"
+      type="image/webp"
+      fetchpriority="high"
+    />
+    <link rel="preload" as="image" href="/placeholders/hero-home.jpg" fetchpriority="high" />
   </head>
   <body>
     <div id="root"></div>

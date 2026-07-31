@@ -1,4 +1,5 @@
 import type { ServiceRequestStatus } from '../../types/serviceRequest';
+import type { ClientCaseTopic } from './clientCaseTopic';
 
 export type ClientCaseKind = 'request' | 'draft';
 export type ClientCaseStage = 'diagnosis' | 'request' | 'booking' | 'done';
@@ -26,6 +27,7 @@ export type ClientCase = {
   model?: string | null;
   year?: number | null;
   vehicleId?: string | null;
+  topic: ClientCaseTopic;
 };
 
 export type ConsultationCaseInput = {
@@ -39,6 +41,9 @@ export type ConsultationCaseInput = {
   vehicleId?: string | null;
   extracted?: { make?: string | null; model?: string | null; symptoms?: string | null; year?: number | null } | null;
   serviceRequest?: { id: string; status: string } | null;
+  intent?: 'diagnostic' | 'service' | 'unknown' | null;
+  serviceType?: string | null;
+  serviceCategoryName?: string | null;
 };
 
 export type RequestCaseInput = {
@@ -54,6 +59,9 @@ export type RequestCaseInput = {
     id?: string;
     status?: string;
     progressPercent?: number | null;
+    intent?: 'diagnostic' | 'service' | 'unknown' | null;
+    serviceType?: string | null;
+    serviceCategoryName?: string | null;
     diagnosis?: { urgency?: string } | null;
   } | null;
 };

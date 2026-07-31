@@ -655,18 +655,13 @@ export async function generateDiagnosisCore(data) {
         ? topWorksForCategory(pbHints.categoryId, 10)
         : [];
 
-  let relatedCases = [];
-  try {
-    relatedCases = await getRelevantCases(payload);
-  } catch {
-    relatedCases = [];
-  }
-  let confirmedExamples = [];
-  try {
-    confirmedExamples = await getConfirmedFewShotExamples();
-  } catch {
-    confirmedExamples = [];
-  }
+  const [relatedCasesResult, confirmedExamplesResult] = await Promise.allSettled([
+    getRelevantCases(payload),
+    getConfirmedFewShotExamples(),
+  ]);
+  const relatedCases = relatedCasesResult.status === 'fulfilled' ? relatedCasesResult.value : [];
+  const confirmedExamples =
+    confirmedExamplesResult.status === 'fulfilled' ? confirmedExamplesResult.value : [];
   const env = getEnv();
   const diagnosisModel = env.LLM_DIAGNOSIS_MODEL?.trim() || env.LLM_MODEL;
   const callDiagnosisLlm = async (extraInstructions = '') =>

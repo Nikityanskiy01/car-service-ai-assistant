@@ -114,6 +114,9 @@ const AdminAiMemoryPage = lazy(() =>
 const ForbiddenPage = lazy(() =>
   import('../pages/errors/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })),
 );
+const StatusErrorPage = lazy(() =>
+  import('../pages/errors/StatusErrorPage').then((m) => ({ default: m.StatusErrorPage })),
+);
 const NotFoundPage = lazy(() =>
   import('../pages/errors/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 );
@@ -169,7 +172,14 @@ export const router = createBrowserRouter([
       { path: 'terms', element: withSuspense(<TermsPage />) },
       { path: 'login', element: withSuspense(<LoginPage />) },
       { path: 'register', element: withSuspense(<RegisterPage />) },
+      { path: '401', element: withSuspense(<StatusErrorPage code={401} />) },
+      { path: '402', element: withSuspense(<StatusErrorPage code={402} />) },
       { path: '403', element: withSuspense(<ForbiddenPage />) },
+      { path: '429', element: withSuspense(<StatusErrorPage code={429} />) },
+      { path: '500', element: withSuspense(<StatusErrorPage code={500} />) },
+      { path: '502', element: withSuspense(<StatusErrorPage code={502} />) },
+      { path: '503', element: withSuspense(<StatusErrorPage code={503} />) },
+      { path: '504', element: withSuspense(<StatusErrorPage code={504} />) },
       { path: '*', element: withSuspense(<NotFoundPage />) },
     ],
   },

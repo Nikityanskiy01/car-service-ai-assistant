@@ -1,5 +1,13 @@
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
+import {
+  CalendarCheck2,
+  CarFront,
+  ClipboardList,
+  FileDown,
+  MessageSquare,
+  Sparkles,
+} from 'lucide-react';
 import { api } from '../../../api/client';
 import {
   getServiceRequest,
@@ -8,24 +16,26 @@ import {
   sendRequestMessage,
   type FollowUpMessage,
 } from '../../../api/dashboard';
+import { CaseNextStep } from '../../../components/client/CaseNextStep';
 import { CaseTimeline } from '../../../components/client/CaseTimeline';
+import { CaseVisitPanel } from '../../../components/client/CaseVisitPanel';
 import { MessageAttachmentInput, type PendingAttachment } from '../../../components/requests/MessageAttachmentInput';
 import { MessageAttachmentList } from '../../../components/requests/MessageAttachmentList';
 import { DiagnosticSummary } from '../../../components/consultation/DiagnosticSummary';
-import { StatusPipeline } from '../../../components/dashboard/StatusPipeline';
-import { PageHeader } from '../../../components/layout/dashboard/PageHeader';
+import { Breadcrumbs } from '../../../components/layout/dashboard/Breadcrumbs';
 import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
-import { Tabs } from '../../../components/ui/Tabs';
 import { Textarea } from '../../../components/ui/Textarea';
 import { buildClientCases, parseClientCaseDetailTab } from '../../../features/client-cases/buildClientCases';
+import {
+  resolveCaseNextStep,
+  type CaseNextStepActionId,
+} from '../../../features/client-cases/resolveCaseNextStep';
 import type { BookingCaseInput, ClientCase, ClientCaseDetailTab } from '../../../features/client-cases/types';
+import { visitStatusHeadline } from '../../../features/client-cases/visitStatusCopy';
 import { prefillBookingFromConsultation } from '../../../features/services/prefill';
-import { clientBookingStatusLabel, clientRequestStatusLabel } from '../../../lib/clientStatusLabels';
 import { CLIENT_MESSAGE_TEMPLATES } from '../../../lib/clientMessageTemplates';
 import { formatRequestNumber } from '../../../lib/labels';
 import { STORAGE_KEYS } from '../../../lib/storageKeys';
@@ -43,16 +53,23 @@ function formatDate(value: string) {
   });
 }
 
-function formatBookingDate(value: string) {
-  return new Date(value).toLocaleString('ru-RU', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function truncateTitle(value: string, max = 72) {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Обращение';
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max - 1).trimEnd()}…`;
 }
+
+const DETAIL_TABS: Array<{
+  id: ClientCaseDetailTab;
+  label: string;
+  icon: typeof ClipboardList;
+}> = [
+  { id: 'progress', label: 'Обзор', icon: ClipboardList },
+  { id: 'diagnosis', label: 'Диагностика', icon: Sparkles },
+  { id: 'messages', label: 'Сообщения', icon: MessageSquare },
+  { id: 'booking', label: 'Визит', icon: CalendarCheck2 },
+];
 
 export function ClientCaseDetailPage() {
   const { caseId = '' } = useParams();
@@ -67,6 +84,7 @@ export function ClientCaseDetailPage() {
   const [clientCase, setClientCase] = useState<ClientCase | null>(null);
   const [bookingPreferredAt, setBookingPreferredAt] = useState<string | undefined>();
   const [bookingId, setBookingId] = useState<string | undefined>();
+  const [bookingStatus, setBookingStatus] = useState<string | undefined>();
   const [messages, setMessages] = useState<FollowUpMessage[]>([]);
   const [reply, setReply] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -75,7 +93,7 @@ export function ClientCaseDetailPage() {
 
   usePageMeta({
     title: 'Обращение',
-    description: 'Ход дела, диагностика, переписка и запись.',
+    description: 'Обзор, диагностика, сообщения и визит.',
   });
 
   async function load() {
@@ -96,6 +114,7 @@ export function ClientCaseDetailPage() {
         setClientCase(built);
         setBookingPreferredAt(booking?.preferredAt);
         setBookingId(booking?.id);
+        setBookingStatus(booking?.status);
         setMessages(msgs);
         return;
       } catch {
@@ -126,6 +145,7 @@ export function ClientCaseDetailPage() {
       setClientCase(built);
       setBookingPreferredAt(undefined);
       setBookingId(undefined);
+      setBookingStatus(undefined);
       setMessages([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось загрузить обращение');
@@ -139,9 +159,7 @@ export function ClientCaseDetailPage() {
   }, [caseId]);
 
   const isDraft = !request && !!consultation;
-  const isClosed =
-    request?.status === 'COMPLETED' ||
-    request?.status === 'CANCELLED';
+  const isClosed = request?.status === 'COMPLETED' || request?.status === 'CANCELLED';
 
   const car = useMemo(() => {
     if (request) {
@@ -160,6 +178,28 @@ export function ClientCaseDetailPage() {
     (request?.consultationSession?.flowState as { diagnosis?: ConsultationDiagnosisSnapshot } | undefined)
       ?.diagnosis ||
     null;
+
+  const nextStep = useMemo(
+    () =>
+      resolveCaseNextStep({
+        isDraft,
+        consultationStatus: consultation?.status,
+        requestStatus: request?.status,
+        requestId: request?.id,
+        bookingId,
+        bookingPreferredAt,
+        bookingStatus,
+      }),
+    [
+      bookingId,
+      bookingPreferredAt,
+      bookingStatus,
+      consultation?.status,
+      isDraft,
+      request?.id,
+      request?.status,
+    ],
+  );
 
   function setTab(next: ClientCaseDetailTab) {
     const params = new URLSearchParams(searchParams);
@@ -184,6 +224,37 @@ export function ClientCaseDetailPage() {
       });
     }
     navigate('/booking');
+  }
+
+  function handleNextStepAction(action: CaseNextStepActionId) {
+    switch (action) {
+      case 'continue_diagnosis':
+        continueConsultation();
+        break;
+      case 'book_visit':
+        goToBooking();
+        break;
+      case 'open_visit':
+        if (bookingId) {
+          navigate(`/dashboard/client/bookings/${bookingId}`);
+        } else {
+          setTab('booking');
+        }
+        break;
+      case 'write_message':
+        setTab('messages');
+        break;
+      case 'download_pdf':
+        if (request?.id) {
+          window.location.href = `/api/service-requests/${request.id}/export.pdf`;
+        }
+        break;
+      case 'back_to_list':
+        navigate('/dashboard/client/cases');
+        break;
+      default:
+        break;
+    }
   }
 
   async function handleSend() {
@@ -212,98 +283,136 @@ export function ClientCaseDetailPage() {
   if (loading) return <Loader label="Загружаем обращение..." />;
   if (error || !clientCase) return <ErrorState message={error || 'Обращение не найдено'} />;
 
-  const title = request
-    ? `Обращение №${formatRequestNumber(request.id)}`
-    : 'Черновик диагностики';
+  const title = isDraft
+    ? 'Черновик диагностики'
+    : truncateTitle(symptoms === '—' ? car : symptoms);
+
+  const requestNumber = request ? `№${formatRequestNumber(request.id)}` : null;
 
   return (
-    <div className="stack dashboard-page">
-      <PageHeader
-        title={title}
-        description={car}
-        breadcrumbs={[
+    <div className="case-detail stack dashboard-page" data-tone={nextStep.tone}>
+      <Breadcrumbs
+        items={[
           { label: 'Кабинет', to: '/dashboard/client' },
           { label: 'Обращения', to: '/dashboard/client/cases' },
-          { label: request ? `№${formatRequestNumber(request.id)}` : 'Черновик' },
+          { label: requestNumber || 'Черновик' },
         ]}
-        actions={
-          request ? (
-            <a className="btn btn-secondary" href={`/api/service-requests/${request.id}/export.pdf`} download>
-              Скачать PDF
+      />
+
+      <section className="case-detail-hero" aria-labelledby="case-detail-title">
+        <div className="case-detail-hero-top">
+          <div className="case-detail-hero-copy">
+            <p className="case-detail-kicker">
+              <CarFront size={14} aria-hidden />
+              <span>{car}</span>
+              {requestNumber ? <span className="case-detail-kicker-sep">·</span> : null}
+              {requestNumber ? <span>{requestNumber}</span> : null}
+            </p>
+            <h1 id="case-detail-title">{title}</h1>
+          </div>
+          {request ? (
+            <a
+              className="case-detail-pdf"
+              href={`/api/service-requests/${request.id}/export.pdf`}
+              download
+            >
+              <FileDown size={16} aria-hidden />
+              PDF
             </a>
-          ) : null
-        }
-      />
+          ) : null}
+        </div>
 
-      {request ? <StatusPipeline current={request.status} /> : null}
+        <CaseNextStep model={nextStep} onAction={handleNextStepAction} />
+      </section>
 
-      <Tabs
-        value={tab}
-        onChange={(id) => setTab(id as ClientCaseDetailTab)}
-        items={[
-          { id: 'progress', label: 'Ход дела' },
-          { id: 'diagnosis', label: 'Диагностика' },
-          { id: 'messages', label: `Переписка (${messages.length})` },
-          { id: 'booking', label: 'Записаться' },
-        ]}
-      />
+      <div className="case-detail-tabs" role="tablist" aria-label="Разделы обращения">
+        {DETAIL_TABS.map((item) => {
+          const Icon = item.icon;
+          const selected = tab === item.id;
+          const count = item.id === 'messages' ? messages.length : null;
+          const visitReady = item.id === 'booking' && Boolean(bookingPreferredAt);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              id={`tab-${item.id}`}
+              aria-selected={selected}
+              aria-controls={`tabpanel-${item.id}`}
+              className={`case-detail-tab${selected ? ' is-active' : ''}${visitReady ? ' has-signal' : ''}`}
+              onClick={() => setTab(item.id)}
+            >
+              <Icon size={15} aria-hidden />
+              <span>
+                {item.label}
+                {count != null ? ` (${count})` : ''}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {tab === 'progress' ? (
-        <div className="grid two">
-          <Card>
-            <h2>Что происходит</h2>
-            <CaseTimeline
-              clientCase={clientCase}
-              requestCreatedAt={request?.createdAt}
-              bookingPreferredAt={bookingPreferredAt}
-            />
-          </Card>
-          <Card>
-            <h2>Детали</h2>
-            <dl className="detail-dl desk-profile-dl">
+        <div className="case-detail-panel" role="tabpanel" id="tabpanel-progress" aria-labelledby="tab-progress">
+          <div className="case-detail-overview">
+            <ul className="case-detail-facts" aria-label="Краткие сведения">
+              <li>
+                <span>Авто</span>
+                <strong>{car}</strong>
+              </li>
+              <li>
+                <span>Симптомы</span>
+                <strong>{symptoms}</strong>
+              </li>
               {request ? (
-                <div>
-                  <dt>Статус</dt>
-                  <dd>
-                    <StatusBadge status={request.status} />
-                    <span className="muted-text"> {clientRequestStatusLabel(request.status)}</span>
-                  </dd>
-                </div>
+                <li>
+                  <span>Создано</span>
+                  <strong>{formatDate(request.createdAt)}</strong>
+                </li>
               ) : null}
-              <div>
-                <dt>Автомобиль</dt>
-                <dd>{car}</dd>
-              </div>
-              <div>
-                <dt>Симптомы</dt>
-                <dd>{symptoms}</dd>
-              </div>
-              {request ? (
-                <div>
-                  <dt>Создана</dt>
-                  <dd>{formatDate(request.createdAt)}</dd>
-                </div>
-              ) : null}
-            </dl>
-            <div className="row gap-sm case-detail-actions">
-              {isDraft ? (
-                <Button onClick={continueConsultation}>Продолжить диагностику</Button>
-              ) : (
-                <Button variant="secondary" onClick={() => setTab('messages')}>
-                  Написать менеджеру
-                </Button>
-              )}
-              <Button variant="ghost" onClick={goToBooking}>
-                Записаться
-              </Button>
+            </ul>
+
+            <div className="case-detail-journey">
+              <header className="case-detail-section-head">
+                <h2>Ход обращения</h2>
+                <p className="muted-text">От диагностики до завершения работ</p>
+              </header>
+              <CaseTimeline
+                clientCase={clientCase}
+                requestCreatedAt={request?.createdAt}
+                bookingPreferredAt={bookingPreferredAt}
+                bookingStatus={bookingStatus}
+              />
             </div>
-          </Card>
+
+            {bookingPreferredAt ? (
+              <button
+                type="button"
+                className="case-detail-visit-teaser"
+                data-visit={bookingStatus === 'CONFIRMED' || bookingStatus === 'ARRIVED' ? 'confirmed' : 'requested'}
+                onClick={() => setTab('booking')}
+              >
+                <CalendarCheck2 size={18} aria-hidden />
+                <span>
+                  <strong>{visitStatusHeadline(bookingStatus, formatDate(bookingPreferredAt))}</strong>
+                  <span className="muted-text">
+                    {bookingStatus === 'CONFIRMED' || bookingStatus === 'ARRIVED'
+                      ? 'Откройте вкладку «Визит» для деталей'
+                      : 'Менеджер ещё подтвердит время'}
+                  </span>
+                </span>
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       {tab === 'diagnosis' ? (
-        <Card>
-          <h2>Результат ИИ-диагностики</h2>
+        <div className="case-detail-panel" role="tabpanel" id="tabpanel-diagnosis" aria-labelledby="tab-diagnosis">
+          <header className="case-detail-section-head">
+            <h2>Результат ИИ-диагностики</h2>
+            <p className="muted-text">Предварительный разбор по симптомам</p>
+          </header>
           {recommendation || diagnosis ? (
             <DiagnosticSummary
               recommendations={
@@ -344,128 +453,143 @@ export function ClientCaseDetailPage() {
               }
             />
           )}
-        </Card>
+        </div>
       ) : null}
 
       {tab === 'messages' ? (
-        <Card>
-          <h2>Переписка с менеджером</h2>
+        <div
+          className="case-detail-panel case-messages"
+          role="tabpanel"
+          id="tabpanel-messages"
+          aria-labelledby="tab-messages"
+        >
+          <header className="case-detail-section-head">
+            <h2>Сообщения с менеджером</h2>
+            <p className="muted-text">Вопросы, уточнения и ответы сервиса</p>
+          </header>
           {!request ? (
             <EmptyState
-              title="Переписка появится после заявки"
-              description="Завершите диагностику и создайте заявку — менеджер ответит здесь."
+              title="Сообщения появятся после обращения"
+              description="Завершите диагностику и создайте обращение — менеджер ответит здесь."
               action={
                 <Button variant="secondary" onClick={continueConsultation}>
                   Продолжить диагностику
                 </Button>
               }
             />
-          ) : messages.length === 0 ? (
-            <EmptyState title="Сообщений пока нет" description="Задайте вопрос — менеджер ответит здесь." />
           ) : (
-            <ul className="message-thread message-thread-bubbles">
-              {messages.map((msg) => (
-                <li
-                  key={msg.id}
-                  className={`message-bubble ${msg.author?.role === 'CLIENT' ? 'is-client' : 'is-staff'}`}
-                >
-                  <div className="message-thread-meta">
-                    <strong>{msg.author?.role === 'CLIENT' ? 'Вы' : msg.author?.fullName || 'Менеджер'}</strong>
-                    <time>{formatDate(msg.createdAt)}</time>
+            <>
+              <div className="case-messages-thread">
+                {messages.length === 0 ? (
+                  <EmptyState
+                    title="Сообщений пока нет"
+                    description="Напишите менеджеру — ответ появится здесь."
+                  />
+                ) : (
+                  <ul className="message-thread message-thread-bubbles">
+                    {messages.map((msg) => {
+                      const isClient = msg.author?.role === 'CLIENT';
+                      const name = isClient ? 'Вы' : msg.author?.fullName || 'Менеджер';
+                      const initial = name.trim().charAt(0).toUpperCase() || '?';
+                      return (
+                        <li
+                          key={msg.id}
+                          className={`message-bubble ${isClient ? 'is-client' : 'is-staff'}`}
+                        >
+                          <span className="message-bubble-avatar" aria-hidden>
+                            {initial}
+                          </span>
+                          <div className="message-bubble-body">
+                            <div className="message-thread-meta">
+                              <strong>{name}</strong>
+                              <time>{formatDate(msg.createdAt)}</time>
+                            </div>
+                            {msg.body ? <p>{msg.body}</p> : null}
+                            <MessageAttachmentList attachments={msg.attachments} />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              <div className="case-messages-compose message-compose">
+                {!isClosed ? (
+                  <div className="message-template-chips" aria-label="Быстрые вопросы">
+                    {CLIENT_MESSAGE_TEMPLATES.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        className="message-template-chip"
+                        onClick={() => setReply(template.body)}
+                      >
+                        {template.label}
+                      </button>
+                    ))}
                   </div>
-                  <p>{msg.body || null}</p>
-                  <MessageAttachmentList attachments={msg.attachments} />
-                </li>
-              ))}
-            </ul>
-          )}
-          {request ? (
-            <div className="message-compose">
-              {!isClosed ? (
-                <div className="message-template-chips" aria-label="Быстрые вопросы">
-                  {CLIENT_MESSAGE_TEMPLATES.map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      className="message-template-chip"
-                      onClick={() => setReply(template.body)}
-                    >
-                      {template.label}
-                    </button>
-                  ))}
+                ) : null}
+                <Textarea
+                  value={reply}
+                  onChange={(e) => setReply(e.target.value)}
+                  placeholder="Написать менеджеру..."
+                  rows={2}
+                  disabled={isClosed}
+                />
+                {isClosed ? (
+                  <p className="muted-text">Обращение закрыто — новые сообщения недоступны.</p>
+                ) : null}
+                {actionError ? <p className="form-error">{actionError}</p> : null}
+                <div className="case-messages-compose-row">
+                  <MessageAttachmentInput
+                    files={pendingAttachments}
+                    onChange={setPendingAttachments}
+                    disabled={sending || isClosed}
+                  />
+                  <Button
+                    onClick={() => void handleSend()}
+                    disabled={sending || (!reply.trim() && !pendingAttachments.length) || isClosed}
+                  >
+                    {sending ? 'Отправка...' : 'Отправить'}
+                  </Button>
                 </div>
-              ) : null}
-              <Textarea
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="Ваш вопрос или уточнение..."
-                rows={3}
-                disabled={isClosed}
-              />
-              {isClosed ? (
-                <p className="muted-text">Обращение закрыто — новые сообщения недоступны.</p>
-              ) : null}
-              {actionError ? <p className="form-error">{actionError}</p> : null}
-              <MessageAttachmentInput
-                files={pendingAttachments}
-                onChange={setPendingAttachments}
-                disabled={sending || isClosed}
-              />
-              <Button
-                onClick={() => void handleSend()}
-                disabled={sending || (!reply.trim() && !pendingAttachments.length) || isClosed}
-              >
-                {sending ? 'Отправка...' : 'Отправить'}
-              </Button>
-            </div>
-          ) : null}
-        </Card>
+              </div>
+            </>
+          )}
+        </div>
       ) : null}
 
       {tab === 'booking' ? (
-        <Card>
-          <h2>Запись на визит</h2>
-          {bookingPreferredAt ? (
-            <div className="stack">
-              <p>
-                <strong>{formatBookingDate(bookingPreferredAt)}</strong>
-              </p>
-              <p className="muted-text">{clientBookingStatusLabel('CONFIRMED')}</p>
-              {bookingId ? (
-                <Link className="btn btn-secondary btn-sm" to={`/dashboard/client/bookings/${bookingId}`}>
-                  Детали записи
-                </Link>
-              ) : (
-                <Link className="btn btn-secondary btn-sm" to="/dashboard/client/bookings">
-                  Все записи
-                </Link>
-              )}
-            </div>
-          ) : (
-            <EmptyState
-              title="Запись ещё не назначена"
-              description="Выберите удобное время визита в сервис."
-              action={
-                <Button variant="secondary" onClick={goToBooking}>
-                  Записаться
-                </Button>
-              }
-            />
-          )}
-        </Card>
+        <div className="case-detail-panel" role="tabpanel" id="tabpanel-booking" aria-labelledby="tab-booking">
+          <header className="case-detail-section-head">
+            <h2>Визит в сервис</h2>
+            <p className="muted-text">Дата и статус приезда</p>
+          </header>
+          <CaseVisitPanel
+            bookingId={bookingId}
+            preferredAt={bookingPreferredAt}
+            status={bookingStatus}
+            onBook={goToBooking}
+          />
+        </div>
       ) : null}
 
-      <div className="case-detail-sticky-actions">
-        {!isDraft ? (
-          <Button variant="secondary" onClick={() => setTab('messages')}>
-            Написать
-          </Button>
-        ) : (
-          <Button onClick={continueConsultation}>Продолжить</Button>
-        )}
-        <Button variant="ghost" onClick={goToBooking}>
-          Записаться
-        </Button>
+      <div className="case-detail-sticky-actions case-next-step-actions" data-tone={nextStep.tone}>
+        <button
+          type="button"
+          className="case-next-cta is-primary"
+          onClick={() => handleNextStepAction(nextStep.primary.action)}
+        >
+          {nextStep.primary.label}
+        </button>
+        {nextStep.secondary ? (
+          <button
+            type="button"
+            className="case-next-cta is-secondary"
+            onClick={() => handleNextStepAction(nextStep.secondary!.action)}
+          >
+            {nextStep.secondary.label}
+          </button>
+        ) : null}
       </div>
     </div>
   );

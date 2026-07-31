@@ -8,6 +8,7 @@ import * as adminService from './admin.service.js';
 import * as adminAiMemoryService from './adminAiMemory.service.js';
 import * as siteSettingsService from './siteSettings.service.js';
 import * as referenceService from '../reference/reference.service.js';
+import { invalidatePublicSiteItemsCache } from '../content/content.router.js';
 import { getLlmStatus } from '../../services/llmStatus.service.js';
 import { logger } from '../../lib/logger.js';
 
@@ -405,6 +406,7 @@ adminRouter.post(
   validateBody(cmsItemSchema),
   asyncHandler(async (req, res) => {
     const row = await adminService.createCmsSiteItem(req.user.id, req.validatedBody);
+    invalidatePublicSiteItemsCache();
     res.status(201).json(row);
   }),
 );
@@ -414,6 +416,7 @@ adminRouter.patch(
   validateBody(cmsItemSchema),
   asyncHandler(async (req, res) => {
     const row = await adminService.updateCmsSiteItem(req.params.itemId, req.user.id, req.validatedBody);
+    invalidatePublicSiteItemsCache();
     res.json(row);
   }),
 );
@@ -422,6 +425,7 @@ adminRouter.delete(
   '/site-items/:itemId',
   asyncHandler(async (req, res) => {
     await adminService.deleteCmsSiteItem(req.params.itemId, req.user.id);
+    invalidatePublicSiteItemsCache();
     res.status(204).send();
   }),
 );
@@ -431,6 +435,7 @@ adminRouter.post(
   validateBody(cmsReorderSchema),
   asyncHandler(async (req, res) => {
     const rows = await adminService.reorderCmsSiteItems(req.user.id, req.validatedBody.kind, req.validatedBody.ids);
+    invalidatePublicSiteItemsCache();
     res.json(rows);
   }),
 );

@@ -2,6 +2,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
@@ -35,6 +36,18 @@ export function createApp() {
   if (env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
   }
+
+  app.use(
+    compression({
+      threshold: 1024,
+      filter: (req, res) => {
+        if (req.headers['x-no-compression']) return false;
+        // SSE / event streams must not be buffered by gzip
+        if (String(req.path || '').includes('/stream')) return false;
+        return compression.filter(req, res);
+      },
+    }),
+  );
 
   app.use(
     helmet({
@@ -94,6 +107,9 @@ export function createApp() {
       pinoHttp({
         logger,
         genReqId: (req) => req.id,
+        autoLogging: {
+          ignore: (req) => req.url === '/api/health' || req.url?.startsWith('/api/health?'),
+        },
       }),
     );
   }

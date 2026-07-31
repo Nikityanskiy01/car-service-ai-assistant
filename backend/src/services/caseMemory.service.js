@@ -72,20 +72,53 @@ function toAnonymizedCase(row) {
  * @param {number} limit
  */
 export async function getRelevantCasesLexical(data, limit = 3) {
+  const query = `${data?.symptoms || ''} ${data?.conditions || ''}`.trim();
+  const wantedCategory = detectSymptomCategory(String(data?.symptoms || ''));
+  const wantedMake = String(data?.car_make || '').trim();
+  const wantedModel = String(data?.car_model || '').trim();
+
+  // Narrow SQL prefilter — avoid loading 220 full sessions on every diagnosis.
+  const orFilters = [];
+  if (wantedMake) {
+    orFilters.push({ extracted: { make: { equals: wantedMake, mode: 'insensitive' } } });
+  }
+  if (query) {
+    const tokens = tokenizeRu(query).slice(0, 4);
+    for (const token of tokens) {
+      orFilters.push({ extracted: { symptoms: { contains: token, mode: 'insensitive' } } });
+      orFilters.push({ extracted: { problemConditions: { contains: token, mode: 'insensitive' } } });
+    }
+  }
+
   const rows = await prisma.consultationSession.findMany({
-    where: { status: 'COMPLETED' },
+    where: {
+      status: 'COMPLETED',
+      extracted: { isNot: null },
+      ...(orFilters.length ? { OR: orFilters } : {}),
+    },
     orderBy: { updatedAt: 'desc' },
-    take: 220,
-    include: {
-      extracted: true,
-      recommendations: true,
+    take: 80,
+    select: {
+      updatedAt: true,
+      costFromMinor: true,
+      extracted: {
+        select: {
+          make: true,
+          model: true,
+          symptoms: true,
+          problemConditions: true,
+        },
+      },
+      recommendations: {
+        select: { title: true },
+        take: 3,
+        orderBy: { probabilityPercent: 'desc' },
+      },
     },
   });
 
-  const query = `${data?.symptoms || ''} ${data?.conditions || ''}`.trim();
-  const wantedCategory = detectSymptomCategory(String(data?.symptoms || ''));
-  const wantedMake = String(data?.car_make || '').trim().toLowerCase();
-  const wantedModel = String(data?.car_model || '').trim().toLowerCase();
+  const wantedMakeLc = wantedMake.toLowerCase();
+  const wantedModelLc = wantedModel.toLowerCase();
 
   return rows
     .map((s) => {
@@ -94,7 +127,7 @@ export async function getRelevantCasesLexical(data, limit = 3) {
       const score =
         overlapScore(query, src) +
         categoryBoost(wantedCategory, srcCategory) +
-        vehicleBoost(wantedMake, wantedModel, s?.extracted?.make, s?.extracted?.model) +
+        vehicleBoost(wantedMakeLc, wantedModelLc, s?.extracted?.make, s?.extracted?.model) +
         recencyScore(s?.updatedAt);
       return {
         score,
@@ -131,16 +164,53 @@ export async function getRelevantCasesSemantic(data, limit = 5) {
   const queryVec = await createEmbedding(document);
   if (!queryVec.length) return [];
 
-  const rows = await prisma.consultationCaseEmbedding.findMany({
-    orderBy: { updatedAt: 'desc' },
-    take: 400,
-  });
-
-  if (!rows.length) return [];
-
   const wantedCategory = detectSymptomCategory(String(data?.symptoms || ''));
   const wantedMake = String(data?.car_make || '').trim().toLowerCase();
   const wantedModel = String(data?.car_model || '').trim().toLowerCase();
+
+  // Prefer same symptom category (+ recent), then backfill with recent misc — cuts cosine work ~3–5×.
+  const categoryRows =
+    wantedCategory !== 'unknown'
+      ? await prisma.consultationCaseEmbedding.findMany({
+          where: { symptomCategory: wantedCategory },
+          orderBy: { updatedAt: 'desc' },
+          take: 120,
+          select: {
+            make: true,
+            model: true,
+            symptomCategory: true,
+            topRecommendations: true,
+            costFromMinor: true,
+            embedding: true,
+            updatedAt: true,
+          },
+        })
+      : [];
+
+  const needMore = Math.max(0, 160 - categoryRows.length);
+  const recentRows =
+    needMore > 0
+      ? await prisma.consultationCaseEmbedding.findMany({
+          where:
+            wantedCategory !== 'unknown' && categoryRows.length
+              ? { symptomCategory: { not: wantedCategory } }
+              : undefined,
+          orderBy: { updatedAt: 'desc' },
+          take: needMore,
+          select: {
+            make: true,
+            model: true,
+            symptomCategory: true,
+            topRecommendations: true,
+            costFromMinor: true,
+            embedding: true,
+            updatedAt: true,
+          },
+        })
+      : [];
+
+  const rows = categoryRows.concat(recentRows);
+  if (!rows.length) return [];
 
   return rows
     .map((row) => {

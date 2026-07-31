@@ -26,6 +26,7 @@ import { SiteImage } from '../../components/ui/SiteImage';
 import { fallbackGalleryItems, galleryImageAt, siteImages } from '../../content/siteImages';
 import { useAsyncState } from '../../hooks/useAsyncState';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { cachedPublicFetch } from '../../lib/publicContentCache';
 
 interface GalleryItem {
   id: string;
@@ -209,7 +210,9 @@ export function GalleryPage() {
     preloadImage: siteImages.gallery.reception,
   });
 
-  const { data, error, loading, reload } = useAsyncState<GalleryItem[]>(() => api('/content/site-items?kind=gallery'));
+  const { data, error, loading, reload } = useAsyncState<GalleryItem[]>(() =>
+    cachedPublicFetch('site-items:gallery', () => api('/content/site-items?kind=gallery')),
+  );
   const [activeZone, setActiveZone] = useState<GalleryZone>('all');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [pendingLightboxId, setPendingLightboxId] = useState<string | null>(null);

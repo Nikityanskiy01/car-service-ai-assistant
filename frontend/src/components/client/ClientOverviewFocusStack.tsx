@@ -1,4 +1,5 @@
 import {
+  ArrowRight,
   CalendarDays,
   Car,
   ChevronRight,
@@ -8,7 +9,6 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '../ui/Button';
 import type { OverviewFocusItem } from '../../features/client-cases/resolveClientOverviewFocus';
 import { STORAGE_KEYS } from '../../lib/storageKeys';
 
@@ -42,23 +42,28 @@ function FocusPrimary({
 
   return (
     <article className={`client-overview-focus-primary is-accent-${item.accent}`}>
-      <span className="client-overview-focus-primary-icon" aria-hidden>
-        <Icon size={22} strokeWidth={2.1} />
-      </span>
-      <div className="client-overview-focus-primary-body">
-        <p className="client-overview-focus-kicker">Сейчас важно</p>
-        <h2>{item.title}</h2>
-        <p>{item.description}</p>
-      </div>
-      <div className="client-overview-focus-primary-actions">
-        <Button type="button" onClick={onAction}>
-          {item.ctaLabel}
-        </Button>
-        {item.secondaryLabel && item.secondaryTo ? (
-          <Link className="btn btn-secondary" to={item.secondaryTo}>
-            {item.secondaryLabel}
-          </Link>
-        ) : null}
+      <div className="client-overview-focus-primary-inner">
+        <div className="client-overview-focus-primary-head">
+          <span className="client-overview-focus-primary-icon" aria-hidden>
+            <Icon size={22} strokeWidth={2.1} />
+          </span>
+          <div className="client-overview-focus-primary-body">
+            <span className="client-overview-focus-kicker">Сейчас важно</span>
+            <h2>{item.title}</h2>
+            <p>{item.description}</p>
+          </div>
+        </div>
+        <div className="client-overview-focus-primary-actions">
+          <button type="button" className="client-overview-focus-cta" onClick={onAction}>
+            {item.ctaLabel}
+            <ArrowRight size={15} aria-hidden />
+          </button>
+          {item.secondaryLabel && item.secondaryTo ? (
+            <Link className="client-overview-focus-secondary-link" to={item.secondaryTo}>
+              {item.secondaryLabel}
+            </Link>
+          ) : null}
+        </div>
       </div>
     </article>
   );

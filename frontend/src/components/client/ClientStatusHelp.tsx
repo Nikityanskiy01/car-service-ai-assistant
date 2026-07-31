@@ -27,7 +27,7 @@ import {
 
 const STATUS_HELP_TABS = [
   { id: 'requests', label: 'Обращения', icon: ClipboardList },
-  { id: 'bookings', label: 'Записи в сервис', icon: CalendarCheck2 },
+  { id: 'bookings', label: 'Визиты', icon: CalendarCheck2 },
 ] as const;
 
 const TONE_ICONS: Record<ClientStatusTone, LucideIcon> = {

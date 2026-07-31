@@ -1,29 +1,45 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays, MapPin, MessageSquare } from 'lucide-react';
+import {
+  CalendarDays,
+  CalendarPlus,
+  CarFront,
+  ChevronRight,
+  Clock3,
+  MapPin,
+  Phone,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { cancelBooking, getBooking } from '../../../api/dashboard';
+import { ClientStatusBadge } from '../../../components/client/ClientStatusBadge';
 import { PageHeader } from '../../../components/layout/dashboard/PageHeader';
 import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { useProductConfig } from '../../../config/ProductConfigProvider';
 import { buildBookingIcs, downloadBookingIcs } from '../../../lib/buildBookingIcs';
-import { clientBookingStatusLabel } from '../../../lib/clientStatusLabels';
+import {
+  formatBookingCountdown,
+  formatBookingDayParts,
+} from '../../../lib/bookingCountdown';
+import {
+  formatBookingDateParts,
+  getBookingSubtitle,
+  getBookingTitle,
+  getBookingVehicleLabel,
+} from '../../../lib/bookingDisplay';
+import {
+  CLIENT_CALENDAR_FILE_HINT,
+  clientBookingStatusDescription,
+} from '../../../lib/clientStatusLabels';
+import { resolveClientStatusTone } from '../../../lib/clientStatusLegend';
 import { STORAGE_KEYS } from '../../../lib/storageKeys';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 import type { ServiceBooking } from '../../../types/dashboard';
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString('ru-RU', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function phoneHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }
 
 function caseLabel(booking: ServiceBooking) {
@@ -31,7 +47,7 @@ function caseLabel(booking: ServiceBooking) {
   if (!sr) return null;
   const car = [sr.snapshotMake, sr.snapshotModel].filter(Boolean).join(' ');
   if (car && sr.snapshotSymptoms) return `${car} — ${sr.snapshotSymptoms}`;
-  return car || sr.snapshotSymptoms || `Заявка`;
+  return car || sr.snapshotSymptoms || 'Заявка';
 }
 
 export function ClientBookingDetailPage() {
@@ -65,6 +81,7 @@ export function ClientBookingDetailPage() {
 
   const isCancelled = booking?.status === 'CANCELLED';
   const isUpcoming = booking ? new Date(booking.preferredAt).getTime() > Date.now() : false;
+  const canManage = Boolean(booking && !isCancelled && isUpcoming);
   const linkedCaseId = booking?.serviceRequestId || booking?.serviceRequest?.id;
 
   function handleAddToCalendar() {
@@ -72,7 +89,7 @@ export function ClientBookingDetailPage() {
     const ics = buildBookingIcs({
       id: booking.id,
       preferredAt: booking.preferredAt,
-      title: `Визит — ${productConfig.shortName}`,
+      title: `Визит — ${getBookingTitle(booking)} · ${productConfig.shortName}`,
       location: productConfig.address,
       description: booking.notes || booking.comment || undefined,
     });
@@ -112,13 +129,26 @@ export function ClientBookingDetailPage() {
     return <ErrorState message={error || 'Запись не найдена'} onRetry={() => void load()} />;
   }
 
-  const caseTitle = caseLabel(booking);
+  const title = getBookingTitle(booking);
+  const subtitle = getBookingSubtitle(booking);
+  const vehicle = getBookingVehicleLabel(booking);
+  const parts = formatBookingDayParts(booking.preferredAt);
+  const dateParts = formatBookingDateParts(booking.preferredAt);
+  const countdown = formatBookingCountdown(booking.preferredAt);
+  const tone = resolveClientStatusTone(booking.status);
+  const linkedTitle = caseLabel(booking);
+  const note = (booking.notes || booking.comment || '').trim();
+  const statusHint = clientBookingStatusDescription(booking.status);
 
   return (
-    <div className="stack dashboard-page">
+    <div className="stack dashboard-page booking-detail-page">
       <PageHeader
-        title="Детали записи"
-        description={formatDate(booking.preferredAt)}
+        title="Ваш визит"
+        description={
+          countdown && isUpcoming && !isCancelled
+            ? `${countdown} · ${dateParts.short}`
+            : dateParts.short
+        }
         breadcrumbs={[
           { label: 'Кабинет', to: '/dashboard/client' },
           { label: 'Записи', to: '/dashboard/client/bookings' },
@@ -126,81 +156,183 @@ export function ClientBookingDetailPage() {
         ]}
       />
 
-      <Card className="booking-detail-card">
-        <div className="booking-detail-head">
-          <span className="booking-detail-icon" aria-hidden>
-            <CalendarDays size={22} />
-          </span>
-          <div>
-            <h2>{formatDate(booking.preferredAt)}</h2>
-            <StatusBadge status={booking.status} />
+      <article className="booking-detail" data-status-tone={tone}>
+        <header className="booking-detail-hero">
+          <div className="booking-detail-date" aria-hidden>
+            <span className="booking-detail-date-num">{parts.day}</span>
+            <span className="booking-detail-date-month">{parts.month}</span>
+            {countdown ? (
+              <span className="booking-detail-date-relative">{countdown}</span>
+            ) : null}
           </div>
-        </div>
 
-        <dl className="booking-detail-meta">
-          <div>
-            <dt>Статус</dt>
-            <dd>{clientBookingStatusLabel(booking.status)}</dd>
-          </div>
-          {productConfig.address ? (
-            <div>
-              <dt>
-                <MapPin size={14} aria-hidden /> Адрес
-              </dt>
-              <dd>
-                {productConfig.address}
-                {productConfig.mapUrl ? (
-                  <>
-                    {' '}
-                    <a href={productConfig.mapUrl} target="_blank" rel="noreferrer">
-                      На карте
-                    </a>
-                  </>
+          <div className="booking-detail-hero-copy">
+            <div className="booking-detail-hero-meta">
+              <ClientStatusBadge status={booking.status} />
+              {isCancelled ? (
+                <span className="booking-detail-state-chip is-cancelled">Отменена</span>
+              ) : !isUpcoming ? (
+                <span className="booking-detail-state-chip is-past">Прошедший визит</span>
+              ) : null}
+            </div>
+
+            <h2 className="booking-detail-title">
+              {parts.weekday}, {parts.time}
+            </h2>
+            <p className="booking-detail-lead">{statusHint}</p>
+
+            <div className="booking-detail-vehicle">
+              <span className="booking-detail-vehicle-icon" aria-hidden>
+                <CarFront size={18} />
+              </span>
+              <div>
+                <strong>{title}</strong>
+                {subtitle && subtitle !== title ? <span>{subtitle}</span> : null}
+                {vehicle && title !== vehicle ? (
+                  <span className="booking-detail-vehicle-hint">{vehicle}</span>
                 ) : null}
-              </dd>
+              </div>
             </div>
-          ) : null}
-          {productConfig.workingHours ? (
-            <div>
-              <dt>Режим работы</dt>
-              <dd>{productConfig.workingHours}</dd>
-            </div>
-          ) : null}
-          {booking.notes || booking.comment ? (
-            <div>
-              <dt>
-                <MessageSquare size={14} aria-hidden /> Комментарий
-              </dt>
-              <dd>{booking.notes || booking.comment}</dd>
-            </div>
-          ) : null}
-          {linkedCaseId && caseTitle ? (
-            <div>
-              <dt>Связанное обращение</dt>
-              <dd>
-                <Link to={`/dashboard/client/cases/${linkedCaseId}`}>{caseTitle}</Link>
-              </dd>
-            </div>
-          ) : null}
-        </dl>
+          </div>
+        </header>
 
-        <div className="booking-detail-actions">
-          <Button type="button" variant="secondary" onClick={handleAddToCalendar}>
-            Добавить в календарь (.ics)
+        <section className="booking-detail-grid" aria-label="Подробности визита">
+          <div className="booking-detail-panel">
+            <h3>
+              <MapPin size={16} aria-hidden />
+              Куда ехать
+            </h3>
+            <dl className="booking-detail-facts">
+              {productConfig.address ? (
+                <div>
+                  <dt>Адрес</dt>
+                  <dd>
+                    <span>{productConfig.address}</span>
+                    {productConfig.mapUrl ? (
+                      <a
+                        className="booking-detail-inline-link"
+                        href={productConfig.mapUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Открыть на карте
+                      </a>
+                    ) : null}
+                  </dd>
+                </div>
+              ) : null}
+              {productConfig.workingHours ? (
+                <div>
+                  <dt>
+                    <Clock3 size={13} aria-hidden /> Режим работы
+                  </dt>
+                  <dd>{productConfig.workingHours}</dd>
+                </div>
+              ) : null}
+              {productConfig.phone ? (
+                <div>
+                  <dt>
+                    <Phone size={13} aria-hidden /> Телефон
+                  </dt>
+                  <dd>
+                    <a className="booking-detail-inline-link" href={phoneHref(productConfig.phone)}>
+                      {productConfig.phone}
+                    </a>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+            <div className="booking-detail-quick">
+              {productConfig.mapUrl ? (
+                <a
+                  className="btn btn-secondary booking-detail-quick-btn"
+                  href={productConfig.mapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <MapPin size={16} aria-hidden />
+                  Маршрут
+                </a>
+              ) : null}
+              {productConfig.phone ? (
+                <a
+                  className="btn btn-secondary booking-detail-quick-btn"
+                  href={phoneHref(productConfig.phone)}
+                >
+                  <Phone size={16} aria-hidden />
+                  Позвонить
+                </a>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="booking-detail-panel">
+            <h3>
+              <CalendarDays size={16} aria-hidden />
+              О визите
+            </h3>
+            {note ? (
+              <p className="booking-detail-note">{note}</p>
+            ) : (
+              <p className="booking-detail-note is-empty">Комментарий к записи не указан.</p>
+            )}
+
+            {linkedCaseId && linkedTitle ? (
+              <Link
+                className="booking-detail-case-link"
+                to={`/dashboard/client/cases/${linkedCaseId}`}
+              >
+                <div>
+                  <span className="booking-detail-case-kicker">Связанное обращение</span>
+                  <strong>{linkedTitle}</strong>
+                </div>
+                <ChevronRight size={18} aria-hidden />
+              </Link>
+            ) : null}
+          </div>
+        </section>
+
+        <footer className="booking-detail-actions" aria-label="Действия с записью">
+          <Button
+            type="button"
+            variant="primary"
+            className="booking-detail-action-primary"
+            onClick={handleAddToCalendar}
+            title={CLIENT_CALENDAR_FILE_HINT}
+          >
+            <CalendarPlus size={17} aria-hidden />
+            В календарь
           </Button>
-          {!isCancelled && isUpcoming ? (
+
+          {canManage ? (
             <>
-              <Button type="button" variant="ghost" onClick={handleReschedule}>
+              <Button type="button" variant="secondary" onClick={handleReschedule}>
+                <RefreshCw size={16} aria-hidden />
                 Перенести
               </Button>
-              <Button type="button" variant="ghost" onClick={() => void handleCancel()} disabled={cancelling}>
-                {cancelling ? 'Отмена...' : 'Отменить запись'}
+              <Button
+                type="button"
+                variant="danger"
+                onClick={() => void handleCancel()}
+                disabled={cancelling}
+              >
+                <XCircle size={16} aria-hidden />
+                {cancelling ? 'Отмена…' : 'Отменить'}
               </Button>
             </>
           ) : null}
-        </div>
-        {actionError ? <p className="form-error">{actionError}</p> : null}
-      </Card>
+
+          {isCancelled || !isUpcoming ? (
+            <Button type="button" variant="secondary" onClick={() => navigate('/booking')}>
+              <CalendarDays size={16} aria-hidden />
+              Записаться снова
+            </Button>
+          ) : null}
+        </footer>
+
+        {actionError ? <p className="form-error booking-detail-error">{actionError}</p> : null}
+        <p className="booking-detail-hint">{CLIENT_CALENDAR_FILE_HINT}</p>
+      </article>
     </div>
   );
 }

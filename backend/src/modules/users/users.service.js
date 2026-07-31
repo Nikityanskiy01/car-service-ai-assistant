@@ -16,7 +16,17 @@ function toPublic(u) {
 }
 
 export async function getMe(userId) {
-  const u = await prisma.user.findUnique({ where: { id: userId } });
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      phone: true,
+      role: true,
+      emailProfile: true,
+    },
+  });
   if (!u) throw new AppError(404, 'Not found', 'NOT_FOUND');
   return toPublic(u);
 }

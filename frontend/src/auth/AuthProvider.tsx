@@ -1,14 +1,19 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, clearLocalAuthState, getCachedUser, setCachedUser } from '../api/client';
+import { api, clearLocalAuthState, getCachedUser, getCsrfToken, setCachedUser } from '../api/client';
 import type { AuthContextValue } from './auth.types';
 import type { AuthUser, UserRole } from '../types/auth';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** CSRF cookie is set together with auth cookies — absence means no session to refresh. */
+function likelyHasSession(): boolean {
+  return Boolean(getCachedUser() || getCsrfToken());
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(() => getCachedUser());
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => likelyHasSession());
 
   const setUser = useCallback((nextUser: AuthUser | null) => {
     setUserState(nextUser);
@@ -16,6 +21,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshCurrentUser = useCallback(async () => {
+    if (!likelyHasSession()) {
+      setUser(null);
+      return;
+    }
     try {
       const me = await api<AuthUser>('/users/me');
       setUser(me);
@@ -34,6 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [setUser]);
 
   useEffect(() => {
+    if (!likelyHasSession()) {
+      setIsLoading(false);
+      return;
+    }
     void (async () => {
       await refreshCurrentUser();
       setIsLoading(false);

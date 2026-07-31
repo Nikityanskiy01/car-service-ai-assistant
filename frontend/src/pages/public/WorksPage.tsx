@@ -19,6 +19,7 @@ import { SiteImage } from '../../components/ui/SiteImage';
 import { siteImages, workImageAt } from '../../content/siteImages';
 import { useAsyncState } from '../../hooks/useAsyncState';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { cachedPublicFetch } from '../../lib/publicContentCache';
 
 interface WorkItem {
   id: string;
@@ -307,7 +308,9 @@ export function WorksPage() {
     preloadImage: siteImages.hero.services,
   });
 
-  const { data, error, loading, reload } = useAsyncState<WorkItem[]>(() => api('/content/site-items?kind=work'));
+  const { data, error, loading, reload } = useAsyncState<WorkItem[]>(() =>
+    cachedPublicFetch('site-items:work', () => api('/content/site-items?kind=work')),
+  );
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<WorkItem | null>(null);

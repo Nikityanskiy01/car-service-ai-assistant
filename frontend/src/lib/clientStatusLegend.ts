@@ -23,30 +23,30 @@ export const CLIENT_REQUEST_STATUS_LEGEND: ClientStatusLegendItem[] = [
   {
     status: 'NEW',
     label: 'Новая',
-    description: 'Заявка создана — менеджер скоро возьмёт её в работу.',
+    description: 'Обращение создано — менеджер скоро возьмёт его в работу.',
     tone: 'new',
   },
   {
     status: 'IN_PROGRESS',
     label: 'В работе',
-    description: 'Мастер диагностирует или ремонтирует автомобиль.',
+    description: 'Сервис разбирает проблему или уже ремонтирует автомобиль.',
     tone: 'active',
   },
   {
     status: 'SCHEDULED',
-    label: 'Запланирована',
-    description: 'Назначена запись в сервис — смотрите раздел «Записи».',
+    label: 'Визит назначен',
+    description: 'Назначен визит в сервис — смотрите раздел «Записи».',
     tone: 'scheduled',
   },
   {
     status: 'COMPLETED',
     label: 'Завершена',
-    description: 'Ремонт выполнен, обращение в архиве.',
+    description: 'Работы выполнены, обращение в архиве.',
     tone: 'done',
   },
   {
     status: 'CANCELLED',
-    label: 'Отменена',
+    label: 'Закрыта',
     description: 'Обращение закрыто без ремонта.',
     tone: 'cancelled',
   },
@@ -56,12 +56,12 @@ export const CLIENT_BOOKING_STATUS_LEGEND: ClientStatusLegendItem[] = [
   {
     status: 'PENDING',
     label: 'Ожидает',
-    description: 'Запись отправлена — менеджер подтвердит время.',
+    description: 'Визит запрошен — менеджер подтвердит время.',
     tone: 'waiting',
   },
   {
     status: 'CONFIRMED',
-    label: 'Подтверждена',
+    label: 'Подтверждён',
     description: 'Ждём вас в сервис в указанное время.',
     tone: 'confirmed',
   },
@@ -79,8 +79,8 @@ export const CLIENT_BOOKING_STATUS_LEGEND: ClientStatusLegendItem[] = [
   },
   {
     status: 'CANCELLED',
-    label: 'Отменена',
-    description: 'Запись отменена.',
+    label: 'Отменён',
+    description: 'Визит отменён.',
     tone: 'cancelled',
   },
 ];
@@ -89,8 +89,8 @@ export const CLIENT_STATUS_HELP_TITLE = 'Что означают статусы?
 export const CLIENT_STATUS_HELP_BUTTON = 'Подсказка по статусам';
 
 export const CLIENT_STATUS_HELP_INTRO = {
-  requests: 'Статусы обращений — от создания заявки до завершения ремонта.',
-  bookings: 'Статусы записей — от отправки заявки до визита в сервис.',
+  requests: 'Статусы обращений — от создания до завершения работ.',
+  bookings: 'Статусы визитов — от запроса времени до приезда в сервис.',
 } as const;
 
 export const CLIENT_CALENDAR_FILE_HINT =

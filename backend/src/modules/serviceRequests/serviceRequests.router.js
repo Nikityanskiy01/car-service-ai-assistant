@@ -270,10 +270,10 @@ serviceRequestsRouter.put(
 
 function serializeListItem(r) {
   const flowState = r.consultationSession?.flowState;
+  const flow =
+    flowState && typeof flowState === 'object' && !Array.isArray(flowState) ? flowState : {};
   const diagnosis =
-    flowState && typeof flowState === 'object' && !Array.isArray(flowState) && flowState.diagnosis
-      ? flowState.diagnosis
-      : null;
+    flow.diagnosis ?? null;
 
   return {
     id: r.id,
@@ -294,6 +294,8 @@ function serializeListItem(r) {
     slaBreached: isSlaBreached({ ...r, createdAt: r.createdAt.toISOString() }),
     consultationSession: r.consultationSession
       ? {
+          id: r.consultationSession.id,
+          status: r.consultationSession.status,
           feedback: r.consultationSession.feedback
             ? {
                 id: r.consultationSession.feedback.id,
@@ -301,6 +303,9 @@ function serializeListItem(r) {
               }
             : null,
           flowState: diagnosis ? { diagnosis } : null,
+          intent: flow.intent ?? null,
+          serviceType: flow.service_type ?? null,
+          serviceCategoryName: r.consultationSession.serviceCategory?.name ?? null,
           confidencePercent: r.consultationSession.confidencePercent,
           diagnosis,
         }

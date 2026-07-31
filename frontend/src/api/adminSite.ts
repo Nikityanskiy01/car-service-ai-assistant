@@ -1,5 +1,6 @@
-import { api } from './client';
 import type { ProductConfig } from '../config/productConfig';
+import { cachedPublicFetch } from '../lib/publicContentCache';
+import { api } from './client';
 
 export type SiteCmsItem = {
   id: string;
@@ -42,7 +43,7 @@ export type SiteContentBlock = {
 export type SiteSettings = ProductConfig & { updatedAt?: string | null };
 
 export function getPublicSiteSettings() {
-  return api<SiteSettings>('/content/site-settings');
+  return cachedPublicFetch('site-settings', () => api<SiteSettings>('/content/site-settings'));
 }
 
 export function getAdminSiteSettings() {
