@@ -11,6 +11,19 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { claimGuestConsultationSessionIfPresent } from '../../features/consultations/claimGuestSession';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import {
+  getEmailError,
+  getFullNameError,
+  getPasswordError,
+  getPhoneError,
+} from '../../lib/validation';
+
+type FieldErrors = {
+  fullName?: string;
+  phone?: string;
+  email?: string;
+  password?: string;
+};
 
 export function RegisterPage() {
   usePageMeta({
@@ -23,6 +36,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -30,6 +44,18 @@ export function RegisterPage() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    const nextErrors: FieldErrors = {};
+    const nameError = getFullNameError(fullName);
+    if (nameError) nextErrors.fullName = nameError;
+    const phoneError = getPhoneError(phone);
+    if (phoneError) nextErrors.phone = phoneError;
+    const emailError = getEmailError(email);
+    if (emailError) nextErrors.email = emailError;
+    const passwordError = getPasswordError(password);
+    if (passwordError) nextErrors.password = passwordError;
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     if (!consent) {
       setConsentError('Отметьте согласие на обработку персональных данных');
       return;
@@ -65,38 +91,75 @@ export function RegisterPage() {
       <div className="fm-auth-grid">
         <section className="fm-card fm-card-static">
           <form className="fm-form stack" onSubmit={onSubmit} noValidate>
-            <FormField label="ФИО" htmlFor="registerName">
+            <FormField
+              label="ФИО"
+              htmlFor="registerName"
+              hint="Как в паспорте или как к вам обращаться"
+              error={fieldErrors.fullName}
+            >
               <Input
-                id="registerName"
                 name="fullName"
                 autoComplete="name"
                 required
+                placeholder="Иван Иванов"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (fieldErrors.fullName) setFieldErrors((prev) => ({ ...prev, fullName: undefined }));
+                }}
               />
             </FormField>
-            <FormField label="Телефон" htmlFor="registerPhone">
-              <PhoneInput id="registerPhone" name="phone" required value={phone} onChange={setPhone} />
+            <FormField
+              label="Телефон"
+              htmlFor="registerPhone"
+              hint="Для связи по заявкам и записи"
+              error={fieldErrors.phone}
+            >
+              <PhoneInput
+                name="phone"
+                required
+                value={phone}
+                onChange={(value) => {
+                  setPhone(value);
+                  if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                }}
+              />
             </FormField>
-            <FormField label="Email" htmlFor="registerEmail">
+            <FormField
+              label="Email"
+              htmlFor="registerEmail"
+              hint="Для входа в личный кабинет и уведомлений"
+              error={fieldErrors.email}
+            >
               <Input
-                id="registerEmail"
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
+                placeholder="client@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                }}
               />
             </FormField>
-            <FormField label="Пароль" htmlFor="registerPassword">
+            <FormField
+              label="Пароль"
+              htmlFor="registerPassword"
+              hint="Минимум 12 символов: латиница, цифра и спецсимвол"
+              error={fieldErrors.password}
+            >
               <PasswordInput
-                id="registerPassword"
                 name="password"
                 required
                 autoComplete="new-password"
+                placeholder="Password123!ab"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                }}
               />
             </FormField>
             <ConsentCheckbox

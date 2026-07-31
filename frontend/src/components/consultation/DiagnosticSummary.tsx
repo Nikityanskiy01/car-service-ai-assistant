@@ -16,12 +16,14 @@ export function DiagnosticSummary({
   diagnosis,
   fallbackCost,
   fallbackConfidence,
+  onCreateRequest,
 }: {
   detail?: ConsultationDetail | null;
   recommendations: ConsultationRecommendation[];
   diagnosis?: ConsultationDiagnosisSnapshot | null;
   fallbackCost?: number | null;
   fallbackConfidence?: number | null;
+  onCreateRequest?: () => void;
 }) {
   if (!recommendations.length && !diagnosis && !fallbackCost && !fallbackConfidence) return null;
   const isManualReview = diagnosis?.analysis_available === false || diagnosis?.status === 'MANUAL_REVIEW_REQUIRED';
@@ -40,6 +42,13 @@ export function DiagnosticSummary({
           Статус: ручная обработка. {diagnosis?.reason ? `Причина: ${diagnosis.reason}. ` : ''}
           {diagnosis?.execution_meta?.provider ? `Источник: ${diagnosis.execution_meta.provider}.` : ''}
         </p>
+        {onCreateRequest ? (
+          <div className="diagnosis-actions">
+            <button type="button" className="btn btn-primary diagnosis-request-btn" onClick={onCreateRequest}>
+              Передать менеджеру
+            </button>
+          </div>
+        ) : null}
       </section>
     );
   }
@@ -76,7 +85,7 @@ export function DiagnosticSummary({
       <ObdCodesSummary items={obdItems} />
       <PossibleCausesList recommendations={recommendations} overallConfidence={diagnosis?.confidence} />
       <MasterChecksChecklist checks={allChecks} />
-      <DiagnosisActions detail={detail ?? null} />
+      <DiagnosisActions detail={detail ?? null} onCreateRequest={onCreateRequest} />
       <p className="analysis-disclaimer">
         {diagnosis?.execution_meta?.provider ? `Источник: ${diagnosis.execution_meta.provider}. ` : ''}
         {detail?.flowState?.photo_observations?.disclaimer ? `${detail.flowState.photo_observations.disclaimer} ` : ''}

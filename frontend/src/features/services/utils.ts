@@ -1,10 +1,11 @@
 import { getCategoryMeta } from './categoryConfig';
+import { normalizeImageUrl } from '../../lib/imageUrl';
 import type { ServiceItem, ServiceSort } from './types';
 
 export function resolveServiceImage(item: ServiceItem): string {
-  if (item.imageUrl?.endsWith('.svg')) return item.imageUrl;
+  if (item.imageUrl) return normalizeImageUrl(item.imageUrl);
   if (item.category) return getCategoryMeta(item.category).image;
-  return '/placeholders/gallery-01.svg';
+  return normalizeImageUrl(null);
 }
 
 export function parsePriceValue(price?: string): number | null {

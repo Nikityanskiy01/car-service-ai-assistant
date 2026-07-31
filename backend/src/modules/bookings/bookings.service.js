@@ -118,7 +118,17 @@ export async function listBookings(user, { limit = 50, offset = 0 } = {}) {
       orderBy: { preferredAt: 'desc' },
       take,
       skip: offset,
-      include: { serviceRequest: { select: { id: true, status: true } } },
+      include: {
+        serviceRequest: {
+          select: {
+            id: true,
+            status: true,
+            snapshotMake: true,
+            snapshotModel: true,
+            snapshotSymptoms: true,
+          },
+        },
+      },
     });
   }
   throw new AppError(403, 'Forbidden', 'FORBIDDEN');

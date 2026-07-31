@@ -45,9 +45,9 @@ export function Header() {
         </nav>
 
         <div className="fm-header-actions">
-          <Link to="/booking" className="fm-btn fm-btn-outline fm-header-book" aria-label="Запись в сервис">
+          <Link to="/booking" className="fm-btn fm-btn-outline fm-header-book" aria-label="Записаться в сервис">
             <CalendarDays size={16} aria-hidden="true" className="fm-header-book-icon" />
-            <span className="fm-header-book-text">Запись</span>
+            <span className="fm-header-book-text">Записаться</span>
           </Link>
           <Link to="/consult" className="fm-btn fm-btn-primary fm-header-cta">
             ИИ-диагностика

@@ -15,6 +15,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
 import { Reveal } from '../../components/ui/Reveal';
+import { SiteImage } from '../../components/ui/SiteImage';
 import { siteImages, workImageAt } from '../../content/siteImages';
 import { useAsyncState } from '../../hooks/useAsyncState';
 import { usePageMeta } from '../../hooks/usePageMeta';
@@ -154,19 +155,18 @@ function parseVehicle(title: string) {
 
 function WorkCaseCard({
   item,
-  featured = false,
   onOpen,
 }: {
   item: WorkItem;
-  featured?: boolean;
   onOpen: (item: WorkItem) => void;
 }) {
   const category = inferCategory(item);
   const { vehicle, symptom } = parseVehicle(item.title);
+  const excerpt = item.problem || item.description || '';
 
   return (
     <article
-      className={`fm-works-card${featured ? ' fm-works-card-featured' : ''}`}
+      className="fm-works-card"
       onClick={() => onOpen(item)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -179,43 +179,33 @@ function WorkCaseCard({
       aria-label={`Кейс: ${item.title}`}
     >
       <div className="fm-works-card-media">
-        <img src={workImageAt(item.imageUrl)} alt="" loading="lazy" />
+        <SiteImage src={workImageAt(item.imageUrl)} alt="" />
         <div className="fm-works-card-overlay" aria-hidden="true" />
         <span className="fm-tag">{categoryLabel(category)}</span>
-        {item.term ? (
-          <span className="fm-works-term">
-            <Clock size={13} aria-hidden="true" />
-            {item.term}
-          </span>
-        ) : null}
       </div>
 
       <div className="fm-works-card-body">
-        <h3>{vehicle}</h3>
-        {symptom ? <p className="fm-works-symptom">{symptom}</p> : null}
-
-        <div className="fm-works-flow">
-          <div className="fm-works-flow-step fm-works-flow-problem">
-            <AlertCircle size={15} aria-hidden="true" />
-            <div>
-              <span>Проблема</span>
-              <p>{item.problem || 'Симптом уточняется на диагностике'}</p>
-            </div>
-          </div>
-          <ArrowRight className="fm-works-flow-arrow" size={16} aria-hidden="true" />
-          <div className="fm-works-flow-step fm-works-flow-result">
-            <CheckCircle2 size={15} aria-hidden="true" />
-            <div>
-              <span>Результат</span>
-              <p>{item.result || 'Ремонт выполнен, авто выдано клиенту'}</p>
-            </div>
-          </div>
+        <div className="fm-works-card-head">
+          <h3>{vehicle}</h3>
+          {symptom ? <p className="fm-works-symptom">{symptom}</p> : null}
         </div>
 
-        <span className="fm-works-more">
-          Подробнее
-          <ArrowRight size={14} aria-hidden="true" />
-        </span>
+        {excerpt ? <p className="fm-works-excerpt">{excerpt}</p> : null}
+
+        <footer className="fm-works-card-foot">
+          {item.term ? (
+            <span className="fm-works-term-chip">
+              <Clock size={13} aria-hidden="true" />
+              {item.term}
+            </span>
+          ) : (
+            <span />
+          )}
+          <span className="fm-works-more">
+            Подробнее
+            <ArrowRight size={14} aria-hidden="true" />
+          </span>
+        </footer>
       </div>
     </article>
   );
@@ -255,7 +245,7 @@ function WorkDetailModal({ item, onClose }: { item: WorkItem | null; onClose: ()
 
         <div className="fm-works-modal-grid">
           <div className="fm-works-modal-media">
-            <img src={workImageAt(item.imageUrl)} alt="" />
+            <SiteImage src={workImageAt(item.imageUrl)} alt="" priority />
             <div className="fm-works-modal-badges">
               <span className="fm-tag">{categoryLabel(category)}</span>
               {item.term ? (
@@ -314,14 +304,16 @@ export function WorksPage() {
   usePageMeta({
     title: 'Выполненные работы',
     description: 'Реальные кейсы ремонта: симптом, диагностика, результат и сроки.',
+    preloadImage: siteImages.hero.services,
   });
 
-  const { data, error, loading } = useAsyncState<WorkItem[]>(() => api('/content/site-items?kind=work'));
+  const { data, error, loading, reload } = useAsyncState<WorkItem[]>(() => api('/content/site-items?kind=work'));
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<WorkItem | null>(null);
 
   const works = data?.length ? data : fallbackWorks;
+  const showLoadError = Boolean(error) && works.length === 0;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -353,54 +345,49 @@ export function WorksPage() {
     return sameDay >= terms.length / 2 ? 'в день обращения' : '1–2 дня';
   }, [works]);
 
-  const featured = filtered[0];
-  const rest = filtered.slice(1);
+  const heroHighlights = useMemo(
+    () => [
+      { value: String(works.length), label: 'кейсов в каталоге' },
+      { value: String(CATEGORIES.length - 2), label: 'направлений' },
+      { value: avgTermLabel, label: 'типичный срок' },
+      { value: '100%', label: 'итог подтверждает мастер' },
+    ],
+    [works.length, avgTermLabel],
+  );
 
   return (
-    <div className="fm-works-page">
+    <div className="fm-page fm-works-page">
       <Reveal as="header" className="fm-works-hero">
-        <img className="fm-works-hero-photo" src={siteImages.hero.services} alt="" loading="eager" />
-        <div className="fm-works-hero-content">
-        <p className="fm-pill">
-          <Wrench size={14} aria-hidden="true" />
-          Кейсы с поста
-        </p>
-        <h1>Выполненные работы</h1>
-        <p className="fm-lead">
-          Реальные ремонты с бокса: что беспокоило клиента, что нашли на диагностике и какой результат получили —
-          с прозрачными сроками.
-        </p>
-        <div className="fm-actions">
-          <Link className="fm-btn fm-btn-primary" to="/consult">
-            <MessageSquare size={16} aria-hidden="true" />
-            Описать свою проблему
-          </Link>
-          <Link className="fm-btn fm-btn-outline" to="/booking">
-            Записаться в сервис
-          </Link>
+        <div className="fm-works-hero__copy">
+          <p className="fm-pill">
+            <Wrench size={14} aria-hidden="true" />
+            Кейсы с поста
+          </p>
+          <h1>Выполненные работы</h1>
+          <p>
+            Реальные ремонты: симптом, что нашли на диагностике и какой результат получил клиент — с понятными
+            сроками.
+          </p>
+          <div className="fm-actions">
+            <Link className="fm-btn fm-btn-primary" to="/consult">
+              <MessageSquare size={16} aria-hidden="true" />
+              Описать свою проблему
+            </Link>
+            <Link className="fm-btn fm-btn-outline" to="/booking">
+              Записаться в сервис
+            </Link>
+          </div>
         </div>
-        </div>
-      </Reveal>
 
-      <Reveal delay={80}>
-        <div className="fm-stats fm-works-stats" aria-label="Статистика кейсов">
-          <div>
-            <strong>{works.length}</strong>
-            <span>опубликованных кейсов</span>
-          </div>
-          <div>
-            <strong>{CATEGORIES.length - 2}</strong>
-            <span>направлений ремонта</span>
-          </div>
-          <div>
-            <strong>{avgTermLabel}</strong>
-            <span>типичный срок</span>
-          </div>
-          <div>
-            <strong>
-              <CheckCircle2 size={22} aria-hidden="true" />
-            </strong>
-            <span>итог подтверждает мастер</span>
+        <div className="fm-works-hero__visual">
+          <SiteImage className="fm-works-hero__photo" src={siteImages.hero.services} alt="" priority />
+          <div className="fm-works-hero__stats">
+            {heroHighlights.map((item) => (
+              <div key={item.label} className="fm-works-highlight">
+                <strong>{item.value}</strong>
+                <span>{item.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </Reveal>
@@ -444,7 +431,7 @@ export function WorksPage() {
       </Reveal>
 
       {loading ? <Loader /> : null}
-      {error ? <ErrorState message={error} /> : null}
+      {showLoadError ? <ErrorState message={error!} onRetry={() => void reload()} /> : null}
 
       {!loading && filtered.length === 0 ? (
         <EmptyState
@@ -464,16 +451,10 @@ export function WorksPage() {
               : `Найдено ${filtered.length} из ${works.length}`}
           </p>
 
-          {featured ? (
-            <Reveal delay={60}>
-              <WorkCaseCard item={featured} featured onOpen={setSelected} />
-            </Reveal>
-          ) : null}
-
-          {rest.length > 0 ? (
+          {filtered.length > 0 ? (
             <div className="fm-works-grid">
-              {rest.map((item, i) => (
-                <Reveal key={item.id} delay={80 + (i % 3) * 60}>
+              {filtered.map((item, i) => (
+                <Reveal key={item.id} delay={60 + (i % 3) * 50}>
                   <WorkCaseCard item={item} onOpen={setSelected} />
                 </Reveal>
               ))}

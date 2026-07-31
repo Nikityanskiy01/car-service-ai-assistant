@@ -17,12 +17,20 @@ import { api } from '../../api/client';
 import { ConsentCheckbox } from '../../components/forms/ConsentCheckbox';
 import { FormField } from '../../components/forms/FormField';
 import { PhoneInput } from '../../components/forms/PhoneInput';
+import { FaqAccordion } from '../../components/public/FaqAccordion';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { SiteImage } from '../../components/ui/SiteImage';
 import { Textarea } from '../../components/ui/Textarea';
 import { useProductConfig } from '../../config/ProductConfigProvider';
 import { siteImages } from '../../content/siteImages';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { getFullNameError, getPhoneError } from '../../lib/validation';
+
+type ContactFieldErrors = {
+  fullName?: string;
+  phone?: string;
+};
 
 const values = [
   {
@@ -44,7 +52,7 @@ const values = [
 
 const workflow = [
   {
-    title: 'Запись или консультация',
+    title: 'Записаться или консультация',
     text: 'Запишитесь онлайн или начните с ИИ-чата, если симптом пока неясен.',
   },
   {
@@ -107,6 +115,7 @@ export function AboutPage() {
   usePageMeta({
     title: 'О сервисе и контакты',
     description: `Контакты, режим работы и форма связи — ${productConfig.productName}`,
+    preloadImage: siteImages.hero.about,
   });
 
   const [fullName, setFullName] = useState('');
@@ -114,12 +123,21 @@ export function AboutPage() {
   const [message, setMessage] = useState('');
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
   const [status, setStatus] = useState<string | null>(null);
   const [statusError, setStatusError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    const nextErrors: ContactFieldErrors = {};
+    const nameError = getFullNameError(fullName);
+    if (nameError) nextErrors.fullName = nameError;
+    const phoneError = getPhoneError(phone);
+    if (phoneError) nextErrors.phone = phoneError;
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     if (!consent) {
       setConsentError('Отметьте согласие на обработку персональных данных');
       return;
@@ -179,7 +197,7 @@ export function AboutPage() {
 
         <aside className="fm-about-hero-aside" aria-label="Контакты сервиса">
           <div className="fm-about-hero-photo">
-            <img src={siteImages.hero.about} alt="Автосервис" loading="lazy" />
+            <SiteImage src={siteImages.hero.about} alt="Автосервис" priority />
           </div>
           <div className="fm-about-quick-card">
           <p className="fm-about-quick-title">Быстрые контакты</p>
@@ -304,9 +322,9 @@ export function AboutPage() {
       </section>
 
       <section className="fm-photo-strip" aria-label="Фото сервиса">
-        <img src={siteImages.gallery.reception} alt="Зона приёма клиентов" loading="lazy" />
-        <img src={siteImages.gallery.bay} alt="Пост на подъёмнике" loading="lazy" />
-        <img src={siteImages.gallery.ready} alt="Выдача автомобиля" loading="lazy" />
+        <SiteImage src={siteImages.gallery.reception} alt="Зона приёма клиентов" />
+        <SiteImage src={siteImages.gallery.bay} alt="Пост на подъёмнике" />
+        <SiteImage src={siteImages.gallery.ready} alt="Выдача автомобиля" />
       </section>
 
       <section className="fm-section" id="contacts">
@@ -401,21 +419,41 @@ export function AboutPage() {
               Оставьте вопрос о ремонте, записи или сотрудничестве — ответим в рабочие часы.
             </p>
             <form className="fm-form stack" onSubmit={onSubmit} noValidate>
-              <FormField label="Имя" htmlFor="contactName">
+              <FormField
+                label="Имя"
+                htmlFor="contactName"
+                hint="Как к вам обращаться при ответе"
+                error={fieldErrors.fullName}
+              >
                 <Input
-                  id="contactName"
                   name="fullName"
                   autoComplete="name"
-                  placeholder="Как к вам обращаться"
+                  placeholder="Иван Иванов"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    if (fieldErrors.fullName) setFieldErrors((prev) => ({ ...prev, fullName: undefined }));
+                  }}
                   required
                 />
               </FormField>
-              <FormField label="Телефон" htmlFor="contactPhone">
-                <PhoneInput id="contactPhone" name="phone" value={phone} onChange={setPhone} required />
+              <FormField
+                label="Телефон"
+                htmlFor="contactPhone"
+                hint="Перезвоним или напишем в мессенджер"
+                error={fieldErrors.phone}
+              >
+                <PhoneInput
+                  name="phone"
+                  value={phone}
+                  onChange={(value) => {
+                    setPhone(value);
+                    if (fieldErrors.phone) setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                  }}
+                  required
+                />
               </FormField>
-              <FormField label="Сообщение" htmlFor="contactMessage">
+              <FormField label="Сообщение" htmlFor="contactMessage" hint="Необязательно — опишите вопрос или удобное время">
                 <Textarea
                   id="contactMessage"
                   name="message"
@@ -448,20 +486,16 @@ export function AboutPage() {
       </section>
 
       <section className="fm-section">
-        <h2>Вопросы перед визитом</h2>
-        <div className="fm-faq">
-          {visitFaqs.map((item) => (
-            <details key={item.q} className="fm-faq-item">
-              <summary>{item.q}</summary>
-              <p>{item.a}</p>
-            </details>
-          ))}
+        <div>
+          <h2>Вопросы перед визитом</h2>
+          <p className="fm-section-desc">Что важно знать до приезда в сервис</p>
         </div>
+        <FaqAccordion items={visitFaqs} />
       </section>
 
       <section className="fm-section fm-dual-cta">
         <article className="fm-card">
-          <h3>Запись в сервис</h3>
+          <h3>Записаться в сервис</h3>
           <p>Выберите услугу и удобное время — регистрация не обязательна.</p>
           <Link className="fm-btn fm-btn-primary" to="/booking">
             Записаться в сервис

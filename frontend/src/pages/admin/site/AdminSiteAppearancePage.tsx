@@ -95,7 +95,12 @@ export function AdminSiteAppearancePage() {
             <input value={form.workingHours ?? ''} onChange={(e) => setForm((f) => ({ ...f, workingHours: e.target.value }))} placeholder="Часы работы" aria-label="Часы работы" />
             <input value={form.supportEmail ?? ''} onChange={(e) => setForm((f) => ({ ...f, supportEmail: e.target.value }))} placeholder="Email поддержки" aria-label="Email" />
             <input value={form.mapUrl ?? ''} onChange={(e) => setForm((f) => ({ ...f, mapUrl: e.target.value }))} placeholder="Ссылка на карту" aria-label="Карта" />
-            <input value={form.footerCaption ?? ''} onChange={(e) => setForm((f) => ({ ...f, footerCaption: e.target.value }))} placeholder="Подпись в футере" aria-label="Футер" />
+            <input
+              value={form.footerCaption ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, footerCaption: e.target.value }))}
+              placeholder="Короткий слоган в футере (не юридический текст)"
+              aria-label="Слоган в футере"
+            />
             <div className="admin-color-row">
               <label>
                 Primary

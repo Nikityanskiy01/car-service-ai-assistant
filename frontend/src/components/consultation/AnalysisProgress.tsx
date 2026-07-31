@@ -12,12 +12,12 @@ export function AnalysisProgress({ phase, online }: { phase: string | null; onli
     return () => window.clearTimeout(timer);
   }, [phase]);
 
-  if (!phase && online) return null;
+  if (!phase) return null;
 
   return (
     <section className="analysis-progress" aria-live="polite" aria-label="Ход интеллектуального анализа">
       {!online ? (
-        <p>Нет подключения к сети. Сообщения будут отправлены после восстановления соединения.</p>
+        <p>Интернет пропал — дождитесь восстановления сети, затем отправьте сообщение снова.</p>
       ) : null}
       {phase ? (
         <>

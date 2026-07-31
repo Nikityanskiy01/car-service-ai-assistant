@@ -3,8 +3,8 @@ import { useProductConfig } from '../../config/ProductConfigProvider';
 import { usePageMeta } from '../../hooks/usePageMeta';
 
 /**
- * Шаблон Пользовательского соглашения (оферта на использование сайта).
- * Согласуется с 152-ФЗ через отсылки к Политике ПДн.
+ * Шаблон Пользовательского соглашения.
+ * Согласуется с 152-ФЗ через отсылки к Политике обработки персональных данных.
  */
 export function TermsPage() {
   const productConfig = useProductConfig();
@@ -165,7 +165,7 @@ export function TermsPage() {
         <p className="fm-legal-back">
           <Link to="/">← На главную</Link>
           {' · '}
-          <Link to="/privacy">Политика ПДн</Link>
+          <Link to="/privacy">Политика обработки персональных данных</Link>
           {' · '}
           <span>{shortName}</span>
         </p>

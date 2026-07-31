@@ -218,6 +218,8 @@ export function PrivacyPage() {
 
         <p className="fm-legal-back">
           <Link to="/">← На главную</Link>
+          {' · '}
+          <Link to="/terms">Пользовательское соглашение</Link>
         </p>
       </article>
     </div>

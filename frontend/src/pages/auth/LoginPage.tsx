@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/Input';
 import { useProductConfig } from '../../config/ProductConfigProvider';
 import { claimGuestConsultationSessionIfPresent } from '../../features/consultations/claimGuestSession';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { getEmailError } from '../../lib/validation';
 
 export function LoginPage() {
   const productConfig = useProductConfig();
@@ -19,6 +20,7 @@ export function LoginPage() {
   });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -27,6 +29,10 @@ export function LoginPage() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    const nextEmailError = getEmailError(email);
+    setEmailError(nextEmailError);
+    if (nextEmailError) return;
+
     setLoading(true);
     setError(null);
     try {
@@ -67,27 +73,33 @@ export function LoginPage() {
       </header>
       <div className="fm-auth-grid">
         <section className="fm-card fm-card-static">
-          <form className="fm-form stack" onSubmit={onSubmit}>
-            <FormField label="Email" htmlFor="loginEmail" error={error}>
+          <form className="fm-form stack" onSubmit={onSubmit} noValidate>
+            <FormField
+              label="Email"
+              htmlFor="loginEmail"
+              hint="Адрес, указанный при регистрации"
+              error={emailError || error}
+            >
               <Input
-                id="loginEmail"
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
+                placeholder="client@example.com"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
+                  if (emailError) setEmailError(null);
                   if (error) setError(null);
                 }}
               />
             </FormField>
-            <FormField label="Пароль" htmlFor="loginPassword">
+            <FormField label="Пароль" htmlFor="loginPassword" hint="Пароль от личного кабинета">
               <PasswordInput
-                id="loginPassword"
                 name="password"
                 required
                 autoComplete="current-password"
+                placeholder="Введите пароль"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -97,7 +109,7 @@ export function LoginPage() {
             </Button>
             <p className="form-legal-hint">
               Входя в кабинет, вы подтверждаете ознакомление с{' '}
-              <Link to="/privacy">Политикой ПДн</Link> и{' '}
+              <Link to="/privacy">Политикой обработки персональных данных</Link> и{' '}
               <Link to="/terms">Пользовательским соглашением</Link>.
             </p>
           </form>

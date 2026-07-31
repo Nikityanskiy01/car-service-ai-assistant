@@ -10,7 +10,7 @@ describe('404 page', () => {
         <NotFoundPage />
       </MemoryRouter>,
     );
-    expect(screen.getByText('404')).toBeInTheDocument();
-    expect(screen.getByText('Страница не найдена.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ошибка 404')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /нет такой страницы/i })).toBeInTheDocument();
   });
 });

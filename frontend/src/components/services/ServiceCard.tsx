@@ -1,6 +1,7 @@
 import { ArrowRight, Clock, Sparkles } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
+import { SiteImage } from '../ui/SiteImage';
 import { getCategoryMeta } from '../../features/services/categoryConfig';
 import { prefillService } from '../../features/services/prefill';
 import type { ServiceItem } from '../../features/services/types';
@@ -41,7 +42,7 @@ export function ServiceCard({ item, variant = 'default', index = 0 }: ServiceCar
       style={{ '--svc-accent': meta.accent, '--svc-delay': `${index * 60}ms` } as CSSProperties}
     >
       <div className="fm-svc-card__media">
-        <img src={image} alt={item.title} loading="lazy" />
+        <SiteImage src={image} alt={item.title} />
         <span className="fm-svc-card__icon" aria-hidden="true">
           <Icon size={18} />
         </span>
@@ -68,8 +69,8 @@ export function ServiceCard({ item, variant = 'default', index = 0 }: ServiceCar
         <div className="fm-svc-card__footer">
           <span className="fm-price">{item.price || 'Стоимость по осмотру'}</span>
           <Link to={ctaTo} className="fm-svc-card__cta" onClick={handleClick}>
-            {ctaLabel}
-            <ArrowRight size={16} aria-hidden="true" />
+            <span className="fm-svc-card__cta-label">{ctaLabel}</span>
+            <ArrowRight size={15} strokeWidth={2.25} aria-hidden="true" className="fm-svc-card__cta-icon" />
           </Link>
         </div>
       </div>

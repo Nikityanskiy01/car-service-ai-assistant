@@ -1,4 +1,5 @@
 import type { FollowUpAttachment } from '../../api/dashboard';
+import { SiteImage } from '../ui/SiteImage';
 
 type Props = {
   attachments?: FollowUpAttachment[];
@@ -13,7 +14,7 @@ export function MessageAttachmentList({ attachments = [] }: Props) {
         <li key={file.id}>
           {file.mimeType.startsWith('image/') ? (
             <a href={file.url} target="_blank" rel="noreferrer">
-              <img src={file.url} alt={file.fileName} loading="lazy" />
+              <SiteImage src={file.url} alt={file.fileName} recover={false} />
             </a>
           ) : (
             <a href={file.url} target="_blank" rel="noreferrer">

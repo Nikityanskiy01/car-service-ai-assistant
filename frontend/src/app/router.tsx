@@ -117,6 +117,9 @@ const ForbiddenPage = lazy(() =>
 const NotFoundPage = lazy(() =>
   import('../pages/errors/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 );
+const DashboardNotFoundPage = lazy(() =>
+  import('../pages/errors/DashboardNotFoundPage').then((m) => ({ default: m.DashboardNotFoundPage })),
+);
 
 const legacyRedirects: Record<string, string> = {
   '/index.html': '/',
@@ -160,11 +163,14 @@ export const router = createBrowserRouter([
       { path: 'about', element: withSuspense(<AboutPage />) },
       { path: 'consult', element: withSuspense(<ConsultPage />) },
       { path: 'booking', element: withSuspense(<BookingPage />) },
+      { path: 'bookings', element: <Navigate to="/dashboard/client/bookings" replace /> },
+      { path: 'my-bookings', element: <Navigate to="/dashboard/client/bookings" replace /> },
       { path: 'privacy', element: withSuspense(<PrivacyPage />) },
       { path: 'terms', element: withSuspense(<TermsPage />) },
       { path: 'login', element: withSuspense(<LoginPage />) },
       { path: 'register', element: withSuspense(<RegisterPage />) },
       { path: '403', element: withSuspense(<ForbiddenPage />) },
+      { path: '*', element: withSuspense(<NotFoundPage />) },
     ],
   },
   {
@@ -281,9 +287,9 @@ export const router = createBrowserRouter([
       { path: 'admin/integrations/:connectionId', element: withAdmin(<AdminIntegrationDetailPage />) },
       { path: 'admin/security/audit', element: withAdmin(<AdminAuditPage />) },
       { path: 'admin/profile', element: withAdmin(<ProfilePage />) },
+      { path: '*', element: withSuspense(<DashboardNotFoundPage />) },
     ],
   },
-  { path: '*', element: withSuspense(<NotFoundPage />) },
 ]);
 
 function withManager(element: ReactNode) {

@@ -112,6 +112,7 @@ export function DashboardShell() {
           badges={badges}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
+          allowCollapse={false}
         />
       ) : null}
       {isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
@@ -120,6 +121,7 @@ export function DashboardShell() {
           badges={badges}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
+          allowCollapse={false}
         />
       ) : null}
       {isAdmin && user?.role === 'ADMINISTRATOR' ? (

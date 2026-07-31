@@ -8,7 +8,7 @@ export function prefillConsultationBooking(detail: ConsultationDetail | null | u
   const symptoms = detail.extracted?.symptoms?.trim() || '';
   const vehicle = [make, model].filter(Boolean).join(' ');
   const lines = [
-    'Запись после ИИ-диагностики.',
+    'Записаться после ИИ-диагностики.',
     vehicle ? `Авто: ${vehicle}` : null,
     symptoms ? `Симптомы: ${symptoms}` : null,
     detail.extracted?.obdCodes ? `Коды OBD: ${detail.extracted.obdCodes}` : null,

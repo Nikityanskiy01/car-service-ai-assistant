@@ -9,15 +9,19 @@ type FieldControlProps = {
 export function FormField({
   label,
   htmlFor,
+  hint,
   error,
   children,
 }: {
   label: string;
   htmlFor: string;
+  hint?: string;
   error?: string | null;
   children: React.ReactNode;
 }) {
-  const describedBy = error ? `${htmlFor}-error` : undefined;
+  const hintId = hint ? `${htmlFor}-hint` : undefined;
+  const errorId = error ? `${htmlFor}-error` : undefined;
+  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
   const control =
     isValidElement(children)
       ? cloneElement(children as ReactElement<FieldControlProps>, {
@@ -32,9 +36,14 @@ export function FormField({
       <label className="form-field-label" htmlFor={htmlFor}>
         {label}
       </label>
+      {hint ? (
+        <small id={hintId} className="field-hint">
+          {hint}
+        </small>
+      ) : null}
       {control}
       {error ? (
-        <small id={describedBy} className="field-error" aria-live="polite">
+        <small id={errorId} className="field-error" aria-live="polite">
           {error}
         </small>
       ) : null}

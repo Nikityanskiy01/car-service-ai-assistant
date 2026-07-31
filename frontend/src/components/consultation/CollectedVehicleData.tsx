@@ -6,7 +6,6 @@ const CHIP_FIELDS = [
   { label: 'Год', key: 'year' as const },
   { label: 'Пробег', key: 'mileage' as const },
   { label: 'Симптомы', key: 'symptoms' as const },
-  { label: 'OBD', key: 'obdCodes' as const },
 ];
 
 function chipValue(data: ConsultationExtractedData | null | undefined, key: (typeof CHIP_FIELDS)[number]['key']): string {

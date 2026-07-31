@@ -18,6 +18,7 @@ import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Input } from '../../components/ui/Input';
 import { Loader } from '../../components/ui/Loader';
+import { Modal } from '../../components/ui/Modal';
 import { Tabs } from '../../components/ui/Tabs';
 import { Textarea } from '../../components/ui/Textarea';
 import { useProductConfig } from '../../config/ProductConfigProvider';
@@ -27,7 +28,13 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
 import { STORAGE_KEYS } from '../../lib/storageKeys';
+import { getFullNameError, getPhoneError } from '../../lib/validation';
 import type { ConsultationDetail } from '../../types/consultation';
+
+type GuestFieldErrors = {
+  fullName?: string;
+  phone?: string;
+};
 
 const STAGE_LABELS: Record<string, string> = {
   INITIAL: 'Уточняем автомобиль и симптомы',
@@ -92,6 +99,7 @@ export function ConsultPage() {
   const [guestPhone, setGuestPhone] = useState('');
   const [guestConsent, setGuestConsent] = useState(false);
   const [guestConsentError, setGuestConsentError] = useState<string | null>(null);
+  const [guestFieldErrors, setGuestFieldErrors] = useState<GuestFieldErrors>({});
 
   useEffect(() => {
     try {
@@ -109,6 +117,8 @@ export function ConsultPage() {
   const [successRequestId, setSuccessRequestId] = useState<string | null>(null);
   const [creatingRequest, setCreatingRequest] = useState(false);
   const [mobilePanel, setMobilePanel] = useState('chat');
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactModalIntent, setContactModalIntent] = useState<'request' | 'login'>('request');
   const bootRef = useRef(false);
   const retryRef = useRef<(() => void) | null>(null);
   const { start, stop } = useConsultationStream();
@@ -314,6 +324,57 @@ export function ConsultPage() {
     await sendMessage(message);
   }
 
+  function openContactModal(intent: 'request' | 'login') {
+    setContactModalIntent(intent);
+    setGuestConsentError(null);
+    setContactModalOpen(true);
+  }
+
+  function closeContactModal() {
+    if (creatingRequest) return;
+    setContactModalOpen(false);
+    setGuestConsentError(null);
+    setGuestFieldErrors({});
+  }
+
+  function handleCreateRequestClick() {
+    if (isAuthenticated) {
+      void createServiceRequest();
+      return;
+    }
+    openContactModal('request');
+  }
+
+  async function submitContactModal() {
+    if (!isAuthenticated) {
+      const nextErrors: GuestFieldErrors = {};
+      const nameError = getFullNameError(guestName);
+      if (nameError) nextErrors.fullName = nameError;
+      const phoneError = getPhoneError(guestPhone);
+      if (phoneError) nextErrors.phone = phoneError;
+      setGuestFieldErrors(nextErrors);
+      if (Object.keys(nextErrors).length > 0) return;
+
+      if (!guestConsent) {
+        setGuestConsentError('Отметьте согласие на обработку персональных данных');
+        return;
+      }
+    }
+    setGuestConsentError(null);
+
+    if (contactModalIntent === 'login') {
+      sessionStorage.setItem(
+        STORAGE_KEYS.consultPrefill,
+        JSON.stringify({ fullName: guestName.trim(), phone: guestPhone.trim() }),
+      );
+      setContactModalOpen(false);
+      navigate('/login?next=/dashboard/client');
+      return;
+    }
+
+    await createServiceRequest();
+  }
+
   async function createServiceRequest() {
     if (!sessionId || creatingRequest) return;
     if (!isAuthenticated && !guestConsent) {
@@ -337,6 +398,7 @@ export function ConsultPage() {
             },
           });
       setSuccessRequestId(payload.id);
+      setContactModalOpen(false);
       setMobilePanel('result');
     } catch (e) {
       setErrorWithRetry(
@@ -362,9 +424,6 @@ export function ConsultPage() {
           </p>
         </div>
         <div className="consult-head-actions">
-          <span className={`connect-status ${online ? 'online' : 'offline'}`}>
-            {online ? 'Связь есть' : 'Нет сети'}
-          </span>
           <Button variant="ghost" type="button" onClick={() => void startNewSession()} disabled={bootstrapping || isSending}>
             <Plus size={16} aria-hidden="true" />
             Новая сессия
@@ -375,7 +434,39 @@ export function ConsultPage() {
       {!isAuthenticated ? (
         <div className="consult-guest-banner" role="status">
           Гостевой режим: история сохранится в этой сессии браузера.{' '}
-          <Link to="/login?next=/consult">Войдите</Link>, чтобы вести обращения в кабинете.
+          <button type="button" className="consult-guest-banner__link" onClick={() => openContactModal('login')}>
+            Войдите
+          </button>
+          , чтобы вести обращения в кабинете.
+        </div>
+      ) : null}
+
+      {successRequestId ? (
+        <div className="success-block consult-success-banner" role="status" aria-live="polite">
+          <h4>Заявка создана</h4>
+          <p>
+            Номер заявки: <strong>{formatRequestNumber(successRequestId)}</strong>
+          </p>
+          <p>
+            Статус: <strong>{SERVICE_REQUEST_STATUS_LABELS.NEW}</strong>
+          </p>
+          <p className="consult-success-hint">
+            Менеджер свяжется с вами для подтверждения деталей и времени визита.
+          </p>
+          <div className="consult-success-actions">
+            <Button type="button" variant="primary" onClick={goToBooking}>
+              Выбрать время визита
+            </Button>
+            {isAuthenticated ? (
+              <Link className="btn btn-secondary" to="/dashboard/client/requests">
+                В кабинет
+              </Link>
+            ) : (
+              <button type="button" className="btn btn-secondary" onClick={() => openContactModal('login')}>
+                Войти в кабинет
+              </button>
+            )}
+          </div>
         </div>
       ) : null}
 
@@ -393,7 +484,7 @@ export function ConsultPage() {
             className="consult-mobile-tabs"
             items={[
               { id: 'chat', label: 'Чат' },
-              { id: 'result', label: 'Результат и заявка' },
+              { id: 'result', label: 'Результат' },
             ]}
             value={mobilePanel}
             onChange={setMobilePanel}
@@ -408,100 +499,26 @@ export function ConsultPage() {
                 statusText={statusText}
                 extracted={detail?.extracted}
               />
+              <ObdCodesPanel
+                currentCodes={detail?.extracted?.obdCodes}
+                disabled={isSending || bootstrapping || !sessionId || !online}
+                onApply={(msg) => void sendMessage(msg)}
+              />
               <DiagnosticSummary
                 detail={detail}
                 recommendations={detail?.recommendations || []}
                 diagnosis={detail?.diagnosis}
                 fallbackCost={detail?.costFromMinor}
                 fallbackConfidence={detail?.confidencePercent}
+                onCreateRequest={handleCreateRequestClick}
               />
-              <Card className="consult-request-card">
-                <ObdCodesPanel
-                  currentCodes={detail?.extracted?.obdCodes}
-                  disabled={isSending || bootstrapping || !sessionId || !online}
-                  onApply={(msg) => void sendMessage(msg)}
-                />
-                <h3>Создание заявки</h3>
-                <p className="consult-request-hint">После диагностики оставьте контакты — менеджер свяжется с вами.</p>
-                {!isAuthenticated ? (
-                  <div className="fm-form consult-request-form stack">
-                    <FormField label="Ваше имя" htmlFor="consultGuestName">
-                      <Input
-                        id="consultGuestName"
-                        name="fullName"
-                        autoComplete="name"
-                        placeholder="Иван Иванов"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                      />
-                    </FormField>
-                    <FormField label="Телефон" htmlFor="consultGuestPhone">
-                      <PhoneInput
-                        id="consultGuestPhone"
-                        name="phone"
-                        value={guestPhone}
-                        onChange={setGuestPhone}
-                      />
-                    </FormField>
-                    <ConsentCheckbox
-                      id="consultGuestConsent"
-                      checked={guestConsent}
-                      onChange={(v) => {
-                        setGuestConsent(v);
-                        if (v) setGuestConsentError(null);
-                      }}
-                      error={guestConsentError}
-                    />
-                  </div>
-                ) : null}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="consult-request-btn"
-                  disabled={
-                    creatingRequest ||
-                    (!isAuthenticated && (!guestName || !guestPhone || !guestConsent))
-                  }
-                  onClick={() => void createServiceRequest()}
-                >
-                  {creatingRequest ? 'Создание...' : 'Создать заявку'}
-                </Button>
-                {successRequestId ? (
-                  <div className="success-block consult-success-block" role="status" aria-live="polite">
-                    <h4>Заявка создана</h4>
-                    <p>
-                      Номер заявки: <strong>{formatRequestNumber(successRequestId)}</strong>
-                    </p>
-                    <p>
-                      Статус: <strong>{SERVICE_REQUEST_STATUS_LABELS.NEW}</strong>
-                    </p>
-                    <p className="consult-success-hint">
-                      Менеджер свяжется с вами для подтверждения деталей и времени визита.
-                    </p>
-                    <div className="consult-success-actions">
-                      <Button type="button" variant="primary" onClick={goToBooking}>
-                        Выбрать время визита
-                      </Button>
-                      {isAuthenticated ? (
-                        <Link className="btn btn-secondary" to="/dashboard/client/requests">
-                          В кабинет
-                        </Link>
-                      ) : (
-                        <Link className="btn btn-secondary" to="/login?next=/dashboard/client">
-                          Войти в кабинет
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-              </Card>
             </aside>
 
             <main className={`consultation-main ${mainPanelClass}`}>
               <AnalysisProgress phase={phase} online={online} />
               {!online ? (
                 <div className="consult-offline-banner" role="alert">
-                  Нет подключения к сети. Сообщения сейчас не отправятся — проверьте Wi‑Fi или мобильный интернет.
+                  Нет интернета — сообщения не отправятся. Проверьте Wi‑Fi или мобильную сеть.
                 </div>
               ) : null}
               <Card className="consult-chat-card">
@@ -554,6 +571,74 @@ export function ConsultPage() {
               </Card>
             </main>
           </div>
+
+          <Modal
+            open={contactModalOpen}
+            title={contactModalIntent === 'login' ? 'Вход в кабинет' : 'Заявка в сервис'}
+            onClose={closeContactModal}
+          >
+            <p className="consult-request-hint">
+              {contactModalIntent === 'login'
+                ? 'Оставьте контакты — мы сохраним обращение и откроем личный кабинет.'
+                : 'Оставьте контакты — менеджер свяжется с вами и подтвердит детали.'}
+            </p>
+            <div className="fm-form consult-request-form stack">
+              <FormField
+                label="Ваше имя"
+                htmlFor="consultGuestNameModal"
+                hint="Менеджер обратится к вам по имени"
+                error={guestFieldErrors.fullName}
+              >
+                <Input
+                  name="fullName"
+                  autoComplete="name"
+                  placeholder="Иван Иванов"
+                  value={guestName}
+                  onChange={(e) => {
+                    setGuestName(e.target.value);
+                    if (guestFieldErrors.fullName) setGuestFieldErrors((prev) => ({ ...prev, fullName: undefined }));
+                  }}
+                />
+              </FormField>
+              <FormField
+                label="Телефон"
+                htmlFor="consultGuestPhoneModal"
+                hint="Для звонка или сообщения с деталями"
+                error={guestFieldErrors.phone}
+              >
+                <PhoneInput
+                  name="phone"
+                  value={guestPhone}
+                  onChange={(value) => {
+                    setGuestPhone(value);
+                    if (guestFieldErrors.phone) setGuestFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                  }}
+                />
+              </FormField>
+              <ConsentCheckbox
+                id="consultGuestConsentModal"
+                checked={guestConsent}
+                onChange={(v) => {
+                  setGuestConsent(v);
+                  if (v) setGuestConsentError(null);
+                }}
+                error={guestConsentError}
+              />
+              <Button
+                type="button"
+                variant="primary"
+                className="consult-request-btn"
+                disabled={creatingRequest}
+                onClick={() => void submitContactModal()}
+              >
+                {creatingRequest
+                  ? 'Отправка...'
+                  : contactModalIntent === 'login'
+                    ? 'Продолжить ко входу'
+                    : 'Отправить заявку'}
+              </Button>
+            </div>
+          </Modal>
         </>
       )}
     </div>

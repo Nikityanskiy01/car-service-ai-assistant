@@ -1,4 +1,4 @@
-import { MessageSquare, Phone } from 'lucide-react';
+import { CalendarCheck, ClipboardList, MapPin, MessageSquare, Phone, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ServiceCard } from '../../components/services/ServiceCard';
@@ -7,6 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
 import { Reveal } from '../../components/ui/Reveal';
+import { SiteImage } from '../../components/ui/SiteImage';
 import { useProductConfig } from '../../config/ProductConfigProvider';
 import { siteImages } from '../../content/siteImages';
 import { serviceHighlights, serviceProcess } from '../../features/services/data';
@@ -15,11 +16,14 @@ import { useServices } from '../../features/services/useServices';
 import { filterServices, isFeaturedService, sortServices } from '../../features/services/utils';
 import { usePageMeta } from '../../hooks/usePageMeta';
 
+const processStepIcons = [ClipboardList, CalendarCheck, MapPin] as const;
+
 export function ServicesPage() {
   const productConfig = useProductConfig();
   usePageMeta({
     title: 'Услуги автосервиса',
     description: 'Полный каталог работ с ценами, фильтрами и онлайн-записью.',
+    preloadImage: siteImages.hero.services,
   });
 
   const { services, loading, error } = useServices();
@@ -58,7 +62,7 @@ export function ServicesPage() {
         </div>
 
         <div className="fm-svc-hero__visual">
-          <img className="fm-svc-hero__photo" src={siteImages.hero.services} alt="" loading="lazy" />
+          <SiteImage className="fm-svc-hero__photo" src={siteImages.hero.services} alt="" priority />
           <div className="fm-svc-hero__stats">
           {serviceHighlights.map((item) => (
             <div key={item.label} className="fm-svc-highlight">
@@ -106,43 +110,62 @@ export function ServicesPage() {
           )}
 
           <Reveal as="section" className="fm-svc-process" aria-label="Как записаться">
-            <h2>Как записаться на услугу</h2>
-            <div className="fm-svc-process__steps">
-              {serviceProcess.map((step) => (
-                <article key={step.step} className="fm-card fm-svc-step">
-                  <span className="fm-svc-step__num">{step.step}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
-                </article>
-              ))}
-            </div>
+            <header className="fm-svc-process__head">
+              <h2>Как записаться на услугу</h2>
+              <p>Три шага — от выбора работы до визита в сервис</p>
+            </header>
+            <ol className="fm-svc-process__steps">
+              {serviceProcess.map((step, index) => {
+                const Icon = processStepIcons[index] ?? ClipboardList;
+
+                return (
+                  <li key={step.step} className="fm-svc-step">
+                    <div className="fm-svc-step__top">
+                      <span className="fm-svc-step__num" aria-hidden="true">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      <span className="fm-svc-step__icon" aria-hidden="true">
+                        <Icon size={18} />
+                      </span>
+                    </div>
+                    <h3>{step.title}</h3>
+                    <p>{step.text}</p>
+                  </li>
+                );
+              })}
+            </ol>
           </Reveal>
 
           <Reveal as="section" className="fm-svc-cta-banner">
-            <div>
+            <div className="fm-svc-cta-banner__main">
+              <p className="fm-svc-cta-banner__eyebrow">
+                <Sparkles size={14} aria-hidden="true" />
+                ИИ-помощник · бесплатно
+              </p>
               <h2>Не уверены, какая услуга нужна?</h2>
-              <p>
+              <p className="fm-svc-cta-banner__text">
                 {productConfig.assistantName} поможет определить вероятные причины, оценить срочность и подобрать
                 работы — затем передайте отчёт мастеру одним кликом.
               </p>
             </div>
-            <div className="fm-actions">
-              <Link className="fm-btn fm-btn-primary" to="/consult">
-                Начать ИИ-диагностику
-              </Link>
-              {productConfig.phone ? (
-                <a className="fm-btn fm-btn-outline" href={`tel:${productConfig.phone.replace(/[^\d+]/g, '')}`}>
-                  <Phone size={16} aria-hidden="true" />
-                  Позвонить
-                </a>
+            <div className="fm-svc-cta-banner__aside">
+              <div className="fm-svc-cta-banner__actions">
+                <Link className="fm-btn fm-btn-primary" to="/consult">
+                  Начать ИИ-диагностику
+                </Link>
+                {productConfig.phone ? (
+                  <a className="fm-btn fm-btn-outline" href={`tel:${productConfig.phone.replace(/[^\d+]/g, '')}`}>
+                    <Phone size={16} aria-hidden="true" />
+                    Позвонить
+                  </a>
+                ) : null}
+              </div>
+              {featured ? (
+                <p className="fm-svc-cta-banner__hint">
+                  Или сразу запишитесь на «{featured.title}» — <Link to="/consult">открыть чат</Link>
+                </p>
               ) : null}
             </div>
-            {featured ? (
-              <p className="fm-svc-cta-banner__hint">
-                Или сразу запишитесь на «{featured.title}» —{' '}
-                <Link to="/consult">открыть чат</Link>
-              </p>
-            ) : null}
           </Reveal>
         </>
       ) : null}

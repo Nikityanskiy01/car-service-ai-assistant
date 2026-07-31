@@ -244,7 +244,7 @@ export function ClientCaseDetailPage() {
           { id: 'progress', label: 'Ход дела' },
           { id: 'diagnosis', label: 'Диагностика' },
           { id: 'messages', label: `Переписка (${messages.length})` },
-          { id: 'booking', label: 'Запись' },
+          { id: 'booking', label: 'Записаться' },
         ]}
       />
 

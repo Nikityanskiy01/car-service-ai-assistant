@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { FaqAccordion } from '../../components/public/FaqAccordion';
 import { ServicesShowcase } from '../../components/services/ServicesShowcase';
+import { SiteImage } from '../../components/ui/SiteImage';
 import { useProductConfig } from '../../config/ProductConfigProvider';
 import { siteImages, workImageAt } from '../../content/siteImages';
 import { useServices } from '../../features/services/useServices';
@@ -119,6 +121,7 @@ export function HomePage() {
   usePageMeta({
     title: 'ИИ-диагностика и автосервис',
     description: productConfig.description,
+    preloadImage: siteImages.hero.home,
   });
 
   const worksState = useAsyncState<CmsWork[]>(() => api('/content/site-items?kind=work'));
@@ -162,7 +165,7 @@ export function HomePage() {
         </div>
 
         <aside className="fm-hero-visual" aria-label="Пример консультации">
-          <img className="fm-hero-photo" src={siteImages.hero.home} alt="" loading="eager" />
+          <SiteImage className="fm-hero-photo" src={siteImages.hero.home} alt="" priority />
           <div className="fm-chat-card">
           <div className="fm-chat-head">
             <div>
@@ -279,7 +282,7 @@ export function HomePage() {
         <div className="fm-grid-3">
           {works.map((item) => (
             <article key={item.id} className="fm-work-card">
-              <img src={workImageAt(item.imageUrl)} alt="" loading="lazy" />
+              <SiteImage src={workImageAt(item.imageUrl)} alt="" />
               <div className="fm-work-body">
                 <p>{item.title}</p>
                 <span>
@@ -294,15 +297,11 @@ export function HomePage() {
       <ServicesShowcase services={services} />
 
       <section className="fm-section">
-        <h2>Частые вопросы</h2>
-        <div className="fm-faq">
-          {faqs.map((item) => (
-            <details key={item.q} className="fm-faq-item">
-              <summary>{item.q}</summary>
-              <p>{item.a}</p>
-            </details>
-          ))}
+        <div>
+          <h2>Частые вопросы</h2>
+          <p className="fm-section-desc">Коротко о консультации, регистрации и записи в сервис</p>
         </div>
+        <FaqAccordion items={faqs} />
       </section>
 
       <section className="fm-section">
@@ -334,7 +333,7 @@ export function HomePage() {
             </Link>
           </div>
           <div className="fm-map">
-            <img className="fm-map-photo" src={siteImages.gallery.shopfloor} alt="" loading="lazy" />
+            <SiteImage className="fm-map-photo" src={siteImages.gallery.shopfloor} alt="" />
             {productConfig.mapUrl ? (
               <a className="fm-map-frame" href={productConfig.mapUrl} target="_blank" rel="noreferrer">
                 <span>Открыть карту</span>
@@ -352,7 +351,7 @@ export function HomePage() {
 
       <section className="fm-section fm-dual-cta">
         <article className="fm-card">
-          <h3>Запись в сервис</h3>
+          <h3>Записаться в сервис</h3>
           <p>Выберите услугу из каталога и оставьте удобное время — регистрация не обязательна.</p>
           <Link className="fm-btn fm-btn-primary" to="/booking">
             Записаться в сервис

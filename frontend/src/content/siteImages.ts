@@ -1,4 +1,6 @@
 /** Centralized static image paths for the public site. */
+import { normalizeImageUrl } from '../lib/imageUrl';
+
 export const siteImages = {
   hero: {
     home: '/placeholders/hero-home.jpg',
@@ -13,12 +15,14 @@ export const siteImages = {
     tools: '/placeholders/gallery-tools.jpg',
     ready: '/placeholders/gallery-ready.jpg',
     fallback: [
+      '/placeholders/gallery-01.jpg',
+      '/placeholders/gallery-02.jpg',
+      '/placeholders/gallery-03.jpg',
+      '/placeholders/gallery-04.jpg',
+      '/placeholders/gallery-05.jpg',
+      '/placeholders/gallery-06.jpg',
       '/placeholders/gallery-reception.jpg',
       '/placeholders/gallery-bay.jpg',
-      '/placeholders/gallery-shopfloor.jpg',
-      '/placeholders/gallery-alignment.jpg',
-      '/placeholders/gallery-tools.jpg',
-      '/placeholders/gallery-ready.jpg',
     ] as const,
   },
   works: {
@@ -91,10 +95,10 @@ export const fallbackGalleryItems: FallbackGalleryItem[] = [
 ];
 
 export function galleryImageAt(index: number, imageUrl?: string | null): string {
-  if (imageUrl) return imageUrl;
+  if (imageUrl) return normalizeImageUrl(imageUrl);
   return siteImages.gallery.fallback[index % siteImages.gallery.fallback.length];
 }
 
 export function workImageAt(imageUrl?: string | null): string {
-  return imageUrl || siteImages.works.default;
+  return normalizeImageUrl(imageUrl, siteImages.works.default);
 }

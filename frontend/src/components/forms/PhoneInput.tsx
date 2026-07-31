@@ -1,27 +1,47 @@
-import { Input } from '../ui/Input';
-
-function normalizePhone(value: string): string {
-  const digits = value.replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.length <= 1) return `+7 (${digits}`;
-  if (digits.length <= 4) return `+7 (${digits.slice(1)}`;
-  if (digits.length <= 7) return `+7 (${digits.slice(1, 4)}) ${digits.slice(4)}`;
-  if (digits.length <= 9) return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9, 11)}`;
-}
+import { useRef, type ChangeEvent } from 'react';
+import {
+  countNationalDigitsBefore,
+  formatPhoneInput,
+  nationalDigitIndexToCursor,
+} from '../../lib/formatPhone';
 
 export function PhoneInput({
   value,
   onChange,
+  placeholder = '+7 (999) 000-00-00',
   ...props
-}: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> & {
+  value: string;
   onChange: (value: string) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayValue = formatPhoneInput(value);
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.target;
+    const cursor = input.selectionStart ?? 0;
+    const digitsBefore = countNationalDigitsBefore(input.value, cursor);
+    const formatted = formatPhoneInput(input.value);
+
+    onChange(formatted);
+
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      const nextCursor = nationalDigitIndexToCursor(digitsBefore, formatted);
+      el.setSelectionRange(nextCursor, nextCursor);
+    });
+  }
+
   return (
-    <Input
+    <input
       {...props}
-      value={value}
-      onChange={(event) => onChange(normalizePhone(event.target.value))}
+      ref={inputRef}
+      className="input"
+      value={displayValue}
+      placeholder={placeholder}
+      onChange={handleChange}
+      type="tel"
       inputMode="tel"
       autoComplete="tel"
     />

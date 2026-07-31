@@ -10,7 +10,14 @@ function detectPreferredTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'dark';
   const cached = localStorage.getItem(THEME_KEY);
   if (cached === 'light' || cached === 'dark') return cached;
+  if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
   return 'dark';
+}
+
+function updateThemeColorMeta(mode: ThemeMode, primary: string) {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  meta.setAttribute('content', mode === 'light' ? '#f4f4f5' : primary);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -20,10 +27,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = mode;
+    root.style.colorScheme = mode;
     root.style.setProperty('--brand-primary', productConfig.theme.primary);
     root.style.setProperty('--brand-secondary', productConfig.theme.secondary);
     root.style.setProperty('--brand-accent', productConfig.theme.accent);
     localStorage.setItem(THEME_KEY, mode);
+    updateThemeColorMeta(mode, productConfig.theme.primary);
   }, [mode, productConfig.theme.primary, productConfig.theme.secondary, productConfig.theme.accent]);
 
   const value = useMemo<ThemeContextValue>(

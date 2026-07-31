@@ -1,4 +1,5 @@
 import type { PhotoObservations } from '../../types/consultation';
+import { SiteImage } from '../ui/SiteImage';
 
 type Props = {
   photoObservations?: PhotoObservations | null;
@@ -36,7 +37,7 @@ export function ConsultationPhotoGallery({ photoObservations, messageContents = 
         <div className="photo-gallery-grid">
           {[...urls].map((url) => (
             <figure key={url}>
-              <img src={url} alt="Фото от клиента" loading="lazy" />
+              <SiteImage src={url} alt="Фото от клиента" recover={false} />
             </figure>
           ))}
         </div>

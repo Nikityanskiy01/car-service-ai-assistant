@@ -53,15 +53,15 @@ export function AdminSiteLegalPage() {
     <div className="stack dashboard-page">
       <PageHeader
         title="Юридические данные"
-        description="Реквизиты для политики конфиденциальности и оферты."
+        description="Реквизиты для юридических документов сайта."
         breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/site/legal')}
         actions={
           <>
             <Link to="/privacy" className="btn btn-secondary" target="_blank" rel="noreferrer">
-              Политика ПДн
+              Политика обработки ПДн
             </Link>
             <Link to="/terms" className="btn btn-secondary" target="_blank" rel="noreferrer">
-              Оферта
+              Пользовательское соглашение
             </Link>
           </>
         }

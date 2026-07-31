@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import { CookieBanner } from './CookieBanner';
 import { Footer } from './Footer';
 import { Header } from './Header';
 
@@ -13,6 +14,7 @@ export function PublicLayout() {
         <Outlet />
       </main>
       <Footer />
+      <CookieBanner />
     </div>
   );
 }

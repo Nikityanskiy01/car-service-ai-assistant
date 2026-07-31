@@ -1,29 +1,19 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { CalendarDays } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { listBookings } from '../../../api/dashboard';
-import { DashboardRecordCard } from '../../../components/dashboard/DashboardRecordCard';
+import { BookingCard } from '../../../components/client/BookingCard';
 import { PageHeader } from '../../../components/layout/dashboard/PageHeader';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
+import { Input } from '../../../components/ui/Input';
 import { Loader } from '../../../components/ui/Loader';
 import { Tabs } from '../../../components/ui/Tabs';
+import { useProductConfig } from '../../../config/ProductConfigProvider';
 import { parseBookingTab, type BookingTab } from '../../../lib/bookingTabs';
-import { clientBookingStatusLabel } from '../../../lib/clientStatusLabels';
+import { formatBookingDateParts, getBookingSubtitle, getBookingTitle } from '../../../lib/bookingDisplay';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 import type { ServiceBooking } from '../../../types/dashboard';
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString('ru-RU', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function partitionBookings(bookings: ServiceBooking[]) {
   const now = Date.now();
@@ -47,11 +37,32 @@ function partitionBookings(bookings: ServiceBooking[]) {
   return { upcoming, past, cancelled };
 }
 
+function filterBookings(bookings: ServiceBooking[], query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return bookings;
+  return bookings.filter((booking) => {
+    const haystack = [
+      getBookingTitle(booking),
+      getBookingSubtitle(booking),
+      booking.notes,
+      booking.comment,
+      formatBookingDateParts(booking.preferredAt).day,
+      formatBookingDateParts(booking.preferredAt).time,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(q);
+  });
+}
+
 export function ClientBookingsPage() {
   usePageMeta({ title: 'Мои записи', description: 'Записи на обслуживание.' });
+  const productConfig = useProductConfig();
   const [searchParams, setSearchParams] = useSearchParams();
   const createdBookingId = searchParams.get('created');
   const tab = parseBookingTab(searchParams.get('tab'));
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<ServiceBooking[]>([]);
@@ -72,8 +83,10 @@ export function ClientBookingsPage() {
 
   const { upcoming, past, cancelled } = useMemo(() => partitionBookings(bookings), [bookings]);
 
-  const shown =
-    tab === 'upcoming' ? upcoming : tab === 'past' ? past : cancelled;
+  const shown = useMemo(() => {
+    const base = tab === 'upcoming' ? upcoming : tab === 'past' ? past : cancelled;
+    return filterBookings(base, search);
+  }, [tab, upcoming, past, cancelled, search]);
 
   function setTab(next: BookingTab) {
     const params = new URLSearchParams(searchParams);
@@ -84,33 +97,35 @@ export function ClientBookingsPage() {
   const emptyCopy: Record<BookingTab, { title: string; description: string }> = {
     upcoming: {
       title: 'Нет предстоящих записей',
-      description: 'Выберите услугу и удобное время визита.',
+      description: 'Запишитесь на удобное время — визит появится здесь с напоминанием и деталями.',
     },
     past: {
       title: 'История пуста',
-      description: 'Завершённые визиты появятся здесь.',
+      description: 'Завершённые визиты сохраняются в этой вкладке.',
     },
     cancelled: {
       title: 'Отменённых записей нет',
-      description: 'Отменённые визиты сохраняются в этой вкладке.',
+      description: 'Отменённые визиты остаются здесь для истории.',
     },
   };
 
   if (loading) return <Loader label="Загружаем записи..." />;
   if (error) return <ErrorState message={error} />;
 
+  const featuredId = tab === 'upcoming' && shown.length > 0 ? shown[0].id : null;
+
   return (
-    <div className="stack dashboard-page">
+    <div className="stack dashboard-page client-bookings-page">
       <PageHeader
         title="Мои записи"
-        description="Предстоящие, прошедшие и отменённые визиты."
+        description="Предстоящие, прошедшие и отменённые визиты в сервис."
         breadcrumbs={[
           { label: 'Кабинет', to: '/dashboard/client' },
           { label: 'Записи' },
         ]}
         actions={
           <Link className="btn btn-primary" to="/booking">
-            Новая запись
+            Записаться
           </Link>
         }
       />
@@ -143,25 +158,43 @@ export function ClientBookingsPage() {
         ]}
       />
 
-      <Card>
-        {shown.length === 0 ? (
-          <EmptyState title={emptyCopy[tab].title} description={emptyCopy[tab].description} />
-        ) : (
-          <div className="desk-record-list">
-            {shown.map((item) => (
-              <DashboardRecordCard
-                key={item.id}
-                title={formatDate(item.preferredAt)}
-                subtitle={item.notes || item.comment || 'Без комментария'}
-                meta={clientBookingStatusLabel(item.status)}
-                status={item.status}
-                icon={CalendarDays}
-                to={`/dashboard/client/bookings/${item.id}`}
-              />
-            ))}
-          </div>
-        )}
-      </Card>
+      <div className="booking-toolbar">
+        <Input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Поиск по дате, авто или комментарию"
+          aria-label="Поиск записей"
+        />
+      </div>
+
+      {shown.length === 0 ? (
+        <Card>
+          <EmptyState
+            title={search ? 'Ничего не найдено' : emptyCopy[tab].title}
+            description={search ? 'Попробуйте другой запрос или сбросьте фильтр.' : emptyCopy[tab].description}
+            action={
+              tab === 'upcoming' ? (
+                <Link className="btn btn-primary" to="/booking">
+                  Записаться на визит
+                </Link>
+              ) : undefined
+            }
+          />
+        </Card>
+      ) : (
+        <div className="booking-card-list">
+          {shown.map((item) => (
+            <BookingCard
+              key={item.id}
+              booking={item}
+              variant={tab}
+              serviceAddress={productConfig.address || undefined}
+              featured={item.id === featuredId}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
