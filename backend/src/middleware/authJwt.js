@@ -9,6 +9,7 @@ const AUTH_USER_SELECT = {
   role: true,
   email: true,
   blocked: true,
+  tokenVersion: true,
 };
 
 /** Short TTL — role/block changes propagate within ~45s without a round-trip every request. */
@@ -24,17 +25,27 @@ function getAccessTokenString(req) {
   return null;
 }
 
+function readTokenVersion(payload) {
+  return typeof payload.tv === 'number' && Number.isInteger(payload.tv) ? payload.tv : 0;
+}
+
+function toAuthUser(user) {
+  return { id: user.id, role: user.role, email: user.email };
+}
+
 async function userFromToken(req) {
   const token = getAccessTokenString(req);
   if (!token) return null;
   const payload = jwt.verify(token, getEnv().JWT_SECRET, { algorithms: ['HS256'] });
   const sub = payload.sub;
   if (typeof sub !== 'string') return null;
+  const tokenVersion = readTokenVersion(payload);
 
   const cached = authUserCache.get(sub);
   if (cached) {
     if (cached.blocked) return null;
-    return { id: cached.id, role: cached.role, email: cached.email };
+    if ((cached.tokenVersion ?? 0) !== tokenVersion) return null;
+    return toAuthUser(cached);
   }
 
   const user = await prisma.user.findUnique({
@@ -44,7 +55,8 @@ async function userFromToken(req) {
   if (!user) return null;
   authUserCache.set(sub, user);
   if (user.blocked) return null;
-  return { id: user.id, role: user.role, email: user.email };
+  if ((user.tokenVersion ?? 0) !== tokenVersion) return null;
+  return toAuthUser(user);
 }
 
 /** Invalidate cached auth identity (call after block/role/password changes). */

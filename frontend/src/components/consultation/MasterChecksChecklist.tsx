@@ -16,7 +16,7 @@ export function MasterChecksChecklist({ checks }: { checks: string[] }) {
   return (
     <section className="analysis-list master-checks" aria-label="Что проверит мастер">
       <h4>Что проверит мастер</h4>
-      <p className="master-checks-hint">Отметьте пункты, которые хотите обсудить при визите — это для вас, не сохраняется на сервере.</p>
+      <p className="master-checks-hint">Отметьте пункты, которые хотите обсудить при записи — это для вас, не сохраняется на сервере.</p>
       <ul>
         {checks.slice(0, 8).map((check) => {
           const id = `check-${check.slice(0, 40)}`;

@@ -24,7 +24,7 @@ export async function patchUserRole(userId, role) {
   if (!u) throw new AppError(404, 'User not found', 'NOT_FOUND');
   const updated = await prisma.user.update({
     where: { id: userId },
-    data: { role },
+    data: { role, tokenVersion: { increment: 1 } },
     select: { id: true, email: true, role: true, blocked: true },
   });
   invalidateAuthUserCache(userId);
@@ -34,8 +34,9 @@ export async function patchUserRole(userId, role) {
 export async function blockUser(userId) {
   await prisma.user.update({
     where: { id: userId },
-    data: { blocked: true },
+    data: { blocked: true, tokenVersion: { increment: 1 } },
   });
+  await prisma.refreshToken.deleteMany({ where: { userId } });
   invalidateAuthUserCache(userId);
 }
 

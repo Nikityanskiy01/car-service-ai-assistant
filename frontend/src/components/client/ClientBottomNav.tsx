@@ -69,6 +69,9 @@ export function ClientBottomNav({ unreadCases = 0 }: Props) {
 
       {moreOpen ? (
         <div className="client-bottom-more" role="menu">
+          <Link to="/dashboard/client/vehicles" role="menuitem" onClick={() => setMoreOpen(false)}>
+            Мои автомобили
+          </Link>
           <Link to="/dashboard/client/profile" role="menuitem" onClick={() => setMoreOpen(false)}>
             Профиль
           </Link>

@@ -253,7 +253,7 @@ export function ManagerWorkDeskPage() {
               ))}
             </div>
           ) : (
-            <EmptyState title="Нет записей" description="Запланированные визиты появятся здесь." />
+            <EmptyState title="Нет записей" description="Запланированные записи появятся здесь." />
           )}
         </Card>
       </div>

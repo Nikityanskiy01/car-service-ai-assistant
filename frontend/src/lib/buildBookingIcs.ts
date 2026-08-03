@@ -19,7 +19,7 @@ export function buildBookingIcs(input: BookingIcsInput): string {
   const start = new Date(input.preferredAt);
   const duration = input.durationMinutes ?? 60;
   const end = new Date(start.getTime() + duration * 60_000);
-  const summary = input.title || 'Визит в автосервис';
+  const summary = input.title || 'Запись в автосервис';
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',

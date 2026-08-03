@@ -7,6 +7,8 @@ import { AppRuntimeProvider } from '../../app/providers/AppRuntimeProvider';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 import { ConsultPage } from './ConsultPage';
 import { STORAGE_KEYS } from '../../lib/storageKeys';
+import { ApiError } from '../../api/errors';
+import { api } from '../../api/client';
 
 const streamStartMock = vi.fn();
 const streamStopMock = vi.fn();
@@ -52,7 +54,7 @@ describe('consult page', () => {
         </ThemeProvider>
       </MemoryRouter>,
     );
-    expect(await screen.findByPlaceholderText(/Марка, модель, пробег/i)).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText(/Сообщение/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Начать новую сессию/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Новая сессия/i })).toBeInTheDocument();
   });
@@ -80,12 +82,40 @@ describe('consult page', () => {
     );
 
     await userEvent.type(
-      await screen.findByPlaceholderText(/Марка, модель, пробег/i),
+      await screen.findByPlaceholderText(/Сообщение/i),
       'Вибрация при торможении на скорости',
     );
     await userEvent.click(screen.getByRole('button', { name: 'Отправить' }));
 
     await waitFor(() => expect(streamStartMock).toHaveBeenCalledTimes(1));
     expect(streamStopMock).not.toHaveBeenCalled();
+  });
+
+  it('восстанавливает сессию после 403 на устаревшую консультацию', async () => {
+    sessionStorage.setItem(STORAGE_KEYS.consultSessionId, 'stale-session');
+
+    vi.mocked(api)
+      .mockRejectedValueOnce(new ApiError('Forbidden', 403, { error: 'Forbidden' }))
+      .mockImplementation(async (path: string) => {
+        if (path === '/consultations') return { id: 'session-1', guestToken: 'guest-token-1' };
+        if (path === '/consultations/session-1') return { id: 'session-1', status: 'ACTIVE', messages: [] };
+        return {};
+      });
+
+    render(
+      <MemoryRouter>
+        <ThemeProvider>
+          <AppRuntimeProvider>
+            <AuthProvider>
+              <ConsultPage />
+            </AuthProvider>
+          </AppRuntimeProvider>
+        </ThemeProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByPlaceholderText(/Сообщение/i)).toBeInTheDocument();
+    expect(screen.queryByText('Forbidden')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem(STORAGE_KEYS.consultSessionId)).toBe('session-1');
   });
 });

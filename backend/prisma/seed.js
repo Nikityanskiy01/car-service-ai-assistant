@@ -59,6 +59,7 @@ async function main() {
         phone: account.phone,
         role: account.role,
         blocked: false,
+        emailVerifiedAt: new Date(),
       },
       create: {
         email: account.email,
@@ -66,6 +67,7 @@ async function main() {
         fullName: account.fullName,
         phone: account.phone,
         role: account.role,
+        emailVerifiedAt: new Date(),
       },
     });
   }

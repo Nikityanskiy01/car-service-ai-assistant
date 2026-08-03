@@ -28,7 +28,7 @@ export async function consultationSessionAccess(req, res, next) {
       req.consultationActor = { kind: 'owner', user: u };
       return next();
     }
-    return res.status(403).json({ error: 'Forbidden' });
+    return res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
   }
 
   const hdr = req.headers['x-consultation-guest-token'];

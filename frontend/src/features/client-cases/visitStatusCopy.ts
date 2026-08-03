@@ -33,15 +33,15 @@ export function visitStatusHeadline(
   switch (level) {
     case 'confirmed':
     case 'arrived':
-      return when ? `Визит подтверждён · ${when}` : 'Визит подтверждён';
+      return when ? `Запись подтверждена · ${when}` : 'Запись подтверждена';
     case 'requested':
-      return when ? `Визит запрошен · ${when}` : 'Визит запрошен';
+      return when ? `Запись запрошена · ${when}` : 'Запись запрошена';
     case 'missed':
-      return 'Визит пропущен';
+      return 'Запись пропущена';
     case 'cancelled':
-      return 'Визит отменён';
+      return 'Запись отменена';
     default:
-      return when ? `Визит · ${when}` : 'Визит';
+      return when ? `Запись · ${when}` : 'Запись';
   }
 }
 

@@ -13,6 +13,12 @@ enum Role {
   ADMINISTRATOR
 }
 
+enum PreferredContact {
+  PHONE
+  EMAIL
+  TELEGRAM
+}
+
 enum ContactSubmissionStatus {
   NEW
   IN_PROGRESS
@@ -139,8 +145,14 @@ model User {
   fullName     String   @map("full_name")
   phone        String
   emailProfile String?  @map("email_profile")
+  avatarUrl    String?  @map("avatar_url")
+  city         String?
+  telegram     String?
+  preferredContact PreferredContact? @map("preferred_contact")
   role         Role     @default(CLIENT)
   blocked      Boolean  @default(false)
+  tokenVersion Int      @default(0) @map("token_version")
+  emailVerifiedAt DateTime? @map("email_verified_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -153,6 +165,8 @@ model User {
   adminAuditEvents     AdminAuditEvent[]        @relation("AdminAuditActor")
   siteContentVersions  SiteContentVersion[]     @relation("SiteContentVersionActor")
   refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+  emailVerificationCodes EmailVerificationCode[]
   consultationFeedbacks ConsultationFeedback[]
   assignedServiceRequests ServiceRequest[] @relation("AssignedManagerRequests")
   serviceRequestStatusLogs ServiceRequestStatusLog[]
@@ -599,7 +613,7 @@ model ServiceBooking {
   @@map("service_bookings")
 }
 
-/** Журнал правок записи на визит (для администратора). */
+/** Журнал правок записи в сервис (для администратора). */
 model ServiceBookingAuditLog {
   id        String   @id @default(uuid())
   bookingId String   @map("booking_id")
@@ -626,6 +640,34 @@ model RefreshToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationCode {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  codeHash  String   @map("code_hash")
+  attempts  Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("email_verification_codes")
 }
 
 /** Сообщения с публичной формы «Контакты» (location.html). */

@@ -38,7 +38,7 @@ export function ClientStatusLegend({ compact = false }: { compact?: boolean }) {
         <summary>Что означают статусы?</summary>
         <div className="client-status-legend-body">
           <LegendGroup title="Обращения" items={CLIENT_REQUEST_STATUS_LEGEND} />
-          <LegendGroup title="Визиты" items={CLIENT_BOOKING_STATUS_LEGEND} />
+          <LegendGroup title="Записи" items={CLIENT_BOOKING_STATUS_LEGEND} />
         </div>
       </details>
     );
@@ -49,7 +49,7 @@ export function ClientStatusLegend({ compact = false }: { compact?: boolean }) {
       <h2>Легенда статусов</h2>
       <div className="client-status-legend-body">
         <LegendGroup title="Обращения" items={CLIENT_REQUEST_STATUS_LEGEND} />
-        <LegendGroup title="Визиты" items={CLIENT_BOOKING_STATUS_LEGEND} />
+        <LegendGroup title="Записи" items={CLIENT_BOOKING_STATUS_LEGEND} />
       </div>
     </Card>
   );

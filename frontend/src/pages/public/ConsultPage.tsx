@@ -5,10 +5,10 @@ import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthProvider';
 import { AnalysisProgress } from '../../components/consultation/AnalysisProgress';
 import { ConsultationChat } from '../../components/consultation/ConsultationChat';
+import { ConsultationChatComposer } from '../../components/consultation/ConsultationChatComposer';
 import { ConsultationProgress } from '../../components/consultation/ConsultationProgress';
 import { DiagnosticSummary } from '../../components/consultation/DiagnosticSummary';
 import { ObdCodesPanel } from '../../components/consultation/ObdCodesPanel';
-import { PhotoAttachment } from '../../components/consultation/PhotoAttachment';
 import { QuickReplies } from '../../components/consultation/QuickReplies';
 import { ConsentCheckbox } from '../../components/forms/ConsentCheckbox';
 import { FormField } from '../../components/forms/FormField';
@@ -20,9 +20,12 @@ import { Input } from '../../components/ui/Input';
 import { Loader } from '../../components/ui/Loader';
 import { Modal } from '../../components/ui/Modal';
 import { Tabs } from '../../components/ui/Tabs';
-import { Textarea } from '../../components/ui/Textarea';
 import { useProductConfig } from '../../config/ProductConfigProvider';
 import { prefillBookingFromConsultation } from '../../features/services/prefill';
+import {
+  clearStoredConsultationSession,
+  isStaleConsultationAccessError,
+} from '../../features/consultations/consultationAccess';
 import { useConsultationStream } from '../../features/consultations/useConsultationStream';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { usePageMeta } from '../../hooks/usePageMeta';
@@ -80,7 +83,7 @@ export function ConsultPage() {
   const productConfig = useProductConfig();
   usePageMeta({
     title: 'Интеллектуальная диагностика',
-    description: 'Чат-диагностика симптомов до визита в автосервис.',
+    description: 'Чат-диагностика симптомов до записи в автосервис.',
   });
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -180,21 +183,13 @@ export function ConsultPage() {
     if (bootRef.current) return;
     bootRef.current = true;
     void (async () => {
-      const existingId = sessionStorage.getItem(STORAGE_KEYS.consultSessionId);
-      const existingToken = sessionStorage.getItem(STORAGE_KEYS.consultGuestToken);
       try {
-        if (existingId) {
-          setBootstrapping(true);
-          await loadSession(existingId, existingToken);
-          setSessionId(existingId);
-          setGuestToken(existingToken);
-        } else {
-          await bootstrapSession();
-        }
+        setBootstrapping(true);
+        await openConsultationSession();
       } catch (e) {
         setErrorWithRetry(
           e instanceof Error ? e.message : 'Не удалось открыть консультацию',
-          () => void bootstrapSession(),
+          () => void openConsultationSession(),
         );
       } finally {
         setBootstrapping(false);
@@ -216,6 +211,30 @@ export function ConsultPage() {
     }, 2000);
     return () => window.clearInterval(timer);
   }, [sessionId, guestToken, diagnosisPending]);
+
+  async function openConsultationSession() {
+    const existingId = sessionStorage.getItem(STORAGE_KEYS.consultSessionId);
+    const existingToken = sessionStorage.getItem(STORAGE_KEYS.consultGuestToken);
+    if (!existingId) {
+      await bootstrapSession();
+      return;
+    }
+    try {
+      await loadSession(existingId, existingToken);
+      setSessionId(existingId);
+      setGuestToken(existingToken);
+    } catch (e) {
+      if (isStaleConsultationAccessError(e)) {
+        clearStoredConsultationSession();
+        setSessionId(null);
+        setGuestToken(null);
+        setDetail(null);
+        await bootstrapSession();
+        return;
+      }
+      throw e;
+    }
+  }
 
   async function bootstrapSession() {
     clearError();
@@ -258,6 +277,14 @@ export function ConsultPage() {
     try {
       await loadSession(sessionId, guestToken);
     } catch (e) {
+      if (isStaleConsultationAccessError(e)) {
+        clearStoredConsultationSession();
+        setSessionId(null);
+        setGuestToken(null);
+        setDetail(null);
+        await bootstrapSession();
+        return;
+      }
       setErrorWithRetry(
         e instanceof Error ? e.message : 'Не удалось обновить консультацию',
         () => void refreshSession(),
@@ -268,9 +295,9 @@ export function ConsultPage() {
   }
 
   async function startNewSession() {
-    sessionStorage.removeItem(STORAGE_KEYS.consultSessionId);
-    sessionStorage.removeItem(STORAGE_KEYS.consultGuestToken);
+    clearStoredConsultationSession();
     setSessionId(null);
+    setGuestToken(null);
     setDetail(null);
     setMessage('');
     setPhase(null);
@@ -319,8 +346,8 @@ export function ConsultPage() {
     }
   }
 
-  async function onSend(event: React.FormEvent) {
-    event.preventDefault();
+  async function onSend(event?: React.FormEvent) {
+    event?.preventDefault();
     await sendMessage(message);
   }
 
@@ -451,11 +478,11 @@ export function ConsultPage() {
             Статус: <strong>{SERVICE_REQUEST_STATUS_LABELS.NEW}</strong>
           </p>
           <p className="consult-success-hint">
-            Менеджер свяжется с вами для подтверждения деталей и времени визита.
+            Менеджер свяжется с вами для подтверждения деталей и времени записьа.
           </p>
           <div className="consult-success-actions">
             <Button type="button" variant="primary" onClick={goToBooking}>
-              Выбрать время визита
+              Выбрать время записи
             </Button>
             {isAuthenticated ? (
               <Link className="btn btn-secondary" to="/dashboard/client/requests">
@@ -535,39 +562,19 @@ export function ConsultPage() {
                     />
                   ) : null}
                 </div>
-                <form className="consultation-input consultation-input-stack" onSubmit={onSend}>
-                  <PhotoAttachment
-                    sessionId={sessionId || ''}
-                    guestToken={guestToken}
-                    disabled={isSending || bootstrapping || !sessionId || !online}
-                    onAnalyzed={() => {
-                      if (sessionId) void loadSession(sessionId, guestToken);
-                    }}
-                    onError={(msg) => setErrorWithRetry(msg, () => void refreshSession())}
-                  />
-                  <label className="consult-input-label" htmlFor="consultMessage">
-                    Ваше сообщение
-                  </label>
-                  <Textarea
-                    id="consultMessage"
-                    placeholder="Марка, модель, пробег, затем неисправность или плановая работа..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    maxLength={4000}
-                    required
-                    rows={3}
-                    aria-label="Сообщение ассистенту"
-                    disabled={isSending || bootstrapping || !online}
-                  />
-                  <div className="consult-send-row">
-                    <Button disabled={isSending || !sessionId || bootstrapping || !online || !message.trim()}>
-                      {isSending ? 'Отправка...' : 'Отправить'}
-                    </Button>
-                  </div>
-                </form>
-                <p className="consult-disclaimer consult-disclaimer-inline">
-                  Ответ ассистента носит информационный характер и не заменяет очную диагностику в сервисе.
-                </p>
+                <ConsultationChatComposer
+                  message={message}
+                  onMessageChange={setMessage}
+                  onSubmit={() => onSend()}
+                  disabled={isSending || bootstrapping || !sessionId || !online}
+                  isSending={isSending}
+                  sessionId={sessionId || ''}
+                  guestToken={guestToken}
+                  onPhotoAnalyzed={() => {
+                    if (sessionId) void loadSession(sessionId, guestToken);
+                  }}
+                  onPhotoError={(msg) => setErrorWithRetry(msg, () => void refreshSession())}
+                />
               </Card>
             </main>
           </div>

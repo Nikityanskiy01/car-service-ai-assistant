@@ -28,7 +28,7 @@ export function UserMenu({ profilePath }: { profilePath: string }) {
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        <UserAvatar name={user.fullName || user.email} />
+        <UserAvatar name={user.fullName || user.email} avatarUrl={user.avatarUrl} />
         <div className="dashboard-profile-meta">
           <strong>{user.fullName || 'Пользователь'}</strong>
           <small>{user.email}</small>

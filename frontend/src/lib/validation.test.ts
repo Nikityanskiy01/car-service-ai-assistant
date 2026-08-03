@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getEmailError,
   getFullNameError,
+  getPasswordConfirmError,
   getPasswordError,
   getPhoneError,
   isValidPhoneDigits,
@@ -64,5 +65,13 @@ describe('getPasswordError', () => {
     expect(getPasswordError('Password123!ab')).toBeNull();
     expect(getPasswordError('short')).toBeTruthy();
     expect(passwordMeetsPolicy('Пароль123!ab')).toBe(false);
+  });
+});
+
+describe('getPasswordConfirmError', () => {
+  it('requires matching passwords', () => {
+    expect(getPasswordConfirmError('Password123!ab', 'Password123!ab')).toBeNull();
+    expect(getPasswordConfirmError('Password123!ab', '')).toBeTruthy();
+    expect(getPasswordConfirmError('Password123!ab', 'other')).toBe('Пароли не совпадают');
   });
 });

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheck2,
   CarFront,
+  ChevronRight,
   ClipboardList,
   FileDown,
   MessageSquare,
@@ -17,17 +18,17 @@ import {
   type FollowUpMessage,
 } from '../../../api/dashboard';
 import { CaseNextStep } from '../../../components/client/CaseNextStep';
-import { CaseTimeline } from '../../../components/client/CaseTimeline';
+import { ClientStatusBadge } from '../../../components/client/ClientStatusBadge';
+import { CaseProgressRail } from '../../../components/client/CaseProgressRail';
 import { CaseVisitPanel } from '../../../components/client/CaseVisitPanel';
 import { MessageAttachmentInput, type PendingAttachment } from '../../../components/requests/MessageAttachmentInput';
-import { MessageAttachmentList } from '../../../components/requests/MessageAttachmentList';
+import { FollowUpChatPanel } from '../../../components/messages/FollowUpChatPanel';
 import { DiagnosticSummary } from '../../../components/consultation/DiagnosticSummary';
 import { Breadcrumbs } from '../../../components/layout/dashboard/Breadcrumbs';
 import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { Textarea } from '../../../components/ui/Textarea';
 import { buildClientCases, parseClientCaseDetailTab } from '../../../features/client-cases/buildClientCases';
 import {
   resolveCaseNextStep,
@@ -68,7 +69,7 @@ const DETAIL_TABS: Array<{
   { id: 'progress', label: 'Обзор', icon: ClipboardList },
   { id: 'diagnosis', label: 'Диагностика', icon: Sparkles },
   { id: 'messages', label: 'Сообщения', icon: MessageSquare },
-  { id: 'booking', label: 'Визит', icon: CalendarCheck2 },
+  { id: 'booking', label: 'Запись', icon: CalendarCheck2 },
 ];
 
 export function ClientCaseDetailPage() {
@@ -93,7 +94,7 @@ export function ClientCaseDetailPage() {
 
   usePageMeta({
     title: 'Обращение',
-    description: 'Обзор, диагностика, сообщения и визит.',
+    description: 'Обзор, диагностика, сообщения и запись.',
   });
 
   async function load() {
@@ -288,6 +289,36 @@ export function ClientCaseDetailPage() {
     : truncateTitle(symptoms === '—' ? car : symptoms);
 
   const requestNumber = request ? `№${formatRequestNumber(request.id)}` : null;
+  const createdLabel = request ? formatDate(request.createdAt) : consultation?.messages?.[0]?.createdAt
+    ? formatDate(consultation.messages[0].createdAt)
+    : null;
+
+  const quickLinks = [
+    {
+      id: 'diagnosis' as const,
+      tab: 'diagnosis' as const,
+      label: 'Диагностика',
+      hint: diagnosis || recommendation ? 'Результат ИИ готов' : 'Открыть разбор',
+      icon: Sparkles,
+    },
+    {
+      id: 'messages' as const,
+      tab: 'messages' as const,
+      label: 'Сообщения',
+      hint: request ? (messages.length ? `${messages.length} в переписке` : 'Написать менеджеру') : 'После обращения',
+      icon: MessageSquare,
+      disabled: !request,
+    },
+    {
+      id: 'booking' as const,
+      tab: 'booking' as const,
+      label: 'Запись',
+      hint: bookingPreferredAt
+        ? visitStatusHeadline(bookingStatus, formatDate(bookingPreferredAt))
+        : 'Записаться в сервис',
+      icon: CalendarCheck2,
+    },
+  ];
 
   return (
     <div className="case-detail stack dashboard-page" data-tone={nextStep.tone}>
@@ -300,13 +331,20 @@ export function ClientCaseDetailPage() {
       />
 
       <section className="case-detail-hero" aria-labelledby="case-detail-title">
+        <div className="case-detail-hero-accent" aria-hidden />
         <div className="case-detail-hero-top">
           <div className="case-detail-hero-copy">
+            <div className="case-detail-hero-meta">
+              {request ? <ClientStatusBadge status={request.status} /> : null}
+              {isDraft ? <span className="case-detail-draft-chip">Черновик</span> : null}
+            </div>
             <p className="case-detail-kicker">
               <CarFront size={14} aria-hidden />
               <span>{car}</span>
               {requestNumber ? <span className="case-detail-kicker-sep">·</span> : null}
               {requestNumber ? <span>{requestNumber}</span> : null}
+              {createdLabel ? <span className="case-detail-kicker-sep">·</span> : null}
+              {createdLabel ? <time dateTime={request?.createdAt}>{createdLabel}</time> : null}
             </p>
             <h1 id="case-detail-title">{title}</h1>
           </div>
@@ -325,7 +363,18 @@ export function ClientCaseDetailPage() {
         <CaseNextStep model={nextStep} onAction={handleNextStepAction} />
       </section>
 
-      <div className="case-detail-tabs" role="tablist" aria-label="Разделы обращения">
+      <div className="case-detail-nav-shell">
+        <CaseProgressRail
+          clientCase={clientCase}
+          requestCreatedAt={request?.createdAt}
+          bookingPreferredAt={bookingPreferredAt}
+          bookingStatus={bookingStatus}
+          onStepClick={(stepTab: ClientCaseDetailTab) => {
+            if (stepTab !== 'progress') setTab(stepTab);
+          }}
+        />
+
+        <div className="case-detail-tabs" role="tablist" aria-label="Разделы обращения">
         {DETAIL_TABS.map((item) => {
           const Icon = item.icon;
           const selected = tab === item.id;
@@ -350,39 +399,35 @@ export function ClientCaseDetailPage() {
             </button>
           );
         })}
+        </div>
       </div>
 
       {tab === 'progress' ? (
         <div className="case-detail-panel" role="tabpanel" id="tabpanel-progress" aria-labelledby="tab-progress">
           <div className="case-detail-overview">
-            <ul className="case-detail-facts" aria-label="Краткие сведения">
-              <li>
-                <span>Авто</span>
-                <strong>{car}</strong>
-              </li>
-              <li>
-                <span>Симптомы</span>
-                <strong>{symptoms}</strong>
-              </li>
-              {request ? (
-                <li>
-                  <span>Создано</span>
-                  <strong>{formatDate(request.createdAt)}</strong>
-                </li>
-              ) : null}
-            </ul>
-
-            <div className="case-detail-journey">
-              <header className="case-detail-section-head">
-                <h2>Ход обращения</h2>
-                <p className="muted-text">От диагностики до завершения работ</p>
-              </header>
-              <CaseTimeline
-                clientCase={clientCase}
-                requestCreatedAt={request?.createdAt}
-                bookingPreferredAt={bookingPreferredAt}
-                bookingStatus={bookingStatus}
-              />
+            <div className="case-quick-links" aria-label="Разделы обращения">
+              {quickLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <button
+                    key={link.id}
+                    type="button"
+                    className={`case-quick-link${link.disabled ? ' is-disabled' : ''}`}
+                    data-quick={link.id}
+                    disabled={link.disabled}
+                    onClick={() => setTab(link.tab)}
+                  >
+                    <span className="case-quick-link-icon" aria-hidden>
+                      <Icon size={18} />
+                    </span>
+                    <span className="case-quick-link-copy">
+                      <strong>{link.label}</strong>
+                      <span>{link.hint}</span>
+                    </span>
+                    <ChevronRight className="case-quick-link-chevron" size={18} aria-hidden />
+                  </button>
+                );
+              })}
             </div>
 
             {bookingPreferredAt ? (
@@ -397,7 +442,7 @@ export function ClientCaseDetailPage() {
                   <strong>{visitStatusHeadline(bookingStatus, formatDate(bookingPreferredAt))}</strong>
                   <span className="muted-text">
                     {bookingStatus === 'CONFIRMED' || bookingStatus === 'ARRIVED'
-                      ? 'Откройте вкладку «Визит» для деталей'
+                      ? 'Откройте вкладку «Запись» для деталей'
                       : 'Менеджер ещё подтвердит время'}
                   </span>
                 </span>
@@ -478,82 +523,23 @@ export function ClientCaseDetailPage() {
               }
             />
           ) : (
-            <>
-              <div className="case-messages-thread">
-                {messages.length === 0 ? (
-                  <EmptyState
-                    title="Сообщений пока нет"
-                    description="Напишите менеджеру — ответ появится здесь."
-                  />
-                ) : (
-                  <ul className="message-thread message-thread-bubbles">
-                    {messages.map((msg) => {
-                      const isClient = msg.author?.role === 'CLIENT';
-                      const name = isClient ? 'Вы' : msg.author?.fullName || 'Менеджер';
-                      const initial = name.trim().charAt(0).toUpperCase() || '?';
-                      return (
-                        <li
-                          key={msg.id}
-                          className={`message-bubble ${isClient ? 'is-client' : 'is-staff'}`}
-                        >
-                          <span className="message-bubble-avatar" aria-hidden>
-                            {initial}
-                          </span>
-                          <div className="message-bubble-body">
-                            <div className="message-thread-meta">
-                              <strong>{name}</strong>
-                              <time>{formatDate(msg.createdAt)}</time>
-                            </div>
-                            {msg.body ? <p>{msg.body}</p> : null}
-                            <MessageAttachmentList attachments={msg.attachments} />
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-              <div className="case-messages-compose message-compose">
-                {!isClosed ? (
-                  <div className="message-template-chips" aria-label="Быстрые вопросы">
-                    {CLIENT_MESSAGE_TEMPLATES.map((template) => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        className="message-template-chip"
-                        onClick={() => setReply(template.body)}
-                      >
-                        {template.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <Textarea
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  placeholder="Написать менеджеру..."
-                  rows={2}
-                  disabled={isClosed}
-                />
-                {isClosed ? (
-                  <p className="muted-text">Обращение закрыто — новые сообщения недоступны.</p>
-                ) : null}
-                {actionError ? <p className="form-error">{actionError}</p> : null}
-                <div className="case-messages-compose-row">
-                  <MessageAttachmentInput
-                    files={pendingAttachments}
-                    onChange={setPendingAttachments}
-                    disabled={sending || isClosed}
-                  />
-                  <Button
-                    onClick={() => void handleSend()}
-                    disabled={sending || (!reply.trim() && !pendingAttachments.length) || isClosed}
-                  >
-                    {sending ? 'Отправка...' : 'Отправить'}
-                  </Button>
-                </div>
-              </div>
-            </>
+            <FollowUpChatPanel
+              messages={messages}
+              value={reply}
+              onChange={setReply}
+              onSubmit={handleSend}
+              disabled={isClosed}
+              sending={sending}
+              error={actionError}
+              placeholder="Написать менеджеру..."
+              attachments={pendingAttachments}
+              onAttachmentsChange={setPendingAttachments}
+              templates={isClosed ? undefined : [...CLIENT_MESSAGE_TEMPLATES]}
+              closedMessage={isClosed ? 'Обращение закрыто — новые сообщения недоступны.' : undefined}
+              viewerRole="CLIENT"
+              emptyTitle="Сообщений пока нет"
+              emptyDescription="Напишите менеджеру — ответ появится здесь."
+            />
           )}
         </div>
       ) : null}
@@ -561,7 +547,7 @@ export function ClientCaseDetailPage() {
       {tab === 'booking' ? (
         <div className="case-detail-panel" role="tabpanel" id="tabpanel-booking" aria-labelledby="tab-booking">
           <header className="case-detail-section-head">
-            <h2>Визит в сервис</h2>
+            <h2>Запись в сервис</h2>
             <p className="muted-text">Дата и статус приезда</p>
           </header>
           <CaseVisitPanel

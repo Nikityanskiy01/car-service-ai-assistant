@@ -4,7 +4,7 @@ import { CLIENT_BOOKING_STATUS_LEGEND, CLIENT_REQUEST_STATUS_LEGEND } from './cl
 export const CLIENT_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string> = {
   NEW: 'Ждёт менеджера',
   IN_PROGRESS: 'В работе у сервиса',
-  SCHEDULED: 'Визит назначен',
+  SCHEDULED: 'Запись назначена',
   COMPLETED: 'Работы завершены',
   CANCELLED: 'Закрыто',
 };

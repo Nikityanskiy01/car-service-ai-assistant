@@ -165,7 +165,7 @@ export function buildAttentionItems(
       items.push({
         id: `booking-${booking.id}`,
         title: booking.client?.fullName || booking.guestName || 'Запись',
-        reason: `Визит через ${Math.round(diffMin)} мин`,
+        reason: `Запись через ${Math.round(diffMin)} мин`,
         to: '/dashboard/manager/calendar',
         phone: booking.client?.phone || booking.guestPhone || undefined,
         priority: 90 - Math.round(diffMin),

@@ -40,6 +40,13 @@ services:
       NODE_ENV: production
       SERVE_FRONTEND: "false"
       REQUEST_MESSAGE_UPLOAD_DIR: /app/data/uploads/request-messages
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Автоассистент <noreply@autoservice.local>}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://127.0.0.1:8080}
     ports:
       - "${BACKEND_BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-3000}:3000"
     depends_on:
@@ -95,6 +102,15 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_SMTP_BIND:-127.0.0.1:1025}:1025"
+      - "${MAILPIT_UI_BIND:-127.0.0.1:8025}:8025"
     restart: unless-stopped
     networks:
       - app_net

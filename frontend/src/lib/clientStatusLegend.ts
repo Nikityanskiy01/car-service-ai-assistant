@@ -34,8 +34,8 @@ export const CLIENT_REQUEST_STATUS_LEGEND: ClientStatusLegendItem[] = [
   },
   {
     status: 'SCHEDULED',
-    label: 'Визит назначен',
-    description: 'Назначен визит в сервис — смотрите раздел «Записи».',
+    label: 'Запись назначена',
+    description: 'Назначена запись в сервис — смотрите раздел «Записи».',
     tone: 'scheduled',
   },
   {
@@ -56,7 +56,7 @@ export const CLIENT_BOOKING_STATUS_LEGEND: ClientStatusLegendItem[] = [
   {
     status: 'PENDING',
     label: 'Ожидает',
-    description: 'Визит запрошен — менеджер подтвердит время.',
+    description: 'Запись запрошена — менеджер подтвердит время.',
     tone: 'waiting',
   },
   {
@@ -74,13 +74,13 @@ export const CLIENT_BOOKING_STATUS_LEGEND: ClientStatusLegendItem[] = [
   {
     status: 'NO_SHOW',
     label: 'Не приехал',
-    description: 'Визит пропущен — свяжитесь с сервисом для переноса.',
+    description: 'Запись пропущена — свяжитесь с сервисом для переноса.',
     tone: 'missed',
   },
   {
     status: 'CANCELLED',
     label: 'Отменён',
-    description: 'Визит отменён.',
+    description: 'Запись отменена.',
     tone: 'cancelled',
   },
 ];
@@ -90,11 +90,11 @@ export const CLIENT_STATUS_HELP_BUTTON = 'Подсказка по статуса
 
 export const CLIENT_STATUS_HELP_INTRO = {
   requests: 'Статусы обращений — от создания до завершения работ.',
-  bookings: 'Статусы визитов — от запроса времени до приезда в сервис.',
+  bookings: 'Статусы записей — от запроса времени до приезда в сервис.',
 } as const;
 
 export const CLIENT_CALENDAR_FILE_HINT =
-  'Файл .ics — это напоминание для календаря: Google, Apple (iPhone), Outlook или Яндекс. Скачайте и откройте — визит добавится автоматически.';
+  'Файл .ics — это напоминание для календаря: Google, Apple (iPhone), Outlook или Яндекс. Скачайте и откройте — запись добавится автоматически.';
 
 const ALL_STATUS_LEGEND = [...CLIENT_REQUEST_STATUS_LEGEND, ...CLIENT_BOOKING_STATUS_LEGEND];
 

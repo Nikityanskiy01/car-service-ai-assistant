@@ -67,7 +67,7 @@ export function resolveClientAlerts(summary: ClientDashboardSummary): ClientAler
       alerts.push({
         id: 'booking',
         tone: 'info',
-        title: `Визит: ${formatBookingDate(summary.nextBooking.preferredAt)}`,
+        title: `Запись: ${formatBookingDate(summary.nextBooking.preferredAt)}`,
         description:
           summary.nextBooking.status === 'CONFIRMED'
             ? 'Запись подтверждена — ждём вас в сервисе.'
@@ -101,7 +101,7 @@ export function resolveClientOverviewSubtitle(summary: ClientDashboardSummary): 
     return 'Следите за статусом ремонта и перепиской с мастером.';
   }
   if (summary.nextBooking) {
-    return 'Ближайший визит уже в расписании — детали ниже.';
+    return 'Ближайшая запись уже в расписании — детали ниже.';
   }
   return 'Всё спокойно — мы на связи, если понадобится помощь.';
 }

@@ -1,4 +1,4 @@
-import { Camera } from 'lucide-react';
+import { Camera, Loader2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { api } from '../../api/client';
 import { Button } from '../ui/Button';
@@ -9,12 +9,14 @@ export function PhotoAttachment({
   sessionId,
   guestToken,
   disabled,
+  variant = 'default',
   onAnalyzed,
   onError,
 }: {
   sessionId: string;
   guestToken?: string | null;
   disabled?: boolean;
+  variant?: 'default' | 'icon';
   onAnalyzed: () => void;
   onError: (message: string) => void;
 }) {
@@ -53,7 +55,7 @@ export function PhotoAttachment({
   }
 
   return (
-    <div className="photo-attachment">
+    <div className={variant === 'icon' ? 'photo-attachment photo-attachment--icon' : 'photo-attachment'}>
       <input
         ref={inputRef}
         type="file"
@@ -61,16 +63,30 @@ export function PhotoAttachment({
         className="sr-only"
         onChange={(e) => void onFile(e.target.files?.[0] || null)}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        disabled={disabled || loading}
-        onClick={() => inputRef.current?.click()}
-      >
-        <Camera size={16} aria-hidden="true" />
-        {loading ? 'Анализ фото...' : 'Прикрепить фото'}
-      </Button>
-      <p className="photo-attachment-hint">Колодки, лампа Check Engine, утечка — фото только дополняет диагноз.</p>
+      {variant === 'icon' ? (
+        <button
+          type="button"
+          className="chat-composer-attach"
+          disabled={disabled || loading}
+          aria-label={loading ? 'Анализ фото...' : 'Прикрепить фото'}
+          onClick={() => inputRef.current?.click()}
+        >
+          {loading ? <Loader2 size={20} className="spin" aria-hidden="true" /> : <Camera size={20} aria-hidden="true" />}
+        </button>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={disabled || loading}
+          onClick={() => inputRef.current?.click()}
+        >
+          <Camera size={16} aria-hidden="true" />
+          {loading ? 'Анализ фото...' : 'Прикрепить фото'}
+        </Button>
+      )}
+      {variant === 'default' ? (
+        <p className="photo-attachment-hint">Колодки, лампа Check Engine, утечка — фото только дополняет диагноз.</p>
+      ) : null}
     </div>
   );
 }

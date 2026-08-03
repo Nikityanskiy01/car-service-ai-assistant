@@ -4,7 +4,8 @@ import { Button } from '../ui/Button';
 import { ClientStatusBadge } from './ClientStatusBadge';
 import { clientBookingStatusDescription } from '../../lib/clientStatusLabels';
 import { resolveClientStatusTone } from '../../lib/clientStatusLegend';
-import { formatBookingCountdown, formatBookingDayParts } from '../../lib/bookingCountdown';
+import { formatBookingDayParts } from '../../lib/bookingCountdown';
+import { resolveBookingUiContext } from '../../lib/bookingUiContext';
 
 type Props = {
   bookingId?: string;
@@ -21,19 +22,19 @@ export function CaseVisitPanel({ bookingId, preferredAt, status, onBook }: Props
           <CalendarCheck2 size={28} strokeWidth={1.8} />
         </span>
         <div>
-          <h2>Визит ещё не назначен</h2>
+          <h2>Запись ещё не оформлена</h2>
           <p className="muted-text">Выберите удобное время — менеджер подтвердит слот.</p>
         </div>
         <Button onClick={onBook}>
           <CalendarDays size={16} aria-hidden />
-          Записаться на визит
+          Записаться в сервис
         </Button>
       </div>
     );
   }
 
   const parts = formatBookingDayParts(preferredAt);
-  const countdown = formatBookingCountdown(preferredAt);
+  const ui = resolveBookingUiContext(preferredAt, status || 'PENDING');
   const tone = resolveClientStatusTone(status || 'PENDING');
   const href = bookingId ? `/dashboard/client/bookings/${bookingId}` : '/dashboard/client/bookings';
 
@@ -42,7 +43,7 @@ export function CaseVisitPanel({ bookingId, preferredAt, status, onBook }: Props
       <div className="case-visit-date" aria-hidden>
         <span className="case-visit-date-num">{parts.day}</span>
         <span className="case-visit-date-month">{parts.month}</span>
-        {countdown ? <span className="case-visit-date-relative">{countdown}</span> : null}
+        {ui.dateBadge ? <span className="case-visit-date-relative">{ui.dateBadge}</span> : null}
       </div>
       <div className="case-visit-copy">
         {status ? <ClientStatusBadge status={status} /> : null}
@@ -51,7 +52,7 @@ export function CaseVisitPanel({ bookingId, preferredAt, status, onBook }: Props
         </h2>
         <p className="muted-text">{clientBookingStatusDescription(status || 'PENDING')}</p>
         <Link className="case-visit-link" to={href}>
-          Открыть визит
+          Открыть запись
           <ChevronRight size={16} aria-hidden />
         </Link>
       </div>

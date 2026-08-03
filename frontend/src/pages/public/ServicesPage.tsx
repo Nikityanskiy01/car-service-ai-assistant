@@ -79,16 +79,25 @@ export function ServicesPage() {
 
       {!loading && !error ? (
         <>
-          <ServicesToolbar
-            services={services}
-            query={query}
-            category={category}
-            sort={sort}
-            resultCount={visible.length}
-            onQueryChange={setQuery}
-            onCategoryChange={setCategory}
-            onSortChange={setSort}
-          />
+          <Reveal delay={120}>
+            <ServicesToolbar
+              services={services}
+              query={query}
+              category={category}
+              sort={sort}
+              onQueryChange={setQuery}
+              onCategoryChange={setCategory}
+              onSortChange={setSort}
+            />
+          </Reveal>
+
+          {visible.length > 0 ? (
+            <p className="fm-works-results" aria-live="polite">
+              {visible.length === services.length
+                ? `Показаны все ${visible.length} услуг`
+                : `Найдено ${visible.length} из ${services.length}`}
+            </p>
+          ) : null}
 
           {visible.length === 0 ? (
             <EmptyState
@@ -112,7 +121,7 @@ export function ServicesPage() {
           <Reveal as="section" className="fm-svc-process" aria-label="Как записаться">
             <header className="fm-svc-process__head">
               <h2>Как записаться на услугу</h2>
-              <p>Три шага — от выбора работы до визита в сервис</p>
+              <p>Три шага — от выбора работы до записи в сервис</p>
             </header>
             <ol className="fm-svc-process__steps">
               {serviceProcess.map((step, index) => {

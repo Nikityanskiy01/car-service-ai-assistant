@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Input } from '../ui/Input';
 
-export function PasswordInput(
-  props: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>,
-) {
+export function PasswordInput({
+  className = '',
+  ...props
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'>) {
   const [visible, setVisible] = useState(false);
   const toggleId = props.id ? `${props.id}-toggle` : undefined;
 
   return (
     <div className="password-input">
-      <Input {...props} type={visible ? 'text' : 'password'} />
+      <Input {...props} className={`${className}`.trim()} type={visible ? 'text' : 'password'} />
       <button
         id={toggleId}
         type="button"

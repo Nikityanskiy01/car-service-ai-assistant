@@ -26,6 +26,7 @@ export function localizeApiError(status: number, data: unknown, fallbackStatusTe
     LLM_ERROR: 'Модуль ИИ временно недоступен. Попробуйте чуть позже.',
     GUEST_TOKEN_REQUIRED: 'Сессия гостя истекла. Начните новую консультацию.',
     CSRF: 'Сессия устарела. Обновите страницу и попробуйте снова.',
+    EMAIL_NOT_VERIFIED: 'Подтвердите email — мы отправили код при регистрации.',
     PDF_FONT_MISSING:
       'Экспорт в PDF временно недоступен: на сервере не настроен шрифт с кириллицей. Обратитесь к администратору.',
   };
@@ -33,6 +34,9 @@ export function localizeApiError(status: number, data: unknown, fallbackStatusTe
   if (code && byCode[code]) return byCode[code];
 
   if (status >= 500) return 'Временная ошибка сервера. Попробуйте еще раз чуть позже.';
+  if (status === 403 && (!raw || raw.toLowerCase() === 'forbidden')) {
+    return 'Нет доступа к сохранённой консультации. Начните новую сессию.';
+  }
   if (!raw) return 'Не удалось выполнить запрос. Попробуйте еще раз.';
   return raw;
 }

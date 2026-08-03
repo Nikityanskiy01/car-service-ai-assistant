@@ -3,6 +3,27 @@ import { AppError } from '../../lib/errors.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
 import { buildClientCasesFromDb, serializeClientCase } from '../../lib/clientCases.js';
 import { countUnreadMessagesForClient } from '../requestMessages/requestMessages.service.js';
+import {
+  avatarMimeFromKey,
+  deleteAvatarFile,
+  readAvatarFile,
+  saveAvatarFile,
+  validateAvatarInput,
+} from '../../lib/avatarStorage.js';
+
+const USER_SELECT = {
+  id: true,
+  email: true,
+  fullName: true,
+  phone: true,
+  role: true,
+  emailProfile: true,
+  avatarUrl: true,
+  city: true,
+  telegram: true,
+  preferredContact: true,
+  createdAt: true,
+};
 
 function toPublic(u) {
   return {
@@ -12,20 +33,18 @@ function toPublic(u) {
     phone: u.phone,
     role: u.role,
     emailProfile: u.emailProfile,
+    avatarUrl: u.avatarUrl ? '/api/users/me/avatar' : null,
+    city: u.city,
+    telegram: u.telegram,
+    preferredContact: u.preferredContact,
+    createdAt: u.createdAt?.toISOString?.() ?? u.createdAt,
   };
 }
 
 export async function getMe(userId) {
   const u = await prisma.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      phone: true,
-      role: true,
-      emailProfile: true,
-    },
+    select: USER_SELECT,
   });
   if (!u) throw new AppError(404, 'Not found', 'NOT_FOUND');
   return toPublic(u);
@@ -40,15 +59,77 @@ export async function patchMe(userId, data) {
     }
     phone = digits;
   }
+
+  let telegram = data.telegram;
+  if (telegram != null) {
+    telegram = String(telegram).trim().replace(/^@/, '') || null;
+  }
+
   const u = await prisma.user.update({
     where: { id: userId },
     data: {
       ...(data.fullName != null ? { fullName: data.fullName } : {}),
       ...(data.phone != null ? { phone } : {}),
-      ...(data.emailProfile != null ? { emailProfile: data.emailProfile } : {}),
+      ...(data.emailProfile !== undefined ? { emailProfile: data.emailProfile } : {}),
+      ...(data.city !== undefined ? { city: data.city } : {}),
+      ...(data.telegram !== undefined ? { telegram } : {}),
+      ...(data.preferredContact !== undefined ? { preferredContact: data.preferredContact } : {}),
     },
+    select: USER_SELECT,
   });
   return toPublic(u);
+}
+
+export async function uploadAvatar(userId, { mimeType, contentBase64 }) {
+  const parsed = validateAvatarInput({ mimeType, contentBase64 });
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { avatarUrl: true },
+  });
+  if (!current) throw new AppError(404, 'Not found', 'NOT_FOUND');
+
+  const storageKey = await saveAvatarFile(parsed.buffer, parsed.ext);
+  try {
+    const u = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: storageKey },
+      select: USER_SELECT,
+    });
+    if (current.avatarUrl && current.avatarUrl !== storageKey) {
+      await deleteAvatarFile(current.avatarUrl);
+    }
+    return toPublic(u);
+  } catch (err) {
+    await deleteAvatarFile(storageKey);
+    throw err;
+  }
+}
+
+export async function removeAvatar(userId) {
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { avatarUrl: true },
+  });
+  if (!current) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (current.avatarUrl) {
+    await deleteAvatarFile(current.avatarUrl);
+  }
+  const u = await prisma.user.update({
+    where: { id: userId },
+    data: { avatarUrl: null },
+    select: USER_SELECT,
+  });
+  return toPublic(u);
+}
+
+export async function getAvatar(userId) {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { avatarUrl: true },
+  });
+  if (!u?.avatarUrl) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  const buffer = await readAvatarFile(u.avatarUrl);
+  return { buffer, mimeType: avatarMimeFromKey(u.avatarUrl) };
 }
 
 export async function getMeSummary(userId) {

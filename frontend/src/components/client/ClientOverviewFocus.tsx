@@ -24,7 +24,7 @@ export function ClientOverviewFocus({
     const countdown = formatBookingCountdown(focus.booking.preferredAt);
 
     return (
-      <section className="client-overview-focus client-overview-focus-booking" aria-label="Ближайший визит">
+      <section className="client-overview-focus client-overview-focus-booking" aria-label="Ближайшая запись">
         <div className="client-overview-focus-booking-main">
           <div className="client-overview-focus-date">
             <span className="client-overview-focus-date-day">{parts.day}</span>
@@ -129,7 +129,7 @@ export function buildBookingIcsDownload({
   const ics = buildBookingIcs({
     id: bookingId,
     preferredAt,
-    title: `Визит — ${serviceName}`,
+    title: `Запись — ${serviceName}`,
     location: serviceAddress ?? undefined,
   });
   downloadBookingIcs(ics, `booking-${bookingId}.ics`);

@@ -7,8 +7,11 @@ describe('parseProfileTab', () => {
   });
 
   it('parses known tabs', () => {
-    expect(parseProfileTab('vehicles')).toBe('vehicles');
     expect(parseProfileTab('notifications')).toBe('notifications');
     expect(parseProfileTab('security')).toBe('security');
+  });
+
+  it('falls back to contacts for legacy vehicles tab', () => {
+    expect(parseProfileTab('vehicles')).toBe('contacts');
   });
 });

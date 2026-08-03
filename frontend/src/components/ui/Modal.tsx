@@ -1,3 +1,5 @@
+import { X } from 'lucide-react';
+
 export function Modal({
   open,
   title,
@@ -19,12 +21,12 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby="modal-title"
       >
         <header className="modal-header">
-          <h3>{title}</h3>
-          <button className="btn btn-ghost" onClick={onClose} type="button">
-            Закрыть
+          <h3 id="modal-title">{title}</h3>
+          <button className="modal-close" onClick={onClose} type="button" aria-label="Закрыть">
+            <X size={18} aria-hidden />
           </button>
         </header>
         <div className="modal-content">{children}</div>

@@ -302,7 +302,7 @@ export function GalleryPage() {
             <Camera size={14} aria-hidden="true" />
             Внутри сервиса
           </p>
-          <h1>Галерея — как выглядит сервис до визита</h1>
+          <h1>Галерея — как выглядит сервис до записи</h1>
           <p>
             Зона приёма, посты на подъёмниках, цех, диагностика и выдача авто. Посмотрите, где проходит
             обслуживание, и приезжайте с пониманием процесса.
@@ -448,13 +448,13 @@ export function GalleryPage() {
           <Reveal as="section" className="fm-section fm-dual-cta fm-gallery-cta" delay={160}>
             <article className="fm-card">
               <h3>Записаться на пост</h3>
-              <p>Выберите услугу и время — мастер подтвердит визит и подготовит пост.</p>
+              <p>Выберите услугу и время — мастер подтвердит запись и подготовит пост.</p>
               <Link className="fm-btn fm-btn-primary" to="/booking">
                 Записаться в сервис
               </Link>
             </article>
             <article className="fm-card fm-card-accent">
-              <h3>ИИ-диагностика до визита</h3>
+              <h3>ИИ-диагностика до записи</h3>
               <p>Опишите симптомы — ассистент подготовит чек-лист и оценку срочности для мастера.</p>
               <Link className="fm-btn fm-btn-outline" to="/consult">
                 Начать диагностику

@@ -97,15 +97,15 @@ export function ClientBookingsPage() {
   const emptyCopy: Record<BookingTab, { title: string; description: string }> = {
     upcoming: {
       title: 'Нет предстоящих записей',
-      description: 'Запишитесь на удобное время — визит появится здесь с напоминанием и деталями.',
+      description: 'Запишитесь на удобное время — запись появится здесь с напоминанием и деталями.',
     },
     past: {
       title: 'История пуста',
-      description: 'Завершённые визиты сохраняются в этой вкладке.',
+      description: 'Завершённые записи сохраняются в этой вкладке.',
     },
     cancelled: {
       title: 'Отменённых записей нет',
-      description: 'Отменённые визиты остаются здесь для истории.',
+      description: 'Отменённые записи остаются здесь для истории.',
     },
   };
 
@@ -118,7 +118,7 @@ export function ClientBookingsPage() {
     <div className="stack dashboard-page client-bookings-page">
       <PageHeader
         title="Мои записи"
-        description="Предстоящие, прошедшие и отменённые визиты в сервис."
+        description="Предстоящие, прошедшие и отменённые записи в сервис."
         breadcrumbs={[
           { label: 'Кабинет', to: '/dashboard/client' },
           { label: 'Записи' },
@@ -176,7 +176,7 @@ export function ClientBookingsPage() {
             action={
               tab === 'upcoming' ? (
                 <Link className="btn btn-primary" to="/booking">
-                  Записаться на визит
+                  Записаться в сервис
                 </Link>
               ) : undefined
             }

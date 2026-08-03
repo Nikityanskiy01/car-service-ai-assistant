@@ -35,7 +35,7 @@ const destinations = [
   {
     to: '/booking',
     label: 'Записаться',
-    desc: 'Выбрать время визита',
+    desc: 'Выбрать время записи',
     icon: CalendarPlus,
   },
   {

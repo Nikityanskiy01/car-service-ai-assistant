@@ -1,6 +1,7 @@
 import type { ConsultationRecommendation } from '../../types/consultation';
 import type { ConsultationDiagnosisSnapshot } from '../../types/consultation';
 import type { ConsultationDetail } from '../../types/consultation';
+import { formatManualReviewHint } from '../../features/consultations/localizeDiagnosisReason';
 import { ConfidenceIndicator } from './ConfidenceIndicator';
 import { CriticalSafetyBanner } from './CriticalSafetyBanner';
 import { DiagnosisActions } from './DiagnosisActions';
@@ -28,20 +29,18 @@ export function DiagnosticSummary({
   if (!recommendations.length && !diagnosis && !fallbackCost && !fallbackConfidence) return null;
   const isManualReview = diagnosis?.analysis_available === false || diagnosis?.status === 'MANUAL_REVIEW_REQUIRED';
   if (isManualReview) {
+    const hint = formatManualReviewHint(diagnosis?.reason);
     return (
-      <section className="diagnostic-summary" aria-label="Статус интеллектуального анализа">
-        <header>
+      <section className="diagnostic-summary diagnostic-summary--manual" aria-label="Статус интеллектуального анализа">
+        <header className="diagnostic-summary__header">
           <h3>Интеллектуальный анализ</h3>
-          <UrgencyBadge urgency="medium" />
+          <span className="diagnostic-summary__status">Ручная обработка</span>
         </header>
-        <p>
+        <p className="diagnostic-summary__lead">
           {diagnosis?.summary ||
-            'Интеллектуальный анализ временно недоступен. Введённые данные сохранены. Вы можете повторить анализ или передать обращение менеджеру.'}
+            'Автоматический анализ сейчас недоступен. Введённые данные сохранены — вы можете повторить попытку или передать обращение менеджеру.'}
         </p>
-        <p className="analysis-disclaimer">
-          Статус: ручная обработка. {diagnosis?.reason ? `Причина: ${diagnosis.reason}. ` : ''}
-          {diagnosis?.execution_meta?.provider ? `Источник: ${diagnosis.execution_meta.provider}.` : ''}
-        </p>
+        <p className="diagnostic-summary__meta">{hint}</p>
         {onCreateRequest ? (
           <div className="diagnosis-actions">
             <button type="button" className="btn btn-primary diagnosis-request-btn" onClick={onCreateRequest}>
@@ -73,17 +72,15 @@ export function DiagnosticSummary({
 
   if (isWeak) {
     return (
-      <section className="diagnostic-summary is-weak" aria-label="Диагностика ожидает данных">
-        <header>
+      <section className="diagnostic-summary diagnostic-summary--manual is-weak" aria-label="Диагностика ожидает данных">
+        <header className="diagnostic-summary__header">
           <h3>Диагностика ещё собирает данные</h3>
         </header>
-        <p>
+        <p className="diagnostic-summary__lead">
           Пока недостаточно симптомов для уверенного разбора. Менеджер уточнит детали в переписке или на
-          визите — предварительные причины появятся здесь.
+          записье — предварительные причины появятся здесь.
         </p>
-        <p className="analysis-disclaimer">
-          Это не диагноз. Точный вывод возможен после очной проверки на посту.
-        </p>
+        <p className="diagnostic-summary__meta">Это не диагноз. Точный вывод возможен после очной проверки на посту.</p>
         {onCreateRequest ? (
           <div className="diagnosis-actions">
             <button type="button" className="btn btn-primary diagnosis-request-btn" onClick={onCreateRequest}>
@@ -109,7 +106,7 @@ export function DiagnosticSummary({
 
   return (
     <section className="diagnostic-summary" aria-label="Предварительный результат анализа">
-      <header>
+      <header className="diagnostic-summary__header">
         <h3>Предварительный результат анализа</h3>
         <UrgencyBadge urgency={diagnosis?.urgency || top?.urgency} />
       </header>

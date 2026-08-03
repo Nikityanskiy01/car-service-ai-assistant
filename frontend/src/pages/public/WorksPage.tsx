@@ -479,7 +479,7 @@ export function WorksPage() {
             </Link>
           </article>
           <article className="fm-card fm-card-accent">
-            <h3>Готовы к визиту?</h3>
+            <h3>Готовы к записи?</h3>
             <p>Запишитесь на пост — мастер получит контекст из чата или выберите услугу из каталога.</p>
             <Link className="fm-btn fm-btn-outline" to="/booking">
               Записаться в сервис

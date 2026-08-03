@@ -57,7 +57,7 @@ export function buildCaseJourneySteps({
       },
       {
         id: 'visit',
-        label: 'Визит',
+        label: 'Запись',
         detail: 'Ещё не назначен',
         state: 'upcoming',
         icon: CalendarCheck2,
@@ -86,11 +86,11 @@ export function buildCaseJourneySteps({
   } else if (status === 'IN_PROGRESS' || visitConfirmed) {
     serviceState = hasVisit && !closed ? 'done' : 'current';
     serviceDetail =
-      status === 'IN_PROGRESS' ? 'Сервис работает по обращению' : 'Сервис подтвердил визит';
+      status === 'IN_PROGRESS' ? 'Сервис работает по обращению' : 'Сервис подтвердил запись';
   } else if (hasVisit) {
     // PENDING booking — сервис ещё не подтвердил слот
     serviceState = 'current';
-    serviceDetail = 'Ждём ответа по визиту';
+    serviceDetail = 'Ждём ответа по записи';
   }
 
   let visitState: TimelineStep['state'] = 'upcoming';
@@ -105,7 +105,7 @@ export function buildCaseJourneySteps({
     else visitState = 'current';
   }
 
-  // Если визит ещё только запрошен — фокус на нём, «ответ сервиса» не помечаем done
+  // Если запись ещё только запрошен — фокус на нём, «ответ сервиса» не помечаем done
   if (hasVisit && !visitConfirmed && !closed && status === 'NEW') {
     serviceState = 'current';
     serviceDetail = 'Ждём подтверждения менеджера';
@@ -129,7 +129,7 @@ export function buildCaseJourneySteps({
     },
     {
       id: 'visit',
-      label: 'Визит',
+      label: 'Запись',
       detail: visitDetail,
       state: visitState,
       icon: CalendarCheck2,

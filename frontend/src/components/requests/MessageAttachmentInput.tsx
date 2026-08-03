@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Paperclip, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export type PendingAttachment = {
@@ -15,6 +16,7 @@ type Props = {
   files: PendingAttachment[];
   onChange: (files: PendingAttachment[]) => void;
   disabled?: boolean;
+  variant?: 'default' | 'icon' | 'preview';
 };
 
 function readFileAsBase64(file: File): Promise<PendingAttachment> {
@@ -35,7 +37,7 @@ function readFileAsBase64(file: File): Promise<PendingAttachment> {
   });
 }
 
-export function MessageAttachmentInput({ files, onChange, disabled }: Props) {
+export function MessageAttachmentInput({ files, onChange, disabled, variant = 'default' }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,8 +64,30 @@ export function MessageAttachmentInput({ files, onChange, disabled }: Props) {
     if (inputRef.current) inputRef.current.value = '';
   }
 
+  if (variant === 'preview') {
+    if (!files.length) return null;
+    return (
+      <ul className="follow-up-attachment-preview" aria-label="Прикреплённые файлы">
+        {files.map((file, index) => (
+          <li key={`${file.fileName}-${index}`}>
+            {file.previewUrl ? <img src={file.previewUrl} alt="" /> : <span>{file.fileName}</span>}
+            <button
+              type="button"
+              className="follow-up-attachment-remove"
+              aria-label={`Убрать ${file.fileName}`}
+              disabled={disabled}
+              onClick={() => onChange(files.filter((_, i) => i !== index))}
+            >
+              <X size={14} aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
-    <div className="message-attachment-input">
+    <div className={variant === 'icon' ? 'message-attachment-input message-attachment-input-icon' : 'message-attachment-input'}>
       <input
         ref={inputRef}
         type="file"
@@ -72,11 +96,23 @@ export function MessageAttachmentInput({ files, onChange, disabled }: Props) {
         hidden
         onChange={(e) => void onPick(e.target.files)}
       />
-      <Button type="button" variant="ghost" disabled={disabled} onClick={() => inputRef.current?.click()}>
-        Прикрепить файл
-      </Button>
+      {variant === 'icon' ? (
+        <button
+          type="button"
+          className="chat-composer-attach"
+          disabled={disabled}
+          aria-label="Прикрепить файл"
+          onClick={() => inputRef.current?.click()}
+        >
+          <Paperclip size={18} aria-hidden />
+        </button>
+      ) : (
+        <Button type="button" variant="ghost" disabled={disabled} onClick={() => inputRef.current?.click()}>
+          Прикрепить файл
+        </Button>
+      )}
       {error ? <span className="danger">{error}</span> : null}
-      {files.length ? (
+      {variant === 'default' && files.length ? (
         <ul className="message-attachment-pending">
           {files.map((file, index) => (
             <li key={`${file.fileName}-${index}`}>

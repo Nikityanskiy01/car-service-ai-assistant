@@ -32,6 +32,7 @@ export function ClientGarageCard({ vehicle }: { vehicle: ClientVehicle }) {
     <Link
       to={`/dashboard/client/cases?tab=active&vehicleId=${encodeURIComponent(vehicle.id)}`}
       className="client-garage-card"
+      aria-label={`${title}. ${status.label}`}
     >
       <div className="client-garage-card-top">
         <span className="client-garage-card-icon" aria-hidden>

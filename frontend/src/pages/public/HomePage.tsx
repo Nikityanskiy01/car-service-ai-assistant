@@ -35,7 +35,7 @@ const outcomes = [
   {
     icon: ClipboardList,
     title: 'Чек-лист проверок',
-    text: 'Список того, что нужно проверить до или во время визита',
+    text: 'Список того, что нужно проверить до или во время записи',
   },
   {
     icon: Calculator,
@@ -80,7 +80,7 @@ const faqs = [
   },
   {
     q: 'Можно сразу записаться после чата?',
-    a: 'Да. Из консультации или с главной можно оставить заявку с удобным временем визита.',
+    a: 'Да. Из консультации или с главной можно оставить заявку с удобным временем записьа.',
   },
 ];
 
@@ -177,38 +177,58 @@ export function HomePage() {
             height={1024}
           />
           <div className="fm-chat-card">
-          <div className="fm-chat-head">
-            <div>
-              <p className="fm-chat-title">{productConfig.assistantName}</p>
-              <p className="fm-chat-sub">Онлайн-диагностика · демо-диалог</p>
+            <div className="fm-chat-head">
+              <div className="fm-chat-head-main">
+                <span className="fm-chat-avatar" aria-hidden>
+                  <MessageSquare size={16} />
+                </span>
+                <div>
+                  <p className="fm-chat-title">{productConfig.assistantName}</p>
+                  <p className="fm-chat-sub">
+                    <span className="fm-online">
+                      <i />
+                      в сети
+                    </span>
+                    <span className="fm-chat-sub-sep" aria-hidden>
+                      ·
+                    </span>
+                    обычно отвечает за минуту
+                  </p>
+                </div>
+              </div>
             </div>
-            <span className="fm-online">
-              <i />
-              Online
-            </span>
-          </div>
-          <div className="fm-chat-thread">
-            <div className="fm-bubble fm-bubble-bot">
-              <small>{productConfig.assistantName}</small>
-              Опишите марку, модель, пробег и симптомы.
+
+            <div className="fm-chat-thread">
+              <div className="fm-bubble fm-bubble-bot">
+                <p>Опишите марку, модель, пробег и симптомы.</p>
+                <time dateTime="09:41">09:41</time>
+              </div>
+              <div className="fm-bubble fm-bubble-user fm-bubble-highlight">
+                <p>Kia Rio 2018, 132&nbsp;000 км. При торможении идёт вибрация в руль.</p>
+                <time dateTime="09:41">09:41</time>
+              </div>
+              <div className="fm-bubble fm-bubble-bot">
+                <p>Вибрация появляется на высокой скорости или в любом режиме?</p>
+                <time dateTime="09:42">09:42</time>
+              </div>
+              <div className="fm-mini-result">
+                <strong>Предварительный разбор</strong>
+                <span>Вероятен износ тормозных дисков, нужна проверка суппортов.</span>
+                <span className="fm-urgency">Срочность: диагностика в ближайшие 1–2 дня.</span>
+              </div>
+              <div className="fm-chat-typing" aria-hidden>
+                <span />
+                <span />
+                <span />
+              </div>
             </div>
-            <div className="fm-bubble fm-bubble-user">
-              <small>Клиент</small>
-              Kia Rio 2018, 132&nbsp;000 км. При торможении идёт вибрация в руль.
-            </div>
-            <div className="fm-bubble fm-bubble-bot">
-              <small>{productConfig.assistantName}</small>
-              Вибрация появляется на высокой скорости или в любом режиме?
-            </div>
-            <div className="fm-mini-result">
-              <strong>Мини-результат</strong>
-              <span>Вероятен износ тормозных дисков, нужна проверка суппортов.</span>
-              <span className="fm-urgency">Срочность: записаться на диагностику в ближайшие 1–2 дня.</span>
-            </div>
-          </div>
-          <Link className="fm-chat-cta" to="/consult">
-            Открыть живой чат →
-          </Link>
+
+            <Link className="fm-chat-composer" to="/consult" aria-label="Открыть чат диагностики">
+              <span className="fm-chat-composer-input">Опишите симптомы…</span>
+              <span className="fm-chat-composer-send" aria-hidden>
+                →
+              </span>
+            </Link>
           </div>
         </aside>
       </section>

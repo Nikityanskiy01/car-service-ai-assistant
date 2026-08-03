@@ -11,7 +11,7 @@ export function getBookingTitle(booking: ServiceBooking): string {
   const vehicle = getBookingVehicleLabel(booking);
   if (vehicle) return vehicle;
   if (booking.serviceName) return booking.serviceName;
-  return 'Визит в сервис';
+  return 'Запись в сервис';
 }
 
 export function getBookingSubtitle(booking: ServiceBooking): string | null {

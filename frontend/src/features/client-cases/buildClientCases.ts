@@ -47,7 +47,7 @@ function computeProgress(
     return { stage: 'done', percent: 100, label: 'Обращение закрыто' };
   }
   if (hasBooking || requestStatus === 'SCHEDULED') {
-    return { stage: 'booking', percent: 75, label: 'Визит назначен' };
+    return { stage: 'booking', percent: 75, label: 'Запись назначена' };
   }
   if (requestStatus === 'IN_PROGRESS') {
     return { stage: 'request', percent: 55, label: 'Сервис работает по обращению' };

@@ -94,7 +94,7 @@ const visitFaqs = [
   },
   {
     q: 'Можно приехать без ИИ-консультации?',
-    a: 'Да. Чат помогает подготовиться к визиту, но не обязателен — мастер проведёт диагностику на месте.',
+    a: 'Да. Чат помогает подготовиться к записи, но не обязателен — мастер проведёт диагностику на месте.',
   },
   {
     q: 'Как добраться и где парковка?',
@@ -290,7 +290,7 @@ export function AboutPage() {
 
       <section className="fm-section">
         <div className="fm-section-row">
-          <h2>Как проходит визит</h2>
+          <h2>Как проходит запись</h2>
           <Link className="fm-btn fm-btn-outline" to="/booking">
             Записаться
           </Link>
@@ -487,7 +487,7 @@ export function AboutPage() {
 
       <section className="fm-section">
         <div>
-          <h2>Вопросы перед визитом</h2>
+          <h2>Вопросы перед записью</h2>
           <p className="fm-section-desc">Что важно знать до приезда в сервис</p>
         </div>
         <FaqAccordion items={visitFaqs} />

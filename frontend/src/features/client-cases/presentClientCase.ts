@@ -88,7 +88,7 @@ export function presentClientCase(clientCase: ClientCase): CasePresentation {
     return {
       group: 'scheduled',
       groupLabel: GROUP_LABELS.scheduled,
-      statusLine: bookingParts ? `Визит ${bookingParts.short}` : 'Запись назначена',
+      statusLine: bookingParts ? `Запись ${bookingParts.short}` : 'Запись назначена',
       detailLine: bookingRelative,
       ctaLabel: 'К записи',
       attention: false,

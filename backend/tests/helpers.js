@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { createApp } from '../src/app.js';
+import { extractVerificationCodeFromEmail, getLastTestEmail } from '../src/lib/mail/mail.service.js';
 import prisma from '../src/lib/prisma.js';
 
 export const app = createApp();
@@ -18,6 +19,9 @@ export async function truncateAll() {
     prisma.integrationStatusMapping.deleteMany(),
     prisma.integrationCredential.deleteMany(),
     prisma.integrationConnection.deleteMany(),
+    prisma.refreshToken.deleteMany(),
+    prisma.passwordResetToken.deleteMany(),
+    prisma.emailVerificationCode.deleteMany(),
     prisma.contactSubmission.deleteMany(),
     prisma.notification.deleteMany(),
     prisma.requestFollowUpMessage.deleteMany(),
@@ -40,6 +44,17 @@ export async function truncateAll() {
   ]);
 }
 
+async function verifyRegisteredEmail(email) {
+  const mail = getLastTestEmail();
+  const code = extractVerificationCodeFromEmail(mail);
+  if (!code) throw new Error('Verification code not found in test email');
+  const verify = await request(app).post('/api/auth/verify-email').send({ email, code });
+  if (verify.status !== 200) {
+    throw new Error(`verify-email failed: ${verify.status} ${JSON.stringify(verify.body)}`);
+  }
+  return verify;
+}
+
 export async function registerClient(overrides = {}) {
   const email = overrides.email || `c${Date.now()}@t.test`;
   const res = await request(app)
@@ -52,7 +67,8 @@ export async function registerClient(overrides = {}) {
       consentPersonalData: true,
       ...overrides,
     });
-  return { res, email, token: res.body.accessToken };
+  const verify = await verifyRegisteredEmail(email);
+  return { res, email, token: verify.body.accessToken };
 }
 
 export async function login(email, password = 'Password123!ab') {

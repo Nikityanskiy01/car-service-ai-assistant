@@ -44,6 +44,7 @@ async function main() {
         phone: u.phone,
         role: u.role,
         blocked: false,
+        emailVerifiedAt: new Date(),
       },
       create: {
         email: u.email.toLowerCase(),
@@ -51,6 +52,7 @@ async function main() {
         fullName: u.fullName,
         phone: u.phone,
         role: u.role,
+        emailVerifiedAt: new Date(),
       },
     });
     console.log(`OK ${u.role}: ${u.email}`);

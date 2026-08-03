@@ -1,38 +1,37 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { Car, Plus, Trash2, User } from 'lucide-react';
+import {
+  Bell,
+  Calendar,
+  Car,
+  Check,
+  KeyRound,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Phone,
+  Send,
+  Shield,
+  Sparkles,
+  User,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
 import { patchProfile } from '../../api/dashboard';
-import {
-  createVehicle,
-  deleteVehicle,
-  formatVehicleTitle,
-  listVehicles,
-  type ClientVehicle,
-} from '../../api/vehicles';
-import { DashboardWelcomeHero } from '../../components/dashboard/DashboardWelcomeHero';
-import { PageHeader } from '../../components/layout/dashboard/PageHeader';
+import { ProfileAvatarPicker } from '../../components/profile/ProfileAvatarPicker';
+import { ProfilePasswordForm } from '../../components/profile/ProfilePasswordForm';
+import { ProfileSwitch } from '../../components/profile/ProfileSwitch';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { FormField } from '../../components/forms/FormField';
 import { Input } from '../../components/ui/Input';
 import { Loader } from '../../components/ui/Loader';
 import { PhoneInput } from '../../components/forms/PhoneInput';
 import { Tabs } from '../../components/ui/Tabs';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { Modal } from '../../components/ui/Modal';
 import { parseProfileTab, type ProfileTab } from '../../lib/profileTabs';
-import { formatVehicleCasesLabel } from '../../lib/russianPlural';
 import { STORAGE_KEYS } from '../../lib/storageKeys';
 import { usePageMeta } from '../../hooks/usePageMeta';
-
-type VehicleFormErrors = {
-  make?: string;
-  model?: string;
-  year?: string;
-};
+import type { PreferredContact } from '../../types/auth';
 
 type NotificationPrefs = {
   bookingReminders: boolean;
@@ -45,6 +44,18 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   messageAlerts: true,
   marketing: false,
 };
+
+const PREFERRED_CONTACT_OPTIONS: Array<{ value: PreferredContact; label: string; icon: typeof Phone }> = [
+  { value: 'PHONE', label: 'Телефон', icon: Phone },
+  { value: 'EMAIL', label: 'Email', icon: Mail },
+  { value: 'TELEGRAM', label: 'Telegram', icon: Send },
+];
+
+const TAB_ITEMS_CLIENT = [
+  { id: 'contacts', label: 'Личные данные' },
+  { id: 'notifications', label: 'Уведомления' },
+  { id: 'security', label: 'Безопасность' },
+];
 
 function loadNotificationPrefs(): NotificationPrefs {
   try {
@@ -59,6 +70,29 @@ function saveNotificationPrefs(prefs: NotificationPrefs) {
   localStorage.setItem(STORAGE_KEYS.clientNotificationPrefs, JSON.stringify(prefs));
 }
 
+function formatMemberSince(iso?: string | null) {
+  if (!iso) return null;
+  try {
+    return new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date(iso));
+  } catch {
+    return null;
+  }
+}
+
+function roleLabel(role: string) {
+  if (role === 'ADMINISTRATOR') return 'Администратор';
+  if (role === 'MANAGER') return 'Менеджер';
+  return 'Клиент';
+}
+
+function formatPhoneDisplay(phone: string) {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('7')) {
+    return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9, 11)}`;
+  }
+  return phone;
+}
+
 export function ProfilePage() {
   usePageMeta({ title: 'Профиль', description: 'Контактные данные и настройки аккаунта.' });
   const { user, refreshCurrentUser } = useAuth();
@@ -68,27 +102,24 @@ export function ProfilePage() {
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [emailProfile, setEmailProfile] = useState('');
+  const [city, setCity] = useState('');
+  const [telegram, setTelegram] = useState('');
+  const [preferredContact, setPreferredContact] = useState<PreferredContact | ''>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [vehicles, setVehicles] = useState<ClientVehicle[]>([]);
-  const [vehiclesLoading, setVehiclesLoading] = useState(false);
-  const [vehiclesError, setVehiclesError] = useState<string | null>(null);
-  const [addVehicleOpen, setAddVehicleOpen] = useState(false);
-  const [vehicleMake, setVehicleMake] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
-  const [vehicleYear, setVehicleYear] = useState('');
-  const [vehicleSaving, setVehicleSaving] = useState(false);
-  const [vehicleFormErrors, setVehicleFormErrors] = useState<VehicleFormErrors>({});
-  const [deleteVehicleId, setDeleteVehicleId] = useState<string | null>(null);
-  const [vehicleDeleting, setVehicleDeleting] = useState(false);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
 
   useEffect(() => {
     if (!user) return;
     setFullName(user.fullName || '');
     setPhone(user.phone || '');
+    setEmailProfile(user.emailProfile || '');
+    setCity(user.city || '');
+    setTelegram(user.telegram || '');
+    setPreferredContact(user.preferredContact || '');
     setLoading(false);
   }, [user]);
 
@@ -97,87 +128,24 @@ export function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (!isClient || tab !== 'vehicles') return;
-    setVehiclesLoading(true);
-    setVehiclesError(null);
-    void listVehicles()
-      .then(setVehicles)
-      .catch((e) => {
-        setVehicles([]);
-        setVehiclesError(e instanceof Error ? e.message : 'Не удалось загрузить автомобили');
-      })
-      .finally(() => setVehiclesLoading(false));
-  }, [isClient, tab]);
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
 
-  async function reloadVehicles() {
-    const rows = await listVehicles();
-    setVehicles(rows);
-  }
+  const memberSince = useMemo(() => formatMemberSince(user?.createdAt), [user?.createdAt]);
 
-  function resetVehicleForm() {
-    setVehicleMake('');
-    setVehicleModel('');
-    setVehicleYear('');
-    setVehicleFormErrors({});
-  }
-
-  function openAddVehicle() {
-    resetVehicleForm();
-    setAddVehicleOpen(true);
-  }
-
-  async function handleAddVehicle(e: React.FormEvent) {
-    e.preventDefault();
-    const nextErrors: VehicleFormErrors = {};
-    if (!vehicleMake.trim()) nextErrors.make = 'Укажите марку';
-    if (!vehicleModel.trim()) nextErrors.model = 'Укажите модель';
-    const yearValue = vehicleYear.trim();
-    if (yearValue) {
-      const year = Number(yearValue);
-      if (!Number.isInteger(year) || year < 1950 || year > new Date().getFullYear() + 1) {
-        nextErrors.year = 'Некорректный год';
-      }
-    }
-    setVehicleFormErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
-
-    setVehicleSaving(true);
-    setVehiclesError(null);
-    try {
-      await createVehicle({
-        make: vehicleMake.trim(),
-        model: vehicleModel.trim(),
-        year: yearValue ? Number(yearValue) : null,
-      });
-      setAddVehicleOpen(false);
-      resetVehicleForm();
-      await reloadVehicles();
-    } catch (err) {
-      setVehiclesError(err instanceof Error ? err.message : 'Не удалось добавить автомобиль');
-    } finally {
-      setVehicleSaving(false);
-    }
-  }
-
-  async function handleDeleteVehicle() {
-    if (!deleteVehicleId) return;
-    setVehicleDeleting(true);
-    setVehiclesError(null);
-    try {
-      await deleteVehicle(deleteVehicleId);
-      setDeleteVehicleId(null);
-      await reloadVehicles();
-    } catch (err) {
-      setVehiclesError(err instanceof Error ? err.message : 'Не удалось удалить автомобиль');
-    } finally {
-      setVehicleDeleting(false);
-    }
-  }
-
-  const profileDescription = useMemo(() => {
-    if (isClient) return 'Контакты, автомобили и уведомления.';
-    return 'Контактные данные аккаунта.';
-  }, [isClient]);
+  const isDirty = useMemo(() => {
+    if (!user) return false;
+    return (
+      fullName !== (user.fullName || '') ||
+      phone !== (user.phone || '') ||
+      emailProfile !== (user.emailProfile || '') ||
+      city !== (user.city || '') ||
+      telegram !== (user.telegram || '') ||
+      preferredContact !== (user.preferredContact || '')
+    );
+  }, [user, fullName, phone, emailProfile, city, telegram, preferredContact]);
 
   function setTab(next: ProfileTab) {
     const params = new URLSearchParams(searchParams);
@@ -193,14 +161,29 @@ export function ProfilePage() {
       await patchProfile({
         fullName: fullName.trim() || undefined,
         phone: phone.trim() || undefined,
+        emailProfile: emailProfile.trim() || null,
+        city: city.trim() || null,
+        telegram: telegram.trim() || null,
+        preferredContact: preferredContact || null,
       });
       await refreshCurrentUser();
-      setSuccess('Данные сохранены');
+      setSuccess('Изменения сохранены');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось сохранить');
     } finally {
       setSaving(false);
     }
+  }
+
+  function resetForm() {
+    if (!user) return;
+    setFullName(user.fullName || '');
+    setPhone(user.phone || '');
+    setEmailProfile(user.emailProfile || '');
+    setCity(user.city || '');
+    setTelegram(user.telegram || '');
+    setPreferredContact(user.preferredContact || '');
+    setError(null);
   }
 
   function updateNotificationPref<K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) {
@@ -213,240 +196,300 @@ export function ProfilePage() {
   if (!user) return <ErrorState message="Пользователь не найден" />;
 
   const tabItems = isClient
-    ? [
+    ? TAB_ITEMS_CLIENT
+    : [
         { id: 'contacts', label: 'Контакты' },
-        { id: 'vehicles', label: 'Мои автомобили' },
-        { id: 'notifications', label: 'Уведомления' },
         { id: 'security', label: 'Безопасность' },
-      ]
-    : [{ id: 'contacts', label: 'Контакты' }];
+      ];
 
   return (
-    <div className="stack dashboard-page">
-      <DashboardWelcomeHero
-        icon={User}
-        greeting="Настройки аккаунта"
-        title={user.fullName || 'Профиль'}
-        description="Обновите контактные данные — менеджер сможет быстрее связаться с вами."
-      />
-
-      <PageHeader title="Профиль" description={profileDescription} />
-
-      {isClient ? <Tabs value={tab} onChange={(next) => setTab(next as ProfileTab)} items={tabItems} /> : null}
-
-      {tab === 'contacts' ? (
-        <Card>
-          <h2>Контактные данные</h2>
-          <form
-            className="stack"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void handleSave();
-            }}
-          >
-            <FormField label="Имя" htmlFor="profile-name">
-              <Input
-                id="profile-name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Иван Иванов"
-                autoComplete="name"
-              />
-            </FormField>
-            <FormField label="Email" htmlFor="profile-email">
-              <Input id="profile-email" value={user.email} disabled readOnly />
-            </FormField>
-            <FormField label="Телефон" htmlFor="profile-phone">
-              <PhoneInput id="profile-phone" value={phone} onChange={setPhone} />
-            </FormField>
-            {error ? <p className="form-error">{error}</p> : null}
-            {success ? <p className="form-success">{success}</p> : null}
-            <div className="row gap-sm">
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Сохранение...' : 'Сохранить'}
-              </Button>
-            </div>
-          </form>
-          {isClient ? (
-            <p className="muted-text" style={{ marginTop: '1rem' }}>
-              Email изменяется только через администратора.
-            </p>
-          ) : null}
-        </Card>
-      ) : null}
-
-      {isClient && tab === 'vehicles' ? (
-        <Card>
-          <div className="profile-vehicle-header">
-            <div>
-              <h2>Мои автомобили</h2>
-              <p className="muted-text">Добавляйте машины вручную или они появятся после ИИ-диагностики.</p>
-            </div>
-            <Button type="button" onClick={openAddVehicle}>
-              <Plus size={16} aria-hidden />
-              Добавить
-            </Button>
-          </div>
-
-          {vehiclesError ? <p className="form-error">{vehiclesError}</p> : null}
-          {vehiclesLoading ? <Loader label="Загружаем автомобили..." /> : null}
-          {!vehiclesLoading && vehicles.length === 0 ? (
-            <EmptyState
-              title="Гараж пуст"
-              description="Добавьте автомобиль вручную или пройдите ИИ-диагностику — машина сохранится здесь автоматически."
-              action={
-                <div className="row gap-sm">
-                  <Button type="button" onClick={openAddVehicle}>
-                    Добавить автомобиль
-                  </Button>
-                  <Link className="btn btn-secondary" to="/consult">
-                    Начать диагностику
-                  </Link>
-                </div>
-              }
-            />
-          ) : null}
-          {!vehiclesLoading && vehicles.length > 0 ? (
-            <ul className="profile-vehicle-list">
-              {vehicles.map((vehicle) => {
-                const title = formatVehicleTitle(vehicle);
-                const casesLabel = formatVehicleCasesLabel(vehicle);
-                return (
-                  <li key={vehicle.id} className="profile-vehicle-item">
-                    <span className="profile-vehicle-icon" aria-hidden>
-                      <Car size={18} />
-                    </span>
-                    <div className="profile-vehicle-body">
-                      <strong>{title}</strong>
-                      <p className="muted-text">{casesLabel}</p>
-                      {vehicle.notes ? <p className="muted-text">{vehicle.notes}</p> : null}
-                    </div>
-                    <div className="profile-vehicle-actions">
-                      <Link
-                        className="btn btn-ghost btn-sm"
-                        to={`/dashboard/client/cases?tab=active&vehicleId=${encodeURIComponent(vehicle.id)}`}
-                      >
-                        Обращения
-                      </Link>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="btn-icon-danger"
-                        aria-label={`Удалить ${title}`}
-                        onClick={() => setDeleteVehicleId(vehicle.id)}
-                      >
-                        <Trash2 size={16} aria-hidden />
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-
-          <Modal open={addVehicleOpen} title="Добавить автомобиль" onClose={() => setAddVehicleOpen(false)}>
-            <form className="stack" onSubmit={(e) => void handleAddVehicle(e)}>
-              <FormField label="Марка" htmlFor="vehicle-make" error={vehicleFormErrors.make}>
-                <Input
-                  id="vehicle-make"
-                  value={vehicleMake}
-                  onChange={(e) => {
-                    setVehicleMake(e.target.value);
-                    if (vehicleFormErrors.make) setVehicleFormErrors((prev) => ({ ...prev, make: undefined }));
-                  }}
-                  placeholder="Toyota"
-                  autoComplete="off"
-                />
-              </FormField>
-              <FormField label="Модель" htmlFor="vehicle-model" error={vehicleFormErrors.model}>
-                <Input
-                  id="vehicle-model"
-                  value={vehicleModel}
-                  onChange={(e) => {
-                    setVehicleModel(e.target.value);
-                    if (vehicleFormErrors.model) setVehicleFormErrors((prev) => ({ ...prev, model: undefined }));
-                  }}
-                  placeholder="Camry"
-                  autoComplete="off"
-                />
-              </FormField>
-              <FormField label="Год выпуска" htmlFor="vehicle-year" hint="Необязательно" error={vehicleFormErrors.year}>
-                <Input
-                  id="vehicle-year"
-                  type="number"
-                  inputMode="numeric"
-                  value={vehicleYear}
-                  onChange={(e) => {
-                    setVehicleYear(e.target.value);
-                    if (vehicleFormErrors.year) setVehicleFormErrors((prev) => ({ ...prev, year: undefined }));
-                  }}
-                  placeholder="2018"
-                />
-              </FormField>
-              <div className="row gap-sm">
-                <Button type="submit" disabled={vehicleSaving}>
-                  {vehicleSaving ? 'Сохранение...' : 'Добавить'}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setAddVehicleOpen(false)}>
-                  Отмена
-                </Button>
-              </div>
-            </form>
-          </Modal>
-
-          <ConfirmDialog
-            open={Boolean(deleteVehicleId)}
-            title="Удалить автомобиль?"
-            text="Автомобиль исчезнет из гаража. История обращений сохранится — вы сможете найти её в общем списке."
-            onCancel={() => setDeleteVehicleId(null)}
-            onConfirm={() => void handleDeleteVehicle()}
+    <div className="stack dashboard-page profile-page">
+      <section className="profile-hero" aria-label="Профиль пользователя">
+        <div className="profile-hero-top">
+          <ProfileAvatarPicker
+            name={user.fullName || user.email}
+            avatarUrl={user.avatarUrl}
+            onUpdated={refreshCurrentUser}
           />
-          {vehicleDeleting ? <Loader label="Удаляем автомобиль..." /> : null}
-        </Card>
-      ) : null}
-
-      {isClient && tab === 'notifications' ? (
-        <Card>
-          <h2>Уведомления</h2>
-          <p className="muted-text">Настройки сохраняются на этом устройстве. Push-уведомления появятся позже.</p>
-          <div className="profile-toggle-list">
-            <label className="profile-toggle">
-              <input
-                type="checkbox"
-                checked={notificationPrefs.bookingReminders}
-                onChange={(e) => updateNotificationPref('bookingReminders', e.target.checked)}
-              />
-              <span>Напоминания о записи</span>
-            </label>
-            <label className="profile-toggle">
-              <input
-                type="checkbox"
-                checked={notificationPrefs.messageAlerts}
-                onChange={(e) => updateNotificationPref('messageAlerts', e.target.checked)}
-              />
-              <span>Новые сообщения от менеджера</span>
-            </label>
-            <label className="profile-toggle">
-              <input
-                type="checkbox"
-                checked={notificationPrefs.marketing}
-                onChange={(e) => updateNotificationPref('marketing', e.target.checked)}
-              />
-              <span>Акции и спецпредложения</span>
-            </label>
+          <div className="profile-hero-body">
+            <span className="profile-hero-badge">{roleLabel(user.role)}</span>
+            <h1 className="profile-hero-name">{user.fullName || 'Профиль'}</h1>
+            <div className="profile-hero-meta">
+              <span>
+                <Mail size={14} aria-hidden />
+                {user.email}
+              </span>
+              {memberSince ? (
+                <span>
+                  <Calendar size={14} aria-hidden />
+                  С нами с {memberSince}
+                </span>
+              ) : null}
+            </div>
           </div>
-        </Card>
-      ) : null}
+        </div>
 
-      {isClient && tab === 'security' ? (
-        <Card>
-          <h2>Безопасность</h2>
-          <p className="muted-text">
-            Смена пароля через кабинет появится в следующем обновлении. Сейчас обратитесь к администратору или
-            воспользуйтесь восстановлением доступа на странице входа.
-          </p>
-        </Card>
-      ) : null}
+        {isClient ? (
+          <div className="profile-hero-footer">
+            <div className="profile-hero-chips">
+              <span className="profile-hero-chip">
+                <Phone size={14} aria-hidden />
+                {user.phone ? formatPhoneDisplay(user.phone) : 'Телефон не указан'}
+              </span>
+              {city ? (
+                <span className="profile-hero-chip">
+                  <MapPin size={14} aria-hidden />
+                  {city}
+                </span>
+              ) : null}
+              {telegram ? (
+                <span className="profile-hero-chip">
+                  <Send size={14} aria-hidden />
+                  @{telegram}
+                </span>
+              ) : null}
+            </div>
+            <Link className="profile-hero-link" to="/dashboard/client/vehicles">
+              <Car size={15} aria-hidden />
+              Мои автомобили
+            </Link>
+          </div>
+        ) : null}
+      </section>
+
+      <div className="profile-shell">
+        {tabItems.length > 1 ? (
+          <Tabs
+            className="profile-tabs"
+            value={tab}
+            onChange={(next) => setTab(next as ProfileTab)}
+            items={tabItems}
+          />
+        ) : null}
+
+        {tab === 'contacts' ? (
+          <div
+            className="profile-panel"
+            role="tabpanel"
+            id="tabpanel-contacts"
+            aria-labelledby="tab-contacts"
+          >
+            <Card className="profile-settings-card">
+              <div className="profile-settings-grid">
+                <section className="profile-settings-section">
+                  <header className="profile-section-head">
+                    <span className="profile-section-icon" aria-hidden>
+                      <User size={18} />
+                    </span>
+                    <div>
+                      <h2>Основное</h2>
+                      <p>Имя и контакты для связи с сервисом</p>
+                    </div>
+                  </header>
+                  <div className="profile-fields">
+                    <FormField label="Имя" htmlFor="profile-name">
+                      <Input
+                        id="profile-name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Иван Иванов"
+                        autoComplete="name"
+                      />
+                    </FormField>
+                    <FormField label="Email для входа" htmlFor="profile-email" hint="Изменяется через администратора">
+                      <Input id="profile-email" value={user.email} disabled readOnly className="input-readonly" />
+                    </FormField>
+                    <FormField label="Телефон" htmlFor="profile-phone">
+                      <PhoneInput id="profile-phone" value={phone} onChange={setPhone} />
+                    </FormField>
+                    {isClient ? (
+                      <FormField label="Город" htmlFor="profile-city" hint="Необязательно">
+                        <Input
+                          id="profile-city"
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          placeholder="Москва"
+                          autoComplete="address-level2"
+                        />
+                      </FormField>
+                    ) : null}
+                  </div>
+                </section>
+
+                {isClient ? (
+                  <section className="profile-settings-section">
+                    <header className="profile-section-head">
+                      <span className="profile-section-icon" aria-hidden>
+                        <MessageSquare size={18} />
+                      </span>
+                      <div>
+                        <h2>Как с вами связаться</h2>
+                        <p>Дополнительные каналы и предпочтения</p>
+                      </div>
+                    </header>
+                    <div className="profile-fields">
+                      <FormField label="Контактный email" htmlFor="profile-email-profile" hint="Для счетов и уведомлений">
+                        <Input
+                          id="profile-email-profile"
+                          type="email"
+                          value={emailProfile}
+                          onChange={(e) => setEmailProfile(e.target.value)}
+                          placeholder="ivan@mail.ru"
+                          autoComplete="email"
+                        />
+                      </FormField>
+                      <FormField label="Telegram" htmlFor="profile-telegram" hint="Без символа @">
+                        <Input
+                          id="profile-telegram"
+                          value={telegram}
+                          onChange={(e) => setTelegram(e.target.value)}
+                          placeholder="username"
+                          autoComplete="off"
+                        />
+                      </FormField>
+                      <fieldset className="profile-segment-field">
+                        <legend>Предпочтительный способ связи</legend>
+                        <div className="profile-segment" role="radiogroup" aria-label="Предпочтительный способ связи">
+                          {PREFERRED_CONTACT_OPTIONS.map((opt) => {
+                            const Icon = opt.icon;
+                            const selected = preferredContact === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                className={`profile-segment-btn${selected ? ' is-active' : ''}`}
+                                onClick={() => setPreferredContact(selected ? '' : opt.value)}
+                              >
+                                <Icon size={15} aria-hidden />
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </fieldset>
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+
+              {(isDirty || error || success) && tab === 'contacts' ? (
+                <div className={`profile-save-bar${isDirty ? ' is-dirty' : ''}`}>
+                  <div className="profile-save-status">
+                    {error ? <p className="form-error">{error}</p> : null}
+                    {success ? (
+                      <p className="profile-save-success">
+                        <Check size={16} aria-hidden />
+                        {success}
+                      </p>
+                    ) : null}
+                    {isDirty && !error && !success ? (
+                      <p className="profile-save-hint">Есть несохранённые изменения</p>
+                    ) : null}
+                  </div>
+                  <div className="profile-save-actions">
+                    {isDirty ? (
+                      <Button type="button" variant="ghost" onClick={resetForm} disabled={saving}>
+                        Отменить
+                      </Button>
+                    ) : null}
+                    <Button type="button" disabled={saving || !isDirty} onClick={() => void handleSave()}>
+                      {saving ? 'Сохранение…' : 'Сохранить'}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </Card>
+          </div>
+        ) : null}
+
+        {isClient && tab === 'notifications' ? (
+          <div
+            className="profile-panel"
+            role="tabpanel"
+            id="tabpanel-notifications"
+            aria-labelledby="tab-notifications"
+          >
+            <Card className="profile-settings-card">
+              <header className="profile-section-head profile-section-head-inline">
+                <span className="profile-section-icon" aria-hidden>
+                  <Bell size={18} />
+                </span>
+                <div>
+                  <h2>Уведомления</h2>
+                  <p>Настройки сохраняются на этом устройстве. Push появятся позже.</p>
+                </div>
+              </header>
+              <div className="profile-switch-list">
+                <ProfileSwitch
+                  id="pref-booking"
+                  label="Напоминания о записи"
+                  description="За день и за час до записи в сервис"
+                  checked={notificationPrefs.bookingReminders}
+                  onChange={(v) => updateNotificationPref('bookingReminders', v)}
+                />
+                <ProfileSwitch
+                  id="pref-messages"
+                  label="Сообщения от менеджера"
+                  description="Ответы по вашим обращениям"
+                  checked={notificationPrefs.messageAlerts}
+                  onChange={(v) => updateNotificationPref('messageAlerts', v)}
+                />
+                <ProfileSwitch
+                  id="pref-marketing"
+                  label="Акции и спецпредложения"
+                  description="Скидки на ТО и сезонные акции"
+                  checked={notificationPrefs.marketing}
+                  onChange={(v) => updateNotificationPref('marketing', v)}
+                />
+              </div>
+            </Card>
+          </div>
+        ) : null}
+
+        {tab === 'security' ? (
+          <div
+            className="profile-panel"
+            role="tabpanel"
+            id="tabpanel-security"
+            aria-labelledby="tab-security"
+          >
+            <div className="profile-security-grid">
+              <Card className="profile-security-card profile-password-card">
+                <header className="profile-section-head profile-section-head-inline">
+                  <span className="profile-section-icon" aria-hidden>
+                    <KeyRound size={18} />
+                  </span>
+                  <div>
+                    <h2>Смена пароля</h2>
+                    <p>Латиница, цифра и спецсимвол — минимум 12 символов</p>
+                  </div>
+                </header>
+                <ProfilePasswordForm onPasswordChanged={refreshCurrentUser} />
+              </Card>
+              {isClient ? (
+                <>
+                  <Card className="profile-security-card">
+                    <span className="profile-section-icon" aria-hidden>
+                      <Shield size={20} />
+                    </span>
+                    <h3>Безопасность аккаунта</h3>
+                    <p>Email для входа защищён. При подозрительной активности обратитесь к администратору.</p>
+                  </Card>
+                  <Card className="profile-security-card profile-security-card-muted">
+                    <span className="profile-section-icon" aria-hidden>
+                      <Sparkles size={20} />
+                    </span>
+                    <h3>Скоро</h3>
+                    <p>Двухфакторная аутентификация и история входов в разработке.</p>
+                  </Card>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

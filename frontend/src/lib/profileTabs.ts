@@ -1,6 +1,6 @@
-export type ProfileTab = 'contacts' | 'vehicles' | 'notifications' | 'security';
+export type ProfileTab = 'contacts' | 'notifications' | 'security';
 
 export function parseProfileTab(value: string | null): ProfileTab {
-  if (value === 'vehicles' || value === 'notifications' || value === 'security') return value;
+  if (value === 'notifications' || value === 'security') return value;
   return 'contacts';
 }

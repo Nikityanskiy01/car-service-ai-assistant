@@ -37,3 +37,7 @@ export function formatVehicleCasesLabel(vehicle: {
   }
   return 'Нет обращений';
 }
+
+export function pluralizeVehicles(count: number): string {
+  return pluralize(count, 'автомобиль', 'автомобиля', 'автомобилей');
+}

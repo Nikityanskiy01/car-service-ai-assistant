@@ -54,7 +54,7 @@ function toClientCase(item: ClientDashboardSummary['recentActiveCases'][number])
 export function ClientOverviewPage() {
   usePageMeta({
     title: 'Кабинет клиента',
-    description: 'Гараж, обращения и ближайшие визиты.',
+    description: 'Гараж, обращения и ближайшие записи.',
   });
 
   const productConfig = useProductConfig();
@@ -134,7 +134,7 @@ export function ClientOverviewPage() {
               </Link>
             ) : null}
             {vehicles.length > 0 ? (
-              <Link className="client-overview-stat" to="/dashboard/client/profile?tab=vehicles">
+              <Link className="client-overview-stat" to="/dashboard/client/vehicles">
                 <Car size={14} aria-hidden />
                 <strong>{vehicles.length}</strong> авто
               </Link>
@@ -164,7 +164,7 @@ export function ClientOverviewPage() {
                 <Link className="btn btn-primary" to="/consult">
                   Начать диагностику
                 </Link>
-                <Link className="btn btn-secondary" to="/dashboard/client/profile?tab=vehicles">
+                <Link className="btn btn-secondary" to="/dashboard/client/vehicles">
                   Добавить автомобиль
                 </Link>
               </div>
@@ -232,7 +232,7 @@ export function ClientOverviewPage() {
                     <span className="client-overview-garage-count">{vehicles.length}</span>
                   ) : null}
                 </div>
-                <Link to="/dashboard/client/profile?tab=vehicles">Управлять</Link>
+                <Link to="/dashboard/client/vehicles">Управлять</Link>
               </div>
               {vehicles.length === 0 ? (
                 <div className="client-overview-garage-empty">
@@ -240,7 +240,7 @@ export function ClientOverviewPage() {
                     Добавьте автомобиль вручную или пройдите диагностику — машина появится здесь автоматически.
                   </p>
                   <div className="row gap-sm">
-                    <Link className="btn btn-primary btn-sm" to="/dashboard/client/profile?tab=vehicles">
+                    <Link className="btn btn-primary btn-sm" to="/dashboard/client/vehicles">
                       <Plus size={16} aria-hidden />
                       Добавить авто
                     </Link>
@@ -254,12 +254,12 @@ export function ClientOverviewPage() {
                   {visibleVehicles.map((vehicle) => (
                     <ClientGarageCard key={vehicle.id} vehicle={vehicle} />
                   ))}
-                  <ClientGarageAddCard to="/dashboard/client/profile?tab=vehicles" />
+                  <ClientGarageAddCard to="/dashboard/client/vehicles" />
                 </div>
               )}
               {hiddenVehiclesCount > 0 ? (
                 <p className="muted-text client-overview-more-link">
-                  <Link to="/dashboard/client/profile?tab=vehicles">
+                  <Link to="/dashboard/client/vehicles">
                     Ещё {hiddenVehiclesCount} в профиле <ArrowRight size={14} aria-hidden />
                   </Link>
                 </p>

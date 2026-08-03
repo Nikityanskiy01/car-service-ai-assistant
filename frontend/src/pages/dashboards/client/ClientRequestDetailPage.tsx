@@ -11,7 +11,7 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { Tabs } from '../../../components/ui/Tabs';
-import { Textarea } from '../../../components/ui/Textarea';
+import { FollowUpChatPanel } from '../../../components/messages/FollowUpChatPanel';
 import { formatRequestNumber } from '../../../lib/labels';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 import type { FollowUpMessage } from '../../../api/dashboard';
@@ -161,36 +161,18 @@ export function ClientRequestDetailPage() {
       ) : null}
 
       {tab === 'messages' ? (
-        <Card>
-          <h2>Переписка с менеджером</h2>
-          {messages.length === 0 ? (
-            <EmptyState title="Сообщений пока нет" description="Задайте вопрос — менеджер ответит здесь." />
-          ) : (
-            <ul className="message-thread">
-              {messages.map((msg) => (
-                <li key={msg.id} className="message-thread-item">
-                  <div className="message-thread-meta">
-                    <strong>{msg.author?.fullName || 'Менеджер'}</strong>
-                    <time>{formatDate(msg.createdAt)}</time>
-                  </div>
-                  <p>{msg.body}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="message-compose">
-            <Textarea
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              placeholder="Ваш вопрос или уточнение..."
-              rows={3}
-            />
-            {actionError ? <p className="form-error">{actionError}</p> : null}
-            <Button onClick={() => void handleSend()} disabled={sending || !reply.trim()}>
-              {sending ? 'Отправка...' : 'Отправить'}
-            </Button>
-          </div>
-        </Card>
+        <FollowUpChatPanel
+          messages={messages}
+          value={reply}
+          onChange={setReply}
+          onSubmit={handleSend}
+          sending={sending}
+          error={actionError}
+          placeholder="Ваш вопрос или уточнение..."
+          viewerRole="CLIENT"
+          emptyTitle="Сообщений пока нет"
+          emptyDescription="Задайте вопрос — менеджер ответит здесь."
+        />
       ) : null}
 
       {tab === 'diagnosis' ? (

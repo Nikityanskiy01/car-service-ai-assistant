@@ -28,7 +28,7 @@ describe('resolveCaseNextStep', () => {
       bookingPreferredAt: '2026-07-31T01:14:00.000Z',
       bookingStatus: 'PENDING',
     });
-    expect(step.nowLabel).toMatch(/Визит запрошен/);
+    expect(step.nowLabel).toMatch(/Запись запрошена/);
     expect(step.yourStepLabel).toMatch(/подтвержд/);
     expect(step.tone).toBe('waiting');
     expect(step.primary.action).toBe('open_visit');
@@ -43,7 +43,7 @@ describe('resolveCaseNextStep', () => {
       bookingPreferredAt: '2026-07-31T01:14:00.000Z',
       bookingStatus: 'CONFIRMED',
     });
-    expect(step.nowLabel).toMatch(/Визит подтверждён/);
+    expect(step.nowLabel).toMatch(/Запись подтверждена/);
     expect(step.tone).toBe('visit');
   });
 
@@ -54,7 +54,7 @@ describe('resolveCaseNextStep', () => {
       requestId: 'req-1',
       bookingId: 'b-1',
     });
-    expect(step.nowLabel).toMatch(/Визит подтверждён/);
+    expect(step.nowLabel).toMatch(/Запись подтверждена/);
     expect(step.primary.action).toBe('open_visit');
   });
 });

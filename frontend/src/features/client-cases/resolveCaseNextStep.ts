@@ -101,9 +101,9 @@ export function resolveCaseNextStep(input: ResolveInput): CaseNextStepModel {
     return {
       tone: 'visit',
       icon: 'calendar',
-      nowLabel: when ? `Визит подтверждён на ${when}` : 'Визит подтверждён',
+      nowLabel: when ? `Запись подтверждена на ${when}` : 'Запись подтверждена',
       yourStepLabel: 'Приезжайте в сервис в указанное время',
-      primary: { label: 'Открыть визит', action: 'open_visit', variant: 'primary' },
+      primary: { label: 'Открыть запись', action: 'open_visit', variant: 'primary' },
       secondary: { label: 'Написать', action: 'write_message', variant: 'secondary' },
     };
   }
@@ -112,9 +112,9 @@ export function resolveCaseNextStep(input: ResolveInput): CaseNextStepModel {
     return {
       tone: 'waiting',
       icon: 'calendar',
-      nowLabel: when ? `Визит запрошен на ${when}` : 'Визит запрошен',
+      nowLabel: when ? `Запись запрошена на ${when}` : 'Запись запрошена',
       yourStepLabel: 'Ждём подтверждения времени менеджером',
-      primary: { label: 'Открыть визит', action: 'open_visit', variant: 'primary' },
+      primary: { label: 'Открыть запись', action: 'open_visit', variant: 'primary' },
       secondary: { label: 'Написать', action: 'write_message', variant: 'secondary' },
     };
   }
@@ -124,8 +124,8 @@ export function resolveCaseNextStep(input: ResolveInput): CaseNextStepModel {
       tone: 'active',
       icon: 'wrench',
       nowLabel: 'Сервис работает по обращению',
-      yourStepLabel: 'Запишитесь на визит или уточните детали у менеджера',
-      primary: { label: 'Записаться на визит', action: 'book_visit', variant: 'primary' },
+      yourStepLabel: 'Запишитесь в сервис или уточните детали у менеджера',
+      primary: { label: 'Записаться в сервис', action: 'book_visit', variant: 'primary' },
       secondary: { label: 'Написать', action: 'write_message', variant: 'secondary' },
     };
   }
@@ -134,8 +134,8 @@ export function resolveCaseNextStep(input: ResolveInput): CaseNextStepModel {
     tone: 'waiting',
     icon: 'hourglass',
     nowLabel: 'Менеджер ещё не взял обращение в работу',
-    yourStepLabel: 'Можно записаться на визит или написать вопрос',
-    primary: { label: 'Записаться на визит', action: 'book_visit', variant: 'primary' },
+    yourStepLabel: 'Можно записаться в сервис или написать вопрос',
+    primary: { label: 'Записаться в сервис', action: 'book_visit', variant: 'primary' },
     secondary: { label: 'Написать', action: 'write_message', variant: 'secondary' },
   };
 }

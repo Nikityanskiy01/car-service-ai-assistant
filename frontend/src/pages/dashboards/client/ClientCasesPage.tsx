@@ -35,7 +35,7 @@ import { usePageMeta } from '../../../hooks/usePageMeta';
 const EMPTY_COPY: Record<ClientCaseTab, { title: string; description: string; action: string }> = {
   active: {
     title: 'Пока нет активных обращений',
-    description: 'Опишите проблему в чате — здесь будет статус от заявки до визита.',
+    description: 'Опишите проблему в чате — здесь будет статус от заявки до записи.',
     action: 'Описать проблему',
   },
   archive: {
@@ -51,7 +51,7 @@ const EMPTY_COPY: Record<ClientCaseTab, { title: string; description: string; ac
 };
 
 export function ClientCasesPage() {
-  usePageMeta({ title: 'Мои обращения', description: 'История диагностики, заявок и визитов.' });
+  usePageMeta({ title: 'Мои обращения', description: 'История диагностики, заявок и записей.' });
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = parseClientCaseTab(searchParams.get('tab'));
   const vehicleId = searchParams.get('vehicleId');

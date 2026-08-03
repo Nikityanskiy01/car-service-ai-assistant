@@ -8,7 +8,6 @@ interface ServicesToolbarProps {
   query: string;
   category: string | null;
   sort: ServiceSort;
-  resultCount: number;
   onQueryChange: (value: string) => void;
   onCategoryChange: (value: string | null) => void;
   onSortChange: (value: ServiceSort) => void;
@@ -26,25 +25,17 @@ export function ServicesToolbar({
   query,
   category,
   sort,
-  resultCount,
   onQueryChange,
   onCategoryChange,
   onSortChange,
 }: ServicesToolbarProps) {
   const categories = getAllCategories(services);
-  const hasFilters = Boolean(query || category || sort !== 'default');
-
-  function resetFilters() {
-    onQueryChange('');
-    onCategoryChange(null);
-    onSortChange('default');
-  }
 
   return (
-    <div className="fm-svc-toolbar">
-      <div className="fm-svc-toolbar__top">
-        <div className="fm-svc-toolbar__search">
-          <Search size={18} aria-hidden="true" className="fm-svc-toolbar__search-icon" />
+    <div className="fm-works-toolbar">
+      <div className="fm-works-toolbar__row">
+        <div className="fm-works-search">
+          <Search size={18} aria-hidden="true" />
           <input
             type="search"
             value={query}
@@ -55,18 +46,18 @@ export function ServicesToolbar({
           {query ? (
             <button
               type="button"
-              className="fm-svc-toolbar__clear"
+              className="fm-works-search-clear"
               onClick={() => onQueryChange('')}
               aria-label="Очистить поиск"
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           ) : null}
         </div>
 
-        <label className="fm-svc-sort">
+        <label className="fm-works-sort">
           <ArrowDownUp size={15} aria-hidden="true" />
-          <span className="fm-svc-sort__label">Сортировка</span>
+          <span className="fm-works-sort__label">Сортировка</span>
           <select value={sort} onChange={(e) => onSortChange(e.target.value as ServiceSort)} aria-label="Сортировка">
             {sortOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -77,68 +68,40 @@ export function ServicesToolbar({
         </label>
       </div>
 
-      <div className="fm-svc-toolbar__cats-wrap">
-        <div className="fm-svc-cats" role="tablist" aria-label="Категории услуг">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!category}
-            className={!category ? 'is-active' : ''}
-            style={{ '--cat-accent': 'var(--fm-orange-hot)' } as CSSProperties}
-            onClick={() => onCategoryChange(null)}
-          >
-            <LayoutGrid size={14} aria-hidden="true" className="fm-svc-cats__icon" />
-            Все
-            <span className="fm-svc-cats__count">{services.length}</span>
-          </button>
-          {categories.map((cat) => {
-            const meta = getCategoryMeta(cat);
-            const Icon = meta.icon;
-            const count = services.filter((s) => s.category === cat).length;
+      <div className="fm-works-filters" role="tablist" aria-label="Категории услуг">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={!category}
+          className={`fm-works-filter${!category ? ' is-active' : ''}`}
+          onClick={() => onCategoryChange(null)}
+        >
+          <LayoutGrid size={14} aria-hidden="true" className="fm-works-filter__icon" />
+          Все
+          <span className="fm-works-filter-count">{services.length}</span>
+        </button>
+        {categories.map((cat) => {
+          const meta = getCategoryMeta(cat);
+          const Icon = meta.icon;
+          const count = services.filter((s) => s.category === cat).length;
+          if (count === 0) return null;
 
-            return (
-              <button
-                key={cat}
-                type="button"
-                role="tab"
-                aria-selected={category === cat}
-                className={category === cat ? 'is-active' : ''}
-                style={{ '--cat-accent': meta.accent } as CSSProperties}
-                onClick={() => onCategoryChange(cat)}
-              >
-                <Icon size={14} aria-hidden="true" className="fm-svc-cats__icon" />
-                {cat}
-                <span className="fm-svc-cats__count">{count}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="fm-svc-toolbar__footer">
-        <p className="fm-svc-toolbar__meta">
-          <span className="fm-svc-toolbar__count">{resultCount}</span>
-          {resultCount === 1 ? 'услуга' : resultCount >= 2 && resultCount <= 4 ? 'услуги' : 'услуг'}
-          {category ? (
-            <>
-              {' '}
-              в <em>{category}</em>
-            </>
-          ) : null}
-          {query ? (
-            <>
-              {' '}
-              по запросу «{query}»
-            </>
-          ) : null}
-        </p>
-
-        {hasFilters ? (
-          <button type="button" className="fm-svc-toolbar__reset" onClick={resetFilters}>
-            <X size={14} aria-hidden="true" />
-            Сбросить
-          </button>
-        ) : null}
+          return (
+            <button
+              key={cat}
+              type="button"
+              role="tab"
+              aria-selected={category === cat}
+              className={`fm-works-filter${category === cat ? ' is-active' : ''}`}
+              style={{ '--filter-accent': meta.accent } as CSSProperties}
+              onClick={() => onCategoryChange(cat)}
+            >
+              <Icon size={14} aria-hidden="true" className="fm-works-filter__icon" />
+              {cat}
+              <span className="fm-works-filter-count">{count}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

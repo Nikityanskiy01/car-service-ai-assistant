@@ -27,6 +27,8 @@ type Props = {
   model: CaseNextStepModel;
   onAction: (action: CaseNextStepCta['action']) => void;
   className?: string;
+  /** Скрыть кнопки — если дублируются sticky-баром на мобильном */
+  showActions?: boolean;
 };
 
 function actionIcon(action: CaseNextStepCta['action']): LucideIcon | null {
@@ -58,7 +60,7 @@ function ActionButton({
   );
 }
 
-export function CaseNextStep({ model, onAction, className = '' }: Props) {
+export function CaseNextStep({ model, onAction, className = '', showActions = true }: Props) {
   const Icon = ICONS[model.icon];
 
   return (
@@ -71,23 +73,20 @@ export function CaseNextStep({ model, onAction, className = '' }: Props) {
         <Icon size={22} strokeWidth={2.2} />
       </div>
       <div className="case-next-step-copy">
-        <p className="case-next-step-now">
-          <span className="case-next-step-kicker">Сейчас</span>
-          <span className="case-next-step-now-text">{model.nowLabel}</span>
-        </p>
+        <span className="case-next-step-kicker">Что дальше</span>
+        <p className="case-next-step-now-text">{model.nowLabel}</p>
         {model.yourStepLabel ? (
-          <p className="case-next-step-yours">
-            <span className="case-next-step-kicker">Ваш шаг</span>
-            <span>{model.yourStepLabel}</span>
-          </p>
+          <p className="case-next-step-yours">{model.yourStepLabel}</p>
         ) : null}
       </div>
-      <div className="case-next-step-actions">
-        <ActionButton cta={model.primary} onAction={onAction} emphasis="primary" />
-        {model.secondary ? (
-          <ActionButton cta={model.secondary} onAction={onAction} emphasis="secondary" />
-        ) : null}
-      </div>
+      {showActions ? (
+        <div className="case-next-step-actions">
+          <ActionButton cta={model.primary} onAction={onAction} emphasis="primary" />
+          {model.secondary ? (
+            <ActionButton cta={model.secondary} onAction={onAction} emphasis="secondary" />
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

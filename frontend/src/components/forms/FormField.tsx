@@ -34,13 +34,13 @@ export function FormField({
   return (
     <div className="form-field">
       <label className="form-field-label" htmlFor={htmlFor}>
-        {label}
+        <span>{label}</span>
+        {hint ? (
+          <small id={hintId} className="field-hint">
+            {hint}
+          </small>
+        ) : null}
       </label>
-      {hint ? (
-        <small id={hintId} className="field-hint">
-          {hint}
-        </small>
-      ) : null}
       {control}
       {error ? (
         <small id={errorId} className="field-error" aria-live="polite">

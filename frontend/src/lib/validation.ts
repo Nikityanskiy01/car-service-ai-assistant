@@ -76,3 +76,9 @@ export function getPasswordError(raw: string): string | null {
   if (!passwordMeetsPolicy(raw)) return VALIDATION_MESSAGES.password;
   return null;
 }
+
+export function getPasswordConfirmError(password: string, confirm: string): string | null {
+  if (!String(confirm || '').length) return 'Повторите пароль';
+  if (password !== confirm) return 'Пароли не совпадают';
+  return null;
+}

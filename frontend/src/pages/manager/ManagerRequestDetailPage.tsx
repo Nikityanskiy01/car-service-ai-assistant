@@ -32,8 +32,8 @@ import { RequestSummaryPanel } from '../../components/requests/RequestSummaryPan
 import { SimilarCasesPanel } from '../../components/requests/SimilarCasesPanel';
 import { UserMessage } from '../../components/consultation/UserMessage';
 import { ManagerPicker } from '../../components/manager/ManagerPicker';
+import { FollowUpChatPanel } from '../../components/messages/FollowUpChatPanel';
 import { MessageAttachmentInput, type PendingAttachment } from '../../components/requests/MessageAttachmentInput';
-import { MessageAttachmentList } from '../../components/requests/MessageAttachmentList';
 import { RequestStatusSelector } from '../../components/requests/RequestStatusSelector';
 import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
@@ -45,7 +45,6 @@ import { IntegrationStatusBadge } from '../../components/ui/IntegrationStatusBad
 import { Loader } from '../../components/ui/Loader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
-import { Textarea } from '../../components/ui/Textarea';
 import { UrgencyBadge } from '../../components/consultation/UrgencyBadge';
 import { MESSAGE_TEMPLATES } from '../../lib/messageTemplates';
 import {
@@ -265,7 +264,7 @@ export function ManagerRequestDetailPage() {
               </>
             ) : null}
             <Button variant="secondary" onClick={() => openBooking()}>
-              Назначить визит
+              Назначить запись
             </Button>
             <Button
               variant="ghost"
@@ -397,62 +396,23 @@ export function ManagerRequestDetailPage() {
       )}
 
       {tab === 'messages' && (
-        <Card>
-          <div className="message-thread">
-            {messages.length ? (
-              messages.map((m) => (
-                <article key={m.id} className="follow-up-message">
-                  <header>
-                    <strong>{m.author?.fullName || 'Менеджер'}</strong>
-                    <time>{new Date(m.createdAt).toLocaleString('ru-RU')}</time>
-                  </header>
-                  <p>{m.body || null}</p>
-                  <MessageAttachmentList attachments={m.attachments} />
-                </article>
-              ))
-            ) : (
-              <EmptyState title="Сообщений пока нет" description="Напишите клиенту первое сообщение." />
-            )}
-          </div>
-          <div className="message-compose">
-            {threadClosed ? (
-              <p className="muted">Переписка закрыта — заявка завершена или отменена.</p>
-            ) : (
-              <>
-            <div className="message-templates" role="group" aria-label="Шаблоны ответов">
-              {MESSAGE_TEMPLATES.map((tpl) => (
-                <Button
-                  key={tpl.id}
-                  type="button"
-                  variant="ghost"
-                  className="message-template-btn"
-                  onClick={() => setReply(tpl.body)}
-                >
-                  {tpl.label}
-                </Button>
-              ))}
-            </div>
-            <Textarea
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              placeholder="Ответ клиенту…"
-              rows={3}
-            />
-            <MessageAttachmentInput
-              files={pendingAttachments}
-              onChange={setPendingAttachments}
-              disabled={sending}
-            />
-            <Button
-              disabled={sending || (!reply.trim() && !pendingAttachments.length)}
-              onClick={() => void submitReply()}
-            >
-              Отправить
-            </Button>
-              </>
-            )}
-          </div>
-        </Card>
+        <FollowUpChatPanel
+          messages={messages}
+          value={reply}
+          onChange={setReply}
+          onSubmit={submitReply}
+          disabled={threadClosed}
+          sending={sending}
+          error={null}
+          placeholder="Ответ клиенту..."
+          attachments={pendingAttachments}
+          onAttachmentsChange={setPendingAttachments}
+          templates={threadClosed ? undefined : MESSAGE_TEMPLATES.map((tpl) => ({ id: tpl.id, label: tpl.label, body: tpl.body }))}
+          closedMessage={threadClosed ? 'Переписка закрыта — заявка завершена или отменена.' : undefined}
+          viewerRole="MANAGER"
+          emptyTitle="Сообщений пока нет"
+          emptyDescription="Напишите клиенту первое сообщение."
+        />
       )}
 
       {tab === 'works' && (

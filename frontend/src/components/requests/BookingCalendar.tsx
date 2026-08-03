@@ -30,7 +30,7 @@ export function BookingCalendar({
     <section className="booking-calendar">
       <h3>Календарь записей</h3>
       {Object.keys(grouped).length === 0 ? (
-        <p>Пока нет назначенных визитов.</p>
+        <p>Пока нет назначенных записей.</p>
       ) : (
         <div className="booking-days">
           {Object.entries(grouped).map(([day, items]) => (

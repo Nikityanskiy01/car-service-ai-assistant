@@ -30,8 +30,8 @@ async function upsertUser({ email, password, fullName, phone, role }) {
   const passwordHash = await bcrypt.hash(password, 10);
   return prisma.user.upsert({
     where: { email },
-    update: { passwordHash, fullName, phone, role, blocked: false },
-    create: { email, passwordHash, fullName, phone, role },
+    update: { passwordHash, fullName, phone, role, blocked: false, emailVerifiedAt: new Date() },
+    create: { email, passwordHash, fullName, phone, role, emailVerifiedAt: new Date() },
   });
 }
 
@@ -368,7 +368,7 @@ async function main() {
         { sender: 'USER', content: 'Не помню, возможно никогда.' },
         { sender: 'ASSISTANT', content: 'С высокой вероятностью поможет сервис АКПП. Нужна диагностика на посту.' },
       ],
-      followUps: ['Ждём вас на диагностику АКПП. Не прогревайте агрессивно до визита.'],
+      followUps: ['Ждём вас на диагностику АКПП. Не прогревайте агрессивно до записи.'],
       booking: {
         preferredAt: hoursFromNow(50),
         status: 'PENDING',
@@ -414,7 +414,7 @@ async function main() {
       progressPercent: 70,
       confidencePercent: 60,
       costFromMinor: 9000,
-      preliminaryNote: 'Клиент отменил визит.',
+      preliminaryNote: 'Клиент отменил запись.',
       recommendations: [{ title: 'Ступичный подшипник', probabilityPercent: 70 }],
       messages: [
         { sender: 'USER', content: 'Vesta, гул справа на скорости.' },

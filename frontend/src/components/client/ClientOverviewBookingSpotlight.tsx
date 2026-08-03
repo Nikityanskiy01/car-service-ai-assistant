@@ -26,16 +26,16 @@ export function ClientOverviewBookingSpotlight({
     const ics = buildBookingIcs({
       id: booking.id,
       preferredAt: booking.preferredAt,
-      title: `Визит — ${serviceName}`,
+      title: `Запись — ${serviceName}`,
       location: serviceAddress,
     });
     downloadBookingIcs(ics, `booking-${booking.id}.ics`);
   }
 
   return (
-    <section className="client-overview-booking-hero" aria-label="Ближайший визит">
+    <section className="client-overview-booking-hero" aria-label="Ближайшая запись">
       <div className="client-overview-booking-hero-head">
-        <span className="client-overview-booking-kicker">Ближайший визит</span>
+        <span className="client-overview-booking-kicker">Ближайшая запись</span>
         <Link to="/dashboard/client/bookings">Все записи</Link>
       </div>
       <article className="client-overview-booking-spotlight" data-status-tone={tone}>

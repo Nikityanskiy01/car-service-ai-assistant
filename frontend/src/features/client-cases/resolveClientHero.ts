@@ -86,7 +86,7 @@ export function resolveClientHero(summary: ClientDashboardSummary): ClientHeroSt
 
   if (summary.nextBooking) {
     return {
-      title: `Визит: ${formatBookingDate(summary.nextBooking.preferredAt)}`,
+      title: `Запись: ${formatBookingDate(summary.nextBooking.preferredAt)}`,
       description:
         summary.nextBooking.status === 'CONFIRMED'
           ? 'Запись подтверждена — ждём вас в сервисе.'

@@ -38,7 +38,7 @@ describe('presentClientCase', () => {
     );
     expect(presented.group).toBe('scheduled');
     expect(presented.bookingParts).not.toBeNull();
-    expect(presented.statusLine).toContain('Визит');
+    expect(presented.statusLine).toContain('Запись');
   });
 
   it('groups cases by stage', () => {

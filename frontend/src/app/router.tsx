@@ -17,6 +17,15 @@ const PrivacyPage = lazy(() => import('../pages/public/PrivacyPage').then((m) =>
 const TermsPage = lazy(() => import('../pages/public/TermsPage').then((m) => ({ default: m.TermsPage })));
 const LoginPage = lazy(() => import('../pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() =>
+  import('../pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
+);
+const ResetPasswordPage = lazy(() =>
+  import('../pages/auth/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })),
+);
+const VerifyEmailPage = lazy(() =>
+  import('../pages/auth/VerifyEmailPage').then((m) => ({ default: m.VerifyEmailPage })),
+);
 const ClientOverviewPage = lazy(() =>
   import('../pages/dashboards/client/ClientOverviewPage').then((m) => ({ default: m.ClientOverviewPage })),
 );
@@ -35,6 +44,9 @@ const ClientBookingDetailPage = lazy(() =>
   })),
 );
 const ProfilePage = lazy(() => import('../pages/dashboards/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const ClientVehiclesPage = lazy(() =>
+  import('../pages/dashboards/client/ClientVehiclesPage').then((m) => ({ default: m.ClientVehiclesPage })),
+);
 const ManagerWorkDeskPage = lazy(() =>
   import('../pages/manager/ManagerWorkDeskPage').then((m) => ({ default: m.ManagerWorkDeskPage })),
 );
@@ -172,6 +184,9 @@ export const router = createBrowserRouter([
       { path: 'terms', element: withSuspense(<TermsPage />) },
       { path: 'login', element: withSuspense(<LoginPage />) },
       { path: 'register', element: withSuspense(<RegisterPage />) },
+      { path: 'forgot-password', element: withSuspense(<ForgotPasswordPage />) },
+      { path: 'reset-password', element: withSuspense(<ResetPasswordPage />) },
+      { path: 'verify-email', element: withSuspense(<VerifyEmailPage />) },
       { path: '401', element: withSuspense(<StatusErrorPage code={401} />) },
       { path: '402', element: withSuspense(<StatusErrorPage code={402} />) },
       { path: '403', element: withSuspense(<ForbiddenPage />) },
@@ -240,6 +255,14 @@ export const router = createBrowserRouter([
         element: (
           <RoleRoute roles={['CLIENT']}>
             {withSuspense(<ClientBookingDetailPage />)}
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'client/vehicles',
+        element: (
+          <RoleRoute roles={['CLIENT']}>
+            {withSuspense(<ClientVehiclesPage />)}
           </RoleRoute>
         ),
       },

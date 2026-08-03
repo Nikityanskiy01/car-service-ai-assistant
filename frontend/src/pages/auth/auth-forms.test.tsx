@@ -53,6 +53,7 @@ describe('auth forms', () => {
     await userEvent.type(screen.getByLabelText('Телефон'), '+79990000000');
     await userEvent.type(screen.getByLabelText('Email'), 'client@example.local');
     await userEvent.type(screen.getByLabelText('Пароль'), 'Password123!ab');
+    await userEvent.type(screen.getByLabelText('Подтверждение пароля'), 'Password123!ab');
     await userEvent.click(screen.getByRole('checkbox'));
     await userEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }));
     expect(await screen.findByRole('button', { name: /Регистрация|Создать аккаунт|Регистрация.../i })).toBeInTheDocument();

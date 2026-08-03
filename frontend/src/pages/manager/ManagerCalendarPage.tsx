@@ -72,7 +72,7 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
     <div className="stack dashboard-page">
       <PageHeader
         title={adminZone ? 'Записи' : 'Календарь'}
-        description="Запланированные визиты и записи клиентов."
+        description="Запланированные записи и записи клиентов."
         breadcrumbs={
           adminZone
             ? [

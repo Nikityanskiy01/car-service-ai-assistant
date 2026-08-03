@@ -55,7 +55,7 @@ const STEPS = [
     id: 2,
     label: 'Контакты',
     title: 'Как с вами связаться?',
-    description: 'Нужны только для уточнения деталей визита.',
+    description: 'Нужны только для уточнения деталей записьа.',
     icon: UserRound,
   },
   {
@@ -513,7 +513,7 @@ export function BookingPage() {
       <div className="booking-review stack">
         <dl className="booking-wizard-review">
           <div>
-            <dt>Время визита</dt>
+            <dt>Время записи</dt>
             <dd>{formatSummaryDate(preferredAt)}</dd>
           </div>
           {!isClient ? (
@@ -648,7 +648,7 @@ export function BookingPage() {
               <Sparkles size={16} aria-hidden="true" />
               <span>
                 <strong>Не знаете причину поломки?</strong>
-                <small>Бесплатная ИИ-диагностика перед визитом</small>
+                <small>Бесплатная ИИ-диагностика перед записью</small>
               </span>
             </Link>
           ) : null}

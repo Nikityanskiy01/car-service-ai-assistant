@@ -18,7 +18,7 @@ export function ConfirmDialog({
     <Modal open={open} title={title} onClose={onCancel}>
       <p>{text}</p>
       <div className="row gap-sm">
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel}>
           Отмена
         </Button>
         <Button variant="danger" onClick={onConfirm}>
