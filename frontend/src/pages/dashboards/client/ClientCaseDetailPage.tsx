@@ -508,22 +508,26 @@ export function ClientCaseDetailPage() {
           id="tabpanel-messages"
           aria-labelledby="tab-messages"
         >
-          <header className="case-detail-section-head">
-            <h2>Сообщения с менеджером</h2>
-            <p className="muted-text">Вопросы, уточнения и ответы сервиса</p>
-          </header>
           {!request ? (
-            <EmptyState
-              title="Сообщения появятся после обращения"
-              description="Завершите диагностику и создайте обращение — менеджер ответит здесь."
-              action={
-                <Button variant="secondary" onClick={continueConsultation}>
-                  Продолжить диагностику
-                </Button>
-              }
-            />
+            <>
+              <header className="case-detail-section-head">
+                <h2>Сообщения с менеджером</h2>
+                <p className="muted-text">Вопросы, уточнения и ответы сервиса</p>
+              </header>
+              <EmptyState
+                title="Сообщения появятся после обращения"
+                description="Завершите диагностику и создайте обращение — менеджер ответит здесь."
+                action={
+                  <Button variant="secondary" onClick={continueConsultation}>
+                    Продолжить диагностику
+                  </Button>
+                }
+              />
+            </>
           ) : (
             <FollowUpChatPanel
+              title="Сообщения с менеджером"
+              subtitle="Вопросы, уточнения и ответы сервиса"
               messages={messages}
               value={reply}
               onChange={setReply}
@@ -559,24 +563,26 @@ export function ClientCaseDetailPage() {
         </div>
       ) : null}
 
-      <div className="case-detail-sticky-actions case-next-step-actions" data-tone={nextStep.tone}>
-        <button
-          type="button"
-          className="case-next-cta is-primary"
-          onClick={() => handleNextStepAction(nextStep.primary.action)}
-        >
-          {nextStep.primary.label}
-        </button>
-        {nextStep.secondary ? (
+      {tab !== 'messages' ? (
+        <div className="case-detail-sticky-actions case-next-step-actions" data-tone={nextStep.tone}>
           <button
             type="button"
-            className="case-next-cta is-secondary"
-            onClick={() => handleNextStepAction(nextStep.secondary!.action)}
+            className="case-next-cta is-primary"
+            onClick={() => handleNextStepAction(nextStep.primary.action)}
           >
-            {nextStep.secondary.label}
+            {nextStep.primary.label}
           </button>
-        ) : null}
-      </div>
+          {nextStep.secondary ? (
+            <button
+              type="button"
+              className="case-next-cta is-secondary"
+              onClick={() => handleNextStepAction(nextStep.secondary!.action)}
+            >
+              {nextStep.secondary.label}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

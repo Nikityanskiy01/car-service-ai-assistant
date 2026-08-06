@@ -23,7 +23,7 @@ const routeTitles: Record<string, string> = {
   '/dashboard/client': 'Кабинет клиента',
   '/dashboard/client/cases': 'Мои обращения',
   '/dashboard/client/bookings': 'Мои записи',
-  '/dashboard/client/vehicles': 'Мои автомобили',
+  '/dashboard/client/vehicles': 'Гараж',
   '/dashboard/client/profile': 'Профиль',
   '/dashboard/manager': 'Рабочий стол',
   '/dashboard/manager/profile': 'Профиль',

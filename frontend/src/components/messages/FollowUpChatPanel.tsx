@@ -4,6 +4,15 @@ import { Card } from '../ui/Card';
 import { FollowUpChatComposer } from './FollowUpChatComposer';
 import { FollowUpChatThread } from './FollowUpChatThread';
 
+function messagesLabel(count: number) {
+  const abs = Math.abs(count) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return 'сообщений';
+  if (last > 1 && last < 5) return 'сообщения';
+  if (last === 1) return 'сообщение';
+  return 'сообщений';
+}
+
 type Template = {
   id: string;
   label: string;
@@ -26,6 +35,8 @@ type Props = {
   viewerRole?: 'CLIENT' | 'MANAGER' | 'ADMINISTRATOR';
   emptyTitle?: string;
   emptyDescription?: string;
+  title?: string;
+  subtitle?: string;
 };
 
 export function FollowUpChatPanel({
@@ -44,9 +55,24 @@ export function FollowUpChatPanel({
   viewerRole = 'CLIENT',
   emptyTitle,
   emptyDescription,
+  title,
+  subtitle,
 }: Props) {
   return (
     <Card className="consult-chat-card follow-up-chat-card">
+      {title ? (
+        <header className="follow-up-chat-head">
+          <div>
+            <h2>{title}</h2>
+            {subtitle ? <p>{subtitle}</p> : null}
+          </div>
+          {messages.length > 0 ? (
+            <span className="follow-up-chat-count">
+              {messages.length} {messagesLabel(messages.length)}
+            </span>
+          ) : null}
+        </header>
+      ) : null}
       <div className="consult-chat-body">
         <FollowUpChatThread
           messages={messages}

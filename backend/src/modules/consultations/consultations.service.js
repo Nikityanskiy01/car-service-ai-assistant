@@ -16,6 +16,7 @@ import {
 } from '../../services/consultationFlowService.js';
 import { createAndEnqueueDiagnosisJob } from '../../services/diagnosisJob.service.js';
 import { detectServiceType } from '../../services/consultationIntent.service.js';
+import { answerServiceHistoryQuestion } from '../../services/serviceHistoryLookup.service.js';
 import { linkSessionToVehicle } from '../vehicles/vehicles.service.js';
 
 const sessionDetailInclude = {
@@ -233,6 +234,38 @@ export async function postMessage(sessionId, actor, content, onProgress) {
       messages: { orderBy: { createdAt: 'asc' } },
     },
   });
+
+  const historyAnswer = await answerServiceHistoryQuestion({
+    clientId: session.clientId,
+    vehicleId: session.vehicleId,
+    message: trimmed,
+  });
+
+  if (historyAnswer?.handled) {
+    const priorFlow =
+      session.flowState && typeof session.flowState === 'object' && !Array.isArray(session.flowState)
+        ? session.flowState
+        : {};
+    await prisma.$transaction([
+      prisma.message.create({
+        data: { sessionId, sender: 'ASSISTANT', content: historyAnswer.assistant_message },
+      }),
+      prisma.consultationSession.update({
+        where: { id: sessionId },
+        data: {
+          flowState: {
+            ...priorFlow,
+            stage: 'SERVICE_HISTORY',
+            intent: 'service',
+            service_type: 'oil_change',
+            maintenance_cta: historyAnswer.maintenance_cta || null,
+            service_history_plan: historyAnswer.plan || null,
+          },
+        },
+      }),
+    ]);
+    return getSessionDetail(sessionId, actor);
+  }
 
   const ai = await buildConsultationState(afterUser, trimmed, onProgress);
   const mergedExtracted = mergeExtracted(

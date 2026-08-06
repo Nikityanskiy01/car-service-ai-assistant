@@ -319,6 +319,8 @@ export type ConsultationFeedbackInput = {
   repairAmountMinor?: number | null;
   workOrderNumber?: string | null;
   repairCompletedAt?: string | null;
+  repairMileageKm?: number | null;
+  workCategory?: string | null;
 };
 
 export type ConsultationFeedbackRecord = {
@@ -330,6 +332,8 @@ export type ConsultationFeedbackRecord = {
   repairAmountMinor?: number | null;
   workOrderNumber?: string | null;
   repairCompletedAt?: string | null;
+  repairMileageKm?: number | null;
+  workCategory?: string | null;
   createdAt: string;
   updatedAt: string;
   manager?: { id: string; fullName: string };

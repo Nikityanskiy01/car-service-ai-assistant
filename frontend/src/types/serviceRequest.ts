@@ -62,6 +62,8 @@ export type ConsultationFeedback = {
   repairAmountMinor?: number | null;
   workOrderNumber?: string | null;
   repairCompletedAt?: string | null;
+  repairMileageKm?: number | null;
+  workCategory?: string | null;
   createdAt: string;
   updatedAt: string;
   manager?: { id: string; fullName: string };

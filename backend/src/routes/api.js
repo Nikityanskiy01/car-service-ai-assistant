@@ -18,6 +18,7 @@ import { requestMessagesRouter } from '../modules/requestMessages/requestMessage
 import { serviceRequestsRouter } from '../modules/serviceRequests/serviceRequests.router.js';
 import { usersRouter } from '../modules/users/users.router.js';
 import { vehiclesRouter } from '../modules/vehicles/vehicles.router.js';
+import { serviceRecordsRouter } from '../modules/serviceRecords/serviceRecords.router.js';
 
 const api = Router();
 
@@ -38,6 +39,7 @@ api.use('/contact', contactRouter);
 api.use('/content', contentRouter);
 api.use('/users', usersRouter);
 api.use('/vehicles', vehiclesRouter);
+api.use(serviceRecordsRouter);
 api.use('/consultations', consultationsRouter);
 api.use('/service-requests', serviceRequestsRouter);
 api.use('/service-requests/:requestId/messages', requestMessagesRouter);

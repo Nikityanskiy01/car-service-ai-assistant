@@ -26,6 +26,49 @@ export function DiagnosticSummary({
   fallbackConfidence?: number | null;
   onCreateRequest?: () => void;
 }) {
+  const isServiceHistory =
+    detail?.flowState?.stage === 'SERVICE_HISTORY' || Boolean(detail?.flowState?.maintenance_cta);
+
+  if (isServiceHistory) {
+    const plan = detail?.flowState?.service_history_plan;
+    const status = plan?.status || detail?.flowState?.maintenance_cta?.status;
+    return (
+      <section
+        className={`diagnostic-summary diagnostic-summary--service-history ${
+          status === 'overdue' ? 'is-overdue' : status === 'soon' ? 'is-soon' : ''
+        }`}
+        aria-label="История обслуживания"
+      >
+        <header className="diagnostic-summary__header">
+          <h3>Сервисная книжка</h3>
+          <span className="diagnostic-summary__status">Замена масла</span>
+        </header>
+        <p className="diagnostic-summary__lead">
+          Ответ по вашей истории обслуживания. Можно сразу записаться или открыть книжку авто.
+        </p>
+        {plan?.hasHistory && plan.lastRecord ? (
+          <div className="service-history-snapshot">
+            <div>
+              <span className="muted">Последняя</span>
+              <strong>
+                {plan.lastRecord.performedAt
+                  ? new Date(plan.lastRecord.performedAt).toLocaleDateString('ru-RU')
+                  : '—'}
+              </strong>
+            </div>
+            {plan.plan?.nextDueAt ? (
+              <div>
+                <span className="muted">Следующая</span>
+                <strong>{new Date(plan.plan.nextDueAt).toLocaleDateString('ru-RU')}</strong>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <DiagnosisActions detail={detail ?? null} />
+      </section>
+    );
+  }
+
   if (!recommendations.length && !diagnosis && !fallbackCost && !fallbackConfidence) return null;
   const isManualReview = diagnosis?.analysis_available === false || diagnosis?.status === 'MANUAL_REVIEW_REQUIRED';
   if (isManualReview) {

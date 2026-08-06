@@ -59,6 +59,7 @@ export function FollowUpChatComposer({
       const el = textareaRef.current;
       if (!el) return;
       el.style.height = 'auto';
+      el.focus();
     });
   }
 
@@ -67,6 +68,17 @@ export function FollowUpChatComposer({
     event.preventDefault();
     if (!canSend) return;
     void handleSubmit(event);
+  }
+
+  function applyTemplate(body: string) {
+    onChange(body);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      const len = body.length;
+      el.setSelectionRange(len, len);
+    });
   }
 
   if (closedMessage) {
@@ -83,7 +95,7 @@ export function FollowUpChatComposer({
                 key={template.id}
                 type="button"
                 disabled={disabled || sending}
-                onClick={() => onChange(template.body)}
+                onClick={() => applyTemplate(template.body)}
               >
                 {template.label}
               </button>
@@ -128,7 +140,7 @@ export function FollowUpChatComposer({
           disabled={!canSend}
           aria-label={sending ? 'Отправка...' : 'Отправить'}
         >
-          <Send size={18} aria-hidden />
+          <Send size={16} aria-hidden />
         </button>
       </div>
 

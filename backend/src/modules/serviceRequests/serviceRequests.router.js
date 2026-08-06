@@ -57,6 +57,11 @@ const feedbackSchema = z.object({
   repairAmountMinor: z.number().int().min(0).optional().nullable(),
   workOrderNumber: z.string().max(120).optional().nullable(),
   repairCompletedAt: z.string().datetime().optional().nullable(),
+  repairMileageKm: z.number().int().min(0).max(2_000_000).optional().nullable(),
+  workCategory: z
+    .enum(['oil_change', 'maintenance', 'brakes', 'filters', 'tires', 'other'])
+    .optional()
+    .nullable(),
 });
 
 export const serviceRequestsRouter = Router();

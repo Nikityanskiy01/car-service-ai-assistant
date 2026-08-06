@@ -70,6 +70,29 @@ export interface ConsultationFlowState {
   diagnosis_job_status?: string | null;
   obd_interpretations?: ObdCodeInterpretation[];
   photo_observations?: PhotoObservations | null;
+  maintenance_cta?: {
+    vehicleId?: string;
+    action?: 'book' | 'add_record' | string;
+    category?: string;
+    status?: string;
+    nextDueAt?: string | null;
+    nextDueMileage?: number | null;
+  } | null;
+  service_history_plan?: {
+    hasHistory?: boolean;
+    status?: string;
+    plan?: {
+      nextDueAt?: string | null;
+      nextDueMileage?: number | null;
+      lastPerformedAt?: string | null;
+      lastMileageKm?: number | null;
+    } | null;
+    lastRecord?: {
+      performedAt?: string;
+      mileageKm?: number | null;
+      title?: string;
+    } | null;
+  } | null;
 }
 
 export type ConsultationDiagnosisJob = {

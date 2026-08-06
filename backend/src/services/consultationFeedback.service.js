@@ -2,6 +2,8 @@ import prisma from '../lib/prisma.js';
 import { AppError } from '../lib/errors.js';
 import { getEnv } from '../config/env.js';
 import { createTtlCache } from '../lib/ttlCache.js';
+import { inferCategoryFromText } from '../lib/maintenanceIntervals.js';
+import { upsertFromManagerFeedback } from '../modules/serviceRecords/serviceRecords.service.js';
 
 const fewShotCache = createTtlCache(10 * 60_000);
 
@@ -41,6 +43,8 @@ export function validateFeedbackInput({
   repairAmountMinor,
   workOrderNumber,
   repairCompletedAt,
+  repairMileageKm,
+  workCategory,
 }) {
   const cause = String(actualCause || '').trim();
   const works = String(worksDone || '').trim();
@@ -64,6 +68,22 @@ export function validateFeedbackInput({
     }
     repairDate = d;
   }
+  let mileage = null;
+  if (repairMileageKm != null && repairMileageKm !== '') {
+    const parsed = Number(repairMileageKm);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 2_000_000) {
+      throw new AppError(400, 'Некорректный пробег', 'BAD_REQUEST');
+    }
+    mileage = Math.round(parsed);
+  }
+  const allowedCategories = ['oil_change', 'maintenance', 'brakes', 'filters', 'tires', 'other'];
+  let category = String(workCategory || '').trim() || null;
+  if (category && !allowedCategories.includes(category)) {
+    category = inferCategoryFromText(`${works} ${cause}`);
+  }
+  if (!category) {
+    category = inferCategoryFromText(works);
+  }
   return {
     verdict,
     actualCause: cause || null,
@@ -71,6 +91,8 @@ export function validateFeedbackInput({
     repairAmountMinor: amount,
     workOrderNumber: orderNo || null,
     repairCompletedAt: repairDate,
+    repairMileageKm: mileage,
+    workCategory: category,
   };
 }
 
@@ -78,10 +100,22 @@ export async function upsertFeedbackForRequest(requestId, managerId, input) {
   const data = validateFeedbackInput(input);
   const sr = await prisma.serviceRequest.findUnique({
     where: { id: requestId },
-    select: { consultationSessionId: true },
+    select: {
+      id: true,
+      consultationSessionId: true,
+      vehicleId: true,
+      clientId: true,
+      consultationSession: {
+        select: {
+          extracted: { select: { mileage: true } },
+        },
+      },
+    },
   });
   if (!sr) throw new AppError(404, 'Not found', 'NOT_FOUND');
 
+  // Store mileage/category on feedback via side-channel fields if schema has them;
+  // otherwise only sync into VehicleServiceRecord.
   const row = await prisma.consultationFeedback.upsert({
     where: { sessionId: sr.consultationSessionId },
     create: {
@@ -108,7 +142,44 @@ export async function upsertFeedbackForRequest(requestId, managerId, input) {
     },
   });
   fewShotCache.clear();
-  return serializeFeedback(row);
+
+  const mileage =
+    data.repairMileageKm ?? sr.consultationSession?.extracted?.mileage ?? null;
+
+  if (
+    sr.vehicleId &&
+    sr.clientId &&
+    (data.worksDone || data.repairCompletedAt || data.workOrderNumber || data.repairAmountMinor)
+  ) {
+    try {
+      await upsertFromManagerFeedback({
+        feedbackId: row.id,
+        managerId,
+        serviceRequestId: sr.id,
+        vehicleId: sr.vehicleId,
+        clientId: sr.clientId,
+        performedAt: data.repairCompletedAt || row.createdAt,
+        mileageKm: mileage,
+        worksDone: data.worksDone,
+        workOrderNumber: data.workOrderNumber,
+        amountMinor: data.repairAmountMinor,
+        category: data.workCategory,
+        title: null,
+      });
+    } catch (err) {
+      const { logger } = await import('../lib/logger.js');
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err), requestId },
+        'service record sync from feedback failed',
+      );
+    }
+  }
+
+  return {
+    ...serializeFeedback(row),
+    repairMileageKm: mileage,
+    workCategory: data.workCategory,
+  };
 }
 
 export async function getFeedbackForRequest(requestId) {

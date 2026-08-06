@@ -38,7 +38,7 @@ export const clientNavItems: DashboardNavItem[] = [
   { id: 'client-home', label: 'Обзор', to: '/dashboard/client', icon: LayoutDashboard, group: 'Кабинет' },
   { id: 'client-cases', label: 'Мои обращения', to: '/dashboard/client/cases', icon: ClipboardList, group: 'Кабинет' },
   { id: 'client-bookings', label: 'Записи', to: '/dashboard/client/bookings', icon: CalendarDays, group: 'Кабинет' },
-  { id: 'client-vehicles', label: 'Мои автомобили', to: '/dashboard/client/vehicles', icon: Car, group: 'Кабинет' },
+  { id: 'client-vehicles', label: 'Гараж', to: '/dashboard/client/vehicles', icon: Car, group: 'Кабинет' },
   { id: 'client-profile', label: 'Профиль', to: '/dashboard/client/profile', icon: User, group: 'Кабинет' },
   { id: 'client-consult', label: 'ИИ-диагностика', to: '/consult', icon: Wrench },
 ];

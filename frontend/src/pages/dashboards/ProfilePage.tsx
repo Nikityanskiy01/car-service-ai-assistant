@@ -251,7 +251,7 @@ export function ProfilePage() {
             </div>
             <Link className="profile-hero-link" to="/dashboard/client/vehicles">
               <Car size={15} aria-hidden />
-              Мои автомобили
+              Гараж
             </Link>
           </div>
         ) : null}

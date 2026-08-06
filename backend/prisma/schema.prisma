@@ -172,6 +172,8 @@ model User {
   serviceRequestStatusLogs ServiceRequestStatusLog[]
   clientVehicles           ClientVehicle[]
   clientVehicleExclusions  ClientVehicleExclusion[]
+  clientServiceRecords     VehicleServiceRecord[] @relation("ClientServiceRecords")
+  createdServiceRecords    VehicleServiceRecord[] @relation("ServiceRecordCreator")
 
   @@map("users")
 }
@@ -190,23 +192,60 @@ model ClientVehicleExclusion {
 }
 
 model ClientVehicle {
-  id        String   @id @default(uuid())
-  clientId  String   @map("client_id")
-  make      String
-  model     String
-  year      Int?
-  vin       String?
-  notes     String?
-  source    String   @default("manual")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid())
+  clientId         String   @map("client_id")
+  make             String
+  model            String
+  year             Int?
+  vin              String?
+  notes            String?
+  source           String   @default("manual")
+  currentMileageKm Int?     @map("current_mileage_km")
+  photoUrl         String?  @map("photo_url")
+  licensePlate     String?  @map("license_plate")
+  color            String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  client               User                  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client               User                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   consultationSessions ConsultationSession[]
   serviceRequests      ServiceRequest[]
+  serviceRecords       VehicleServiceRecord[]
 
   @@index([clientId])
   @@map("client_vehicles")
+}
+
+/** Сервисная книжка: выполненные работы по авто (ТО, замена масла, ЗН). */
+model VehicleServiceRecord {
+  id                     String    @id @default(uuid())
+  vehicleId              String    @map("vehicle_id")
+  clientId               String    @map("client_id")
+  performedAt            DateTime  @map("performed_at")
+  mileageKm              Int?      @map("mileage_km")
+  title                  String
+  category               String    @default("other")
+  worksDone              String?   @map("works_done")
+  workOrderNumber        String?   @map("work_order_number")
+  amountMinor            Int?      @map("amount_minor")
+  source                 String    @default("client_manual")
+  serviceRequestId       String?   @map("service_request_id")
+  consultationFeedbackId String?   @map("consultation_feedback_id")
+  createdById            String?   @map("created_by_id")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  vehicle              ClientVehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  client               User                  @relation("ClientServiceRecords", fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy            User?                 @relation("ServiceRecordCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  serviceRequest       ServiceRequest?       @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+  consultationFeedback ConsultationFeedback? @relation(fields: [consultationFeedbackId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId, performedAt(sort: Desc)])
+  @@index([clientId, performedAt(sort: Desc)])
+  @@index([category, vehicleId])
+  @@index([consultationFeedbackId])
+  @@map("vehicle_service_records")
 }
 
 model ServiceRequestStatusLog {
@@ -460,8 +499,9 @@ model ConsultationFeedback {
   createdAt   DateTime                    @default(now()) @map("created_at")
   updatedAt   DateTime                    @updatedAt @map("updated_at")
 
-  session ConsultationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  manager User                @relation(fields: [managerId], references: [id], onDelete: Restrict)
+  session        ConsultationSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  manager        User                    @relation(fields: [managerId], references: [id], onDelete: Restrict)
+  serviceRecords VehicleServiceRecord[]
 
   @@index([managerId])
   @@index([verdict])
@@ -516,6 +556,7 @@ model ServiceRequest {
   notifications       Notification[]
   bookings            ServiceBooking[]
   statusLogs          ServiceRequestStatusLog[]
+  serviceRecords      VehicleServiceRecord[]
 
   @@index([clientId])
   @@index([vehicleId])

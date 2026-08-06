@@ -1,5 +1,12 @@
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
+import {
+  deleteVehiclePhotoFile,
+  readVehiclePhotoFile,
+  saveVehiclePhotoFile,
+  validateVehiclePhotoInput,
+  vehiclePhotoMimeFromKey,
+} from '../../lib/vehiclePhotoStorage.js';
 
 function norm(value) {
   return String(value || '').trim().toLowerCase();
@@ -7,6 +14,11 @@ function norm(value) {
 
 function vehicleFingerprint(make, model, year) {
   return `${norm(make)}|${norm(model)}|${year ?? ''}`;
+}
+
+function publicPhotoUrl(vehicleId, photoUrl) {
+  if (!photoUrl) return null;
+  return `/api/vehicles/${vehicleId}/photo`;
 }
 
 function serializeVehicle(vehicle) {
@@ -18,9 +30,32 @@ function serializeVehicle(vehicle) {
     vin: vehicle.vin,
     notes: vehicle.notes,
     source: vehicle.source,
+    currentMileageKm: vehicle.currentMileageKm ?? null,
+    photoUrl: publicPhotoUrl(vehicle.id, vehicle.photoUrl),
+    licensePlate: vehicle.licensePlate ?? null,
+    color: vehicle.color ?? null,
     createdAt: vehicle.createdAt.toISOString(),
     updatedAt: vehicle.updatedAt.toISOString(),
   };
+}
+
+async function getLatestServiceByVehicle(vehicleIds) {
+  if (!vehicleIds.length) return {};
+  const rows = await prisma.vehicleServiceRecord.findMany({
+    where: { vehicleId: { in: vehicleIds } },
+    orderBy: [{ performedAt: 'desc' }],
+    select: { vehicleId: true, performedAt: true, title: true, category: true },
+  });
+  const latest = {};
+  for (const row of rows) {
+    if (latest[row.vehicleId]) continue;
+    latest[row.vehicleId] = {
+      lastServiceAt: row.performedAt.toISOString(),
+      lastServiceTitle: row.title,
+      lastServiceCategory: row.category,
+    };
+  }
+  return latest;
 }
 
 async function getVehicleCaseCounts(clientId, vehicleIds) {
@@ -246,15 +281,19 @@ export async function listVehicles(clientId) {
     where: { clientId },
     orderBy: [{ updatedAt: 'desc' }],
   });
-  const counts = await getVehicleCaseCounts(
-    clientId,
-    vehicles.map((vehicle) => vehicle.id),
-  );
+  const vehicleIds = vehicles.map((vehicle) => vehicle.id);
+  const [counts, latestService] = await Promise.all([
+    getVehicleCaseCounts(clientId, vehicleIds),
+    getLatestServiceByVehicle(vehicleIds),
+  ]);
 
   return vehicles.map((vehicle) => ({
     ...serializeVehicle(vehicle),
     activeCasesCount: counts[vehicle.id]?.active ?? 0,
     totalCasesCount: counts[vehicle.id]?.total ?? 0,
+    lastServiceAt: latestService[vehicle.id]?.lastServiceAt ?? null,
+    lastServiceTitle: latestService[vehicle.id]?.lastServiceTitle ?? null,
+    lastServiceCategory: latestService[vehicle.id]?.lastServiceCategory ?? null,
   }));
 }
 
@@ -263,7 +302,18 @@ export async function getVehicle(clientId, vehicleId) {
     where: { id: vehicleId, clientId },
   });
   if (!vehicle) throw new AppError(404, 'Автомобиль не найден', 'NOT_FOUND');
-  return serializeVehicle(vehicle);
+  const [counts, latestService] = await Promise.all([
+    getVehicleCaseCounts(clientId, [vehicleId]),
+    getLatestServiceByVehicle([vehicleId]),
+  ]);
+  return {
+    ...serializeVehicle(vehicle),
+    activeCasesCount: counts[vehicleId]?.active ?? 0,
+    totalCasesCount: counts[vehicleId]?.total ?? 0,
+    lastServiceAt: latestService[vehicleId]?.lastServiceAt ?? null,
+    lastServiceTitle: latestService[vehicleId]?.lastServiceTitle ?? null,
+    lastServiceCategory: latestService[vehicleId]?.lastServiceCategory ?? null,
+  };
 }
 
 export async function createVehicle(clientId, data) {
@@ -291,6 +341,8 @@ export async function createVehicle(clientId, data) {
       year,
       vin: data.vin?.trim() || null,
       notes: data.notes?.trim() || null,
+      licensePlate: data.licensePlate?.trim()?.toUpperCase() || null,
+      color: data.color?.trim() || null,
       source: 'manual',
     },
   });
@@ -298,6 +350,104 @@ export async function createVehicle(clientId, data) {
   await clearVehicleExclusion(clientId, make, model, year);
 
   return serializeVehicle(vehicle);
+}
+
+export async function updateVehicle(clientId, vehicleId, data) {
+  const vehicle = await prisma.clientVehicle.findFirst({
+    where: { id: vehicleId, clientId },
+  });
+  if (!vehicle) throw new AppError(404, 'Автомобиль не найден', 'NOT_FOUND');
+
+  const patch = {};
+  if (data.currentMileageKm !== undefined) {
+    if (data.currentMileageKm == null || data.currentMileageKm === '') {
+      patch.currentMileageKm = null;
+    } else {
+      const km = Number(data.currentMileageKm);
+      if (!Number.isFinite(km) || km < 0 || km > 2_000_000) {
+        throw new AppError(400, 'Некорректный пробег', 'VALIDATION_ERROR');
+      }
+      patch.currentMileageKm = Math.round(km);
+    }
+  }
+  if (data.notes !== undefined) {
+    patch.notes = data.notes == null ? null : String(data.notes).trim().slice(0, 500) || null;
+  }
+  if (data.vin !== undefined) {
+    patch.vin = data.vin == null ? null : String(data.vin).trim().slice(0, 32) || null;
+  }
+  if (data.licensePlate !== undefined) {
+    patch.licensePlate =
+      data.licensePlate == null
+        ? null
+        : String(data.licensePlate).trim().toUpperCase().slice(0, 16) || null;
+  }
+  if (data.color !== undefined) {
+    patch.color = data.color == null ? null : String(data.color).trim().slice(0, 40) || null;
+  }
+
+  if (!Object.keys(patch).length) {
+    return getVehicle(clientId, vehicleId);
+  }
+
+  await prisma.clientVehicle.update({
+    where: { id: vehicleId },
+    data: patch,
+  });
+  return getVehicle(clientId, vehicleId);
+}
+
+export async function uploadVehiclePhoto(clientId, vehicleId, { mimeType, contentBase64 }) {
+  const vehicle = await prisma.clientVehicle.findFirst({
+    where: { id: vehicleId, clientId },
+    select: { id: true, photoUrl: true },
+  });
+  if (!vehicle) throw new AppError(404, 'Автомобиль не найден', 'NOT_FOUND');
+
+  const parsed = validateVehiclePhotoInput({ mimeType, contentBase64 });
+  const storageKey = await saveVehiclePhotoFile(parsed.buffer, parsed.ext);
+
+  try {
+    await prisma.clientVehicle.update({
+      where: { id: vehicleId },
+      data: { photoUrl: storageKey },
+    });
+    if (vehicle.photoUrl && vehicle.photoUrl !== storageKey) {
+      await deleteVehiclePhotoFile(vehicle.photoUrl);
+    }
+  } catch (err) {
+    await deleteVehiclePhotoFile(storageKey);
+    throw err;
+  }
+
+  return getVehicle(clientId, vehicleId);
+}
+
+export async function removeVehiclePhoto(clientId, vehicleId) {
+  const vehicle = await prisma.clientVehicle.findFirst({
+    where: { id: vehicleId, clientId },
+    select: { id: true, photoUrl: true },
+  });
+  if (!vehicle) throw new AppError(404, 'Автомобиль не найден', 'NOT_FOUND');
+
+  if (vehicle.photoUrl) {
+    await deleteVehiclePhotoFile(vehicle.photoUrl);
+  }
+  await prisma.clientVehicle.update({
+    where: { id: vehicleId },
+    data: { photoUrl: null },
+  });
+  return getVehicle(clientId, vehicleId);
+}
+
+export async function getVehiclePhoto(clientId, vehicleId) {
+  const vehicle = await prisma.clientVehicle.findFirst({
+    where: { id: vehicleId, clientId },
+    select: { photoUrl: true },
+  });
+  if (!vehicle?.photoUrl) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  const buffer = await readVehiclePhotoFile(vehicle.photoUrl);
+  return { buffer, mimeType: vehiclePhotoMimeFromKey(vehicle.photoUrl) };
 }
 
 export async function deleteVehicle(clientId, vehicleId) {
@@ -311,11 +461,12 @@ export async function deleteVehicle(clientId, vehicleId) {
   const fingerprint = vehicleFingerprint(vehicle.make, vehicle.model, vehicle.year);
   const siblings = await prisma.clientVehicle.findMany({
     where: { clientId },
-    select: { id: true, make: true, model: true, year: true },
+    select: { id: true, make: true, model: true, year: true, photoUrl: true },
   });
-  const vehicleIds = siblings
-    .filter((row) => vehicleFingerprint(row.make, row.model, row.year) === fingerprint)
-    .map((row) => row.id);
+  const matched = siblings.filter(
+    (row) => vehicleFingerprint(row.make, row.model, row.year) === fingerprint,
+  );
+  const vehicleIds = matched.map((row) => row.id);
 
   await prisma.$transaction([
     prisma.consultationSession.updateMany({
@@ -328,6 +479,8 @@ export async function deleteVehicle(clientId, vehicleId) {
     }),
     prisma.clientVehicle.deleteMany({ where: { id: { in: vehicleIds }, clientId } }),
   ]);
+
+  await Promise.all(matched.map((row) => deleteVehiclePhotoFile(row.photoUrl)));
 }
 
 export async function listVehiclesForDossier(clientId) {

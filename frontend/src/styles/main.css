@@ -3479,41 +3479,304 @@ select:focus-visible {
 
 .follow-up-chat-card {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  border-radius: 18px;
+}
+
+.follow-up-chat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.05rem 0.8rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 88%, transparent);
+  background: color-mix(in oklab, var(--color-surface-secondary) 35%, var(--color-surface));
+}
+
+.follow-up-chat-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.follow-up-chat-head p {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.follow-up-chat-count {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
+  background: color-mix(in oklab, var(--color-surface) 70%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.follow-up-chat-card .consult-chat-body {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .follow-up-chat-thread {
-  min-height: 240px;
+  min-height: 220px;
+  max-height: min(48vh, 420px);
+  gap: 0.55rem;
+  padding: 0.85rem 0.9rem 1rem;
+  border-bottom: 0;
+  background: color-mix(in oklab, var(--color-surface-secondary) 28%, var(--color-surface));
+}
+
+:root[data-theme='dark'] .follow-up-chat-thread {
+  background: #12151d;
+}
+
+.follow-up-chat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.follow-up-day-sep {
+  display: flex;
+  justify-content: center;
+  margin: 0.35rem 0 0.1rem;
+}
+
+.follow-up-day-sep span {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-surface) 72%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.follow-up-bubble {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  width: fit-content;
+  max-width: min(78%, 420px);
+  animation: fade-up 0.22s var(--ease-out) both;
+}
+
+.follow-up-bubble.is-own {
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.follow-up-bubble.is-peer {
+  align-self: flex-start;
+  margin-right: auto;
+}
+
+.follow-up-bubble-avatar {
+  flex-shrink: 0;
+  width: 1.7rem;
+  height: 1.7rem;
+  margin-top: 1.15rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, #64748b 28%, var(--color-surface));
+  color: #e2e8f0;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.follow-up-bubble-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.follow-up-bubble-name {
+  margin: 0 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: color-mix(in oklab, var(--color-text-secondary) 70%, var(--brand-accent));
+  line-height: 1.2;
+}
+
+.follow-up-bubble-card {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.55rem 0.75rem 0.4rem;
+  border: 0;
+  box-shadow: none;
+}
+
+.follow-up-bubble.is-peer .follow-up-bubble-card {
+  border-radius: 4px 14px 14px 14px;
+  background: color-mix(in oklab, var(--color-surface-secondary) 78%, #334155);
+}
+
+:root[data-theme='dark'] .follow-up-bubble.is-peer .follow-up-bubble-card {
+  background: #1e2430;
+}
+
+.follow-up-bubble.is-own .follow-up-bubble-card {
+  border-radius: 14px 4px 14px 14px;
+  background: color-mix(in oklab, var(--brand-primary) 42%, #1c1917);
+  color: #fff7ed;
+}
+
+.follow-up-bubble-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+  font-size: 0.9rem;
+  color: inherit;
+}
+
+.follow-up-bubble.is-own .follow-up-bubble-text {
+  color: #fff7ed;
+}
+
+.follow-up-bubble-card time {
+  display: block;
+  margin-top: 0.28rem;
+  text-align: right;
+  font-size: 0.64rem;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: color-mix(in oklab, var(--color-text-secondary) 88%, transparent);
+  opacity: 0.85;
+}
+
+.follow-up-bubble.is-own .follow-up-bubble-card time {
+  color: rgb(255 237 213 / 0.72);
 }
 
 .follow-up-chat-empty {
   display: grid;
   place-items: center;
-  min-height: 200px;
+  min-height: 180px;
   padding: 1rem;
 }
 
 .follow-up-chat-empty .empty-state {
-  max-width: 28rem;
+  max-width: 24rem;
+}
+
+.follow-up-chat-composer {
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem 0.75rem;
+  border-top: 1px solid color-mix(in oklab, var(--color-border) 88%, transparent);
+  background: var(--color-surface);
 }
 
 .follow-up-chat-composer .quick-replies {
   margin: 0;
-  padding: 0 0.15rem;
+  padding: 0;
   border: 0;
   background: transparent;
 }
 
 .follow-up-chat-composer .quick-replies-list {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 0.15rem;
-  scrollbar-width: thin;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  overflow: visible;
+}
+
+.follow-up-chat-composer .quick-replies button {
+  min-height: 1.9rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  border-color: color-mix(in oklab, var(--color-border) 80%, transparent);
+  font-size: 0.74rem;
+  font-weight: 550;
+  text-align: center;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.follow-up-chat-composer .quick-replies button:hover:not(:disabled) {
+  transform: none;
+  border-color: color-mix(in oklab, var(--brand-primary) 45%, var(--color-border));
+  background: color-mix(in oklab, var(--brand-primary) 12%, transparent);
+  color: var(--color-text-primary);
+}
+
+.follow-up-chat-composer .chat-composer-bar {
+  align-items: center;
+  border-radius: 1.15rem;
+  padding: 0.25rem 0.3rem 0.25rem 0.25rem;
+  min-height: 2.7rem;
+  box-shadow: none;
+  background: color-mix(in oklab, var(--color-surface-secondary) 55%, var(--color-surface));
+}
+
+.follow-up-chat-composer .chat-composer-bar:focus-within {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 22%, transparent);
+}
+
+.follow-up-chat-composer .chat-composer-input {
+  min-height: 2.1rem;
+  padding: 0.45rem 0.35rem;
+  font-size: 0.9rem;
+}
+
+.follow-up-chat-composer .chat-composer-send {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.follow-up-chat-composer .chat-composer-send:disabled {
+  opacity: 0.45;
+  background: color-mix(in oklab, var(--brand-accent) 55%, #78716c);
+}
+
+.follow-up-chat-composer .chat-composer-hint {
+  padding: 0 0.15rem;
+  font-size: 0.64rem;
+  opacity: 0.75;
 }
 
 .follow-up-chat-closed {
   margin: 0;
   padding: 0.85rem 1rem 1rem;
   border-top: 1px solid var(--color-border);
+}
+
+.case-messages {
+  gap: 0.75rem;
+}
+
+.case-messages .follow-up-chat-card {
+  border-color: color-mix(in oklab, var(--color-border) 88%, transparent);
+}
+
+.follow-up-bubble-card .follow-up-message-attachments {
+  margin-top: 0.4rem;
 }
 
 .follow-up-message-attachments {
@@ -3593,7 +3856,11 @@ select:focus-visible {
 }
 
 .case-messages .case-detail-section-head {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+
+.case-messages .case-detail-section-head h2 {
+  letter-spacing: -0.01em;
 }
 
 .consult-request-card {
@@ -9282,7 +9549,7 @@ select:focus-visible {
 .client-garage-rail {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(10.5rem, 12.5rem);
+  grid-auto-columns: minmax(12rem, 14rem);
   gap: 0.75rem;
   overflow-x: auto;
   padding-bottom: 0.2rem;
@@ -9329,15 +9596,13 @@ select:focus-visible {
 .client-garage-card {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  min-height: 8.5rem;
-  padding: 0.9rem;
+  gap: 0.65rem;
+  min-height: 11.5rem;
+  padding: 0;
+  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--overview-accent) 14%, var(--color-border));
   border-radius: 16px;
-  background:
-    radial-gradient(ellipse 90% 70% at 100% 0%, rgb(96 165 250 / 0.1), transparent 58%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent 45%),
-    var(--color-surface-secondary);
+  background: var(--color-surface-secondary);
   text-decoration: none;
   color: inherit;
   scroll-snap-align: start;
@@ -9354,41 +9619,36 @@ select:focus-visible {
   box-shadow: 0 14px 30px rgb(2 6 23 / 0.18);
 }
 
-.client-garage-card-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
+.client-garage-card-media {
+  position: relative;
+  height: 6.2rem;
 }
 
-.client-garage-card-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.65rem;
-  height: 2.65rem;
-  border-radius: 12px;
-  background: linear-gradient(145deg, rgb(96 165 250 / 0.24), rgb(56 189 248 / 0.1));
-  color: #bfdbfe;
-  border: 1px solid color-mix(in srgb, var(--overview-accent) 28%, var(--color-border));
+.client-garage-card-media .vehicle-photo-media {
+  border-radius: 0;
+  height: 100%;
 }
 
 .client-garage-card-arrow {
-  color: var(--color-text-secondary);
-  opacity: 0.55;
-  transition: transform 160ms ease, opacity 160ms ease, color 160ms ease;
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  color: #fff;
+  opacity: 0.8;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.45));
+  transition: transform 160ms ease, opacity 160ms ease;
 }
 
 .client-garage-card:hover .client-garage-card-arrow {
   opacity: 1;
-  color: color-mix(in srgb, var(--overview-accent) 80%, white);
   transform: translate(1px, -1px);
 }
 
 .client-garage-card-body {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
   min-width: 0;
+  padding: 0 0.85rem 0.85rem;
   margin-top: auto;
 }
 
@@ -9396,6 +9656,18 @@ select:focus-visible {
   display: block;
   font-size: 0.95rem;
   line-height: 1.3;
+}
+
+.client-garage-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.client-garage-card-mileage {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
 }
 
 .client-garage-card-status {
@@ -9429,11 +9701,17 @@ select:focus-visible {
 .client-garage-card-add {
   align-items: center;
   justify-content: center;
+  gap: 0.75rem;
+  padding: 0.9rem;
   text-align: center;
   border-style: dashed;
   background:
     linear-gradient(180deg, rgb(255 255 255 / 0.02), transparent),
     color-mix(in srgb, var(--overview-accent) 4%, var(--color-surface));
+}
+
+.client-garage-card-add .client-garage-card-body {
+  padding: 0;
 }
 
 .client-garage-card-add:hover {
@@ -11423,40 +11701,545 @@ select:focus-visible {
   }
 }
 
-/* Client vehicles page */
+/* Client vehicles page / garage */
 .client-vehicles-page {
   gap: 1rem;
 }
 
-.client-vehicles-list {
+.garage-vehicle-grid {
   display: grid;
-  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr));
+  gap: 0.9rem;
 }
 
-.client-vehicle-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.garage-plate {
+  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--color-surface));
+  color: color-mix(in srgb, var(--brand-primary) 75%, white);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.client-vehicle-row .case-card {
+.garage-plate.is-compact {
+  font-size: 0.68rem;
+  padding: 0.08rem 0.35rem;
+}
+
+.garage-vehicle-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent 40%),
+    var(--color-surface-secondary);
+  box-shadow: 0 10px 28px rgb(2 6 23 / 0.16);
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.garage-vehicle-card:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 28%, var(--color-border));
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgb(2 6 23 / 0.22);
+}
+
+.garage-vehicle-card.has-active {
+  border-color: color-mix(in srgb, var(--overview-accent, #60a5fa) 32%, var(--color-border));
+}
+
+.garage-vehicle-card-main {
+  display: grid;
+  gap: 0;
+  text-decoration: none;
+  color: inherit;
   min-width: 0;
 }
 
-.client-vehicle-vin {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.75rem;
+.garage-vehicle-card-media {
+  position: relative;
+  height: 10.5rem;
 }
 
-.client-vehicle-row-delete {
+.garage-vehicle-card-media .vehicle-photo-media {
+  border-radius: 0;
+  height: 100%;
+}
+
+.garage-vehicle-card-badge {
+  position: absolute;
+  left: 0.65rem;
+  bottom: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  max-width: calc(100% - 1.3rem);
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+}
+
+.garage-vehicle-card-badge.is-active {
+  background: rgb(37 99 235 / 0.72);
+  color: #fff;
+}
+
+.garage-vehicle-card-badge.is-oil {
+  left: auto;
+  right: 0.65rem;
+}
+
+.garage-vehicle-card-badge.is-oil.is-soon {
+  background: rgb(217 119 6 / 0.82);
+  color: #fff;
+}
+
+.garage-vehicle-card-badge.is-oil.is-overdue {
+  background: rgb(220 38 38 / 0.84);
+  color: #fff;
+}
+
+.garage-vehicle-card-body {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem 0.95rem 0.35rem;
+}
+
+.garage-vehicle-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.garage-vehicle-card-titles {
+  min-width: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.garage-vehicle-card-title {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.garage-vehicle-card-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.garage-vehicle-card-cases {
+  color: var(--color-text-secondary);
+}
+
+.garage-vehicle-card-chevron {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--color-text-secondary);
+  opacity: 0.55;
+  transition: transform 160ms ease, opacity 160ms ease, color 160ms ease;
+}
+
+.garage-vehicle-card:hover .garage-vehicle-card-chevron {
+  opacity: 1;
+  color: var(--brand-primary);
+  transform: translateX(2px);
+}
+
+.garage-vehicle-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.garage-vehicle-card-stats > div {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.18);
+  border: 1px solid rgb(255 255 255 / 0.04);
+}
+
+:root[data-theme='light'] .garage-vehicle-card-stats > div {
+  background: rgb(24 24 27 / 0.04);
+}
+
+.garage-vehicle-card-stats dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.garage-vehicle-card-stats dd {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.garage-vehicle-card-stats dd.is-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.74rem;
+}
+
+.garage-vehicle-card-last {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.garage-vehicle-card-last span {
+  color: var(--color-text-primary);
+}
+
+.garage-vehicle-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.85rem 0.85rem;
+}
+
+.garage-vehicle-card-actions .btn {
+  flex: 1;
+}
+
+.garage-vehicle-card-delete {
+  flex: 0 0 auto !important;
   opacity: 0.45;
   transition: opacity 140ms ease;
 }
 
-.client-vehicle-row:hover .client-vehicle-row-delete,
-.client-vehicle-row:focus-within .client-vehicle-row-delete {
+.garage-vehicle-card:hover .garage-vehicle-card-delete,
+.garage-vehicle-card:focus-within .garage-vehicle-card-delete {
   opacity: 1;
+}
+
+/* Vehicle photo media + picker */
+.vehicle-photo-media {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  background: #0f131c;
+}
+
+.vehicle-photo-media.is-sm {
+  height: 100%;
+}
+
+.vehicle-photo-media.is-md {
+  height: 100%;
+}
+
+.vehicle-photo-media.is-lg {
+  min-height: 14rem;
+  height: 100%;
+  border-radius: 16px;
+}
+
+.vehicle-photo-media-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.vehicle-photo-media-placeholder {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  overflow: hidden;
+  color: rgb(255 255 255 / 0.88);
+}
+
+.vehicle-photo-media.tone-0 .vehicle-photo-media-placeholder {
+  background: linear-gradient(145deg, #1f2937 0%, #0f172a 45%, #ea580c 140%);
+}
+
+.vehicle-photo-media.tone-1 .vehicle-photo-media-placeholder {
+  background: linear-gradient(145deg, #172554 0%, #0b1220 48%, #2563eb 140%);
+}
+
+.vehicle-photo-media.tone-2 .vehicle-photo-media-placeholder {
+  background: linear-gradient(145deg, #14532d 0%, #0b1220 48%, #16a34a 140%);
+}
+
+.vehicle-photo-media.tone-3 .vehicle-photo-media-placeholder {
+  background: linear-gradient(145deg, #3f1d12 0%, #141018 48%, #c2410c 140%);
+}
+
+.vehicle-photo-media.tone-4 .vehicle-photo-media-placeholder {
+  background: linear-gradient(145deg, #312e81 0%, #0f1220 48%, #7c3aed 140%);
+}
+
+.vehicle-photo-media.tone-5 .vehicle-photo-media-placeholder {
+  background: linear-gradient(145deg, #164e63 0%, #0b1220 48%, #0891b2 140%);
+}
+
+.vehicle-photo-media-glow {
+  position: absolute;
+  inset: auto -20% -35% 20%;
+  height: 70%;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.12);
+  filter: blur(28px);
+}
+
+.vehicle-photo-media-silhouette {
+  position: absolute;
+  opacity: 0.22;
+  transform: translateY(8%);
+}
+
+.vehicle-photo-media-initials {
+  position: relative;
+  z-index: 1;
+  font-size: 1.55rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 0.35);
+}
+
+.vehicle-photo-media.is-sm .vehicle-photo-media-initials {
+  font-size: 1.15rem;
+}
+
+.vehicle-photo-media.is-lg .vehicle-photo-media-initials {
+  font-size: 2.2rem;
+}
+
+.vehicle-photo-media-color {
+  position: absolute;
+  bottom: 0.7rem;
+  left: 0.8rem;
+  z-index: 1;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.35);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.vehicle-photo-picker {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.vehicle-photo-picker-trigger {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.vehicle-photo-picker-trigger:hover,
+.vehicle-photo-picker-trigger.is-dragover {
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, var(--color-border));
+  box-shadow: 0 0 0 1px rgb(234 88 12 / 0.18);
+}
+
+.vehicle-photo-picker-trigger:disabled {
+  cursor: wait;
+}
+
+.vehicle-photo-picker-overlay {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.8rem;
+  background: linear-gradient(180deg, transparent, rgb(2 6 23 / 0.78));
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 650;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.vehicle-photo-picker-trigger:hover .vehicle-photo-picker-overlay,
+.vehicle-photo-picker-trigger:focus-visible .vehicle-photo-picker-overlay,
+.vehicle-photo-picker-trigger.is-busy .vehicle-photo-picker-overlay,
+.vehicle-photo-picker-trigger.is-dragover .vehicle-photo-picker-overlay {
+  opacity: 1;
+}
+
+.vehicle-photo-picker-spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+.vehicle-photo-picker-remove {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  border: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.vehicle-photo-picker-error {
+  margin: 0;
+}
+
+.garage-vehicle-hero {
+  display: grid;
+  grid-template-columns: minmax(14rem, 22rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.garage-vehicle-hero-body {
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+  padding: 0.15rem 0;
+}
+
+.garage-vehicle-hero-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.garage-vehicle-hero-facts > div {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+}
+
+.garage-vehicle-hero-label {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.garage-vehicle-hero-facts strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+}
+
+.garage-vehicle-hero-sub {
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.garage-vehicle-meta-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.garage-vehicle-meta-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.garage-vehicle-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.garage-vehicle-hero-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: rgb(0 0 0 / 0.16);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+:root[data-theme='light'] .garage-vehicle-hero-chips li {
+  background: rgb(24 24 27 / 0.04);
+}
+
+@media (max-width: 900px) {
+  .garage-vehicle-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .garage-vehicle-meta-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .garage-vehicle-card-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .garage-vehicle-card-delete {
+    opacity: 1;
+  }
+
+  .garage-vehicle-hero-facts {
+    grid-template-columns: 1fr;
+  }
 }
 
 .modal-add-vehicle {
@@ -11583,10 +12366,6 @@ select:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .client-vehicle-row-delete {
-    opacity: 1;
-  }
-
   .add-vehicle-grid,
   .add-vehicle-grid-meta {
     grid-template-columns: 1fr;
@@ -11607,5 +12386,769 @@ select:focus-visible {
 
   .profile-identity-stats {
     justify-content: center;
+  }
+}
+
+/* Service history / oil plan — aligned with client focus panels */
+.service-book-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 160ms ease;
+}
+
+.service-book-back:hover {
+  color: var(--color-text-primary);
+}
+
+.client-vehicle-detail {
+  gap: 1rem;
+}
+
+.client-overview-focus-primary.is-accent-soon {
+  --focus-accent: var(--color-warning);
+}
+
+.client-overview-focus-primary.is-accent-overdue {
+  --focus-accent: var(--color-danger);
+}
+
+.client-overview-focus-primary.is-accent-ok {
+  --focus-accent: var(--color-success);
+}
+
+.service-oil-plan {
+  padding: 0;
+  overflow: hidden;
+}
+
+.service-oil-plan-inner {
+  align-items: flex-start;
+}
+
+.service-oil-copy {
+  min-width: 0;
+}
+
+.service-oil-title {
+  display: block;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.service-oil-reglament {
+  margin: 0.25rem 0 0;
+  font-size: 0.86rem;
+}
+
+.service-oil-status {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--focus-accent, var(--color-primary)) 16%, var(--color-surface));
+  color: color-mix(in srgb, var(--focus-accent, var(--color-primary)) 75%, white);
+  border: 1px solid color-mix(in srgb, var(--focus-accent, var(--color-primary)) 28%, var(--color-border));
+  white-space: nowrap;
+}
+
+.service-oil-plan-body {
+  padding: 0 1.1rem 1.1rem 1.25rem;
+}
+
+.service-oil-plan-empty {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.service-oil-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.9rem;
+}
+
+.service-oil-metric {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+
+.service-oil-metric.is-next {
+  border-color: color-mix(in srgb, var(--focus-accent, var(--brand-primary)) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--focus-accent, var(--brand-primary)) 8%, var(--color-surface));
+}
+
+.service-oil-metric-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.service-oil-metric strong {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.service-oil-plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.service-mileage-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--brand-primary) 5%, transparent), transparent 55%),
+    var(--color-surface);
+}
+
+.service-mileage-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.service-mileage-panel-head strong {
+  display: block;
+}
+
+.service-mileage-panel-head .muted {
+  margin: 0.2rem 0 0;
+  font-size: 0.86rem;
+}
+
+.service-mileage-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 11px;
+  color: var(--brand-accent);
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 24%, var(--color-border));
+  flex-shrink: 0;
+}
+
+.service-mileage-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.service-mileage-form .form-field {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.service-mileage-history {
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+}
+
+.service-mileage-history-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.service-mileage-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  position: relative;
+}
+
+.service-mileage-point {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.7rem;
+  position: relative;
+  padding: 0.45rem 0 0.75rem;
+}
+
+.service-mileage-point:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 0.35rem;
+  top: 1.15rem;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--brand-primary) 28%, var(--color-border));
+}
+
+.service-mileage-point-dot {
+  width: 0.72rem;
+  height: 0.72rem;
+  margin-top: 0.28rem;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #fb923c, #ea580c);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  z-index: 1;
+}
+
+.service-mileage-point-body {
+  min-width: 0;
+}
+
+.service-mileage-point-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.65rem;
+}
+
+.service-mileage-point-top strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+}
+
+.service-mileage-delta {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: color-mix(in srgb, var(--color-success) 80%, white);
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+}
+
+.service-mileage-point-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.service-mileage-empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+}
+
+.service-records-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.service-records-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.service-records-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.service-records-header .muted {
+  margin: 0.2rem 0 0;
+  font-size: 0.86rem;
+}
+
+.service-record-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.service-record-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 4%, transparent), transparent 60%),
+    var(--color-surface-secondary);
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.service-record-row:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 28%, var(--color-border));
+  transform: translateY(-1px);
+}
+
+.service-record-date {
+  display: grid;
+  justify-items: center;
+  min-width: 2.6rem;
+  padding: 0.35rem 0.3rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.service-record-date-day {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.service-record-date-month {
+  font-size: 0.68rem;
+  text-transform: lowercase;
+  color: var(--color-text-secondary);
+}
+
+.service-record-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  color: var(--brand-accent);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+}
+
+.service-record-main {
+  min-width: 0;
+}
+
+.service-record-titles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.65rem;
+  margin-bottom: 0.25rem;
+}
+
+.service-record-titles strong {
+  font-size: 0.98rem;
+}
+
+.service-record-cat {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+}
+
+.service-record-source {
+  opacity: 0.85;
+}
+
+.service-record-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.86rem;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.service-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.service-oil-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+.service-oil-chip.is-soon {
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+  color: color-mix(in srgb, var(--color-warning) 70%, white);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+}
+
+.service-oil-chip.is-overdue {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: color-mix(in srgb, var(--color-danger) 75%, white);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+}
+
+.service-oil-alert {
+  margin-top: 0.85rem;
+  padding: 0;
+  animation: service-oil-in 280ms ease both;
+}
+
+.service-oil-alert-inner {
+  width: 100%;
+}
+
+.service-oil-alert-meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.86rem;
+}
+
+.service-oil-alert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.modal-service-record {
+  width: min(28rem, 94vw);
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+  background:
+    radial-gradient(ellipse 120% 80% at 100% -20%, rgb(234 88 12 / 0.14), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 0% 100%, rgb(251 146 60 / 0.07), transparent 50%),
+    var(--color-surface);
+  box-shadow:
+    0 24px 60px rgb(2 6 23 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.04) inset;
+}
+
+.modal-service-record .modal-header {
+  padding: 1rem 1.05rem;
+  border-bottom-color: color-mix(in srgb, var(--brand-primary) 14%, var(--color-border));
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent);
+}
+
+.modal-service-record .modal-content {
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+.service-record-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.service-record-form-lead {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.service-record-preview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.18);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+:root[data-theme='light'] .service-record-preview {
+  background: rgb(24 24 27 / 0.03);
+}
+
+.service-record-preview.is-ready {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+  background:
+    linear-gradient(135deg, rgb(234 88 12 / 0.1), transparent 55%),
+    rgb(0 0 0 / 0.16);
+  box-shadow: 0 0 0 1px rgb(234 88 12 / 0.08) inset;
+}
+
+:root[data-theme='light'] .service-record-preview.is-ready {
+  background:
+    linear-gradient(135deg, rgb(234 88 12 / 0.08), transparent 55%),
+    #fff;
+}
+
+.service-record-preview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fb923c, #ea580c);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12) inset;
+}
+
+.service-record-preview-body {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.service-record-preview-body strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+}
+
+.service-record-preview-body span {
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+}
+
+.service-record-cats {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.service-record-cats-label {
+  margin: 0 0 0.45rem;
+  padding: 0;
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+}
+
+.service-record-cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.service-record-cat-chip {
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  border-radius: 999px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.service-record-cat-chip:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+}
+
+.service-record-cat-chip.is-active {
+  border-color: color-mix(in srgb, var(--brand-primary) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--brand-primary) 18%, var(--color-surface));
+  color: #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 25%, transparent) inset;
+}
+
+:root[data-theme='light'] .service-record-cat-chip.is-active {
+  color: #9a3412;
+  background: color-mix(in srgb, var(--brand-primary) 12%, #fff);
+}
+
+.service-record-cat-chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.service-record-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.service-record-form-grid-primary .form-field-label {
+  font-weight: 600;
+}
+
+.modal-service-record .input,
+.modal-service-record .textarea,
+.modal-service-record select {
+  border-radius: 12px;
+  border-color: color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface-secondary) 92%, transparent);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.modal-service-record .input:hover,
+.modal-service-record .textarea:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+}
+
+.modal-service-record .input:focus,
+.modal-service-record .textarea:focus,
+.modal-service-record .input:focus-visible,
+.modal-service-record .textarea:focus-visible,
+.modal-service-record select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  background: var(--color-surface-secondary);
+}
+
+.service-record-note-input {
+  min-height: 5.5rem;
+  resize: none;
+  line-height: 1.45;
+  padding: 0.75rem 0.85rem;
+}
+
+.service-record-details-toggle {
+  justify-self: start;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.2rem 0;
+}
+
+.service-record-details-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.service-record-details {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  animation: service-oil-in 180ms ease both;
+}
+
+.service-record-form-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+}
+
+.service-record-form-actions .btn {
+  min-width: 0;
+  width: 100%;
+}
+
+.diagnostic-summary--service-history {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 55%),
+    var(--color-surface);
+}
+
+.diagnostic-summary--service-history.is-soon {
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+}
+
+.diagnostic-summary--service-history.is-overdue {
+  border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
+}
+
+.service-history-snapshot {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.service-history-snapshot > div {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+}
+
+.service-history-snapshot .muted {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@keyframes service-oil-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-oil-alert,
+  .service-record-row {
+    animation: none;
+    transition: none;
+  }
+
+  .service-record-row:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .service-oil-metrics,
+  .service-record-form-grid,
+  .service-history-snapshot {
+    grid-template-columns: 1fr;
+  }
+
+  .service-record-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'date main'
+      'icon main'
+      'actions actions';
+  }
+
+  .service-record-date { grid-area: date; }
+  .service-record-icon { grid-area: icon; align-self: start; }
+  .service-record-main { grid-area: main; }
+  .service-record-actions {
+    grid-area: actions;
+    justify-content: flex-start;
+  }
+
+  .service-mileage-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .service-records-header {
+    flex-direction: column;
   }
 }

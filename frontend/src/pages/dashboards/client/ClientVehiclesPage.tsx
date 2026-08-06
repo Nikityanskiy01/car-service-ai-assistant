@@ -8,6 +8,7 @@ import {
   listVehicles,
   type ClientVehicle,
 } from '../../../api/vehicles';
+import { listMaintenanceAlerts } from '../../../api/serviceRecords';
 import { ClientVehicleCard } from '../../../components/client/ClientVehicleCard';
 import { PageHeader } from '../../../components/layout/dashboard/PageHeader';
 import { Button } from '../../../components/ui/Button';
@@ -28,8 +29,9 @@ type VehicleFormErrors = {
 };
 
 export function ClientVehiclesPage() {
-  usePageMeta({ title: 'Мои автомобили', description: 'Гараж и история обращений по машинам.' });
+  usePageMeta({ title: 'Мой гараж', description: 'Автомобили, фото, пробег и сервисная история.' });
   const [vehicles, setVehicles] = useState<ClientVehicle[]>([]);
+  const [oilByVehicle, setOilByVehicle] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -37,21 +39,28 @@ export function ClientVehiclesPage() {
   const [vehicleModel, setVehicleModel] = useState('');
   const [vehicleYear, setVehicleYear] = useState('');
   const [vehicleVin, setVehicleVin] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
   const [saving, setSaving] = useState(false);
   const [formErrors, setFormErrors] = useState<VehicleFormErrors>({});
   const [deleteVehicleId, setDeleteVehicleId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   async function reload() {
-    const rows = await listVehicles();
+    const [rows, alerts] = await Promise.all([
+      listVehicles(),
+      listMaintenanceAlerts().catch(() => []),
+    ]);
     setVehicles(rows);
+    setOilByVehicle(
+      Object.fromEntries(alerts.map((a) => [a.vehicleId, a.status])),
+    );
   }
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    void listVehicles()
-      .then(setVehicles)
+    void reload()
       .catch((e) => {
         setVehicles([]);
         setError(e instanceof Error ? e.message : 'Не удалось загрузить автомобили');
@@ -64,6 +73,8 @@ export function ClientVehiclesPage() {
     setVehicleModel('');
     setVehicleYear('');
     setVehicleVin('');
+    setVehiclePlate('');
+    setVehicleColor('');
     setFormErrors({});
   }
 
@@ -99,6 +110,8 @@ export function ClientVehiclesPage() {
         model: vehicleModel.trim(),
         year: yearValue ? Number(yearValue) : null,
         vin: vinValue || null,
+        licensePlate: vehiclePlate.trim().toUpperCase() || null,
+        color: vehicleColor.trim() || null,
       });
       setAddOpen(false);
       resetForm();
@@ -127,7 +140,7 @@ export function ClientVehiclesPage() {
 
   const countLabel = loading
     ? undefined
-    : `${vehicles.length} ${pluralizeVehicles(vehicles.length)}`;
+    : `${vehicles.length} ${pluralizeVehicles(vehicles.length)} · фото, пробег и сервис`;
 
   const previewTitle =
     vehicleMake.trim() || vehicleModel.trim()
@@ -139,12 +152,26 @@ export function ClientVehiclesPage() {
       : vehicleYear.trim()
         ? String(Number(vehicleYear))
         : 'Марка и модель';
-  const previewReady = Boolean(vehicleMake.trim() || vehicleModel.trim() || vehicleYear.trim() || vehicleVin.trim());
+  const previewReady = Boolean(
+    vehicleMake.trim() ||
+      vehicleModel.trim() ||
+      vehicleYear.trim() ||
+      vehicleVin.trim() ||
+      vehiclePlate.trim() ||
+      vehicleColor.trim(),
+  );
+  const previewMeta = [
+    vehiclePlate.trim().toUpperCase() || null,
+    vehicleColor.trim() || null,
+    vehicleVin.trim() ? `VIN ${vehicleVin.trim().toUpperCase()}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="stack dashboard-page client-vehicles-page">
       <PageHeader
-        title="Мои автомобили"
+        title="Мой гараж"
         description={countLabel}
         actions={
           <Button type="button" onClick={openAdd}>
@@ -156,12 +183,12 @@ export function ClientVehiclesPage() {
 
       {error ? <p className="form-error">{error}</p> : null}
 
-      {loading ? <Loader label="Загружаем автомобили..." /> : null}
+      {loading ? <Loader label="Загружаем гараж..." /> : null}
 
       {!loading && vehicles.length === 0 ? (
         <EmptyState
           title="Гараж пуст"
-          description="Добавьте автомобиль или пройдите диагностику — машина появится здесь."
+          description="Добавьте автомобиль с фото и данными — или пройдите диагностику, машина появится здесь."
           action={
             <div className="row gap-sm">
               <Button type="button" onClick={openAdd}>
@@ -176,12 +203,13 @@ export function ClientVehiclesPage() {
       ) : null}
 
       {!loading && vehicles.length > 0 ? (
-        <div className="client-vehicles-list">
+        <div className="garage-vehicle-grid">
           {vehicles.map((vehicle) => (
             <ClientVehicleCard
               key={vehicle.id}
               vehicle={vehicle}
               onDelete={setDeleteVehicleId}
+              oilStatus={oilByVehicle[vehicle.id]}
             />
           ))}
         </div>
@@ -195,7 +223,7 @@ export function ClientVehiclesPage() {
       >
         <form className="add-vehicle-form" onSubmit={(e) => void handleAdd(e)}>
           <p className="add-vehicle-lead">
-            Машина появится в гараже и будет доступна при записи и диагностике.
+            Машина появится в гараже. Фото можно добавить сразу на карточке авто.
           </p>
 
           <div
@@ -207,11 +235,7 @@ export function ClientVehiclesPage() {
             </span>
             <div className="add-vehicle-preview-body">
               <strong>{previewTitle}</strong>
-              <span>
-                {vehicleVin.trim()
-                  ? `VIN ${vehicleVin.trim().toUpperCase()}`
-                  : 'Как будет выглядеть в списке'}
-              </span>
+              <span>{previewMeta || 'Как будет выглядеть в гараже'}</span>
             </div>
           </div>
 
@@ -255,6 +279,28 @@ export function ClientVehiclesPage() {
                   if (formErrors.year) setFormErrors((prev) => ({ ...prev, year: undefined }));
                 }}
                 placeholder="2018"
+              />
+            </FormField>
+            <FormField label="Госномер" htmlFor="vehicle-plate" hint="необязательно">
+              <Input
+                id="vehicle-plate"
+                value={vehiclePlate}
+                onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
+                placeholder="А123ВС777"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </FormField>
+          </div>
+
+          <div className="add-vehicle-grid">
+            <FormField label="Цвет" htmlFor="vehicle-color" hint="необязательно">
+              <Input
+                id="vehicle-color"
+                value={vehicleColor}
+                onChange={(e) => setVehicleColor(e.target.value)}
+                placeholder="Белый"
+                autoComplete="off"
               />
             </FormField>
             <FormField label="VIN" htmlFor="vehicle-vin" hint="необязательно" error={formErrors.vin}>

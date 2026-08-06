@@ -10,6 +10,15 @@ const VERDICT_OPTIONS: Array<{ id: ConsultationFeedbackVerdict; label: string; h
   { id: 'INCORRECT', label: 'Неверный', hint: 'Диагноз не соответствует реальности' },
 ];
 
+const CATEGORY_OPTIONS = [
+  { id: 'oil_change', label: 'Замена масла' },
+  { id: 'maintenance', label: 'Плановое ТО' },
+  { id: 'brakes', label: 'Тормоза' },
+  { id: 'filters', label: 'Фильтры' },
+  { id: 'tires', label: 'Шины' },
+  { id: 'other', label: 'Прочее' },
+] as const;
+
 type Props = {
   requestId: string;
   initial?: ConsultationFeedback | null;
@@ -27,6 +36,10 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
   const [repairCompletedAt, setRepairCompletedAt] = useState(
     initial?.repairCompletedAt ? initial.repairCompletedAt.slice(0, 10) : '',
   );
+  const [repairMileageKm, setRepairMileageKm] = useState(
+    initial?.repairMileageKm != null ? String(initial.repairMileageKm) : '',
+  );
+  const [workCategory, setWorkCategory] = useState<string>(initial?.workCategory || 'other');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(initial?.updatedAt ?? null);
@@ -40,6 +53,8 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
     );
     setWorkOrderNumber(initial?.workOrderNumber ?? '');
     setRepairCompletedAt(initial?.repairCompletedAt ? initial.repairCompletedAt.slice(0, 10) : '');
+    setRepairMileageKm(initial?.repairMileageKm != null ? String(initial.repairMileageKm) : '');
+    setWorkCategory(initial?.workCategory || 'other');
     setSavedAt(initial?.updatedAt ?? null);
   }, [initial]);
 
@@ -66,6 +81,8 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
           : null,
         workOrderNumber: workOrderNumber.trim() || null,
         repairCompletedAt: repairCompletedAt ? new Date(repairCompletedAt).toISOString() : null,
+        repairMileageKm: repairMileageKm.trim() ? Number(repairMileageKm) : null,
+        workCategory: workCategory || 'other',
       });
       setSavedAt(saved.updatedAt);
       onSaved?.(saved);
@@ -82,6 +99,7 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
         <h3>Оценка диагноза ИИ</h3>
         <p className="muted">
           Помогите улучшить рекомендации: отметьте, насколько предварительный диагноз совпал с реальностью.
+          Итог ремонта попадёт в сервисную книжку клиента.
         </p>
       </header>
 
@@ -124,6 +142,26 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
       <section className="repair-outcome-fields">
         <h4>Итог ремонта</h4>
         <div className="repair-outcome-grid">
+          <label className="stack gap-xs">
+            <span>Тип работ</span>
+            <select value={workCategory} onChange={(e) => setWorkCategory(e.target.value)}>
+              {CATEGORY_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="stack gap-xs">
+            <span>Пробег при работах, км</span>
+            <input
+              type="number"
+              min={0}
+              value={repairMileageKm}
+              onChange={(e) => setRepairMileageKm(e.target.value)}
+              placeholder="45200"
+            />
+          </label>
           <label className="stack gap-xs">
             <span>Сумма, ₽</span>
             <input

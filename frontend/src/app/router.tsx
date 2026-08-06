@@ -47,6 +47,11 @@ const ProfilePage = lazy(() => import('../pages/dashboards/ProfilePage').then((m
 const ClientVehiclesPage = lazy(() =>
   import('../pages/dashboards/client/ClientVehiclesPage').then((m) => ({ default: m.ClientVehiclesPage })),
 );
+const ClientVehicleDetailPage = lazy(() =>
+  import('../pages/dashboards/client/ClientVehicleDetailPage').then((m) => ({
+    default: m.ClientVehicleDetailPage,
+  })),
+);
 const ManagerWorkDeskPage = lazy(() =>
   import('../pages/manager/ManagerWorkDeskPage').then((m) => ({ default: m.ManagerWorkDeskPage })),
 );
@@ -263,6 +268,14 @@ export const router = createBrowserRouter([
         element: (
           <RoleRoute roles={['CLIENT']}>
             {withSuspense(<ClientVehiclesPage />)}
+          </RoleRoute>
+        ),
+      },
+      {
+        path: 'client/vehicles/:vehicleId',
+        element: (
+          <RoleRoute roles={['CLIENT']}>
+            {withSuspense(<ClientVehicleDetailPage />)}
           </RoleRoute>
         ),
       },

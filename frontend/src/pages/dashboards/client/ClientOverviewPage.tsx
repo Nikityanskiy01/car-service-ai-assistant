@@ -1,15 +1,22 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   CalendarDays,
   Car,
+  Droplets,
   MessageSquare,
   Plus,
   Wrench,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getClientDashboardSummary } from '../../../api/dashboard';
-import { listVehicles, type ClientVehicle } from '../../../api/vehicles';
+import {
+  formatVehicleTitle,
+  listVehicles,
+  type ClientVehicle,
+} from '../../../api/vehicles';
+import { listMaintenanceAlerts, type MaintenanceAlert } from '../../../api/serviceRecords';
+import { prefillOilChangeBookingFromPlan } from '../../../features/consultations/bookingPrefill';
 import { CaseCard } from '../../../components/client/CaseCard';
 import { ClientOverviewBookingSpotlight } from '../../../components/client/ClientOverviewBookingSpotlight';
 import { ClientOverviewFocusStack } from '../../../components/client/ClientOverviewFocusStack';
@@ -58,21 +65,25 @@ export function ClientOverviewPage() {
   });
 
   const productConfig = useProductConfig();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ClientDashboardSummary | null>(null);
   const [vehicles, setVehicles] = useState<ClientVehicle[]>([]);
+  const [oilAlerts, setOilAlerts] = useState<MaintenanceAlert[]>([]);
 
   async function loadOverview() {
     setLoading(true);
     setError(null);
     try {
-      const [summaryData, vehicleRows] = await Promise.all([
+      const [summaryData, vehicleRows, alerts] = await Promise.all([
         getClientDashboardSummary(),
         listVehicles().catch(() => [] as ClientVehicle[]),
+        listMaintenanceAlerts().catch(() => [] as MaintenanceAlert[]),
       ]);
       setSummary(summaryData);
       setVehicles(vehicleRows);
+      setOilAlerts(alerts);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка загрузки кабинета');
     } finally {
@@ -111,6 +122,18 @@ export function ClientOverviewPage() {
   const isNewcomer = !summary.hasAnyHistory && !summary.draftConsultation;
   const visibleVehicles = vehicles.slice(0, 4);
   const hiddenVehiclesCount = Math.max(0, vehicles.length - visibleVehicles.length);
+  const topOilAlert = oilAlerts[0] || null;
+
+  function bookFromOilAlert(alert: MaintenanceAlert) {
+    prefillOilChangeBookingFromPlan({
+      make: alert.make,
+      model: alert.model,
+      year: alert.year,
+      nextDueAt: alert.plan?.nextDueAt,
+      nextDueMileage: alert.plan?.nextDueMileage,
+    });
+    navigate('/booking');
+  }
 
   return (
     <div className="stack dashboard-page client-overview">
@@ -120,6 +143,54 @@ export function ClientOverviewPage() {
             {summary.profile.fullName ? `${greeting}, ${summary.profile.fullName}` : greeting}
           </p>
           <p className="client-overview-subtitle">{subtitle}</p>
+          {topOilAlert ? (
+            <div
+              className={`service-oil-alert client-overview-focus-primary ${
+                topOilAlert.status === 'overdue' ? 'is-accent-overdue' : 'is-accent-soon'
+              }`}
+              data-status={topOilAlert.status}
+            >
+              <div className="client-overview-focus-primary-inner service-oil-alert-inner">
+                <div className="client-overview-focus-primary-head">
+                  <span className="client-overview-focus-primary-icon" aria-hidden>
+                    <Droplets size={18} />
+                  </span>
+                  <div>
+                    <p className="client-overview-focus-kicker">Обслуживание</p>
+                    <strong>
+                      {topOilAlert.status === 'overdue'
+                        ? 'Пора менять масло'
+                        : 'Скоро замена масла'}
+                    </strong>
+                    <p className="muted service-oil-alert-meta">
+                      {formatVehicleTitle(topOilAlert)}
+                      {topOilAlert.plan?.nextDueAt
+                        ? ` · до ${new Date(topOilAlert.plan.nextDueAt).toLocaleDateString('ru-RU')}`
+                        : ''}
+                      {topOilAlert.plan?.nextDueMileage != null
+                        ? ` · ${topOilAlert.plan.nextDueMileage.toLocaleString('ru-RU')} км`
+                        : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="service-oil-alert-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => bookFromOilAlert(topOilAlert)}
+                  >
+                    Записаться
+                  </button>
+                  <Link
+                    className="btn btn-secondary btn-sm"
+                    to={`/dashboard/client/vehicles/${topOilAlert.vehicleId}`}
+                  >
+                    История
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="client-overview-stats" aria-label="Сводка">
             {summary.activeCasesCount > 0 ? (
               <Link className="client-overview-stat" to="/dashboard/client/cases">
