@@ -43,6 +43,13 @@ export async function analyzeVehiclePhoto({ mimeType, imageBase64 }) {
   const timeoutMs = Number(env.LLM_VISION_TIMEOUT_MS) > 0 ? Number(env.LLM_VISION_TIMEOUT_MS) : 90_000;
 
   if (env.LLM_PROVIDER === 'openai' && String(env.LLM_API_KEY || '').trim()) {
+    if (!env.LLM_CLOUD_PII_ALLOWED) {
+      return {
+        observations: [],
+        summary: 'Облачный анализ фото отключён политикой персональных данных. Опишите симптомы текстом или используйте локальную модель.',
+        analysis_available: false,
+      };
+    }
     const url = `${resolveOpenAiBaseUrl(env.LLM_CLOUD_BASE_URL)}/chat/completions`;
     const res = await fetch(url, {
       method: 'POST',

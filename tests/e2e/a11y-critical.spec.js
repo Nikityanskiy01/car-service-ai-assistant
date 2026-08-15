@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { e2eUsers } from './credentials.js';
 
 async function expectNoBlockingA11y(page) {
   const results = await new AxeBuilder({ page })
@@ -50,14 +51,14 @@ test.describe('a11y critical pages', () => {
   });
 
   test('client overview', async ({ page }) => {
-    await login(page, 'client@example.local', 'Client-Demo-2026!');
+    await login(page, e2eUsers.client.email, e2eUsers.client.password);
     await page.goto('/dashboard/client');
     await expect(page.getByRole('heading', { name: 'Кабинет клиента' })).toBeVisible();
     await expectNoBlockingA11y(page);
   });
 
   test('manager queue', async ({ page }) => {
-    await login(page, 'manager@example.local', 'Manager-Demo-2026!');
+    await login(page, e2eUsers.manager.email, e2eUsers.manager.password);
     await page.goto('/dashboard/manager/requests');
     await expect(page.locator('h1, h2, .dashboard-topbar-title').first()).toBeVisible();
     await expectNoBlockingA11y(page);

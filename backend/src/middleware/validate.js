@@ -1,3 +1,5 @@
+import '../lib/zodRu.js';
+import { apiMessages } from '../config/apiMessages.js';
 import { sendProblem } from '../lib/problem.js';
 
 /**
@@ -10,7 +12,7 @@ export function validateBody(schema) {
       const first = r.error.issues[0];
       return sendProblem(res, {
         status: 400,
-        detail: first?.message || 'Validation failed',
+        detail: first?.message || apiMessages.common.validationFailed,
         code: 'VALIDATION_ERROR',
         instance: req.id ? `/requests/${req.id}` : req.path,
         extras: process.env.NODE_ENV === 'production' ? undefined : { details: r.error.flatten() },
@@ -31,7 +33,7 @@ export function validateQuery(schema) {
       const first = r.error.issues[0];
       return sendProblem(res, {
         status: 400,
-        detail: first?.message || 'Validation failed',
+        detail: first?.message || apiMessages.common.validationFailed,
         code: 'VALIDATION_ERROR',
         instance: req.id ? `/requests/${req.id}` : req.path,
         extras: process.env.NODE_ENV === 'production' ? undefined : { details: r.error.flatten() },

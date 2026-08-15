@@ -28,8 +28,5 @@ export async function readyPayload() {
   }
 
   const ready = checks.db === 'ok' && checks.redis !== 'error';
-  return {
-    status: ready ? 'ready' : 'not_ready',
-    checks,
-  };
+  return { status: ready ? 'ready' : 'not_ready' };
 }

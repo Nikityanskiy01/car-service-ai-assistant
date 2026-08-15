@@ -6,9 +6,19 @@ vi.mock('../../api/client', () => ({
   getCsrfToken: () => null,
 }));
 
+vi.mock('./abusePow', () => ({
+  solveAbuseChallenge: vi.fn(async () => ({
+    'X-Abuse-Nonce': 'nonce',
+    'X-Abuse-Issued': '1',
+    'X-Abuse-Difficulty': '4',
+    'X-Abuse-Sig': 'sig',
+    'X-Abuse-Solution': '0',
+  })),
+}));
+
 describe('useConsultationStream', () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('dispatches SSE handlers from stream events', async () => {
@@ -52,6 +62,15 @@ describe('useConsultationStream', () => {
     expect(onProgress).toHaveBeenCalledWith({ step: 'analysis' });
     expect(onDone).toHaveBeenCalledWith({ status: 'COMPLETED' });
     expect(onError).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/consultations/session-1/messages/stream',
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      }),
+    );
+    const sent = fetch.mock.calls[0][1].headers;
+    expect(sent.get('X-Abuse-Nonce')).toBe('nonce');
+    expect(sent.get('X-Consultation-Guest-Token')).toBe('guest-token');
   });
 
   it('reports stream aborts via onError without throwing', async () => {

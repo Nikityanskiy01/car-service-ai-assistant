@@ -1,0 +1,3457 @@
+openapi: 3.0.3
+info:
+  title: Car Service AI Assistant API
+  version: 0.5.0
+  description: >
+    Полный операционный контракт, сгенерированный из runtime Express
+    (`docs/api-route-inventory.json`). Схемы тел запросов — минимальные;
+    источник истины по наличию path+method — инвентарь + `npm run openapi:check`.
+servers:
+  - url: http://localhost:3000/api
+tags:
+  - name: Ops
+  - name: Auth
+  - name: Consultations
+  - name: ServiceRequests
+  - name: Bookings
+  - name: Users
+  - name: Vehicles
+  - name: Contact
+  - name: Content
+  - name: Admin
+  - name: Analytics
+  - name: Integrations
+  - name: Product
+  - name: Other
+paths:
+  "/":
+    get:
+      tags: [Other]
+      summary: Получить root
+      operationId: get_root
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Other]
+      summary: Создать/выполнить root
+      operationId: post_root
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/ai/memory/backfill":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить backfill
+      operationId: post_admin_ai_memory_backfill
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/ai/memory/search":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить search
+      operationId: post_admin_ai_memory_search
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/ai/memory/stats":
+    get:
+      tags: [Admin]
+      summary: Получить stats
+      operationId: get_admin_ai_memory_stats
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/audit-events":
+    get:
+      tags: [Admin]
+      summary: Получить audit-events
+      operationId: get_admin_audit_events
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integration-conflicts":
+    get:
+      tags: [Admin]
+      summary: Получить integration-conflicts
+      operationId: get_admin_integration_conflicts
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integration-conflicts/{id}/resolve":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить resolve
+      operationId: post_admin_integration_conflicts_id_resolve
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integration-jobs/{jobId}/cancel":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить cancel
+      operationId: post_admin_integration_jobs_jobId_cancel
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integration-jobs/{jobId}/retry":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить retry
+      operationId: post_admin_integration_jobs_jobId_retry
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations":
+    get:
+      tags: [Admin]
+      summary: Получить integrations
+      operationId: get_admin_integrations
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить integrations
+      operationId: post_admin_integrations
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {id}"
+      operationId: delete_admin_integrations_id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      tags: [Admin]
+      summary: "Получить {id}"
+      operationId: get_admin_integrations_id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: "Обновить {id}"
+      operationId: patch_admin_integrations_id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/capabilities":
+    get:
+      tags: [Admin]
+      summary: Получить capabilities
+      operationId: get_admin_integrations_id_capabilities
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/conflicts":
+    get:
+      tags: [Admin]
+      summary: Получить conflicts
+      operationId: get_admin_integrations_id_conflicts
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/disable":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить disable
+      operationId: post_admin_integrations_id_disable
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/enable":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить enable
+      operationId: post_admin_integrations_id_enable
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/jobs":
+    get:
+      tags: [Admin]
+      summary: Получить jobs
+      operationId: get_admin_integrations_id_jobs
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/logs":
+    get:
+      tags: [Admin]
+      summary: Получить logs
+      operationId: get_admin_integrations_id_logs
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/sync":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить sync
+      operationId: post_admin_integrations_id_sync
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/integrations/{id}/test":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить test
+      operationId: post_admin_integrations_id_test
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/llm-eval":
+    get:
+      tags: [Admin]
+      summary: Получить llm-eval
+      operationId: get_admin_llm_eval
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/llm-status":
+    get:
+      tags: [Admin]
+      summary: Получить llm-status
+      operationId: get_admin_llm_status
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/hints/{hintId}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {hintId}"
+      operationId: delete_admin_reference_hints_hintId
+      parameters:
+        - in: path
+          name: hintId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: "Обновить {hintId}"
+      operationId: patch_admin_reference_hints_hintId
+      parameters:
+        - in: path
+          name: hintId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/questions/{questionId}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {questionId}"
+      operationId: delete_admin_reference_questions_questionId
+      parameters:
+        - in: path
+          name: questionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: "Обновить {questionId}"
+      operationId: patch_admin_reference_questions_questionId
+      parameters:
+        - in: path
+          name: questionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/reference-materials":
+    get:
+      tags: [Admin]
+      summary: Получить reference-materials
+      operationId: get_admin_reference_reference_materials
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить reference-materials
+      operationId: post_admin_reference_reference_materials
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/reference-materials/{materialId}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {materialId}"
+      operationId: delete_admin_reference_reference_materials_materialId
+      parameters:
+        - in: path
+          name: materialId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: "Обновить {materialId}"
+      operationId: patch_admin_reference_reference_materials_materialId
+      parameters:
+        - in: path
+          name: materialId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/scenarios":
+    get:
+      tags: [Admin]
+      summary: Получить scenarios
+      operationId: get_admin_reference_scenarios
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить scenarios
+      operationId: post_admin_reference_scenarios
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/scenarios/{scenarioId}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {scenarioId}"
+      operationId: delete_admin_reference_scenarios_scenarioId
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: "Обновить {scenarioId}"
+      operationId: patch_admin_reference_scenarios_scenarioId
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/scenarios/{scenarioId}/hints":
+    get:
+      tags: [Admin]
+      summary: Получить hints
+      operationId: get_admin_reference_scenarios_scenarioId_hints
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить hints
+      operationId: post_admin_reference_scenarios_scenarioId_hints
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/scenarios/{scenarioId}/questions":
+    get:
+      tags: [Admin]
+      summary: Получить questions
+      operationId: get_admin_reference_scenarios_scenarioId_questions
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить questions
+      operationId: post_admin_reference_scenarios_scenarioId_questions
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/service-categories":
+    get:
+      tags: [Admin]
+      summary: Получить service-categories
+      operationId: get_admin_reference_service_categories
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить service-categories
+      operationId: post_admin_reference_service_categories
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/reference/service-categories/{categoryId}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {categoryId}"
+      operationId: delete_admin_reference_service_categories_categoryId
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: "Обновить {categoryId}"
+      operationId: patch_admin_reference_service_categories_categoryId
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/sessions":
+    get:
+      tags: [Admin]
+      summary: Получить sessions
+      operationId: get_admin_sessions
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/sessions/{sessionId}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {sessionId}"
+      operationId: delete_admin_sessions_sessionId
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/site-content":
+    get:
+      tags: [Admin]
+      summary: Получить site-content
+      operationId: get_admin_site_content
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить site-content
+      operationId: post_admin_site_content
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/site-content/{blockId}":
+    patch:
+      tags: [Admin]
+      summary: "Обновить {blockId}"
+      operationId: patch_admin_site_content_blockId
+      parameters:
+        - in: path
+          name: blockId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/site-content/{blockId}/rollback":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить rollback
+      operationId: post_admin_site_content_blockId_rollback
+      parameters:
+        - in: path
+          name: blockId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/site-items":
+    get:
+      tags: [Admin]
+      summary: Получить site-items
+      operationId: get_admin_site_items
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить site-items
+      operationId: post_admin_site_items
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/site-items/reorder":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить reorder
+      operationId: post_admin_site_items_reorder
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/site-items/{itemId}":
+    delete:
+      tags: [Admin]
+      summary: "Удалить {itemId}"
+      operationId: delete_admin_site_items_itemId
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: "Обновить {itemId}"
+      operationId: patch_admin_site_items_itemId
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/site-settings":
+    get:
+      tags: [Admin]
+      summary: Получить site-settings
+      operationId: get_admin_site_settings
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Admin]
+      summary: Обновить site-settings
+      operationId: patch_admin_site_settings
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/users":
+    get:
+      tags: [Admin]
+      summary: Получить users
+      operationId: get_admin_users
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/users/{userId}/block":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить block
+      operationId: post_admin_users_userId_block
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/users/{userId}/revoke-sessions":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить revoke-sessions
+      operationId: post_admin_users_userId_revoke_sessions
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/users/{userId}/role":
+    patch:
+      tags: [Admin]
+      summary: Обновить role
+      operationId: patch_admin_users_userId_role
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/admin/users/{userId}/unblock":
+    post:
+      tags: [Admin]
+      summary: Создать/выполнить unblock
+      operationId: post_admin_users_userId_unblock
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/analytics/ai-feedback":
+    get:
+      tags: [Analytics]
+      summary: Получить ai-feedback
+      operationId: get_analytics_ai_feedback
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/analytics/ai-feedback.csv":
+    get:
+      tags: [Analytics]
+      summary: Получить ai-feedback.csv
+      operationId: get_analytics_ai_feedback_csv
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/analytics/kpi":
+    get:
+      tags: [Analytics]
+      summary: Получить kpi
+      operationId: get_analytics_kpi
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/analytics/kpi.csv":
+    get:
+      tags: [Analytics]
+      summary: Получить kpi.csv
+      operationId: get_analytics_kpi_csv
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/analytics/manager-kpi":
+    get:
+      tags: [Analytics]
+      summary: Получить manager-kpi
+      operationId: get_analytics_manager_kpi
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/analytics/summary":
+    get:
+      tags: [Analytics]
+      summary: Получить summary
+      operationId: get_analytics_summary
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/forgot-password":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить forgot-password
+      operationId: post_auth_forgot_password
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/login":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить login
+      operationId: post_auth_login
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/login-options":
+    get:
+      tags: [Auth]
+      summary: Получить login-options
+      operationId: get_auth_login_options
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/login/2fa":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить 2fa
+      operationId: post_auth_login_2fa
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/logout":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить logout
+      operationId: post_auth_logout
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/otp/start":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить start
+      operationId: post_auth_otp_start
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/otp/verify":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить verify
+      operationId: post_auth_otp_verify
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/refresh":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить refresh
+      operationId: post_auth_refresh
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/register":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить register
+      operationId: post_auth_register
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/resend-verification":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить resend-verification
+      operationId: post_auth_resend_verification
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/reset-password":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить reset-password
+      operationId: post_auth_reset_password
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/auth/verify-email":
+    post:
+      tags: [Auth]
+      summary: Создать/выполнить verify-email
+      operationId: post_auth_verify_email
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/bookings":
+    get:
+      tags: [Bookings]
+      summary: Получить bookings
+      operationId: get_bookings
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Bookings]
+      summary: Создать/выполнить bookings
+      operationId: post_bookings
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/bookings/guest":
+    post:
+      tags: [Bookings]
+      summary: Создать/выполнить guest
+      operationId: post_bookings_guest
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/bookings/{bookingId}":
+    get:
+      tags: [Bookings]
+      summary: "Получить {bookingId}"
+      operationId: get_bookings_bookingId
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Bookings]
+      summary: "Обновить {bookingId}"
+      operationId: patch_bookings_bookingId
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/bookings/{bookingId}/audit":
+    get:
+      tags: [Bookings]
+      summary: Получить audit
+      operationId: get_bookings_bookingId_audit
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations":
+    get:
+      tags: [Consultations]
+      summary: Получить consultations
+      operationId: get_consultations
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Consultations]
+      summary: Создать консультацию (клиент или гость)
+      operationId: post_consultations
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/abuse-challenge":
+    get:
+      tags: [Consultations]
+      summary: Получить abuse-challenge
+      operationId: get_consultations_abuse_challenge
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/context/active-templates":
+    get:
+      tags: [Consultations]
+      summary: Получить active-templates
+      operationId: get_consultations_context_active_templates
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/staff":
+    get:
+      tags: [Consultations]
+      summary: Получить staff
+      operationId: get_consultations_staff
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}":
+    get:
+      tags: [Consultations]
+      summary: "Получить {sessionId}"
+      operationId: get_consultations_sessionId
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/analyze-photo":
+    post:
+      tags: [Consultations]
+      summary: Создать/выполнить analyze-photo
+      operationId: post_consultations_sessionId_analyze_photo
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/claim":
+    post:
+      tags: [Consultations]
+      summary: Создать/выполнить claim
+      operationId: post_consultations_sessionId_claim
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/diagnosis-job":
+    get:
+      tags: [Consultations]
+      summary: Получить diagnosis-job
+      operationId: get_consultations_sessionId_diagnosis_job
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/export.pdf":
+    get:
+      tags: [Consultations]
+      summary: Получить export.pdf
+      operationId: get_consultations_sessionId_export_pdf
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/messages":
+    post:
+      tags: [Consultations]
+      summary: Сообщение в консультацию
+      operationId: post_consultations_sessionId_messages
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/messages/stream":
+    post:
+      tags: [Consultations]
+      summary: Создать/выполнить stream
+      operationId: post_consultations_sessionId_messages_stream
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/report":
+    post:
+      tags: [Consultations]
+      summary: Создать/выполнить report
+      operationId: post_consultations_sessionId_report
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/service-request":
+    post:
+      tags: [Consultations]
+      summary: Создать/выполнить service-request
+      operationId: post_consultations_sessionId_service_request
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/consultations/{sessionId}/service-request-guest":
+    post:
+      tags: [Consultations]
+      summary: Создать/выполнить service-request-guest
+      operationId: post_consultations_sessionId_service_request_guest
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/contact":
+    get:
+      tags: [Contact]
+      summary: Получить contact
+      operationId: get_contact
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Contact]
+      summary: Создать/выполнить contact
+      operationId: post_contact
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/contact/{contactId}":
+    patch:
+      tags: [Contact]
+      summary: "Обновить {contactId}"
+      operationId: patch_contact_contactId
+      parameters:
+        - in: path
+          name: contactId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/contact/{contactId}/convert-to-request":
+    post:
+      tags: [Contact]
+      summary: Создать/выполнить convert-to-request
+      operationId: post_contact_contactId_convert_to_request
+      parameters:
+        - in: path
+          name: contactId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/content/site-items":
+    get:
+      tags: [Content]
+      summary: Получить site-items
+      operationId: get_content_site_items
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/content/site-settings":
+    get:
+      tags: [Content]
+      summary: Получить site-settings
+      operationId: get_content_site_settings
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/health":
+    get:
+      tags: [Ops]
+      summary: Совместимый alias readiness
+      operationId: get_health
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/live":
+    get:
+      tags: [Ops]
+      summary: "Liveness (процесс жив, без БД)"
+      operationId: get_live
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/maintenance-alerts":
+    get:
+      tags: [Other]
+      summary: Получить maintenance-alerts
+      operationId: get_maintenance_alerts
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/manager/integrations":
+    get:
+      tags: [Integrations]
+      summary: Получить integrations
+      operationId: get_manager_integrations
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/manager/requests/{requestId}/export":
+    post:
+      tags: [Integrations]
+      summary: Создать/выполнить export
+      operationId: post_manager_requests_requestId_export
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/manager/requests/{requestId}/integrations":
+    get:
+      tags: [Integrations]
+      summary: Получить integrations
+      operationId: get_manager_requests_requestId_integrations
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/manager/requests/{requestId}/integrations/{connectionId}/retry":
+    post:
+      tags: [Integrations]
+      summary: Создать/выполнить retry
+      operationId: post_manager_requests_requestId_integrations_connectionId_retry
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: connectionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/metrics":
+    get:
+      tags: [Ops]
+      summary: Prometheus text (in-process)
+      operationId: get_metrics
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/product-events":
+    post:
+      tags: [Product]
+      summary: Продуктовое событие воронки
+      operationId: post_product_events
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/ready":
+    get:
+      tags: [Ops]
+      summary: Readiness (БД и Redis при наличии)
+      operationId: get_ready
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-records/{recordId}":
+    delete:
+      tags: [Other]
+      summary: "Удалить {recordId}"
+      operationId: delete_service_records_recordId
+      parameters:
+        - in: path
+          name: recordId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Other]
+      summary: "Обновить {recordId}"
+      operationId: patch_service_records_recordId
+      parameters:
+        - in: path
+          name: recordId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-records/{recordId}/export.jpg":
+    get:
+      tags: [Other]
+      summary: Получить export.jpg
+      operationId: get_service_records_recordId_export_jpg
+      parameters:
+        - in: path
+          name: recordId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-records/{recordId}/export.pdf":
+    get:
+      tags: [Other]
+      summary: Получить export.pdf
+      operationId: get_service_records_recordId_export_pdf
+      parameters:
+        - in: path
+          name: recordId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить service-requests
+      operationId: get_service_requests
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/activity":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить activity
+      operationId: get_service_requests_activity
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/bulk/assign":
+    post:
+      tags: [ServiceRequests]
+      summary: Создать/выполнить assign
+      operationId: post_service_requests_bulk_assign
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/bulk/export-crm":
+    post:
+      tags: [ServiceRequests]
+      summary: Создать/выполнить export-crm
+      operationId: post_service_requests_bulk_export_crm
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/bulk/status":
+    post:
+      tags: [ServiceRequests]
+      summary: Создать/выполнить status
+      operationId: post_service_requests_bulk_status
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/client-dossier/{clientId}":
+    get:
+      tags: [ServiceRequests]
+      summary: "Получить {clientId}"
+      operationId: get_service_requests_client_dossier_clientId
+      parameters:
+        - in: path
+          name: clientId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/guest-dossier/{phone}":
+    get:
+      tags: [ServiceRequests]
+      summary: "Получить {phone}"
+      operationId: get_service_requests_guest_dossier_phone
+      parameters:
+        - in: path
+          name: phone
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/managers":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить managers
+      operationId: get_service_requests_managers
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}":
+    get:
+      tags: [ServiceRequests]
+      summary: "Получить {requestId}"
+      operationId: get_service_requests_requestId
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [ServiceRequests]
+      summary: "Обновить {requestId}"
+      operationId: patch_service_requests_requestId
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/assign-manager":
+    patch:
+      tags: [ServiceRequests]
+      summary: Обновить assign-manager
+      operationId: patch_service_requests_requestId_assign_manager
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/assign-to-me":
+    post:
+      tags: [ServiceRequests]
+      summary: Создать/выполнить assign-to-me
+      operationId: post_service_requests_requestId_assign_to_me
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/completion-documents":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить completion-documents
+      operationId: get_service_requests_requestId_completion_documents
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [ServiceRequests]
+      summary: Создать/выполнить completion-documents
+      operationId: post_service_requests_requestId_completion_documents
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/completion-documents/{documentId}":
+    delete:
+      tags: [ServiceRequests]
+      summary: "Удалить {documentId}"
+      operationId: delete_service_requests_requestId_completion_documents_documentId
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      tags: [ServiceRequests]
+      summary: "Получить {documentId}"
+      operationId: get_service_requests_requestId_completion_documents_documentId
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/consultation-feedback":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить consultation-feedback
+      operationId: get_service_requests_requestId_consultation_feedback
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    put:
+      tags: [ServiceRequests]
+      summary: Заменить consultation-feedback
+      operationId: put_service_requests_requestId_consultation_feedback
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/export.pdf":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить export.pdf
+      operationId: get_service_requests_requestId_export_pdf
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/similar-cases":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить similar-cases
+      operationId: get_service_requests_requestId_similar_cases
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/service-requests/{requestId}/status-history":
+    get:
+      tags: [ServiceRequests]
+      summary: Получить status-history
+      operationId: get_service_requests_requestId_status_history
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me":
+    get:
+      tags: [Users]
+      summary: Получить me
+      operationId: get_users_me
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Users]
+      summary: Обновить me
+      operationId: patch_users_me
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/2fa/backup-codes":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить backup-codes
+      operationId: post_users_me_2fa_backup_codes
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/2fa/confirm":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить confirm
+      operationId: post_users_me_2fa_confirm
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/2fa/disable":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить disable
+      operationId: post_users_me_2fa_disable
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/2fa/setup":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить setup
+      operationId: post_users_me_2fa_setup
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/2fa/setup/cancel":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить cancel
+      operationId: post_users_me_2fa_setup_cancel
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/avatar":
+    delete:
+      tags: [Users]
+      summary: Удалить avatar
+      operationId: delete_users_me_avatar
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      tags: [Users]
+      summary: Получить avatar
+      operationId: get_users_me_avatar
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Users]
+      summary: Создать/выполнить avatar
+      operationId: post_users_me_avatar
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/consultation-reports":
+    get:
+      tags: [Users]
+      summary: Получить consultation-reports
+      operationId: get_users_me_consultation_reports
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/login-history":
+    get:
+      tags: [Users]
+      summary: Получить login-history
+      operationId: get_users_me_login_history
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/login-methods":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить login-methods
+      operationId: post_users_me_login_methods
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/notification-preferences":
+    get:
+      tags: [Users]
+      summary: Получить notification-preferences
+      operationId: get_users_me_notification_preferences
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Users]
+      summary: Обновить notification-preferences
+      operationId: patch_users_me_notification_preferences
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/notifications":
+    get:
+      tags: [Users]
+      summary: Получить notifications
+      operationId: get_users_me_notifications
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/notifications/read":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить read
+      operationId: post_users_me_notifications_read
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/notifications/unread-count":
+    get:
+      tags: [Users]
+      summary: Получить unread-count
+      operationId: get_users_me_notifications_unread_count
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/password":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить password
+      operationId: post_users_me_password
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/phone/verify/confirm":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить confirm
+      operationId: post_users_me_phone_verify_confirm
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/phone/verify/start":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить start
+      operationId: post_users_me_phone_verify_start
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/privacy/delete":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить delete
+      operationId: post_users_me_privacy_delete
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/privacy/export":
+    get:
+      tags: [Users]
+      summary: Получить export
+      operationId: get_users_me_privacy_export
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/security":
+    get:
+      tags: [Users]
+      summary: Получить security
+      operationId: get_users_me_security
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/sessions":
+    get:
+      tags: [Users]
+      summary: Получить sessions
+      operationId: get_users_me_sessions
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/sessions/revoke-others":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить revoke-others
+      operationId: post_users_me_sessions_revoke_others
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/sessions/revoke/start":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить start
+      operationId: post_users_me_sessions_revoke_start
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/sessions/{sessionId}":
+    delete:
+      tags: [Users]
+      summary: "Удалить {sessionId}"
+      operationId: delete_users_me_sessions_sessionId
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/summary":
+    get:
+      tags: [Users]
+      summary: Получить summary
+      operationId: get_users_me_summary
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/telegram/link/start":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить start
+      operationId: post_users_me_telegram_link_start
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/users/me/telegram/unlink":
+    post:
+      tags: [Users]
+      summary: Создать/выполнить unlink
+      operationId: post_users_me_telegram_unlink
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/vehicles":
+    get:
+      tags: [Vehicles]
+      summary: Получить vehicles
+      operationId: get_vehicles
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Vehicles]
+      summary: Создать/выполнить vehicles
+      operationId: post_vehicles
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/vehicles/{vehicleId}":
+    delete:
+      tags: [Vehicles]
+      summary: "Удалить {vehicleId}"
+      operationId: delete_vehicles_vehicleId
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      tags: [Vehicles]
+      summary: "Получить {vehicleId}"
+      operationId: get_vehicles_vehicleId
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    patch:
+      tags: [Vehicles]
+      summary: "Обновить {vehicleId}"
+      operationId: patch_vehicles_vehicleId
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/vehicles/{vehicleId}/maintenance-plan":
+    get:
+      tags: [Vehicles]
+      summary: Получить maintenance-plan
+      operationId: get_vehicles_vehicleId_maintenance_plan
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/vehicles/{vehicleId}/photo":
+    delete:
+      tags: [Vehicles]
+      summary: Удалить photo
+      operationId: delete_vehicles_vehicleId_photo
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      tags: [Vehicles]
+      summary: Получить photo
+      operationId: get_vehicles_vehicleId_photo
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Vehicles]
+      summary: Создать/выполнить photo
+      operationId: post_vehicles_vehicleId_photo
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/vehicles/{vehicleId}/service-history/export.pdf":
+    get:
+      tags: [Vehicles]
+      summary: Получить export.pdf
+      operationId: get_vehicles_vehicleId_service_history_export_pdf
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/vehicles/{vehicleId}/service-records":
+    get:
+      tags: [Vehicles]
+      summary: Получить service-records
+      operationId: get_vehicles_vehicleId_service_records
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    post:
+      tags: [Vehicles]
+      summary: Создать/выполнить service-records
+      operationId: post_vehicles_vehicleId_service_records
+      parameters:
+        - in: path
+          name: vehicleId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/webhooks/integrations/{connectionId}":
+    post:
+      tags: [Integrations]
+      summary: "Создать/выполнить {connectionId}"
+      operationId: post_webhooks_integrations_connectionId
+      parameters:
+        - in: path
+          name: connectionId
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  "/{messageId}/attachments/{attachmentId}":
+    get:
+      tags: [Other]
+      summary: "Получить {attachmentId}"
+      operationId: get_messageId_attachments_attachmentId
+      parameters:
+        - in: path
+          name: messageId
+          required: true
+          schema: { type: string }
+        - in: path
+          name: attachmentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+        '4XX':
+          description: Problem Details (RFC 9457)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        error: { type: string }
+        code: { type: string }
+

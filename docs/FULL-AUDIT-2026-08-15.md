@@ -19,9 +19,9 @@
 | Frontend | **354** файла TS/TSX в `frontend/src`, **38 533** строк (без тестов ~36 100) |
 | CSS | **22** файла, **23 581** строка; barrel `main.css` / `site.css` + слои `styles/app/*` и `styles/site/*` |
 | Тесты | Backend **55** `*.test.js`, **192** кейса `it/test` · Frontend **43** файла, **154** кейса · E2E **5** spec · k6 **1** · eval **38** сценариев |
-| Миграции Prisma | **39** |
+| Миграции Prisma | **40** |
 | HTTP | Инвентарь **188** маршрутов (`docs/api-route-inventory.json`, `generatedAt: 2026-08-15`) |
-| OpenAPI | Генератор `backend/scripts/sync-openapi.mjs` и CI `openapi:check` есть; **файла** `specs/001-ai-consultation-platform/contracts/openapi.yaml` **нет** (`ENOENT`) |
+| OpenAPI | **0.5.0**, 188 ops в `specs/…/contracts/openapi.yaml`; `openapi:check` зелёный (S6). Схемы тел — stub |
 
 ### Методология
 
@@ -54,11 +54,19 @@
 |--------|------------------|---------------------------|
 | **S1** | CI e2e + backend, live/ready, Redis AOF, nginx SSE, инвентарь | ✅ подтверждено |
 | **S2** | Error Boundary, RFC 9457, бэкапы uploads, env example, outbox key, diagnosis fail, `<main>` | ✅ подтверждено (RFC 9457 + `{error,code}` сосуществуют) |
-| **S3** | Prometheus, k6, jsx-a11y, CI hygiene, бренд, конституция LLM, SEO-база, события | ✅ в основном; MASTER всё ещё содержит navy-кнопку `#0369A1` |
+| **S3** | Prometheus, k6, jsx-a11y, CI hygiene, бренд, конституция LLM, SEO-база, события | ✅; кнопка MASTER починена в **S6** |
 | **S4** | OTel, axe e2e, Idempotency-Key, outbox poller, diagnosis_shown, architecture.md | ✅ подтверждено |
-| **S5** | полный OpenAPI, распил CSS, Compose worker | ◐ CSS и worker — да. **Контракт OpenAPI на диске отсутствует** |
+| **S5** | полный OpenAPI, распил CSS, Compose worker | ◐ CSS и worker — да. YAML контракта восстановлен в **S6** |
+| **S6** | Гейты: OpenAPI YAML, зелёный lint, README/MASTER, prod env TOTP/HMAC, Redis user 999 | Закрыт; Docker healthy |
+| **S7** | Распил `consultationFlowService` + тексты консультации | Закрыт |
+| **S8** | pgvector case memory + лимит JSON-скана | Закрыт |
+| **S9** | Распил `ConsultPage` / гаража (хуки + labels) | Закрыт |
+| **S10** | Распил `serviceRequests.service.js` → фасад + `service/*` | Закрыт |
+| **S11** | Распил `consultationAi.service.js` → фасад + `consultationAi/*` | Закрыт |
+| **S12** | Распил `BookingPage`, JSX гаража, `dashboard-widgets.css`; orphan-страницы | Закрыт 16.08 |
+| **S13** | Распил `vehicles.css` / `client-overview.css`; nightly live LLM eval | Закрыт 16.08 |
 
-Локальный `npm --prefix backend run lint` — **9 errors**. Корневой `npm run lint` в CI из-за этого не зелёный. Это не фиксировалось спринтами 1–5.
+Корневой `npm run lint` и `openapi:check` — **зелёные** (S6). Frontend lint: 0 errors / 28 warnings.
 
 ---
 
@@ -66,11 +74,11 @@
 
 Проект по-прежнему **зрелый доменный продукт**: три роли, гибрид rule-based + LLM, заявки, запись, гараж, CMS, outbox, PDF, админка. Стек фронтенда актуален. Backend сильнее среднего Express: Zod на границах, Pino, graceful shutdown, circuit breaker, async-диагноз, отдельный worker.
 
-Главный разрыв остаётся **платформенным**. После спринтов 1–5 платформа заметно лучше (пробы, Redis AOF, метрики, traces, axe, worker, слои CSS). Независимая пересъёмка снижает оценку относительно самооценки 7.0: **артефакт OpenAPI пропал**, **ESLint backend красный**, часть документов ссылается на несуществующие пути (`specs/`), `render.yaml` не описывает текущий стек.
+Главный разрыв остаётся **платформенным** (DX, остаток god-файлов, k6 не в CI). P0 по гейтам lint/OpenAPI закрыты в S6.
 
-**Итоговая оценка зрелости: 6.6 / 10**
+**Итоговая оценка зрелости: 7.5 / 10**
 
-История самооценок в том же файле: 5.9 → 6.5 (S1–S3) → 6.8 (S4) → 7.0 (S5). Повторная оценка **6.6** — не откат продукта, а честность поставляемых артефактов и гейтов качества.
+История: 5.9 → 6.5 (S1–S3) → 6.8 (S4) → 7.0 (самооценка S5) → 6.6 (повторная оценка) → 6.8 (S6) → 6.9 (S7) → 7.0 (S8, pgvector) → 7.1 (S9, распил ConsultPage/гаража) → 7.2 (S11, AI-фасад) → 7.3 (S12, Booking/гараж/widgets) → 7.4 (S13 CSS) → **7.5 (S13 live eval)**.
 
 ### Что сильно
 
@@ -84,12 +92,12 @@
 
 ### Что ломает уверенность прямо сейчас
 
-1. **`npm run openapi:check` падает с ENOENT** — каталога `specs/` нет, YAML контракта нет. CI job `lint` содержит этот шаг. Инвентарь 188 жив, генератор жив, поставка контракта — нет.
-2. **`npm --prefix backend run lint` — 9 errors** (`no-unused-vars`, `no-undef` в `mail.service.js` / `ollamaService.js`). Корневой lint в CI красный.
-3. God-файлы JS/TSX (consultation flow 895, заявки 796, `ClientVehicleDetailPage` 902) не распилены.
-4. OpenAPI даже в генераторе — stub-схемы; контрактных тестов нет.
-5. pgvector нет; embeddings — JSON cosine в процессе Node.
-6. Живого LLM eval в CI нет.
+1. ~~`openapi:check` ENOENT~~ ✅ S6: YAML 188 ops.
+2. ~~backend ESLint 9 errors~~ ✅ S6: корневой lint зелёный (frontend — warnings).
+3. God-файлы JS/TSX и CSS: фасады S7–S12; `vehicles.css` / `client-overview.css` распилены в S13. Остались `consultations.service.js` 691, `ManagerRequestDetailPage` 674, `dashboard-widgets.css` 855.
+4. OpenAPI схемы тел — stub; контрактных тестов нет.
+5. ~~pgvector нет~~ ✅ S8: `embedding_vec` + HNSW; JSON-скан ограничен `CASE_MEMORY_MAX_SCAN`.
+6. Живой LLM eval: nightly workflow + golden set; в PR/e2e по-прежнему `LLM_ENABLED=false`.
 7. i18n, TanStack Query, `/api/v1`, cursor-pagination — нет.
 
 ---
@@ -98,28 +106,28 @@
 
 | Домен | Было (исходный аудит) | Самооценка после S5 | **Сейчас** | Комментарий |
 |------|------:|------:|------:|-------------|
-| Архитектура | 6.5 | 7.1 | **7.0** | Worker вынесен; god JS остаются |
-| REST API | 4.5 | 6.6 | **5.5** | RFC 9457 + идемпотентность + инвентарь; **нет YAML** |
-| Данные и Prisma | 7.0 | 7.2 | **7.2** | 39 миграций, limit 15; нет pgvector / PgBouncer |
-| Качество backend | 6.0 | 6.0 | **5.5** | Lint красный; JS, не TS |
-| Качество frontend | 7.0 | 7.3 | **7.3** | TS strict, lazy, EB; нет TanStack Query |
-| UI / UX | 7.5 | 7.7 | **7.6** | Слои CSS; в MASTER остался navy-пример кнопки |
+| Архитектура | 6.5 | 7.1 | **7.6** | Worker + фасады S7–S11 + Booking/гараж S12 + CSS-слои S13 |
+| REST API | 4.5 | 6.6 | **6.4** | RFC 9457 + идемпотентность + YAML 188 ops; схемы stub, нет v1/cursor |
+| Данные и Prisma | 7.0 | 7.2 | **7.5** | 40 миграций; pgvector HNSW; нет PgBouncer |
+| Качество backend | 6.0 | 6.0 | **5.9** | Lint зелёный (S6); JS, не TS |
+| Качество frontend | 7.0 | 7.3 | **7.5** | TS strict, lazy, EB; Booking/Consult/гараж в хуках; нет TanStack Query |
+| UI / UX | 7.5 | 7.7 | **7.7** | Слои CSS; MASTER primary `#ea580c` |
 | Доступность | 6.0 | 7.0 | **7.0** | axe e2e 7 страниц; jsx-a11y warn; contrast выключен |
 | Производительность | 6.0 | 6.3 | **6.3** | k6 консультация; CSS-бандл ~415 KB |
 | Надёжность | 6.5 | 8.0 | **8.0** | live/ready, AOF, worker, бэкап uploads |
 | Наблюдаемость | 4.0 | 6.4 | **6.4** | Prom + OTel SDK; collector/SLO нет |
-| Тестирование | 6.0 | 6.8 | **6.7** | Пирамида живая; 5 e2e; lint/openapi гейты сломаны |
-| CI/CD | 5.0 | 6.8 | **5.8** | concurrency, Dependabot, Redis в e2e; lint+openapi красные |
+| Тестирование | 6.0 | 6.8 | **6.9** | Пирамида + nightly live eval; 5 e2e; lint/openapi зелёные |
+| CI/CD | 5.0 | 6.8 | **6.8** | Nightly LLM eval; Dependabot; coverage upload нет |
 | DevOps | 7.0 | 7.5 | **7.4** | Compose зрелый; `render.yaml` устарел |
-| ИИ / LLM | 7.0 | 7.1 | **7.1** | `PROMPT_VERSION`; токены и live eval нет |
+| ИИ / LLM | 7.0 | 7.1 | **7.5** | Case memory ANN; nightly live extraction eval; учёта токенов нет |
 | Интеграции | 5.5 | 6.2 | **6.2** | Outbox + poller; адаптер один |
-| Документация | 6.0 | 6.9 | **6.4** | Diátaxis-набор живой; ссылка на `specs/` мёртвая |
-| DX | 4.5 | 5.1 | **4.8** | Нет workspaces/Prettier/hooks; openapi:check падает |
+| Документация | 6.0 | 6.9 | **6.7** | README указывает на сгенерированный OpenAPI |
+| DX | 4.5 | 5.1 | **5.1** | `openapi:check` + lint зелёные; нет workspaces/Prettier/hooks |
 | i18n | 3.0 | 3.0 | **3.0** | Только русский в коде |
 | SEO / PWA | 4.5 | 6.0 | **6.0** | JSON-LD + sitemap; SW нет |
 | Юридическая полнота | 7.0 | 7.0 | **7.0** | шаблон 152-ФЗ, cookies |
 | Продуктовая аналитика | 3.0 | 5.3 | **5.3** | 4 события воронки; нет RUM |
-| Сопровождаемость | 5.5 | 5.9 | **5.8** | CSS ревьюится; JS/TSX-боги на месте |
+| Сопровождаемость | 5.5 | 5.9 | **6.7** | Booking/гараж/widgets (S12) + vehicles/overview слои (S13); widgets.css 855 |
 
 ---
 
@@ -137,21 +145,24 @@ Compose (проверено): `frontend` (read_only, 512m) · `backend` (`RUN_BA
 
 | Файл | Строк |
 |------|------:|
-| `backend/src/services/consultationFlowService.js` | 895 |
-| `backend/src/modules/serviceRequests/serviceRequests.service.js` | 796 |
-| `backend/src/modules/consultations/consultationAi.service.js` | 777 |
+| `backend/src/services/consultationFlowService.js` | 240 (оркестратор; логика в `consultationFlow/*`) |
+| `backend/src/services/consultationFlow/extract.js` | 360 |
+| `backend/src/modules/serviceRequests/serviceRequests.service.js` | 19 (фасад; логика в `service/*`) |
+| `backend/src/modules/consultations/consultationAi.service.js` | 21 (фасад; логика в `consultationAi/*`) |
+| `backend/src/modules/consultations/consultationAi/preAnalyze.js` | 239 |
 | `backend/src/modules/consultations/consultations.service.js` | 691 |
 | `backend/src/modules/integrations/integrations.service.js` | 633 |
-| `frontend/src/pages/dashboards/client/ClientVehicleDetailPage.tsx` | 902 |
-| `frontend/src/pages/public/BookingPage.tsx` | 821 |
+| `frontend/src/pages/dashboards/client/ClientVehicleDetailPage.tsx` | 38 (оркестратор; JSX в `Vehicle*Section`) |
+| `frontend/src/pages/public/BookingPage.tsx` | 226 (оркестратор; логика в `features/booking`) |
 | `frontend/src/api/dashboard.ts` | 724 |
-| `frontend/src/pages/public/ConsultPage.tsx` | 686 |
+| `frontend/src/features/consultations/useConsultPage.ts` | 452 |
+| `frontend/src/pages/public/ConsultPage.tsx` | 299 |
 | `frontend/src/pages/manager/ManagerRequestDetailPage.tsx` | 674 |
-| `frontend/src/styles/app/dashboard-widgets.css` | 3135 |
-| `frontend/src/styles/app/vehicles.css` | 2119 |
-| `frontend/src/styles/app/client-overview.css` | 2103 |
+| `frontend/src/styles/app/dashboard-widgets.css` | 855 (было 3135; слои consultation/followup/diagnosis/chrome/responsive) |
+| `frontend/src/styles/app/vehicles-service-book.css` | 975 (слой из vehicles.css) |
+| `frontend/src/styles/app/client-overview.css` | 600 (слой; garage/focus/cases/manager отдельно) |
 
-**A-1 (P1).** CSS больше не монолит на 17k в одном файле — это закрыто. Критический путь консультации и кабинета в JS/TSX не декомпозирован. Самый тяжёлый CSS-слой — `dashboard-widgets.css` (3.1k).
+**A-1 (P1).** CSS больше не монолит на 17k в одном файле — это закрыто. **S13:** `vehicles.css` и `client-overview.css` разложены по слоям (вид не менялся). Самый тяжёлый остаток CSS — `vehicles-service-book.css` (975) и `dashboard-widgets.css` (855).
 
 ### 3.3 12-Factor (кроме security)
 
@@ -183,22 +194,20 @@ Compose (проверено): `frontend` (read_only, 512m) · `backend` (`RUN_BA
 - Пагинация заявок: `page` / `pageSize` (max 100). Cursor-pagination нет. `/api/v1` нет.
 - Пробы: `GET /api/live` (процесс), `/api/ready` (БД + Redis), `/api/health` = ready, `/api/metrics` Prometheus.
 
-### 4.2 Контракт — регресс S5
+### 4.2 Контракт (S6)
 
-Генератор `sync-openapi.mjs` пишет в `specs/001-ai-consultation-platform/contracts/openapi.yaml`. Каталога `specs/` в рабочей копии **нет**. `npm run openapi:check` → `ENOENT`. `docs/README.md` всё ещё ссылается на `specs/` как на «ранние спеки».
+Генератор `sync-openapi.mjs` пишет `specs/001-ai-consultation-platform/contracts/openapi.yaml` (mkdir recursive). **188** operations, `openapi:check` зелёный. Схемы тел — stub `{ type: object }` + Problem Details. Не OpenAPI 3.1 как источник истины для codegen.
 
-Даже когда YAML существовал, это был path-coverage со stub `{ type: object }`, не OpenAPI 3.1 как источник истины для codegen.
-
-**API-1 (P0).** Контракт не является артефактом поставки в текущей копии. CI, который это проверяет, красный. Инвентарь JSON — единственный живой список маршрутов.
+**API-1 (P0) path-coverage** закрыт в S6. Остаток — богатые схемы и контрактные тесты (P2).
 
 ---
 
 ## 5. Данные и PostgreSQL
 
-- 39 миграций, lockfile, `migrate deploy` в образе API.
+- 40 миграций, lockfile, `migrate deploy` в образе API.
 - UUID PK, индексы, `version` на заявках.
 - `connection_limit=15` в `backend/src/lib/prisma.js`.
-- Embeddings: `Json` в `consultation_case_embeddings`, комментарий «pgvector опционально позже». Поиск cosine в приложении.
+- Embeddings: JSON + `embedding_vec` (pgvector HNSW cosine). JSON-скан в Node ограничен `CASE_MEMORY_MAX_SCAN` (S8).
 - PgBouncer нет. При нескольких worker+API упрётесь в `max_connections`.
 - Бэкап: `deploy/ops/backup-postgres.sh` копирует и Postgres, и том uploads (S2 подтверждён по наличию скрипта; прогон backup в этой сессии не выполнялся).
 
@@ -211,7 +220,7 @@ Compose (проверено): `frontend` (read_only, 512m) · `backend` (`RUN_BA
 Минусы:
 
 - JavaScript + JSDoc, не TypeScript.
-- ESLint без unicorn/n/cycles; **сейчас 9 errors** — гейт качества не держится.
+- ESLint без unicorn/n/cycles; **S6: 0 errors**. Frontend — 28 warnings.
 - Нет Prettier.
 - Часть ответов всё ещё `res.status().json({ error })` в обход `sendProblem`.
 
@@ -223,7 +232,7 @@ Compose (проверено): `frontend` (read_only, 512m) · `backend` (`RUN_BA
 
 Плюсы: TS `strict`, lazy router (53 `lazy(`), Error Boundary + unit-тест, Vitest coverage в CI (`CI=true`).
 
-Минусы: клиентский API `as T` без runtime-схемы; нет TanStack Query (ручной fetch/поллинг); страницы-боги. Вне роутера (orphans): `ClientConsultationsPage.tsx`, `ClientRequestsPage.tsx`, `ClientRequestDetailPage.tsx` (редирект на cases). 2FA не отдельный маршрут: challenge в `LoginPage`, настройка в `ProfileSecurityPanel`. `usePageMeta` ставит title/description на страницах; OG-теги в `index.html` глобальные, не по маршруту.
+Минусы: клиентский API `as T` без runtime-схемы; нет TanStack Query (ручной fetch/поллинг). 2FA не отдельный маршрут: challenge в `LoginPage`, настройка в `ProfileSecurityPanel`. `usePageMeta` ставит title/description на страницах; OG-теги в `index.html` глобальные, не по маршруту.
 
 Frontend lint: **0 errors, 28 warnings** (в т.ч. jsx-a11y и exhaustive-deps). Для CI при `max warnings` это зелёный, в отличие от backend.
 
@@ -331,10 +340,8 @@ Backend lint errors в `tests/integration/service-request-pdf.test.js` (неис
 
 Плюсы относительно исходного аудита: `concurrency`, Dependabot (npm ×3 + actions + docker), Playwright artifact, Redis в e2e, Node 22.
 
-Минусы, которые **сейчас валят или обесценивают** пайплайн:
+Минусы относительно стандарта 2026 (гейты lint/openapi в S6 зелёные):
 
-- `openapi:check` → ENOENT.
-- `npm run lint` → backend 9 errors.
 - Нет coverage upload.
 - k6 не в CI.
 - Три `npm ci` без workspaces.
@@ -348,10 +355,10 @@ Backend lint errors в `tests/integration/service-request-pdf.test.js` (неис
 | Практика LLMOps 2026 | Статус |
 |----------------------|--------|
 | Offline eval (rules) | 38 сценариев |
-| Live model eval / LLM-as-judge | Нет (`LLM_ENABLED=false` в e2e) |
+| Live model eval / LLM-as-judge | Nightly extraction golden set (6 кейсов, порог 80%); не LLM-as-judge; e2e без LLM |
 | Версия промпта в логах/метриках | Константа в файле, не телеметрия |
 | Token accounting | Нет |
-| RAG | JSON cosine + lexical; нет pgvector |
+| RAG | pgvector HNSW + JSON fallback с лимитом скана |
 | Tracing gen-ai | Общий OTel HTTP; нет Langfuse |
 | Цель p95 ≤ 45 с | Таймаут 240 с |
 
@@ -426,8 +433,8 @@ CMS достаточна для white-label сайта.
 |----|---------|-------|--------|
 | P0-1 | CI e2e без backend | Тесты | ✅ S1, e2e поднимает API |
 | P0-2 | Redis без AOF при async-диагнозе | Надёжность | ✅ S1 |
-| P0-3 | OpenAPI не покрывает маршруты | API | ◐ генератор+CI+инвентарь 188; **YAML нет, check падает** |
-| P0-4 | Корневой lint / `openapi:check` красные в текущей копии | CI / DX | ☐ **новое** (9 eslint errors + ENOENT YAML) |
+| P0-3 | OpenAPI не покрывает маршруты | API | ✅ S6 YAML 188 ops + `openapi:check` (схемы stub) |
+| P0-4 | Корневой lint / `openapi:check` красные | CI / DX | ✅ S6 |
 
 ### P1
 
@@ -436,14 +443,14 @@ CMS достаточна для white-label сайта.
 | P1-1 | Нет OTel / метрик | ✅ traces + Prometheus; collector нет |
 | P1-2 | Mixed health | ✅ live/ready |
 | P1-3 | Nginx буфер SSE | ✅ (S1) |
-| P1-4 | God-файлы JS/TSX и CSS | ◐ CSS слои; JS/TSX боги открыты; widgets.css 3.1k |
-| P1-5 | Backend JS, слабый ESLint | ◐ **сейчас ESLint красный** |
+| P1-4 | God-файлы JS/TSX и CSS | ◐ S7–S13: JS/TSX-фасады и CSS-слои; widgets 855, service-book 975, consultations.service 691 |
+| P1-5 | Backend JS, слабый ESLint | ◐ S6 lint зелёный; JS, не TS |
 | P1-6 | Error Boundary | ✅ |
-| P1-7 | Eval без живой LLM; k6 | ◐ k6 бьёт консультацию, не в CI; live eval нет |
+| P1-7 | Eval без живой LLM; k6 | ◐ S13 nightly live extraction; k6 не в CI |
 | P1-8 | Один CRM-адаптер при enum из 12 | ☐ только GENERIC_REST; MOYSKLAD нет в админ-карточках |
 | P1-9 | jsx-a11y / axe | ✅ axe e2e; jsx-a11y warn; contrast off |
-| P1-10 | Embeddings JSON, нет pgvector | ☐ |
-| P1-11 | MASTER vs токены | ◐ текст оранжевый; пример кнопки `#0369A1` |
+| P1-10 | Embeddings JSON, нет pgvector | ✅ S8 pgvector + `CASE_MEMORY_MAX_SCAN` |
+| P1-11 | MASTER vs токены | ✅ S6 primary `#ea580c` |
 | P1-12 | Конституция vs продукт | ◐ LLM облако ок; белый фон нет |
 | P1-13 | Playwright: один браузер, нет mobile | ☐ |
 | P1-14 | Coverage 40–50% | ◐ frontend coverage в CI; пороги backend те же |
@@ -468,13 +475,13 @@ CMS достаточна для white-label сайта.
 | P2-14 | ADR, LICENSE, CHANGELOG, CONTRIBUTING | ◐ тонкий CHANGELOG; остального нет |
 | P2-15 | Промпты / токены | ◐ PROMPT_VERSION; учёта токенов нет |
 | P2-16 | Бэкап без uploads | ✅ |
-| P2-17 | `.env.production.example` / `.env.example` vs Zod | ◐ примеры расширены в S2; **нет OTEL_*** в `.env.example`; прод-пример без части Zod-ключей |
+| P2-17 | `.env.production.example` / `.env.example` vs Zod | ◐ S6: `OTEL_*`, `TOTP_ENCRYPTION_KEY`, `HMAC_PEPPER`; остаётся STAFF_2FA / SMS / vision |
 | P2-18 | Outbox key с Date.now() | ✅ |
 | P2-19 | markDiagnosisJobFailed | ✅ |
 | P2-20 | `#dashboard-main` не main | ✅ |
 | P2-21 | Outbox на HTTP | ✅ poller |
 | P2-22 | Redis в CI | ✅ e2e |
-| P2-23 | `docs/README` → несуществующий `specs/` | ☐ **новое** |
+| P2-23 | `docs/README` → несуществующий `specs/` | ✅ S6 ссылка на сгенерированный OpenAPI |
 
 ### P3
 
@@ -486,7 +493,7 @@ CMS достаточна для white-label сайта.
 | P3-4 | Нет noUncheckedIndexedAccess | ☐ |
 | P3-5 | Feature flags только env | ☐ |
 | P3-6 | Analytics в primary DB | ☐ |
-| P3-7 | Мёртвые страницы вне роутера | ☐ `ClientConsultationsPage`, `ClientRequestsPage`, `ClientRequestDetailPage` |
+| P3-7 | Мёртвые страницы вне роутера | ✅ S12 удалены `ClientConsultationsPage`, `ClientRequestsPage`, `ClientRequestDetailPage` |
 | P3-8 | SSE — этапы, не token stream | ☐ (осознанно) |
 | P3-9 | SMS-заглушка | ☐ |
 | P3-10 | Клиентский API без runtime-схемы | ☐ |
@@ -495,20 +502,20 @@ CMS достаточна для white-label сайта.
 
 ## 21. Дорожная карта (90 дней, без security)
 
-Приоритет — вернуть честные гейты, потом платформа.
+Приоритет — платформа после честных гейтов.
 
-### Дни 1–7 — починить ложную уверенность (S6)
+### Дни 1–7 — починить ложную уверенность → **S6, сделано**
 
-1. Восстановить `openapi.yaml` (`npm run openapi:sync`) и каталог контракта; починить `openapi:check`.
-2. Закрыть 9 ошибок ESLint backend, чтобы `npm run lint` был зелёным.
-3. Убрать мёртвую ссылку на `specs/` в `docs/README.md` или вернуть каталог.
-4. Убрать navy `#0369A1` из MASTER button spec.
+1. ✅ Восстановить `openapi.yaml` (`npm run openapi:sync`); `openapi:check` зелёный (188 ops).
+2. ✅ Закрыть 9 ошибок ESLint backend; корневой `npm run lint` зелёный.
+3. ✅ `docs/README.md` указывает на сгенерированный контракт.
+4. ✅ MASTER `.btn-primary` — `#ea580c`.
 
 ### Дни 8–45
 
 5. Богатые схемы OpenAPI на консультацию/заявки/запись + schemathesis nightly.
-6. Распил `consultationFlowService` / `ConsultPage` / `ClientVehicleDetailPage`.
-7. pgvector или лимит полного скана embeddings.
+6. ✅ S7–S13: фасады flow/заявок/AI; Consult/гараж/Booking; CSS-слои включая vehicles и overview. Остались widgets.css 855 и consultations.service.js.
+7. ✅ S8: pgvector HNSW + `CASE_MEMORY_MAX_SCAN`.
 8. Coverage 70% на consultations + serviceRequests; upload в CI.
 9. OTel collector в Compose (хотя бы noop-совместимый профиль).
 
@@ -549,14 +556,12 @@ auth · users · consultations / consultationAi / consultationFlow · serviceReq
 
 ## 25. Заключение
 
-Продукт второй-третьей итерации с сильным доменом автосервиса. Спринты 1–5 реально улучшили пробы, Redis, worker, CSS-слои, axe, OTel, события воронки. Это не «аудит на бумаге».
+Спринты 1–13 закрыли пробы, Redis, worker, CSS-слои, axe, OTel, события воронки, **гейты lint/OpenAPI**, распил consultation flow, **pgvector case memory**, хуки Consult/гаража, **фасад заявок**, **фасад AI-диагноза**, **BookingPage / JSX гаража / widgets.css**, **vehicles/overview CSS**, **nightly live LLM eval**. Stub-схемы OpenAPI и k6-в-CI остаются.
 
-Повторная оценка **снижает** цифру, потому что стандарт 2026 считает источником истины **то, что проходит гейт**, а не то, что генератор умеет написать. Сейчас `openapi:check` и backend lint не проходят. Пока это так, зрелость платформы ближе к «крепкий пилот на VPS», чем к «тиражируемый white-label».
+**Итог: 7.5 / 10.** Было 5.9 → 6.5 → 6.8 → 7.0 (самооценка S5) → 6.6 (повторная оценка) → 6.8 (S6) → 6.9 (S7) → 7.0 (S8) → 7.1 (S9–S10) → 7.2 (S11) → 7.3 (S12) → 7.4 (S13 CSS) → **7.5 (S13 live eval)**.
 
-Если цель — демо: **достаточно**, после починки lint и YAML.  
-Если цель — стандарт 2026 без security-трека: квартал по §21.
-
-**Итог: 6.6 / 10.** Было 5.9 → 6.5 → 6.8 → 7.0 (самооценка S5) → **6.6 (повторная оценка).**
+Если цель — демо: **достаточно**.  
+Если цель — стандарт 2026 без security-трека: квартал по остатку §21 / §27.
 
 ---
 
@@ -568,26 +573,25 @@ auth · users · consultations / consultationAi / consultationFlow · serviceReq
 
 ---
 
-## 27. Бэклог после повторной оценки (S6+)
+## 27. Бэклог после S13 (S14+)
+
+P0 гейтов закрыты. Не смешивать с фичами кабинетов:
 
 | Приоритет | Что |
 |-----------|-----|
-| P0 | Восстановить OpenAPI YAML + зелёный `openapi:check` |
-| P0 | Зелёный `npm run lint` (9 backend errors) |
-| P1 | Распил god-файлов консультации и кабинета; widgets.css |
-| P1 | pgvector или лимит скана embeddings |
-| P1 | Живой LLM eval nightly |
+| P1 | Распил `consultations.service.js` / `ManagerRequestDetailPage`; `vehicles-service-book.css` 975 |
 | P1 | TypeScript backend **или** жёсткий ESLint + Prettier + workspaces |
 | P1 | Второй CRM-адаптер при обещании Bitrix/1C |
 | P2 | Богатые OpenAPI-схемы + контрактные тесты |
 | P2 | `/api/v1`, cursor-pagination |
 | P2 | Coverage 70% + upload |
 | P2 | Починить `render.yaml` или пометить deprecated |
-| P2 | Дописать `OTEL_*` в `.env.example`; сверить прод-пример с Zod |
-| P3 | Свести дубликат `scenarios.json`; карточка `MOYSKLAD` в админке |
+| P2 | Сверить `.env.production.example` с оставшимися ключами Zod |
 | P2 | i18n, TanStack Query, Storybook |
 | P2 | LICENSE, ADR, CONTRIBUTING |
-| P2 | RUM / Lighthouse CI; OTel collector |
-| P3 | MASTER button navy; manifest icon; SMS |
+| P2 | RUM / Lighthouse CI; OTel collector; k6 в CI |
+| P3 | Дубликат `scenarios.json`; карточка `MOYSKLAD`; manifest icon; SMS |
 
-Следующий спринт логично начать с **P0-4 + P0-3** (lint и YAML): без этого остальные платформенные пункты снова будут «сделано в коде, красное в CI».
+Следующий спринт логично начать с **распила `consultations.service.js` / `ManagerRequestDetailPage`**.
+
+Нужен GitHub secret `LLM_API_KEY`, иначе nightly live-eval будет skip.

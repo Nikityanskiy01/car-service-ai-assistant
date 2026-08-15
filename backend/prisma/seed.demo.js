@@ -1,29 +1,33 @@
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { seedDemoInboxNotifications } from './lib/demoInboxNotifications.js';
+import { hashGuestToken } from '../src/lib/guestToken.js';
+
+dotenv.config();
 
 const prisma = new PrismaClient();
 
-function demoPassword(envKey, fallback) {
-  const fromEnv = process.env[envKey];
-  if (process.env.NODE_ENV === 'production' && !fromEnv) {
-    throw new Error(`${envKey} is required when seeding demo users in production`);
+function demoPassword(envKey) {
+  const fromEnv = String(process.env[envKey] || '').trim();
+  if (!fromEnv) {
+    throw new Error(`${envKey} is required to seed demo users (do not use hardcoded fallbacks)`);
   }
-  return fromEnv || fallback;
+  return fromEnv;
 }
 
 const defaults = {
   client: {
     email: process.env.DEMO_CLIENT_EMAIL || 'client@example.local',
-    password: demoPassword('DEMO_CLIENT_PASSWORD', 'Client-Demo-2026!'),
+    password: demoPassword('DEMO_CLIENT_PASSWORD'),
   },
   manager: {
     email: process.env.DEMO_MANAGER_EMAIL || 'manager@example.local',
-    password: demoPassword('DEMO_MANAGER_PASSWORD', 'Manager-Demo-2026!'),
+    password: demoPassword('DEMO_MANAGER_PASSWORD'),
   },
   admin: {
     email: process.env.DEMO_ADMIN_EMAIL || 'admin@example.local',
-    password: demoPassword('DEMO_ADMIN_PASSWORD', 'Admin-Demo-2026!'),
+    password: demoPassword('DEMO_ADMIN_PASSWORD'),
   },
 };
 
@@ -36,7 +40,7 @@ function hoursAgo(h) {
 }
 
 async function upsertUser({ email, password, fullName, phone, role }) {
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
   return prisma.user.upsert({
     where: { email },
     update: { passwordHash, fullName, phone, role, blocked: false, emailVerifiedAt: new Date() },
@@ -104,7 +108,7 @@ async function createCase({
       clientId: clientId || null,
       guestName: guest?.name || null,
       guestPhone: guest?.phone || null,
-      guestToken: guest ? `demo-guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` : null,
+      guestToken: guest ? hashGuestToken(`demo-guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`) : null,
       status: status === 'NEW' || status === 'IN_PROGRESS' ? 'COMPLETED' : status === 'CANCELLED' ? 'ABANDONED' : 'COMPLETED',
       progressPercent,
       confidencePercent,
@@ -1153,9 +1157,9 @@ async function main() {
   });
 
   console.log(`Demo seed OK:
-  client:  ${defaults.client.email} / ${defaults.client.password}
-  manager: ${defaults.manager.email} / ${defaults.manager.password}
-  admin:   ${defaults.admin.email} / ${defaults.admin.password}
+  client:  ${defaults.client.email}
+  manager: ${defaults.manager.email}
+  admin:   ${defaults.admin.email}
   data: ${createdRequests} requests, ${bookingsCount} bookings, ${contactsCount} contacts, ${jobsCount} integration jobs, ${inboxCount} inbox notifications
 `);
 }

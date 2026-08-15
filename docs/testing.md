@@ -72,9 +72,12 @@ Playwright поднимает Vite на `http://127.0.0.1:5173` (`reuseExistingS
 
 ```bash
 npm --prefix backend run test:eval
+npm --prefix backend run test:eval:live   # живая модель; без ключа — skip
 k6 run tests/perf/k6-consultation.js
 # BASE_URL=http://127.0.0.1:3000 JWT=<token> k6 run ...
 ```
+
+Живой eval бьёт extraction-промпт по 6 golden-кейсам (`backend/tests/eval/live-golden.json`), порог 80%. В PR не входит. Nightly: [`.github/workflows/llm-eval-nightly.yml`](../.github/workflows/llm-eval-nightly.yml) — нужен secret `LLM_API_KEY` (и опционально vars `LLM_MODEL` / `LLM_CLOUD_BASE_URL`). Без секрета job зелёный skip.
 
 Порог в k6-скрипте: p95 ответа консультации. Для отчёта фиксируйте VU, длительность и факт прохождения.
 
@@ -99,6 +102,8 @@ GitHub Actions [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 | `test-frontend` | Vitest |
 | `test-backend` | Postgres 16 service + migrate + Jest |
 | `e2e` | Playwright + Chromium, LLM выключен |
+
+Отдельный workflow [`.github/workflows/llm-eval-nightly.yml`](../.github/workflows/llm-eval-nightly.yml) (cron 02:20 UTC + `workflow_dispatch`): живой extraction golden set. Нужен secret `LLM_API_KEY`.
 
 ## Критический путь приёмки
 

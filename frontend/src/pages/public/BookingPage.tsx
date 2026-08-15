@@ -1,680 +1,85 @@
-import {
-  CalendarDays,
-  CalendarPlus,
-  Car,
-  ChevronLeft,
-  CircleCheck,
-  ClipboardList,
-  Phone,
-  Sparkles,
-  UserRound,
-} from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../../api/client';
-import { trackProductEvent } from '../../lib/productEvents';
-import { listServiceRequests } from '../../api/dashboard';
-import { formatVehicleTitle, listVehicles, type ClientVehicle } from '../../api/vehicles';
-import { useAuth } from '../../auth/AuthProvider';
-import { ConsentCheckbox } from '../../components/forms/ConsentCheckbox';
+import { CalendarPlus, ChevronLeft, Phone, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { FormField } from '../../components/forms/FormField';
-import { PhoneInput } from '../../components/forms/PhoneInput';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Textarea } from '../../components/ui/Textarea';
 import { useProductConfig } from '../../config/ProductConfigProvider';
-import { usePageMeta } from '../../hooks/usePageMeta';
+import { BookingLiveSummary, BookingProgress } from '../../features/booking/BookingChrome';
 import {
-  formatBookingRequestOption,
-  formatBookingRequestSummary,
-  getRequestVehicleLabel,
-  requestCarDiffersFromBooking,
-} from '../../lib/bookingDisplay';
-import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
-import { STORAGE_KEYS } from '../../lib/storageKeys';
-import { getEmailError, getFullNameError, getPhoneError } from '../../lib/validation';
-import type { ServiceRequest } from '../../types/serviceRequest';
-
-type GuestFieldErrors = {
-  fullName?: string;
-  phone?: string;
-  email?: string;
-};
-
-type BookingPrefill = {
-  serviceTitle?: string;
-  categoryLabel?: string;
-  consultationSummary?: string;
-  fromConsultation?: boolean;
-  serviceRequestId?: string;
-  vehicleId?: string;
-  fullName?: string;
-  phone?: string;
-};
-
-type CreatedBooking = { id: string };
-
-const STEPS = [
-  {
-    id: 1,
-    label: 'Когда',
-    title: 'Когда вам удобно?',
-    description: 'Выберите слот — перезвоним для подтверждения.',
-    icon: CalendarDays,
-  },
-  {
-    id: 2,
-    label: 'Контакты',
-    title: 'Как с вами связаться?',
-    description: 'Нужны только для уточнения деталей записьа.',
-    icon: UserRound,
-  },
-  {
-    id: 3,
-    label: 'Детали',
-    title: 'Что привезти на сервис?',
-    description: 'Опишите проблему — мастер подготовится заранее.',
-    icon: ClipboardList,
-  },
-  {
-    id: 4,
-    label: 'Готово',
-    title: 'Всё верно?',
-    description: 'Проверьте данные и отправьте заявку.',
-    icon: CircleCheck,
-  },
-] as const;
-
-type QuickSlot = { id: string; label: string; dayLabel: string; hint: string; value: string };
-
-function pad(value: number) {
-  return String(value).padStart(2, '0');
-}
-
-function toDatetimeLocalValue(date: Date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function buildQuickSlots(): QuickSlot[] {
-  const make = (daysFromNow: number, hour: number, minute: number, label: string, hint: string): QuickSlot => {
-    const date = new Date();
-    date.setDate(date.getDate() + daysFromNow);
-    date.setHours(hour, minute, 0, 0);
-    const dayLabel = date.toLocaleDateString('ru-RU', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    });
-    return { id: `${daysFromNow}-${hour}-${minute}`, label, dayLabel, hint, value: toDatetimeLocalValue(date) };
-  };
-
-  return [
-    make(1, 10, 0, 'Завтра утром', '10:00'),
-    make(1, 14, 0, 'Завтра днём', '14:00'),
-    make(2, 11, 0, 'Послезавтра', '11:00'),
-    make(3, 16, 0, 'Через 3 дня', '16:00'),
-  ];
-}
-
-function formatSummaryDate(value: string) {
-  if (!value) return '—';
-  return new Date(value).toLocaleString('ru-RU', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function formatCompactDate(value: string) {
-  if (!value) return '';
-  return new Date(value).toLocaleString('ru-RU', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function BookingProgress({
-  step,
-  onStepClick,
-}: {
-  step: number;
-  onStepClick: (target: number) => void;
-}) {
-  return (
-    <ol className="booking-track" aria-label="Прогресс записи">
-      {STEPS.map((item) => {
-        const done = step > item.id;
-        const active = step === item.id;
-        const state = active ? 'is-active' : done ? 'is-done' : '';
-        return (
-          <li key={item.id} className={`booking-track-step ${state}`}>
-            <button
-              type="button"
-              className="booking-track-btn"
-              disabled={!done}
-              aria-current={active ? 'step' : undefined}
-              onClick={() => done && onStepClick(item.id)}
-            >
-              <span className="booking-track-dot" aria-hidden="true">
-                {done ? '✓' : item.id}
-              </span>
-              <span className="booking-track-label">{item.label}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function BookingLiveSummary({
-  step,
-  preferredAt,
-  fullName,
-  phone,
-  notes,
-  isClient,
-  userName,
-  vehicleTitle,
-  requestSummary,
-}: {
-  step: number;
-  preferredAt: string;
-  fullName: string;
-  phone: string;
-  notes: string;
-  isClient: boolean;
-  userName?: string;
-  vehicleTitle?: string;
-  requestSummary?: string;
-}) {
-  const contactName = isClient ? userName : fullName;
-  const hasAny = preferredAt || contactName || phone || notes || vehicleTitle || requestSummary;
-  if (!hasAny || step === 4) return null;
-
-  return (
-    <div className="booking-live-summary" aria-live="polite">
-      {vehicleTitle ? (
-        <span className="booking-live-chip">
-          <Car size={14} aria-hidden="true" />
-          {vehicleTitle}
-        </span>
-      ) : null}
-      {preferredAt ? (
-        <span className="booking-live-chip">
-          <CalendarDays size={14} aria-hidden="true" />
-          {formatCompactDate(preferredAt)}
-        </span>
-      ) : null}
-      {contactName || phone ? (
-        <span className="booking-live-chip">
-          <UserRound size={14} aria-hidden="true" />
-          {contactName || phone}
-        </span>
-      ) : null}
-      {requestSummary ? (
-        <span className="booking-live-chip">
-          <ClipboardList size={14} aria-hidden="true" />
-          {requestSummary}
-        </span>
-      ) : null}
-      {notes ? (
-        <span className="booking-live-chip booking-live-chip-muted">
-          <ClipboardList size={14} aria-hidden="true" />
-          Комментарий добавлен
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function BookingRequestPreview({
-  request,
-  bookingVehicleTitle,
-}: {
-  request: ServiceRequest;
-  bookingVehicleTitle?: string;
-}) {
-  const number = formatRequestNumber(request.id);
-  const topic = request.snapshotSymptoms?.trim() || 'Тема не указана';
-  const car = getRequestVehicleLabel(request);
-  const status = SERVICE_REQUEST_STATUS_LABELS[request.status] || request.status;
-  const created = request.createdAt
-    ? new Date(request.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
-    : '';
-  const mismatch = requestCarDiffersFromBooking(request, bookingVehicleTitle);
-
-  return (
-    <div className="booking-request-preview" id="booking-request-preview">
-      <div className="booking-request-preview-top">
-        <strong>Обращение №{number}</strong>
-        <span>{status}</span>
-      </div>
-      <p className="booking-request-preview-topic">{topic}</p>
-      <p className="booking-request-preview-meta">
-        {car ? <span>Авто в заявке: {car}</span> : <span>Авто в заявке не указано</span>}
-        {created ? <span>от {created}</span> : null}
-      </p>
-      {mismatch ? (
-        <p className="booking-request-preview-note">
-          Запись на {bookingVehicleTitle} — это другое авто, чем в обращении.
-        </p>
-      ) : null}
-    </div>
-  );
-}
+  BookingStepContacts,
+  BookingStepDetails,
+  BookingStepReview,
+  BookingStepWhen,
+} from '../../features/booking/BookingSteps';
+import { BOOKING_STEPS } from '../../features/booking/bookingWizard';
+import { useBookingPage } from '../../features/booking/useBookingPage';
+import { usePageMeta } from '../../hooks/usePageMeta';
+import { formatBookingRequestSummary } from '../../lib/bookingDisplay';
+import { formatVehicleTitle } from '../../api/vehicles';
 
 export function BookingPage() {
   const productConfig = useProductConfig();
   usePageMeta({ title: 'Записаться в сервис', description: 'Онлайн-запись на ремонт и ТО.' });
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user, isAuthenticated } = useAuth();
-  const isClient = isAuthenticated && user?.role === 'CLIENT';
-  const quickSlots = useMemo(() => buildQuickSlots(), []);
-  const queryVehicleId = searchParams.get('vehicleId')?.trim() || '';
+  const page = useBookingPage();
 
-  const prefill = useMemo(() => {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEYS.bookingPrefill);
-      return raw ? (JSON.parse(raw) as BookingPrefill) : {};
-    } catch {
-      return {};
-    }
-  }, []);
-
-  const [step, setStep] = useState(1);
-  const [notes, setNotes] = useState(
-    prefill.consultationSummary || (prefill.serviceTitle ? `Интересует услуга: ${prefill.serviceTitle}` : ''),
-  );
-  const [fullName, setFullName] = useState(prefill.fullName || '');
-  const [phone, setPhone] = useState(prefill.phone || '');
-  const [email, setEmail] = useState('');
-  const [preferredAt, setPreferredAt] = useState('');
-  const [serviceRequestId, setServiceRequestId] = useState(prefill.serviceRequestId || '');
-  const [requests, setRequests] = useState<ServiceRequest[]>([]);
-  const [vehicles, setVehicles] = useState<ClientVehicle[]>([]);
-  const [vehicleId, setVehicleId] = useState(queryVehicleId || prefill.vehicleId || '');
-  const vehicleLocked = Boolean(queryVehicleId);
-  const [consent, setConsent] = useState(false);
-  const [consentError, setConsentError] = useState<string | null>(null);
-  const [guestFieldErrors, setGuestFieldErrors] = useState<GuestFieldErrors>({});
-  const [stepError, setStepError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [statusError, setStatusError] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const idempotencyKeyRef = useRef(crypto.randomUUID());
-
-  useEffect(() => {
-    if (!isClient || !user) return;
-    if (!fullName && user.fullName) setFullName(user.fullName);
-    if (!phone && user.phone) setPhone(user.phone);
-    if (!email && user.email) setEmail(user.email);
-  }, [email, fullName, isClient, phone, user]);
-
-  useEffect(() => {
-    if (!isClient) return;
-    void (async () => {
-      try {
-        const data = await listServiceRequests({ pageSize: 50, sort: 'createdAt', dir: 'desc' });
-        const active = data.items.filter((r) => r.status !== 'COMPLETED' && r.status !== 'CANCELLED');
-        setRequests(active);
-      } catch {
-        setRequests([]);
-      }
-    })();
-  }, [isClient]);
-
-  useEffect(() => {
-    if (!isClient) return;
-    void listVehicles()
-      .then((rows) => {
-        setVehicles(rows);
-        setVehicleId((current) => {
-          if (current) return current;
-          return rows.length === 1 ? rows[0].id : '';
-        });
-      })
-      .catch(() => setVehicles([]));
-  }, [isClient]);
-
-  const selectedRequest = requests.find((r) => r.id === serviceRequestId);
-  const selectedVehicle = vehicles.find((row) => row.id === vehicleId) || null;
-  const vehicleTitle = selectedVehicle ? formatVehicleTitle(selectedVehicle) : '';
-  const currentStep = STEPS[step - 1];
-
-  function validateStep(current: number): boolean {
-    setStepError(null);
-    if (current === 1 && !preferredAt) {
-      setStepError('Выберите удобное время или укажите дату вручную');
-      return false;
-    }
-    if (current === 2 && !isClient) {
-      const nextErrors: GuestFieldErrors = {};
-      const nameError = getFullNameError(fullName);
-      if (nameError) nextErrors.fullName = nameError;
-      const phoneError = getPhoneError(phone);
-      if (phoneError) nextErrors.phone = phoneError;
-      const emailError = getEmailError(email, { required: false });
-      if (emailError) nextErrors.email = emailError;
-      setGuestFieldErrors(nextErrors);
-      if (Object.keys(nextErrors).length > 0) {
-        setStepError('Проверьте контактные данные');
-        return false;
-      }
-    }
-    return true;
-  }
-
-  function goNext() {
-    if (!validateStep(step)) return;
-    setStep((s) => Math.min(4, s + 1));
-  }
-
-  function goBack() {
-    setStepError(null);
-    setStep((s) => Math.max(1, s - 1));
-  }
-
-  function goToStep(target: number) {
-    if (target >= step) return;
-    setStepError(null);
-    setStep(target);
-  }
-
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!isClient) {
-      const nextErrors: GuestFieldErrors = {};
-      const nameError = getFullNameError(fullName);
-      if (nameError) nextErrors.fullName = nameError;
-      const phoneError = getPhoneError(phone);
-      if (phoneError) nextErrors.phone = phoneError;
-      const emailError = getEmailError(email, { required: false });
-      if (emailError) nextErrors.email = emailError;
-      setGuestFieldErrors(nextErrors);
-      if (Object.keys(nextErrors).length > 0) return;
-    }
-
-    if (!consent) {
-      setConsentError('Отметьте согласие на обработку персональных данных');
-      return;
-    }
-    setConsentError(null);
-    setLoading(true);
-    setStatus(null);
-    setStatusError(false);
-    try {
-      if (isClient) {
-        const booking = await api<CreatedBooking>('/bookings', {
-          method: 'POST',
-          headers: { 'Idempotency-Key': idempotencyKeyRef.current },
-          body: {
-            preferredAt,
-            notes: notes || null,
-            serviceRequestId: serviceRequestId || null,
-            vehicleId: vehicleId || null,
-          },
-        });
-        idempotencyKeyRef.current = crypto.randomUUID();
-        navigate(`/dashboard/client/bookings/${booking.id}`, { replace: true });
-        return;
-      }
-
-      await api('/bookings/guest', {
-        method: 'POST',
-        headers: { 'Idempotency-Key': idempotencyKeyRef.current },
-        body: {
-          preferredAt,
-          fullName,
-          phone,
-          email: email || null,
-          notes: notes || null,
-          serviceTitle: prefill.serviceTitle || null,
-          categoryLabel: prefill.categoryLabel || null,
-          consentPersonalData: true,
-        },
-        skipAuthRefresh: true,
-      });
-      idempotencyKeyRef.current = crypto.randomUUID();
-      setStatus('Запись отправлена. Мы свяжемся для подтверждения.');
-      trackProductEvent('booking_confirmed', { guest: true });
-      setConsent(false);
-      setStep(1);
-    } catch (error) {
-      setStatusError(true);
-      setStatus(error instanceof Error ? error.message : 'Не удалось создать запись.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  let stepContent: ReactNode = null;
-
-  if (step === 1) {
+  let stepContent = null;
+  if (page.step === 1) {
     stepContent = (
-      <div className="booking-slot-section stack">
-        <p className="booking-slot-hint-label">Нажмите на удобный слот</p>
-        <div className="booking-slot-grid" role="group" aria-label="Быстрый выбор времени">
-          {quickSlots.map((slot) => {
-            const selected = preferredAt === slot.value;
-            return (
-              <button
-                key={slot.id}
-                type="button"
-                className={`booking-slot-chip${selected ? ' is-selected' : ''}`}
-                aria-pressed={selected}
-                onClick={() => setPreferredAt(slot.value)}
-              >
-                <span className="booking-slot-check" aria-hidden="true" />
-                <span className="booking-slot-day">{slot.dayLabel}</span>
-                <strong>{slot.hint}</strong>
-                <span className="booking-slot-hint">{slot.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <FormField label="Другое время" htmlFor="bookingDate">
-          <Input
-            id="bookingDate"
-            name="preferredAt"
-            type="datetime-local"
-            required
-            value={preferredAt}
-            onChange={(e) => setPreferredAt(e.target.value)}
-            aria-label="Предпочтительное время"
-          />
-        </FormField>
-      </div>
+      <BookingStepWhen
+        quickSlots={page.quickSlots}
+        preferredAt={page.preferredAt}
+        onPreferredAt={page.setPreferredAt}
+      />
     );
-  } else if (step === 2) {
-    stepContent = !isClient ? (
-      <>
-        <FormField
-          label="Имя"
-          htmlFor="bookingName"
-          hint="Как к вам обращаться при подтверждении записи"
-          error={guestFieldErrors.fullName}
-        >
-          <Input
-            name="fullName"
-            autoComplete="name"
-            required
-            placeholder="Иван Иванов"
-            value={fullName}
-            onChange={(e) => {
-              setFullName(e.target.value);
-              if (guestFieldErrors.fullName) setGuestFieldErrors((prev) => ({ ...prev, fullName: undefined }));
-            }}
-          />
-        </FormField>
-        <FormField
-          label="Телефон"
-          htmlFor="bookingPhone"
-          hint="Для звонка или SMS с подтверждением"
-          error={guestFieldErrors.phone}
-        >
-          <PhoneInput
-            name="phone"
-            required
-            value={phone}
-            onChange={(value) => {
-              setPhone(value);
-              if (guestFieldErrors.phone) setGuestFieldErrors((prev) => ({ ...prev, phone: undefined }));
-            }}
-          />
-        </FormField>
-        <FormField
-          label="Email (необязательно)"
-          htmlFor="bookingEmail"
-          hint="Отправим подтверждение, если укажете"
-          error={guestFieldErrors.email}
-        >
-          <Input
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="client@example.com"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              if (guestFieldErrors.email) setGuestFieldErrors((prev) => ({ ...prev, email: undefined }));
-            }}
-          />
-        </FormField>
-      </>
-    ) : (
-      <div className="booking-profile-card">
-        <span className="booking-profile-avatar" aria-hidden="true">
-          {(user?.fullName || '?').slice(0, 1).toUpperCase()}
-        </span>
-        <div>
-          <p className="booking-profile-name">{user?.fullName}</p>
-          {user?.phone ? <p className="muted-text">{user.phone}</p> : null}
-          {user?.email ? <p className="muted-text">{user.email}</p> : null}
-          <p className="booking-profile-hint">Данные из профиля — менять не нужно.</p>
-        </div>
-      </div>
-    );
-  } else if (step === 3) {
+  } else if (page.step === 2) {
     stepContent = (
-      <>
-        <FormField label="Комментарий" htmlFor="bookingNotes" hint="Необязательно — симптомы, пожелания по времени">
-          <Textarea
-            id="bookingNotes"
-            name="notes"
-            rows={4}
-            placeholder="Например: стук при торможении, удобнее утром"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </FormField>
-        {isClient && requests.length > 0 ? (
-          <div className="booking-request-field">
-            <FormField
-              label="Привязать к обращению"
-              htmlFor="bookingRequest"
-              hint="Заявка из кабинета, не автомобиль. Можно не выбирать."
-            >
-              <select
-                id="bookingRequest"
-                className="input"
-                value={serviceRequestId}
-                onChange={(e) => setServiceRequestId(e.target.value)}
-                aria-controls={selectedRequest ? 'booking-request-preview' : undefined}
-              >
-                <option value="">Не привязывать к заявке</option>
-                {requests.map((req) => (
-                  <option key={req.id} value={req.id}>
-                    {formatBookingRequestOption(req)}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-            {selectedRequest ? (
-              <BookingRequestPreview request={selectedRequest} bookingVehicleTitle={vehicleTitle} />
-            ) : null}
-          </div>
-        ) : null}
-      </>
+      <BookingStepContacts
+        isClient={Boolean(page.isClient)}
+        user={page.user}
+        fullName={page.fullName}
+        phone={page.phone}
+        email={page.email}
+        guestFieldErrors={page.guestFieldErrors}
+        onFullName={page.setFullName}
+        onPhone={page.setPhone}
+        onEmail={page.setEmail}
+        clearGuestError={(field) =>
+          page.setGuestFieldErrors((prev) => ({ ...prev, [field]: undefined }))
+        }
+      />
+    );
+  } else if (page.step === 3) {
+    stepContent = (
+      <BookingStepDetails
+        notes={page.notes}
+        onNotes={page.setNotes}
+        isClient={Boolean(page.isClient)}
+        requests={page.requests}
+        serviceRequestId={page.serviceRequestId}
+        onServiceRequestId={page.setServiceRequestId}
+        selectedRequest={page.selectedRequest}
+        vehicleTitle={page.vehicleTitle}
+      />
     );
   } else {
     stepContent = (
-      <div className="booking-review stack">
-        <dl className="booking-wizard-review">
-          <div>
-            <dt>Время записи</dt>
-            <dd>{formatSummaryDate(preferredAt)}</dd>
-          </div>
-          {selectedVehicle ? (
-            <div>
-              <dt>Автомобиль</dt>
-              <dd>{vehicleTitle}</dd>
-            </div>
-          ) : null}
-          {!isClient ? (
-            <>
-              <div>
-                <dt>Имя</dt>
-                <dd>{fullName}</dd>
-              </div>
-              <div>
-                <dt>Телефон</dt>
-                <dd>{phone}</dd>
-              </div>
-            </>
-          ) : null}
-          {notes ? (
-            <div>
-              <dt>Комментарий</dt>
-              <dd>{notes}</dd>
-            </div>
-          ) : null}
-          {selectedRequest ? (
-            <div>
-              <dt>Обращение</dt>
-              <dd>
-                {formatBookingRequestSummary(selectedRequest)}
-                {getRequestVehicleLabel(selectedRequest)
-                  ? ` · ${getRequestVehicleLabel(selectedRequest)}`
-                  : ''}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-        <ConsentCheckbox
-          id="bookingConsent"
-          checked={consent}
-          onChange={(v) => {
-            setConsent(v);
-            if (v) setConsentError(null);
-          }}
-          error={consentError}
-        />
-      </div>
+      <BookingStepReview
+        preferredAt={page.preferredAt}
+        selectedVehicle={page.selectedVehicle}
+        vehicleTitle={page.vehicleTitle}
+        isClient={Boolean(page.isClient)}
+        fullName={page.fullName}
+        phone={page.phone}
+        notes={page.notes}
+        selectedRequest={page.selectedRequest}
+        consent={page.consent}
+        consentError={page.consentError}
+        onConsent={(v) => {
+          page.setConsent(v);
+          if (v) page.setConsentError(null);
+        }}
+      />
     );
   }
-
-  const subtitle = selectedVehicle
-    ? `Запись на ${vehicleTitle} — выберите время, и мы подготовим приём.`
-    : prefill.fromConsultation
-      ? 'Осталось выбрать время — данные диагностики уже подставлены.'
-      : 'Три шага — и мы подготовим приём вашего автомобиля.';
-
-  const vehicleInitials = selectedVehicle
-    ? `${(selectedVehicle.make || '').trim().charAt(0)}${(selectedVehicle.model || '').trim().charAt(0)}`.toUpperCase()
-    : '';
-  const vehicleMeta = selectedVehicle
-    ? [selectedVehicle.licensePlate, selectedVehicle.year ? `${selectedVehicle.year} г.` : null]
-        .filter(Boolean)
-        .join(' · ')
-    : '';
 
   return (
     <div className="fm-page booking-page">
@@ -685,44 +90,44 @@ export function BookingPage() {
             Онлайн-запись
           </p>
           <h1>Записаться в сервис</h1>
-          <p>{subtitle}</p>
-          {isClient ? <p className="muted-text booking-header-note">Сохранится в личном кабинете.</p> : null}
+          <p>{page.subtitle}</p>
+          {page.isClient ? <p className="muted-text booking-header-note">Сохранится в личном кабинете.</p> : null}
         </header>
 
-        <BookingProgress step={step} onStepClick={goToStep} />
+        <BookingProgress step={page.step} onStepClick={page.goToStep} />
 
-        {prefill.fromConsultation ? (
+        {page.prefill.fromConsultation ? (
           <div className="booking-banner" role="status">
             <Sparkles size={16} aria-hidden="true" />
             Данные из ИИ-диагностики в комментарии — проверьте на шаге «Детали».
           </div>
         ) : null}
 
-        {isClient && vehicleLocked && selectedVehicle ? (
+        {page.isClient && page.vehicleLocked && page.selectedVehicle ? (
           <div className="booking-profile-card booking-vehicle-card" role="status">
             <span className="booking-profile-avatar" aria-hidden="true">
-              {vehicleInitials || 'А'}
+              {page.vehicleInitials || 'А'}
             </span>
             <div>
-              <p className="booking-profile-name">{vehicleTitle}</p>
-              {vehicleMeta ? <p className="muted-text">{vehicleMeta}</p> : null}
+              <p className="booking-profile-name">{page.vehicleTitle}</p>
+              {page.vehicleMeta ? <p className="muted-text">{page.vehicleMeta}</p> : null}
               <p className="booking-profile-hint">Запись будет привязана к этому автомобилю из гаража.</p>
             </div>
           </div>
         ) : null}
 
         <section className="booking-card fm-card fm-card-static" aria-labelledby="booking-step-title">
-          <div className="booking-step-content" key={step}>
+          <div className="booking-step-content" key={page.step}>
             <header className="booking-step-intro">
               <p className="booking-step-eyebrow">
-                Шаг {step} из {STEPS.length}
+                Шаг {page.step} из {BOOKING_STEPS.length}
               </p>
-              <h2 id="booking-step-title">{currentStep.title}</h2>
-              <p className="booking-step-lead">{currentStep.description}</p>
+              <h2 id="booking-step-title">{page.currentStep.title}</h2>
+              <p className="booking-step-lead">{page.currentStep.description}</p>
             </header>
 
-            <form className="fm-form booking-form stack" onSubmit={onSubmit} noValidate>
-              {isClient && !vehicleLocked && vehicles.length > 0 ? (
+            <form className="fm-form booking-form stack" onSubmit={page.onSubmit} noValidate>
+              {page.isClient && !page.vehicleLocked && page.vehicles.length > 0 ? (
                 <FormField
                   label="Автомобиль"
                   htmlFor="bookingVehicle"
@@ -731,11 +136,11 @@ export function BookingPage() {
                   <select
                     id="bookingVehicle"
                     className="input"
-                    value={vehicleId}
-                    onChange={(e) => setVehicleId(e.target.value)}
+                    value={page.vehicleId}
+                    onChange={(e) => page.setVehicleId(e.target.value)}
                   >
                     <option value="">Не выбран</option>
-                    {vehicles.map((row) => (
+                    {page.vehicles.map((row) => (
                       <option key={row.id} value={row.id}>
                         {formatVehicleTitle(row)}
                         {row.licensePlate ? ` · ${row.licensePlate}` : ''}
@@ -746,46 +151,46 @@ export function BookingPage() {
               ) : null}
               {stepContent}
 
-              {stepError ? <p className="form-error">{stepError}</p> : null}
+              {page.stepError ? <p className="form-error">{page.stepError}</p> : null}
 
               <BookingLiveSummary
-                step={step}
-                preferredAt={preferredAt}
-                fullName={fullName}
-                phone={phone}
-                notes={notes}
-                isClient={isClient}
-                userName={user?.fullName}
-                vehicleTitle={vehicleTitle || undefined}
+                step={page.step}
+                preferredAt={page.preferredAt}
+                fullName={page.fullName}
+                phone={page.phone}
+                notes={page.notes}
+                isClient={Boolean(page.isClient)}
+                userName={page.user?.fullName}
+                vehicleTitle={page.vehicleTitle || undefined}
                 requestSummary={
-                  selectedRequest ? formatBookingRequestSummary(selectedRequest) : undefined
+                  page.selectedRequest ? formatBookingRequestSummary(page.selectedRequest) : undefined
                 }
               />
 
               <div className="booking-form-footer">
-                {step > 1 ? (
-                  <Button type="button" variant="ghost" className="booking-back-btn" onClick={goBack}>
+                {page.step > 1 ? (
+                  <Button type="button" variant="ghost" className="booking-back-btn" onClick={page.goBack}>
                     <ChevronLeft size={18} aria-hidden="true" />
                     Назад
                   </Button>
                 ) : null}
-                {step < 4 ? (
-                  <Button type="button" className="booking-next-btn" onClick={goNext}>
+                {page.step < 4 ? (
+                  <Button type="button" className="booking-next-btn" onClick={page.goNext}>
                     Далее
                   </Button>
                 ) : (
-                  <Button type="submit" className="booking-next-btn" disabled={loading}>
-                    {loading ? 'Отправка...' : 'Отправить заявку'}
+                  <Button type="submit" className="booking-next-btn" disabled={page.loading}>
+                    {page.loading ? 'Отправка...' : 'Отправить заявку'}
                   </Button>
                 )}
               </div>
 
-              {status ? (
+              {page.status ? (
                 <div className="stack" style={{ gap: '0.5rem' }}>
-                  <p className={statusError ? 'form-status is-error' : 'form-status is-success'} role="status">
-                    {status}
+                  <p className={page.statusError ? 'form-status is-error' : 'form-status is-success'} role="status">
+                    {page.status}
                   </p>
-                  {!statusError && !isClient ? (
+                  {!page.statusError && !page.isClient ? (
                     <p className="muted-text">
                       Хотите отслеживать статус?{' '}
                       <Link to="/register">Создайте аккаунт</Link> или <Link to="/login">войдите</Link>.
@@ -798,7 +203,7 @@ export function BookingPage() {
         </section>
 
         <footer className="booking-footer">
-          {!prefill.fromConsultation ? (
+          {!page.prefill.fromConsultation ? (
             <Link className="booking-footer-promo" to="/consult">
               <Sparkles size={16} aria-hidden="true" />
               <span>

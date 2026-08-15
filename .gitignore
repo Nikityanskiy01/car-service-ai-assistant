@@ -12,6 +12,8 @@ backend.zip
 !.env.example
 !**/.env.example
 *.log
+strix_runs/
+.env.strix
 .DS_Store
 playwright-report/
 test-results/
@@ -21,6 +23,7 @@ build/
 coverage/
 backend/coverage/
 *.tmp
+backend/eval-live-report.json
 Thumbs.db
 
 # Proxmox / ops leftovers — never commit

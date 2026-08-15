@@ -1,0 +1,228 @@
+/* Manager redesign polish */
+.kpi-bullet-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.kpi-bullet-link:hover .metric-card {
+  border-color: var(--primary);
+}
+
+.desk-booking-btn {
+  width: 100%;
+  text-align: left;
+}
+
+.saved-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.saved-filters .btn {
+  font-size: 0.85rem;
+}
+
+.filter-multiselect {
+  min-width: 10rem;
+  min-height: 2.25rem;
+}
+
+.category-bar-chart {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.category-bar-row {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.category-bar-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.category-bar-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--color-surface-secondary);
+  overflow: hidden;
+}
+
+.category-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.inline-feedback-queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.inline-feedback-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+}
+
+.kanban-column.is-wip-limit {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border));
+}
+
+.kanban-column.is-wip-limit > header > span {
+  color: var(--color-warning);
+}
+
+.kanban-column.is-collapsed .kanban-items {
+  display: none;
+}
+
+.hint-card-danger {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--danger) 6%, var(--color-surface));
+}
+
+.consultation-stages-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.consultation-stages-timeline li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+
+.consultation-stages-timeline li.is-done {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.consultation-stages-timeline .stage-index {
+  display: inline-flex;
+  width: 1.25rem;
+  height: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  background: var(--color-surface-secondary);
+}
+
+.consultation-photo-gallery .photo-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.consultation-photo-gallery img {
+  width: 100%;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  aspect-ratio: 4 / 3;
+}
+
+.client-filters {
+  margin-bottom: 0.75rem;
+}
+
+.client-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.manager-assign-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.message-attachment-input {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.message-attachment-pending {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.message-attachment-pending li {
+  display: grid;
+  gap: 0.25rem;
+  max-width: 120px;
+}
+
+.message-attachment-pending img {
+  width: 100%;
+  border-radius: 0.4rem;
+  object-fit: cover;
+}
+
+.message-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+}
+
+.message-attachment-list img {
+  max-width: 160px;
+  border-radius: 0.4rem;
+}
+
+.contact-source-tag {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  background: var(--color-surface-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.queue-number-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kanban-card-wrap,
+  .booking-list-btn,
+  .inline-feedback-item {
+    transition: none !important;
+  }
+}
+

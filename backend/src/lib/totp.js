@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { getEnv } from '../config/env.js';
-import { hmacHex, sha256Hex, timingSafeEqualHex } from './cryptoHash.js';
+import { hmacHex, hmacHexMatches, sha256Hex, timingSafeEqualHex } from './cryptoHash.js';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -46,7 +46,7 @@ export function hashBackupCode(code) {
 
 export function backupCodeMatches(storedHash, code) {
   const normalized = normalizeBackupCode(code);
-  if (timingSafeEqualHex(storedHash, hmacHex('backup', normalized))) return true;
+  if (hmacHexMatches('backup', normalized, storedHash)) return true;
   return timingSafeEqualHex(storedHash, sha256Hex(normalized));
 }
 

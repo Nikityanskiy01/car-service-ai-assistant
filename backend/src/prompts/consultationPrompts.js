@@ -155,7 +155,7 @@ export function diagnosisUserPrompt(
 
   if (confirmedExamples.length) {
     parts.push(
-      `\nПодтверждённые мастерами примеры (верные диагнозы сервиса, используй как ориентир, не копируй дословно):\n<<<CONFIRMED_DIAGNOSES>>>\n${JSON.stringify(confirmedExamples)}\n<<<END_CONFIRMED_DIAGNOSES>>>`,
+      `\nСтруктурированные подтверждения мастеров (только verdict/vehicle/category, без свободного текста):\n<<<CONFIRMED_DIAGNOSES>>>\n${JSON.stringify(confirmedExamples)}\n<<<END_CONFIRMED_DIAGNOSES>>>`,
     );
   }
 

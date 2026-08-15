@@ -18,25 +18,47 @@ function mutatingMethod(method?: string): boolean {
   return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(method || 'GET').toUpperCase());
 }
 
-export function getCachedUser(): AuthUser | null {
+const ROLES = new Set(['CLIENT', 'MANAGER', 'ADMINISTRATOR']);
+
+function clearLegacyUserCache() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.user);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
+    localStorage.removeItem(STORAGE_KEYS.user);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+export function getCachedUser(): AuthUser | null {
+  clearLegacyUserCache();
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEYS.user);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { id?: string; role?: string };
+    if (!parsed?.id || !ROLES.has(String(parsed.role || ''))) return null;
+    return {
+      id: parsed.id,
+      role: parsed.role as AuthUser['role'],
+      email: '',
+      fullName: '',
+      phone: '',
+    };
   } catch {
     return null;
   }
 }
 
 export function setCachedUser(user: AuthUser | null): void {
+  clearLegacyUserCache();
   if (!user) {
-    localStorage.removeItem(STORAGE_KEYS.user);
+    sessionStorage.removeItem(STORAGE_KEYS.user);
     return;
   }
-  localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
+  sessionStorage.setItem(STORAGE_KEYS.user, JSON.stringify({ id: user.id, role: user.role }));
 }
 
 export function clearLocalAuthState(): void {
-  localStorage.removeItem(STORAGE_KEYS.user);
+  clearLegacyUserCache();
+  sessionStorage.removeItem(STORAGE_KEYS.user);
   sessionStorage.removeItem(STORAGE_KEYS.consultGuestToken);
   sessionStorage.removeItem(STORAGE_KEYS.consultMode);
   sessionStorage.removeItem(STORAGE_KEYS.consultSessionId);
@@ -118,7 +140,11 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     data = { error: text || response.statusText };
   }
   if (!response.ok) {
-    throw new ApiError(localizeApiError(response.status, data, response.statusText), response.status, data);
+    throw new ApiError(
+      localizeApiError(response.status, data, response.statusText, response.headers.get('Retry-After')),
+      response.status,
+      data,
+    );
   }
   return data as T;
 }

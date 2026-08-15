@@ -1,3 +1,4 @@
+import path from 'node:path';
 import request from 'supertest';
 import { app, registerClient, truncateAll } from '../helpers.js';
 import prisma from '../../src/lib/prisma.js';
@@ -8,6 +9,9 @@ import { assertMagicMime } from '../../src/lib/fileMagic.js';
 import { joinSafeUrl } from '../../src/lib/safeOutboundUrl.js';
 import { AppError } from '../../src/lib/errors.js';
 import { hashGuestToken } from '../../src/lib/guestToken.js';
+import { resolveUploadPath } from '../../src/lib/uploadPath.js';
+import { extractVerificationCodeFromEmail, getLastTestEmail } from '../../src/lib/mail/mail.service.js';
+import { INVALID_CREDENTIALS_MESSAGE } from '../../src/lib/authSecurity.js';
 
 describe('security sprints', () => {
   beforeEach(() => truncateAll());
@@ -51,9 +55,42 @@ describe('security sprints', () => {
       last = await request(app).post('/api/auth/login').send({ identifier: email, password: 'WrongPass123!ab' });
       expect(last.status).toBe(401);
     }
-    const locked = await request(app).post('/api/auth/login').send({ identifier: email, password: 'WrongPass123!ab' });
-    expect(locked.status).toBe(429);
-    expect(locked.body.code).toBe('ACCOUNT_LOCKED');
+    const locked = await request(app)
+      .post('/api/auth/login')
+      .send({ identifier: email, password: 'Password123!ab' });
+    expect(locked.status).toBe(401);
+    expect(locked.body.code).toBe('UNAUTHORIZED');
+    expect(locked.body.error).toBe(INVALID_CREDENTIALS_MESSAGE);
+  });
+
+  it('does not overwrite password of an unverified account on re-register', async () => {
+    const email = 'pending-takeover@t.test';
+    const first = await request(app).post('/api/auth/register').send({
+      email,
+      password: 'OriginalPass123!',
+      fullName: 'Оригинал',
+      phone: '+79990001101',
+      consentPersonalData: true,
+    });
+    expect(first.status).toBe(201);
+    const second = await request(app).post('/api/auth/register').send({
+      email,
+      password: 'AttackerPass123!',
+      fullName: 'Атакующий',
+      phone: '+79990001102',
+      consentPersonalData: true,
+    });
+    expect(second.status).toBe(201);
+    expect(second.body.requiresEmailVerification).toBe(true);
+
+    const code = extractVerificationCodeFromEmail(getLastTestEmail());
+    const verify = await request(app).post('/api/auth/verify-email').send({ email, code });
+    expect(verify.status).toBe(200);
+
+    const stolen = await request(app).post('/api/auth/login').send({ identifier: email, password: 'AttackerPass123!' });
+    expect(stolen.status).toBe(401);
+    const owner = await request(app).post('/api/auth/login').send({ identifier: email, password: 'OriginalPass123!' });
+    expect(owner.status).toBe(200);
   });
 
   it('rejects absolute URL join for outbound adapters', () => {
@@ -72,10 +109,19 @@ describe('security sprints', () => {
   });
 
   it('exports and anonymizes client personal data', async () => {
-    const { token } = await registerClient({ email: 'privacy@t.test' });
+    const { token, email } = await registerClient({ email: 'privacy@t.test', phone: '+79990001103' });
+    const user = await prisma.user.findUnique({ where: { email } });
+    const session = await prisma.consultationSession.create({
+      data: { clientId: user.id, guestName: 'Иван', guestPhone: '79990001103' },
+    });
+    const message = await prisma.message.create({
+      data: { sessionId: session.id, sender: 'USER', content: 'secret-pii-wipe-me VIN X123' },
+    });
+
     const exported = await request(app).get('/api/users/me/privacy/export').set('Authorization', `Bearer ${token}`);
     expect(exported.status).toBe(200);
     expect(exported.body.user.email).toBe('privacy@t.test');
+    expect(exported.body.messages?.some((row) => String(row.content).includes('secret-pii-wipe-me'))).toBe(true);
 
     const deleted = await request(app)
       .post('/api/users/me/privacy/delete')
@@ -83,8 +129,19 @@ describe('security sprints', () => {
       .send({ password: 'Password123!ab' });
     expect(deleted.status).toBe(200);
 
+    const wiped = await prisma.message.findUnique({ where: { id: message.id } });
+    expect(wiped.content).toBe('[удалено]');
+    const staleSession = await prisma.consultationSession.findUnique({ where: { id: session.id } });
+    expect(staleSession.guestName).toBeNull();
+    expect(staleSession.guestPhone).toBeNull();
+
     const me = await request(app).get('/api/users/me').set('Authorization', `Bearer ${token}`);
     expect(me.status).toBe(401);
+  });
+
+  it('rejects upload path traversal', () => {
+    expect(() => resolveUploadPath('/tmp/uploads', '../etc/passwd')).toThrow(AppError);
+    expect(resolveUploadPath('/tmp/uploads', 'ab/file.jpg')).toContain(`${path.sep}ab${path.sep}file.jpg`);
   });
 
   it('does not echo client X-Request-Id', async () => {

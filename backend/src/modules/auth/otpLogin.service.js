@@ -14,6 +14,7 @@ import {
 } from '../../lib/otp/otpChallenge.js';
 import { normalizeAuthEmail } from '../../lib/authSecurity.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
+import { assertNotLocked } from '../../lib/accountLockout.js';
 import { completeVerifiedLogin } from './auth.service.js';
 import * as securityService from '../users/security.service.js';
 import {
@@ -147,12 +148,7 @@ export async function startLoginOtp({ channel, email, phone }) {
 }
 
 export async function verifyLoginOtp({ challengeToken, code }, meta = {}) {
-  let challenge;
-  try {
-    challenge = await consumeOtpChallenge(challengeToken, code, { purpose: 'login' });
-  } catch (err) {
-    throw err;
-  }
+  const challenge = await consumeOtpChallenge(challengeToken, code, { purpose: 'login' });
 
   if (!challenge.userId) {
     throw new AppError(400, 'Неверный или просроченный код', 'BAD_REQUEST');
@@ -162,6 +158,7 @@ export async function verifyLoginOtp({ challengeToken, code }, meta = {}) {
   if (!user || user.blocked) {
     throw new AppError(400, 'Неверный или просроченный код', 'BAD_REQUEST');
   }
+  await assertNotLocked(user);
 
   const method = challenge.channel === 'email' ? 'email_otp' : challenge.channel === 'sms' ? 'sms' : 'telegram';
   try {

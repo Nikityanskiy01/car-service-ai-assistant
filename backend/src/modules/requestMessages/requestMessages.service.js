@@ -42,9 +42,9 @@ function withDeliveryStatus(messages, user, req) {
 
 export async function listMessages(requestId, user) {
   const req = await prisma.serviceRequest.findUnique({ where: { id: requestId } });
-  if (!req) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!req) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (user.role === 'CLIENT' && req.clientId !== user.id) {
-    throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
   }
   if (user.role === 'CLIENT' || user.role === 'MANAGER' || user.role === 'ADMINISTRATOR') {
     const messages = await prisma.requestFollowUpMessage.findMany({
@@ -68,7 +68,7 @@ export async function listMessages(requestId, user) {
     }
     return withDeliveryStatus(mapMessagesWithAttachments(messages, requestId), user, req);
   }
-  throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 }
 
 function truncateText(value, max, empty = '') {
@@ -135,14 +135,14 @@ export async function countUnreadMessagesForClient(userId) {
 
 export async function postMessage(requestId, user, { body = '', attachments = [] } = {}) {
   const req = await prisma.serviceRequest.findUnique({ where: { id: requestId } });
-  if (!req) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!req) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (CLOSED.has(req.status)) {
-    throw new AppError(409, 'Thread is read-only for this status', 'THREAD_LOCKED');
+    throw new AppError(409, 'Переписка по этой заявке закрыта.', 'THREAD_LOCKED');
   }
 
   const isClient = user.role === 'CLIENT' && req.clientId === user.id;
   const isStaff = user.role === 'MANAGER' || user.role === 'ADMINISTRATOR';
-  if (!isClient && !isStaff) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  if (!isClient && !isStaff) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 
   const text = String(body || '').trim().slice(0, 8000);
   const files = Array.isArray(attachments) ? attachments.slice(0, MAX_ATTACHMENTS) : [];
@@ -210,18 +210,18 @@ export async function postMessage(requestId, user, { body = '', attachments = []
 
 export async function getAttachment(requestId, messageId, attachmentId, user) {
   const req = await prisma.serviceRequest.findUnique({ where: { id: requestId } });
-  if (!req) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!req) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (user.role === 'CLIENT' && req.clientId !== user.id) {
-    throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
   }
   if (!['CLIENT', 'MANAGER', 'ADMINISTRATOR'].includes(user.role)) {
-    throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
   }
 
   const attachment = await prisma.requestFollowUpAttachment.findFirst({
     where: { id: attachmentId, messageId, message: { requestId } },
   });
-  if (!attachment) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!attachment) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   const buffer = await readAttachmentFile(attachment.storageKey);
   return {

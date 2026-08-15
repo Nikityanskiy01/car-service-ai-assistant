@@ -125,7 +125,7 @@ bookingsRouter.patch(
       if (!parsed.success) {
         const first = parsed.error.issues[0];
         return res.status(400).json({
-          error: first?.message || 'Validation failed',
+          error: first?.message || 'Проверьте введённые данные.',
           code: 'VALIDATION_ERROR',
         });
       }
@@ -137,14 +137,14 @@ bookingsRouter.patch(
       if (!parsed.success) {
         const first = parsed.error.issues[0];
         return res.status(400).json({
-          error: first?.message || 'Validation failed',
+          error: first?.message || 'Проверьте введённые данные.',
           code: 'VALIDATION_ERROR',
         });
       }
       const b = await bookingsService.patchBooking(req.params.bookingId, req.user, parsed.data);
       return res.json(serialize(b));
     }
-    return res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+    return res.status(403).json({ error: 'Недостаточно прав для выполнения действия.', code: 'FORBIDDEN' });
   }),
 );
 

@@ -79,7 +79,7 @@ export function idempotency() {
     if (key.length > 128 || !/^[\x21-\x7E]+$/.test(key)) {
       return sendProblem(res, {
         status: 400,
-        detail: 'Invalid Idempotency-Key',
+        detail: 'Некорректный ключ идемпотентности',
         code: 'INVALID_IDEMPOTENCY_KEY',
         instance: req.path,
       });
@@ -93,7 +93,7 @@ export function idempotency() {
       if (existing.fingerprint && existing.fingerprint !== fingerprint) {
         return sendProblem(res, {
           status: 422,
-          detail: 'Idempotency-Key reused with a different payload',
+          detail: 'Этот ключ идемпотентности уже использован с другими данными',
           code: 'IDEMPOTENCY_KEY_REUSED',
           instance: req.path,
         });
@@ -107,7 +107,7 @@ export function idempotency() {
       if (age < PENDING_MAX_MS) {
         return sendProblem(res, {
           status: 409,
-          detail: 'Request with this Idempotency-Key is already in progress',
+          detail: 'Запрос с этим ключом идемпотентности уже выполняется',
           code: 'IDEMPOTENCY_IN_PROGRESS',
           instance: req.path,
         });

@@ -23,13 +23,13 @@ export function sendProblem(res, { status, title, detail, code, instance, extras
 }
 
 function statusTitle(status) {
-  if (status === 400) return 'Bad Request';
-  if (status === 401) return 'Unauthorized';
-  if (status === 403) return 'Forbidden';
-  if (status === 404) return 'Not Found';
-  if (status === 409) return 'Conflict';
-  if (status === 422) return 'Unprocessable Entity';
-  if (status === 429) return 'Too Many Requests';
-  if (status >= 500) return 'Internal Server Error';
-  return 'Error';
+  if (status === 400) return 'Некорректный запрос';
+  if (status === 401) return 'Требуется авторизация';
+  if (status === 403) return 'Доступ запрещён';
+  if (status === 404) return 'Не найдено';
+  if (status === 409) return 'Конфликт';
+  if (status === 422) return 'Некорректные данные';
+  if (status === 429) return 'Слишком много запросов';
+  if (status >= 500) return 'Внутренняя ошибка сервера';
+  return 'Ошибка';
 }

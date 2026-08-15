@@ -19,7 +19,7 @@
 ```bash
 cp .env.proxmox.example .env.proxmox
 cp backend/.env.production.example backend/.env
-# задайте JWT_SECRET, INTEGRATION_ENCRYPTION_KEY, CORS_ORIGIN, LLM_API_KEY
+# задайте JWT_SECRET, INTEGRATION_ENCRYPTION_KEY, TOTP_ENCRYPTION_KEY, HMAC_PEPPER, CORS_ORIGIN, LLM_API_KEY
 
 sudo docker compose --env-file .env.proxmox up -d --build
 ```
@@ -56,4 +56,5 @@ npm run seed:demo
 - [Тестирование](docs/testing.md)
 - [Деплой](docs/deploy.md)
 - [Демо-сценарий](docs/demo.md)
+- [Пентест Strix](docs/STRIX.md)
 - [Оглавление docs/](docs/README.md)

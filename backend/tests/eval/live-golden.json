@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "description": "Golden set for live LLM extraction. Not run on every PR — nightly / manual.",
+  "minPassRatio": 0.8,
+  "cases": [
+    {
+      "id": "toyota-camry-brakes",
+      "message": "У меня Toyota Camry 2018, биение руля при торможении на трассе, пробег 120 тысяч",
+      "expect": {
+        "makeIncludes": "toyota",
+        "modelIncludes": "camry",
+        "year": 2018,
+        "mileageMin": 100000,
+        "symptomsIncludes": ["тормож"]
+      }
+    },
+    {
+      "id": "kia-rio-misfire",
+      "message": "Kia Rio, двигатель троит на холостых, иногда загорается чек",
+      "expect": {
+        "makeIncludes": "kia",
+        "modelIncludes": "rio",
+        "symptomsIncludes": ["троит"]
+      }
+    },
+    {
+      "id": "bmw-x5-suspension",
+      "message": "BMW X5 2015 стук спереди на кочках",
+      "expect": {
+        "makeIncludes": "bmw",
+        "modelIncludes": "x5",
+        "year": 2015,
+        "conditionsIncludes": ["кочк"]
+      }
+    },
+    {
+      "id": "oil-service-intent",
+      "message": "Нужно заменить масло на Skoda Octavia, пробег 45000",
+      "expect": {
+        "makeIncludes": "skoda",
+        "modelIncludes": "octavia",
+        "mileageMin": 40000
+      }
+    },
+    {
+      "id": "obd-p0420",
+      "message": "Hyundai Solaris, ошибка P0420 на диагностике",
+      "expect": {
+        "makeIncludes": "hyundai",
+        "modelIncludes": "solaris",
+        "obdIncludes": "p0420"
+      }
+    },
+    {
+      "id": "vaz-overheat",
+      "message": "Лада Гранта кипит в пробке, стрелка температуры в красной зоне",
+      "expect": {
+        "makeIncludes": ["lada", "ваз", "лада"],
+        "symptomsIncludes": ["кип"]
+      }
+    }
+  ]
+}

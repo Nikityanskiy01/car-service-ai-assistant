@@ -1,0 +1,527 @@
+/* Service book — add-record modal, records form, reschedule */
+.modal-service-record {
+  width: min(28rem, 94vw);
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+  background:
+    radial-gradient(ellipse 120% 80% at 100% -20%, rgb(234 88 12 / 0.14), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 0% 100%, rgb(251 146 60 / 0.07), transparent 50%),
+    var(--color-surface);
+  box-shadow:
+    0 24px 60px rgb(2 6 23 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.04) inset;
+}
+
+.modal-service-record .modal-header {
+  padding: 1rem 1.05rem;
+  border-bottom-color: color-mix(in srgb, var(--brand-primary) 14%, var(--color-border));
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent);
+}
+
+.modal-service-record .modal-content {
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+.service-record-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.service-record-form-lead {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.service-record-preview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.18);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+:root[data-theme='light'] .service-record-preview {
+  background: rgb(24 24 27 / 0.03);
+}
+
+.service-record-preview.is-ready {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+  background:
+    linear-gradient(135deg, rgb(234 88 12 / 0.1), transparent 55%),
+    rgb(0 0 0 / 0.16);
+  box-shadow: 0 0 0 1px rgb(234 88 12 / 0.08) inset;
+}
+
+:root[data-theme='light'] .service-record-preview.is-ready {
+  background:
+    linear-gradient(135deg, rgb(234 88 12 / 0.08), transparent 55%),
+    #fff;
+}
+
+.service-record-preview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fb923c, #ea580c);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12) inset;
+}
+
+.service-record-preview-body {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.service-record-preview-body strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+}
+
+.service-record-preview-body span {
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+}
+
+.service-record-cats {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.service-record-cats-label {
+  margin: 0 0 0.45rem;
+  padding: 0;
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+}
+
+.service-record-cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.service-record-cat-chip {
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+  border-radius: 999px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.service-record-cat-chip:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+}
+
+.service-record-cat-chip.is-active {
+  border-color: color-mix(in srgb, var(--brand-primary) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--brand-primary) 18%, var(--color-surface));
+  color: #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 25%, transparent) inset;
+}
+
+:root[data-theme='light'] .service-record-cat-chip.is-active {
+  color: #9a3412;
+  background: color-mix(in srgb, var(--brand-primary) 12%, #fff);
+}
+
+.service-record-cat-chip:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.service-record-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.service-record-form-grid-primary .form-field-label {
+  font-weight: 600;
+}
+
+.modal-service-record .input,
+.modal-service-record .textarea,
+.modal-service-record select {
+  border-radius: 12px;
+  border-color: color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface-secondary) 92%, transparent);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.modal-service-record .input:hover,
+.modal-service-record .textarea:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+}
+
+.modal-service-record .input:focus,
+.modal-service-record .textarea:focus,
+.modal-service-record .input:focus-visible,
+.modal-service-record .textarea:focus-visible,
+.modal-service-record select:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  background: var(--color-surface-secondary);
+}
+
+.service-record-note-input {
+  min-height: 5.5rem;
+  resize: none;
+  line-height: 1.45;
+  padding: 0.75rem 0.85rem;
+}
+
+.service-record-details-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.18);
+  color: inherit;
+  font: inherit;
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+
+:root[data-theme='light'] .service-record-details-toggle {
+  background: rgb(24 24 27 / 0.03);
+}
+
+.service-record-details-toggle:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--brand-primary) 8%, rgb(0 0 0 / 0.18));
+}
+
+:root[data-theme='light'] .service-record-details-toggle:hover {
+  background: color-mix(in srgb, var(--brand-primary) 7%, #fff);
+}
+
+.service-record-details-toggle:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
+}
+
+.service-record-details-toggle:active {
+  transform: scale(0.99);
+}
+
+.service-record-details-toggle.is-open {
+  border-color: color-mix(in srgb, var(--brand-primary) 30%, var(--color-border));
+}
+
+.service-record-details-toggle-copy {
+  display: grid;
+  gap: 0.12rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.service-record-details-toggle-copy strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.service-record-details-toggle-copy small {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.service-record-details-toggle-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.service-record-details-toggle.is-open .service-record-details-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+.service-record-details {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.15rem 0.1rem 0;
+  border: 0;
+  background: transparent;
+  animation: service-oil-in 180ms var(--ease-out) both;
+}
+
+.service-record-form-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+}
+
+.service-record-form-actions .btn {
+  min-width: 0;
+  width: 100%;
+}
+
+.diagnostic-summary--service-history {
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--color-border));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--brand-primary) 8%, transparent), transparent 55%),
+    var(--color-surface);
+}
+
+.diagnostic-summary--service-history.is-soon {
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+}
+
+.diagnostic-summary--service-history.is-overdue {
+  border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
+}
+
+.service-history-snapshot {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.service-history-snapshot > div {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+}
+
+.service-history-snapshot .muted {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@keyframes service-oil-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-oil-alert,
+  .service-book-hero,
+  .service-book-history,
+  .service-book-record,
+  .service-record-details {
+    animation: none;
+    transition: none;
+  }
+
+  .service-record-details-toggle,
+  .service-record-details-toggle-chevron {
+    transition: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .service-oil-metrics,
+  .service-record-form-grid,
+  .service-history-snapshot {
+    grid-template-columns: 1fr;
+  }
+}
+
+.modal-reschedule-booking {
+  width: min(24.5rem, 94vw);
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+  background:
+    radial-gradient(ellipse 120% 80% at 100% -20%, rgb(234 88 12 / 0.14), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 0% 100%, rgb(251 146 60 / 0.07), transparent 50%),
+    var(--color-surface);
+  box-shadow:
+    0 24px 60px rgb(2 6 23 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.04) inset;
+}
+
+.modal-reschedule-booking .modal-header {
+  padding: 1rem 1.05rem;
+  border-bottom-color: color-mix(in srgb, var(--brand-primary) 14%, var(--color-border));
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent);
+}
+
+.modal-reschedule-booking .modal-content {
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+.reschedule-booking-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.reschedule-booking-lead {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.reschedule-booking-now {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--color-border));
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgb(234 88 12 / 0.1), transparent 55%),
+    rgb(0 0 0 / 0.16);
+}
+
+:root[data-theme='light'] .reschedule-booking-now {
+  background:
+    linear-gradient(135deg, rgb(234 88 12 / 0.08), transparent 55%),
+    #fff;
+}
+
+.reschedule-booking-now-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fb923c, #ea580c);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12) inset;
+}
+
+.reschedule-booking-now div {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.reschedule-booking-now span {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.reschedule-booking-now strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+}
+
+.modal-reschedule-booking .input {
+  width: 100%;
+  border-radius: 12px;
+  border-color: color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface-secondary) 92%, transparent);
+  color-scheme: dark;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+:root[data-theme='light'] .modal-reschedule-booking .input {
+  color-scheme: light;
+}
+
+.modal-reschedule-booking .input:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+}
+
+.modal-reschedule-booking .input:focus,
+.modal-reschedule-booking .input:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  background: var(--color-surface-secondary);
+}
+
+.reschedule-booking-preview {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+}
+
+.reschedule-booking-preview strong {
+  color: var(--color-text-primary);
+}
+
+.reschedule-booking-note {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.reschedule-booking-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+  margin-top: 0.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+}
+
+.reschedule-booking-actions .btn {
+  min-width: 0;
+  width: 100%;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.reschedule-booking-actions .btn:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-reschedule-booking .input,
+  .reschedule-booking-actions .btn,
+  .booking-toolbar-btn {
+    transition: none;
+  }
+
+  .reschedule-booking-actions .btn:active,
+  .booking-toolbar-btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+

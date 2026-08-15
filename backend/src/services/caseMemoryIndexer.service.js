@@ -2,6 +2,7 @@ import prisma from '../lib/prisma.js';
 import { detectSymptomCategory } from './symptomClassifier.js';
 import { createEmbedding } from './embeddingService.js';
 import { logger } from '../lib/logger.js';
+import { writeEmbeddingVec } from '../lib/pgvector.js';
 
 /**
  * Текст для embedding: структурированные поля, без сырого чата.
@@ -95,6 +96,7 @@ export async function indexConsultationCase(sessionId) {
   });
 
   logger.info({ sessionId, dimensions: embedding.length }, 'case memory indexed');
+  await writeEmbeddingVec(sessionId, embedding);
   return { sessionId, dimensions: embedding.length };
 }
 

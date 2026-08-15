@@ -17,7 +17,7 @@ import { assertSensitiveAction } from './security.service.js';
 
 export async function startPhoneVerification(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (!user.emailVerifiedAt) {
     throw new AppError(400, 'Сначала подтвердите email — код придёт на почту', 'EMAIL_NOT_VERIFIED');
   }
@@ -73,7 +73,7 @@ export async function startPhoneVerification(userId) {
 
 export async function confirmPhoneVerification(userId, { code }) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   const pending = await prisma.authOtpChallenge.findFirst({
     where: {
@@ -113,7 +113,7 @@ export async function confirmPhoneVerification(userId, { code }) {
 
 export async function startTelegramLink(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (!user.phoneVerifiedAt) {
     throw new AppError(400, 'Сначала подтвердите телефон кодом с почты', 'PHONE_NOT_VERIFIED');
   }
@@ -195,7 +195,7 @@ export async function completeTelegramLinkFromBot({ code, chatId, username }) {
 
 export async function unlinkTelegram(userId, verification) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   await assertSensitiveAction(user, verification);
 
   await prisma.user.update({
@@ -215,7 +215,7 @@ export async function unlinkTelegram(userId, verification) {
 
 export async function updateLoginMethods(userId, patch) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   const disablesEnabledMethod =
     (patch.loginEmailOtpEnabled === false && user.loginEmailOtpEnabled) ||

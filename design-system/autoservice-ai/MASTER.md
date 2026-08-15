@@ -77,7 +77,7 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #0369A1;
+  background: #ea580c;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;

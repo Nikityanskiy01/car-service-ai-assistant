@@ -20,20 +20,32 @@ const level =
       ? 'info'
       : 'debug';
 
+export const LOG_REDACT_PATHS = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'req.body.password',
+  'req.body.currentPassword',
+  'req.body.newPassword',
+  'req.body.code',
+  'req.body.challengeToken',
+  'req.body.guestToken',
+  'req.body.contentBase64',
+  'req.body.imageBase64',
+  'req.body.phone',
+  'req.body.fullName',
+  'req.body.guestPhone',
+  'req.body.guestName',
+  'req.query.email',
+  'req.query.phone',
+  'req.query.fullName',
+  '*.phone',
+  '*.fullName',
+  '*.guestPhone',
+  '*.guestName',
+];
+
 export const logger = pino({
   mixin: traceFields,
   level,
-  redact: [
-    'req.headers.authorization',
-    'req.headers.cookie',
-    'req.body.password',
-    'req.body.currentPassword',
-    'req.body.newPassword',
-    'req.body.code',
-    'req.body.challengeToken',
-    'req.body.guestToken',
-    'req.body.contentBase64',
-    'req.body.imageBase64',
-    'req.query.email',
-  ],
+  redact: LOG_REDACT_PATHS,
 });

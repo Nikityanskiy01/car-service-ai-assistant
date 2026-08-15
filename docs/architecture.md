@@ -39,7 +39,7 @@ flowchart TB
 |------|------------|
 | UI | React 19, Vite 7, TypeScript, React Router 7 |
 | API | Node.js 22, Express 4, Prisma 6 |
-| Данные | PostgreSQL 16 |
+| Данные | PostgreSQL 16 + pgvector (HNSW cosine на case memory) |
 | Очередь диагноза | BullMQ + Redis 7 (AOF); worker-контейнер (`src/worker.js`), API с `RUN_BACKGROUND_JOBS=false` |
 | Наблюдаемость | Pino + `trace_id`, Prometheus `/api/metrics`, OpenTelemetry SDK (OTLP если задан `OTEL_EXPORTER_OTLP_ENDPOINT`) |
 | Auth | JWT в httpOnly-cookie + CSRF double-submit |
@@ -113,7 +113,7 @@ flowchart TB
 
 ## Данные
 
-Источник схемы: `backend/prisma/schema.prisma`. Помимо ядра консультации там же CMS (`SiteSettings`, блоки, галерея), интеграции CRM, feedback, embeddings кейсов, OTP, документы завершения работ.
+Источник схемы: `backend/prisma/schema.prisma`. Помимо ядра консультации там же CMS (`SiteSettings`, блоки, галерея), интеграции CRM, feedback, embeddings кейсов (JSON + колонка `embedding_vec` / pgvector HNSW), OTP, документы завершения работ. Образ БД: `docker/postgres` (Alpine 16 + pgvector 0.8.1), чтобы том `pgdata` оставался совместимым.
 
 ## Связанные документы
 

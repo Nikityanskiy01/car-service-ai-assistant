@@ -1,12 +1,28 @@
 import crypto from 'crypto';
 import { getEnv } from '../config/env.js';
 
-function pepper() {
-  return String(getEnv().JWT_SECRET || '');
+function peppers() {
+  const env = getEnv();
+  const keys = [];
+  const dedicated = String(env.HMAC_PEPPER || '').trim();
+  if (dedicated.length >= 32) keys.push(dedicated);
+  const jwt = String(env.JWT_SECRET || '');
+  if (jwt && !keys.includes(jwt)) keys.push(jwt);
+  return keys.length ? keys : [''];
 }
 
 export function hmacHex(purpose, value) {
-  return crypto.createHmac('sha256', pepper()).update(`${purpose}:${value}`).digest('hex');
+  return crypto.createHmac('sha256', peppers()[0]).update(`${purpose}:${value}`).digest('hex');
+}
+
+export function hmacHexMatches(purpose, value, stored) {
+  const expected = String(stored || '');
+  if (!expected) return false;
+  for (const key of peppers()) {
+    const got = crypto.createHmac('sha256', key).update(`${purpose}:${value}`).digest('hex');
+    if (timingSafeEqualHex(expected, got)) return true;
+  }
+  return false;
 }
 
 export function sha256Hex(value) {

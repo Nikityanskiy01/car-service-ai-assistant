@@ -1,7 +1,8 @@
 import { Camera, Loader2 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { api } from '../../api/client';
+import { api, getCachedUser } from '../../api/client';
 import { Button } from '../ui/Button';
+import { solveAbuseChallenge } from '../../features/consultations/abusePow';
 
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -37,9 +38,11 @@ export function PhotoAttachment({
     setLoading(true);
     try {
       const base64 = await readFileAsBase64(file);
+      const abuseHeaders = guestToken && !getCachedUser() ? await solveAbuseChallenge() : undefined;
       await api<{ session?: unknown }>(`/consultations/${sessionId}/analyze-photo`, {
         method: 'POST',
         guestToken,
+        headers: abuseHeaders,
         body: {
           mimeType: file.type,
           imageBase64: base64,
@@ -100,7 +103,7 @@ function readFileAsBase64(file: File): Promise<string> {
       const idx = result.indexOf('base64,');
       resolve(idx >= 0 ? result.slice(idx + 7) : result);
     };
-    reader.onerror = () => reject(new Error('read failed'));
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
     reader.readAsDataURL(file);
   });
 }

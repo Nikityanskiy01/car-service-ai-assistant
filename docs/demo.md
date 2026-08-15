@@ -11,7 +11,7 @@ sudo docker compose --env-file .env.proxmox ps
 curl -s http://127.0.0.1:3000/api/health
 ```
 
-Ожидание: сервисы `healthy`, `{"status":"ok",...}`. Если база пустая:
+Ожидание: сервисы `healthy`, `{"status":"ok"}`. Если база пустая:
 
 ```bash
 sudo docker compose --env-file .env.proxmox exec backend node prisma/seed.js
@@ -20,11 +20,8 @@ sudo docker compose --env-file .env.proxmox exec backend node prisma/seed.demo.j
 
 ## Учётные записи
 
-| Роль | Email | Пароль |
-|------|--------|--------|
-| Клиент | `client@example.local` | `Client-Demo-2026!` |
-| Менеджер | `manager@example.local` | `Manager-Demo-2026!` |
-| Администратор | `admin@example.local` | `Admin-Demo-2026!` |
+Email: `client@example.local`, `manager@example.local`, `admin@example.local`.  
+Пароли — из `DEMO_*_PASSWORD` в `.env.proxmox` (те же, что у `db:seed`).
 
 ## Сценарий
 

@@ -18,11 +18,23 @@ export async function expireGuestSessions() {
     select: { id: true },
     take: 200,
   });
-  if (!stale.length) return 0;
-  const ids = stale.map((row) => row.id);
-  await prisma.consultationSession.deleteMany({ where: { id: { in: ids } } });
-  logger.info({ count: ids.length }, 'expired guest consultation sessions');
-  return ids.length;
+  const withRequest = await prisma.consultationSession.updateMany({
+    where: {
+      clientId: null,
+      createdAt: { lt: cutoff },
+      OR: [{ guestName: { not: null } }, { guestPhone: { not: null } }],
+    },
+    data: { guestName: null, guestPhone: null },
+  });
+  if (!stale.length && !withRequest.count) return 0;
+  if (stale.length) {
+    const ids = stale.map((row) => row.id);
+    await prisma.consultationSession.deleteMany({ where: { id: { in: ids } } });
+    logger.info({ count: ids.length, anonymized: withRequest.count }, 'expired guest consultation sessions');
+    return ids.length;
+  }
+  logger.info({ anonymized: withRequest.count }, 'anonymized guest PII on stale sessions with requests');
+  return withRequest.count;
 }
 
 export function startGuestSessionTtlJob() {

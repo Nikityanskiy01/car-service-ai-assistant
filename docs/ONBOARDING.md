@@ -23,7 +23,7 @@ cd /home/demo/car-service-ai-assistant   # или корень клона
 cp .env.proxmox.example .env.proxmox
 cp backend/.env.production.example backend/.env
 # отредактируйте секреты: JWT_SECRET, INTEGRATION_ENCRYPTION_KEY,
-# CORS_ORIGIN, LLM_API_KEY, POSTGRES_PASSWORD
+# TOTP_ENCRYPTION_KEY, HMAC_PEPPER, CORS_ORIGIN, LLM_API_KEY, POSTGRES_PASSWORD
 
 sudo docker compose --env-file .env.proxmox up -d --build
 sudo docker compose --env-file .env.proxmox ps
@@ -47,13 +47,8 @@ sudo docker compose --env-file .env.proxmox exec backend node prisma/seed.demo.j
 
 ### Учётные записи seed
 
-Один набор и в Docker, и в `npm --prefix backend run db:seed`:
-
-| Роль | Email | Пароль |
-|------|--------|--------|
-| Клиент | `client@example.local` | `Client-Demo-2026!` |
-| Менеджер | `manager@example.local` | `Manager-Demo-2026!` |
-| Администратор | `admin@example.local` | `Admin-Demo-2026!` |
+Email по умолчанию: `client@example.local`, `manager@example.local`, `admin@example.local`.  
+Пароли **только** из `DEMO_CLIENT_PASSWORD` / `DEMO_MANAGER_PASSWORD` / `DEMO_ADMIN_PASSWORD` (в `.env.proxmox` или окружении контейнера). Fallback-паролей в `seed.js` нет.
 
 Вход: `/login` (email или телефон + пароль). Демо-вход без пароля отключён.
 
@@ -189,7 +184,7 @@ LLM_DIAGNOSIS_MODEL=qwen2.5:7b
 |---------|-------------|
 | Сайт на :8080 старый | Пересобрать Compose, не полагаться на Vite |
 | «Требуется авторизация» | Неверный email/пароль или Vite смотрит не в тот backend |
-| `Too many attempts` | Rate limit на `/auth/login` — подождать или `sudo docker compose --env-file .env.proxmox restart backend` |
+| `Too many attempts` / «Слишком много попыток» | Rate limit на `/auth/login` (Redis `rl:*`, 15 мин). Сброс: `sudo docker compose --env-file .env.proxmox exec redis redis-cli --no-auth-warning KEYS 'rl:*'` и `DEL` ключей. Рестарт backend счётчик в Redis не сбрасывает. |
 | ИИ молчит | `llm:check`, ключ, `LLM_CLOUD_BASE_URL`; на демо должен быть облачный провайдер |
 | Письма не приходят | Mailpit UI на :8025; в проде нужен реальный SMTP в `.env.proxmox` |
 | Backend unhealthy | Логи: `sudo docker compose --env-file .env.proxmox logs backend --tail 80` |

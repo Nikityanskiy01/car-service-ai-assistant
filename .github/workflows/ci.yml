@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: car_service_app
           POSTGRES_PASSWORD: change-me
@@ -104,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
         env:
           POSTGRES_USER: car_service_app
           POSTGRES_PASSWORD: change-me
@@ -121,7 +121,7 @@ jobs:
         ports:
           - 6379:6379
         options: >-
-          --health-cmd="redis-cli ping"
+          --health-cmd "sh -c 'redis-cli -a ci-e2e-redis-auth ping || redis-cli ping'"
           --health-interval=5s
           --health-timeout=3s
           --health-retries=5
@@ -131,9 +131,12 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret-min-32-chars-long!!
       NODE_ENV: development
       LLM_ENABLED: 'false'
-      REDIS_URL: redis://127.0.0.1:6379
+      REDIS_URL: redis://:ci-e2e-redis-auth@127.0.0.1:6379
       DIAGNOSIS_ASYNC_ENABLED: 'false'
       CORS_ORIGIN: http://127.0.0.1:5173
+      DEMO_CLIENT_PASSWORD: Ci-Client-Seed-2026!
+      DEMO_MANAGER_PASSWORD: Ci-Manager-Seed-2026!
+      DEMO_ADMIN_PASSWORD: Ci-Admin-Seed-2026!
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -148,6 +151,8 @@ jobs:
         run: npm ci
       - name: Install backend
         run: npm --prefix backend ci
+      - name: Require Redis AUTH
+        run: node -e "const Redis=require('./backend/node_modules/ioredis'); (async()=>{ const r=new Redis('redis://127.0.0.1:6379'); await r.config('SET','requirepass','ci-e2e-redis-auth'); await r.quit(); })().catch((e)=>{ console.error(e); process.exit(1); });"
       - name: Install frontend
         run: npm --prefix frontend ci
       - name: Prisma migrate
@@ -188,12 +193,19 @@ jobs:
           name: backend-sbom
           path: backend-sbom.spdx.json
           retention-days: 14
-      - name: Trivy filesystem
+      - name: Trivy filesystem (CRITICAL gate)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
-          severity: CRITICAL,HIGH
+          severity: CRITICAL
+          exit-code: '1'
+      - name: Trivy filesystem (HIGH report)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH
           exit-code: '0'
 
   codeql:

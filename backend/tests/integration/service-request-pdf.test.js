@@ -1,6 +1,4 @@
 import request from 'supertest';
-import bcrypt from 'bcryptjs';
-import prisma from '../../src/lib/prisma.js';
 import { app, registerClient, truncateAll } from '../helpers.js';
 
 async function fullServiceRequestForClient(token) {

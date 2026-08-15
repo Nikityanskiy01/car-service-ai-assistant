@@ -6,6 +6,7 @@ import { buildCaseMemoryDocument } from '../../services/caseMemoryIndexer.servic
 import { cosineSimilarity, toFloatVector } from '../../lib/vectorMath.js';
 import { createEmbedding } from '../../services/embeddingService.js';
 import { detectSymptomCategory } from '../../services/symptomClassifier.js';
+import { isPgvectorAvailable, searchEmbeddingNeighbors } from '../../lib/pgvector.js';
 
 export async function getCaseMemoryStats() {
   const env = getEnv();
@@ -26,6 +27,9 @@ export async function getCaseMemoryStats() {
     lexicalFallback: Boolean(env.CASE_MEMORY_LEXICAL_FALLBACK),
     embeddingModel: env.LLM_EMBEDDING_MODEL || null,
     topK: env.CASE_MEMORY_TOP_K,
+    maxScan: env.CASE_MEMORY_MAX_SCAN,
+    pgvectorEnabled: Boolean(env.CASE_MEMORY_PGVECTOR_ENABLED),
+    pgvectorAvailable: await isPgvectorAvailable(),
     lastIndexedAt: lastRow?.updatedAt?.toISOString() || null,
   };
 }
@@ -51,15 +55,32 @@ export async function searchCaseMemory(input) {
     try {
       const queryVec = await createEmbedding(document);
       if (queryVec.length) {
-        const rows = await prisma.consultationCaseEmbedding.findMany({
-          orderBy: { updatedAt: 'desc' },
-          take: 400,
-        });
         const wantedCategory = detectSymptomCategory(String(data.symptoms || ''));
-        for (const row of rows) {
-          const vec = toFloatVector(row.embedding);
-          const semantic = cosineSimilarity(queryVec, vec);
-          const score = semantic;
+        let scored = [];
+        if (env.CASE_MEMORY_PGVECTOR_ENABLED) {
+          scored = await searchEmbeddingNeighbors(queryVec, { wantedCategory, limit });
+        }
+        if (!scored.length) {
+          const rows = await prisma.consultationCaseEmbedding.findMany({
+            orderBy: { updatedAt: 'desc' },
+            take: Math.max(8, Number(env.CASE_MEMORY_MAX_SCAN) || 80),
+            select: {
+              make: true,
+              model: true,
+              symptomCategory: true,
+              topRecommendations: true,
+              costFromMinor: true,
+              embedding: true,
+              updatedAt: true,
+            },
+          });
+          scored = rows.map((row) => ({
+            ...row,
+            semantic: cosineSimilarity(queryVec, toFloatVector(row.embedding)),
+          }));
+        }
+        for (const row of scored) {
+          const score = Number(row.semantic) || 0;
           if (score <= 0.1) continue;
           results.push({
             score: Math.round(score * 1000) / 1000,

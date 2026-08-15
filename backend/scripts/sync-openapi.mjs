@@ -4,7 +4,7 @@
  *   node backend/scripts/sync-openapi.mjs           # записать yaml
  *   node backend/scripts/sync-openapi.mjs --check   # drift vs inventory
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -219,5 +219,6 @@ if (process.argv.includes('--check')) {
   process.exit(0);
 }
 
+mkdirSync(dirname(openapiPath), { recursive: true });
 writeFileSync(openapiPath, buildYaml(inventory.routes));
 console.log(`Wrote ${openapiPath} (${expected.length} operations)`);

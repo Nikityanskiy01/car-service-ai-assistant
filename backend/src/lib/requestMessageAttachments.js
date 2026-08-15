@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { AppError } from './errors.js';
 import { assertMagicMime } from './fileMagic.js';
 import { sanitizeUploadedImage } from './imageSanitize.js';
+import { resolveUploadPath } from './uploadPath.js';
 
 const UPLOAD_ROOT =
   process.env.REQUEST_MESSAGE_UPLOAD_DIR ||
@@ -62,7 +62,7 @@ export async function saveAttachmentFile(buffer, attachmentId) {
 }
 
 export async function readAttachmentFile(storageKey) {
-  const fullPath = path.join(UPLOAD_ROOT, storageKey);
+  const fullPath = resolveUploadPath(UPLOAD_ROOT, storageKey);
   return fs.readFile(fullPath);
 }
 

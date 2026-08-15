@@ -251,7 +251,7 @@ usersRouter.post(
 usersRouter.post(
   '/me/2fa/setup/cancel',
   asyncHandler(async (req, res) => {
-    const out = securityService.abortTotpSetup(req.user.id);
+    const out = await securityService.abortTotpSetup(req.user.id);
     res.json(out);
   }),
 );

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { AppError } from './errors.js';
 import { assertMagicMime } from './fileMagic.js';
 import { sanitizeUploadedImage } from './imageSanitize.js';
+import { resolveUploadPath } from './uploadPath.js';
 
 const UPLOAD_ROOT =
   process.env.COMPLETION_DOCUMENT_UPLOAD_DIR ||
@@ -88,7 +89,7 @@ export async function saveCompletionDocumentFile(buffer, documentId) {
 }
 
 export async function readCompletionDocumentFile(storageKey) {
-  const fullPath = path.join(UPLOAD_ROOT, storageKey);
+  const fullPath = resolveUploadPath(UPLOAD_ROOT, storageKey);
   return fs.readFile(fullPath);
 }
 

@@ -1,3 +1,4 @@
+import { apiMessages } from '../config/apiMessages.js';
 import { getEnv } from '../config/env.js';
 import { readCookieValue } from '../lib/authCookies.js';
 import { verifyAppJwt } from '../lib/jwtTokens.js';
@@ -81,7 +82,7 @@ export async function authJwt(req, res, next) {
   try {
     const user = await userFromToken(req);
     if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
     }
     if (user.totpSetupPending && !pathAllowedDuringTotpSetup(req)) {
       return res.status(403).json({
@@ -92,7 +93,7 @@ export async function authJwt(req, res, next) {
     req.user = user;
     next();
   } catch {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({ error: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
   }
 }
 

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from './client';
+import { api, getCachedUser, setCachedUser } from './client';
 
 describe('api client', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     Object.defineProperty(document, 'cookie', { value: 'car_service_csrf=testtoken', configurable: true });
   });
 
@@ -41,5 +42,24 @@ describe('api client', () => {
     expect(data.value).toBe(42);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[1][0]).toBe('/api/auth/refresh');
+  });
+
+  it('keeps only id and role in sessionStorage and clears localStorage', () => {
+    localStorage.setItem('car_service_user', JSON.stringify({ id: 'legacy', email: 'pwn@t.test', role: 'CLIENT' }));
+    setCachedUser({
+      id: 'u1',
+      role: 'CLIENT',
+      email: 'secret@t.test',
+      fullName: 'Иван',
+      phone: '+79990000000',
+    });
+    expect(localStorage.getItem('car_service_user')).toBeNull();
+    const stored = JSON.parse(String(sessionStorage.getItem('car_service_user')));
+    expect(stored).toEqual({ id: 'u1', role: 'CLIENT' });
+    expect(JSON.stringify(stored)).not.toMatch(/secret@t.test|Иван|7999/);
+    const cached = getCachedUser();
+    expect(cached?.id).toBe('u1');
+    expect(cached?.role).toBe('CLIENT');
+    expect(cached?.email).toBe('');
   });
 });

@@ -1,4 +1,5 @@
 import JPEG from 'jpeg-js';
+import { PNG } from 'pngjs';
 import { AppError } from './errors.js';
 
 const MAX_EDGE = 1920;
@@ -63,23 +64,22 @@ function stripJpegAppSegments(buffer) {
   return Buffer.concat(out);
 }
 
-function stripPngMetadata(buffer) {
-  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  if (buffer.length < 8 || !buffer.subarray(0, 8).equals(sig)) return buffer;
-  const drop = new Set(['eXIf', 'tEXt', 'zTXt', 'iTXt', 'tIME']);
-  const parts = [sig];
-  let i = 8;
-  while (i + 12 <= buffer.length) {
-    const len = buffer.readUInt32BE(i);
-    const type = buffer.subarray(i + 4, i + 8).toString('ascii');
-    const end = i + 12 + len;
-    if (end > buffer.length) break;
-    if (!drop.has(type)) parts.push(buffer.subarray(i, end));
-    i = end;
-    if (type === 'IEND') break;
+function sanitizePng(buffer) {
+  try {
+    const decoded = PNG.sync.read(buffer);
+    const scaled = downsample(
+      { data: Buffer.from(decoded.data), width: decoded.width, height: decoded.height },
+      MAX_EDGE,
+    );
+    const out = new PNG({ width: scaled.width, height: scaled.height });
+    scaled.data.copy(out.data);
+    return PNG.sync.write(out);
+  } catch {
+    throw new AppError(400, 'Некорректный PNG', 'BAD_REQUEST');
   }
-  return Buffer.concat(parts);
 }
+
+const WEBP_KEEP = new Set(['VP8 ', 'VP8L', 'VP8X', 'ALPH', 'ANIM', 'ANMF']);
 
 function stripWebpExif(buffer) {
   if (buffer.length < 12) return buffer;
@@ -93,7 +93,7 @@ function stripWebpExif(buffer) {
     let end = i + 8 + size;
     if (end % 2 === 1) end += 1;
     if (end > buffer.length) break;
-    if (type !== 'EXIF' && type !== 'XMP ') chunks.push(buffer.subarray(i, end));
+    if (WEBP_KEEP.has(type)) chunks.push(buffer.subarray(i, end));
     i = end;
   }
   const payload = Buffer.concat(chunks);
@@ -133,7 +133,7 @@ export function sanitizeImageBuffer(buffer, mimeType) {
     return { buffer: sanitizeJpeg(buffer), mimeType: 'image/jpeg', ext: 'jpg' };
   }
   if (mime === 'image/png') {
-    return { buffer: stripPngMetadata(buffer), mimeType: 'image/png', ext: 'png' };
+    return { buffer: sanitizePng(buffer), mimeType: 'image/png', ext: 'png' };
   }
   if (mime === 'image/webp') {
     return { buffer: stripWebpExif(buffer), mimeType: 'image/webp', ext: 'webp' };

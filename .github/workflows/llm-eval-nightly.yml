@@ -1,0 +1,48 @@
+name: Nightly live LLM eval
+
+on:
+  schedule:
+    - cron: '20 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: live-llm-eval
+  cancel-in-progress: true
+
+jobs:
+  live-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm --prefix backend ci
+      - name: Live extraction golden set
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://car_service_app:change-me@127.0.0.1:5432/car_service_test
+          JWT_SECRET: ci-test-jwt-secret-min-32-chars-long!!
+          LLM_ENABLED: 'true'
+          LLM_PROVIDER: openai
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_CLOUD_BASE_URL: ${{ vars.LLM_CLOUD_BASE_URL || 'https://api.openai.com/v1' }}
+          LLM_MODEL: ${{ vars.LLM_MODEL || 'gpt-4.1-mini' }}
+          LLM_EXTRACTION_MODEL: ${{ vars.LLM_EXTRACTION_MODEL || '' }}
+        run: |
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "Skipping: repository secret LLM_API_KEY is not set"
+            exit 0
+          fi
+          LIVE_LLM_EVAL_REQUIRED=true npm --prefix backend run test:eval:live
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: live-llm-eval-log
+          path: backend/eval-live-report.json
+          if-no-files-found: ignore
+          retention-days: 14

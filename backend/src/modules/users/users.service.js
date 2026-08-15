@@ -54,7 +54,7 @@ export async function getMe(userId) {
     where: { id: userId },
     select: USER_SELECT,
   });
-  if (!u) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!u) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   return toPublic(u);
 }
 
@@ -63,7 +63,7 @@ export async function patchMe(userId, data) {
     where: { id: userId },
     select: { phone: true, phoneVerifiedAt: true },
   });
-  if (!current) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!current) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   let phone = data.phone;
   const phoneChanged = phone != null && normalizePhone(phone) !== current.phone;
@@ -113,7 +113,7 @@ export async function uploadAvatar(userId, { mimeType, contentBase64 }) {
     where: { id: userId },
     select: { avatarUrl: true },
   });
-  if (!current) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!current) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   const storageKey = await saveAvatarFile(parsed.buffer, parsed.ext);
   try {
@@ -137,7 +137,7 @@ export async function removeAvatar(userId) {
     where: { id: userId },
     select: { avatarUrl: true },
   });
-  if (!current) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!current) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (current.avatarUrl) {
     await deleteAvatarFile(current.avatarUrl);
   }
@@ -154,14 +154,14 @@ export async function getAvatar(userId) {
     where: { id: userId },
     select: { avatarUrl: true },
   });
-  if (!u?.avatarUrl) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!u?.avatarUrl) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   const buffer = await readAvatarFile(u.avatarUrl);
   return { buffer, mimeType: avatarMimeFromKey(u.avatarUrl) };
 }
 
 export async function getMeSummary(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   const [consultations, requests, bookings, unread] = await Promise.all([
     prisma.consultationSession.findMany({

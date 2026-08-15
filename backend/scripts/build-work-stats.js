@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import xlsx from 'xlsx';
+import { loadXlsx } from './loadXlsx.js';
 
 function norm(s) {
   return String(s || '').trim().replace(/\s+/g, ' ');
@@ -76,7 +76,8 @@ function categorizeWork(workName) {
   return best && best.score > 0 ? best.c.id : 'other';
 }
 
-function main() {
+async function main() {
+  const xlsx = await loadXlsx();
   const input = 'data/service_history.xlsx';
   if (!fs.existsSync(input)) {
     console.error(`Input not found: ${input}`);
@@ -241,5 +242,8 @@ function main() {
   console.log(`OK: data/work_stats.json (docs=${docs.size}, bundles=${bundleOut.length}, priced=${workPrice.length})`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err.message || err);
+  process.exit(1);
+});
 

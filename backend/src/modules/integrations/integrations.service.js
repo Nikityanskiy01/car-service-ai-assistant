@@ -504,7 +504,7 @@ export async function cancelJob(jobId) {
 export async function handleIncomingWebhook(connectionId, payload, headers = {}, rawBody = null) {
   const id = String(connectionId || '').trim();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
-    throw new AppError(404, 'Webhook endpoint not found', 'NOT_FOUND');
+    throw new AppError(404, 'Webhook-эндпоинт не найден.', 'NOT_FOUND');
   }
 
   let connection;
@@ -512,18 +512,18 @@ export async function handleIncomingWebhook(connectionId, payload, headers = {},
     connection = await getConnectionOrThrow(id);
   } catch (err) {
     if (isAppError(err) && err.statusCode === 404) {
-      throw new AppError(404, 'Webhook endpoint not found', 'NOT_FOUND');
+      throw new AppError(404, 'Webhook-эндпоинт не найден.', 'NOT_FOUND');
     }
     throw err;
   }
   if (!connection.enabled) {
-    throw new AppError(404, 'Webhook endpoint not found', 'NOT_FOUND');
+    throw new AppError(404, 'Webhook-эндпоинт не найден.', 'NOT_FOUND');
   }
 
   const secrets = withDecryptedSecrets(connection);
   const webhookSecret = String(secrets.webhookSecret || secrets.webhook_secret || '').trim();
   if (!webhookSecret) {
-    throw new AppError(401, 'Webhook secret is not configured', 'WEBHOOK_UNAUTHORIZED');
+    throw new AppError(401, 'Секрет webhook не настроен.', 'WEBHOOK_UNAUTHORIZED');
   }
 
   const signatureHeader = pickWebhookSignatureHeader(headers);
@@ -545,7 +545,7 @@ export async function handleIncomingWebhook(connectionId, payload, headers = {},
         payloadJson: { reason: 'invalid_signature', signaturePresent: Boolean(signatureHeader) },
       },
     });
-    throw new AppError(401, 'Invalid webhook signature', 'WEBHOOK_UNAUTHORIZED');
+    throw new AppError(401, 'Неверная подпись webhook.', 'WEBHOOK_UNAUTHORIZED');
   }
 
   const eventId = String(headers['x-event-id'] || headers['x-request-id'] || headers['x-correlation-id'] || '');

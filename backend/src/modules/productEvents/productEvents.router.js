@@ -6,6 +6,13 @@ import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js
 import { optionalAuthJwt } from '../../middleware/authJwt.js';
 import { logger } from '../../lib/logger.js';
 
+const ALLOWED_EVENTS = new Set([
+  'consult_started',
+  'diagnosis_shown',
+  'request_created',
+  'booking_confirmed',
+]);
+
 const schema = z.object({
   name: z
     .string()
@@ -23,15 +30,17 @@ productEventsRouter.post(
   optionalAuthJwt,
   validateBody(schema),
   asyncHandler(async (req, res) => {
-    logger.info(
-      {
-        event: req.validatedBody.name,
-        props: req.validatedBody.props || {},
-        userId: req.user?.id || null,
-        role: req.user?.role || null,
-      },
-      'product_event',
-    );
+    const name = req.validatedBody.name;
+    if (ALLOWED_EVENTS.has(name)) {
+      logger.info(
+        {
+          event: name,
+          userId: req.user?.id || null,
+          role: req.user?.role || null,
+        },
+        'product_event',
+      );
+    }
     res.status(204).end();
   }),
 );

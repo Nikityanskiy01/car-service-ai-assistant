@@ -5,6 +5,7 @@ import { createEmbedding } from './embeddingService.js';
 import { buildCaseMemoryDocument } from './caseMemoryIndexer.service.js';
 import { detectSymptomCategory } from './symptomClassifier.js';
 import { logger } from '../lib/logger.js';
+import { isPgvectorAvailable, searchEmbeddingNeighbors } from '../lib/pgvector.js';
 
 function tokenizeRu(text) {
   return String(text || '')
@@ -167,14 +168,36 @@ export async function getRelevantCasesSemantic(data, limit = 5) {
   const wantedCategory = detectSymptomCategory(String(data?.symptoms || ''));
   const wantedMake = String(data?.car_make || '').trim().toLowerCase();
   const wantedModel = String(data?.car_model || '').trim().toLowerCase();
+  const maxScan = Math.max(8, Number(env.CASE_MEMORY_MAX_SCAN) || 80);
 
-  // Prefer same symptom category (+ recent), then backfill with recent misc — cuts cosine work ~3–5×.
+  const rank = (rows) =>
+    rows
+      .map((row) => {
+        const semantic =
+          typeof row.semantic === 'number' ? row.semantic : cosineSimilarity(queryVec, toFloatVector(row.embedding));
+        const score =
+          semantic +
+          categoryBoost(wantedCategory, String(row.symptomCategory || 'unknown')) +
+          vehicleBoost(wantedMake, wantedModel, row.make, row.model) +
+          recencyScore(row.updatedAt);
+        return { score, case: toAnonymizedCase(row) };
+      })
+      .filter((x) => x.score > 0.35)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((x) => x.case);
+
+  if (env.CASE_MEMORY_PGVECTOR_ENABLED && (await isPgvectorAvailable())) {
+    const neighbors = await searchEmbeddingNeighbors(queryVec, { wantedCategory, limit });
+    if (neighbors.length) return rank(neighbors);
+  }
+
   const categoryRows =
     wantedCategory !== 'unknown'
       ? await prisma.consultationCaseEmbedding.findMany({
           where: { symptomCategory: wantedCategory },
           orderBy: { updatedAt: 'desc' },
-          take: 120,
+          take: maxScan,
           select: {
             make: true,
             model: true,
@@ -187,7 +210,7 @@ export async function getRelevantCasesSemantic(data, limit = 5) {
         })
       : [];
 
-  const needMore = Math.max(0, 160 - categoryRows.length);
+  const needMore = Math.max(0, maxScan - categoryRows.length);
   const recentRows =
     needMore > 0
       ? await prisma.consultationCaseEmbedding.findMany({
@@ -211,22 +234,7 @@ export async function getRelevantCasesSemantic(data, limit = 5) {
 
   const rows = categoryRows.concat(recentRows);
   if (!rows.length) return [];
-
-  return rows
-    .map((row) => {
-      const vec = toFloatVector(row.embedding);
-      const semantic = cosineSimilarity(queryVec, vec);
-      const score =
-        semantic +
-        categoryBoost(wantedCategory, String(row.symptomCategory || 'unknown')) +
-        vehicleBoost(wantedMake, wantedModel, row.make, row.model) +
-        recencyScore(row.updatedAt);
-      return { score, case: toAnonymizedCase(row) };
-    })
-    .filter((x) => x.score > 0.35)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map((x) => x.case);
+  return rank(rows);
 }
 
 /**

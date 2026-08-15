@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { apiMessages } from '../config/apiMessages.js';
 import { readCookieValue } from '../lib/authCookies.js';
 
 function csrfTokensMatch(cookie, header) {
@@ -40,7 +41,7 @@ export function csrfProtection(req, res, next) {
   const cookie = readCookieValue(req, 'csrf');
   const header = req.headers['x-csrf-token'];
   if (!csrfTokensMatch(cookie, header)) {
-    return res.status(403).json({ error: 'CSRF token missing or invalid', code: 'CSRF' });
+    return res.status(403).json({ error: apiMessages.common.csrf, code: 'CSRF' });
   }
   next();
 }

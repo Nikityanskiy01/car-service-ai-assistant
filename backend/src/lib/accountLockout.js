@@ -1,5 +1,6 @@
 import prisma from './prisma.js';
 import { AppError } from './errors.js';
+import { INVALID_CREDENTIALS_MESSAGE } from './authSecurity.js';
 
 const MAX_FAILURES = 5;
 const LOCK_MS = 15 * 60 * 1000;
@@ -11,8 +12,7 @@ export function isUserLocked(user) {
 
 export async function assertNotLocked(user) {
   if (isUserLocked(user)) {
-    const wait = Math.max(1, Math.ceil((new Date(user.lockedUntil).getTime() - Date.now()) / 60000));
-    throw new AppError(429, `Слишком много неудачных попыток. Повторите через ${wait} мин.`, 'ACCOUNT_LOCKED');
+    throw new AppError(401, INVALID_CREDENTIALS_MESSAGE, 'UNAUTHORIZED');
   }
 }
 

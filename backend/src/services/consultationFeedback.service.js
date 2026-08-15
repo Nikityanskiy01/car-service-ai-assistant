@@ -8,13 +8,6 @@ import { sanitizeUntrustedPromptText } from '../lib/piiRedact.js';
 
 const fewShotCache = createTtlCache(10 * 60_000);
 
-function extractDiagnosisFromFlowState(flowState) {
-  if (!flowState || typeof flowState !== 'object' || Array.isArray(flowState)) return null;
-  const diagnosis = flowState.diagnosis;
-  if (!diagnosis || typeof diagnosis !== 'object') return null;
-  return diagnosis;
-}
-
 function serializeFeedback(row) {
   if (!row) return null;
   return {
@@ -113,7 +106,7 @@ export async function upsertFeedbackForRequest(requestId, managerId, input) {
       },
     },
   });
-  if (!sr) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!sr) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   // Store mileage/category on feedback via side-channel fields if schema has them;
   // otherwise only sync into VehicleServiceRecord.
@@ -188,7 +181,7 @@ export async function getFeedbackForRequest(requestId) {
     where: { id: requestId },
     select: { consultationSessionId: true },
   });
-  if (!sr) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!sr) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   const row = await prisma.consultationFeedback.findUnique({
     where: { sessionId: sr.consultationSessionId },
@@ -332,24 +325,22 @@ export async function getAiFeedbackCsv({ days = 7 } = {}) {
   return buildAiFeedbackCsv(report);
 }
 
-function formatFewShotExample(row) {
-  const extracted = row.session?.extracted;
-  const diagnosis = extractDiagnosisFromFlowState(row.session?.flowState);
-  const topRec = row.session?.recommendations?.[0];
-  const aiCause =
-    diagnosis?.probable_causes?.[0] ||
-    topRec?.title ||
-    diagnosis?.summary ||
-    null;
+const FEW_SHOT_VERDICTS = new Set(['CORRECT', 'PARTIAL', 'INCORRECT']);
 
-  return {
-    vehicle: [extracted?.make, extracted?.model].filter(Boolean).join(' ') || null,
-    symptoms: sanitizeUntrustedPromptText(extracted?.symptoms, 240) || null,
-    ai_top_cause: sanitizeUntrustedPromptText(aiCause, 200),
-    confirmed_cause: sanitizeUntrustedPromptText(row.actualCause || aiCause, 200),
-    works_done: sanitizeUntrustedPromptText(row.worksDone, 200) || null,
-    verdict: row.verdict,
-  };
+/** Structured few-shot only: no manager free text (actualCause / worksDone) and no client symptoms. */
+export function formatFewShotExample(row) {
+  const extracted = row.session?.extracted;
+  const vehicle = [extracted?.make, extracted?.model]
+    .map((part) => sanitizeUntrustedPromptText(part, 40))
+    .filter(Boolean)
+    .join(' ') || null;
+  const category =
+    sanitizeUntrustedPromptText(
+      row.session?.serviceCategory?.name || row.session?.caseEmbedding?.symptomCategory || '',
+      48,
+    ) || null;
+  const verdict = FEW_SHOT_VERDICTS.has(row.verdict) ? row.verdict : null;
+  return { verdict, vehicle, category };
 }
 
 export async function getConfirmedFewShotExamples(limit) {
@@ -368,8 +359,9 @@ export async function getConfirmedFewShotExamples(limit) {
     include: {
       session: {
         include: {
-          extracted: true,
-          recommendations: { orderBy: { probabilityPercent: 'desc' }, take: 1 },
+          extracted: { select: { make: true, model: true } },
+          serviceCategory: { select: { name: true } },
+          caseEmbedding: { select: { symptomCategory: true } },
         },
       },
     },
@@ -377,7 +369,7 @@ export async function getConfirmedFewShotExamples(limit) {
     take,
   });
 
-  const examples = rows.map(formatFewShotExample).filter((x) => x.confirmed_cause);
+  const examples = rows.map(formatFewShotExample).filter((x) => x.verdict);
   fewShotCache.set(cacheKey, examples);
   return examples;
 }

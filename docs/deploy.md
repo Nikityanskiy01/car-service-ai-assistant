@@ -12,7 +12,7 @@
 | `frontend` | Nginx + SPA, прокси `/api` | `127.0.0.1:8080` |
 | `backend` | Express, Prisma migrate при старте; без фоновых jobs | `127.0.0.1:3000` |
 | `worker` | BullMQ-диагноз, outbox, SLA, reminders | нет HTTP |
-| `db` | PostgreSQL 16 | только внутренняя сеть |
+| `db` | PostgreSQL 16 + pgvector (образ `docker/postgres`) | только внутренняя сеть |
 | `redis` | BullMQ | только внутренняя сеть |
 | `mailpit` | Перехват SMTP на демо | `127.0.0.1:1025` / UI `:8025` |
 
@@ -51,7 +51,7 @@ cp .env.proxmox.example .env.proxmox
 cp backend/.env.production.example backend/.env
 ```
 
-Обязательно задать: `POSTGRES_PASSWORD`, `JWT_SECRET` (≥32), `INTEGRATION_ENCRYPTION_KEY` (≥32), `CORS_ORIGIN`, `APP_PUBLIC_URL`, ключ LLM.
+Обязательно задать: `POSTGRES_PASSWORD`, `JWT_SECRET` (≥32), `INTEGRATION_ENCRYPTION_KEY` (≥32), `TOTP_ENCRYPTION_KEY` (≥32), `HMAC_PEPPER` (≥32), `CORS_ORIGIN`, `APP_PUBLIC_URL`, ключ LLM.
 
 4. Стек: `sudo docker compose --env-file .env.proxmox up -d --build`.
 5. Пользователи (пароли не коммитить):

@@ -10,7 +10,7 @@ import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
 import { idempotency } from '../../middleware/idempotency.js';
 import { createLlmLimiter, createVisionLimiter } from '../../middleware/rateLimitConfig.js';
-import { createAbuseChallenge, verifyAbuseChallenge } from '../../lib/guestPow.js';
+import { abuseChallengeFromRequest, createAbuseChallenge, verifyAbuseChallenge } from '../../lib/guestPow.js';
 import { recordConsentEvent } from '../privacy/consent.service.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import { isAppError } from '../../lib/errors.js';
@@ -58,19 +58,17 @@ const createSessionLimiter = createPublicWriteLimiter(40);
 const llmLimiter = createLlmLimiter();
 const visionLimiter = createVisionLimiter();
 
-function requireAbuseChallenge(req, res, next) {
+async function requireAbuseChallenge(req, res, next) {
   if (process.env.NODE_ENV === 'test' || req.user) return next();
-  const ok = verifyAbuseChallenge({
-    nonce: req.headers['x-abuse-nonce'],
-    issuedAt: req.headers['x-abuse-issued'],
-    difficulty: req.headers['x-abuse-difficulty'],
-    sig: req.headers['x-abuse-sig'],
-    solution: req.headers['x-abuse-solution'],
-  });
-  if (!ok) {
-    return res.status(403).json({ error: 'Требуется проверка антибота', code: 'ABUSE_CHALLENGE' });
+  try {
+    const ok = await verifyAbuseChallenge(abuseChallengeFromRequest(req));
+    if (!ok) {
+      return res.status(403).json({ error: 'Требуется проверка антибота', code: 'ABUSE_CHALLENGE' });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 }
 
 consultationsRouter.get('/abuse-challenge', createSessionLimiter, (_req, res) => {
@@ -190,6 +188,7 @@ consultationsRouter.post(
   '/:sessionId/messages',
   llmLimiter,
   optionalAuthJwt,
+  requireAbuseChallenge,
   consultationSessionAccess,
   blockStaffFromPosting,
   validateBody(messageSchema),
@@ -218,6 +217,7 @@ consultationsRouter.post(
   '/:sessionId/analyze-photo',
   visionLimiter,
   optionalAuthJwt,
+  requireAbuseChallenge,
   consultationSessionAccess,
   blockStaffFromPosting,
   validateBody(photoSchema),
@@ -249,6 +249,7 @@ consultationsRouter.post(
   '/:sessionId/messages/stream',
   llmLimiter,
   optionalAuthJwt,
+  requireAbuseChallenge,
   consultationSessionAccess,
   blockStaffFromPosting,
   validateBody(messageSchema),

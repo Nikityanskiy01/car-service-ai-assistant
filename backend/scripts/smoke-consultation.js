@@ -1,3 +1,5 @@
+import { solveAbuseChallenge, toAbuseHttpHeaders } from '../src/lib/guestPow.js';
+
 const API_BASE = process.env.API_BASE_URL || 'http://127.0.0.1:3000';
 
 async function mustJson(res) {
@@ -14,10 +16,15 @@ async function mustJson(res) {
   return data;
 }
 
+async function abuseHeaders() {
+  const challenge = await mustJson(await fetch(`${API_BASE}/api/consultations/abuse-challenge`));
+  return toAbuseHttpHeaders(solveAbuseChallenge(challenge));
+}
+
 async function main() {
   const createRes = await fetch(`${API_BASE}/api/consultations`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(await abuseHeaders()) },
     body: '{}',
   });
   const created = await mustJson(createRes);
@@ -33,6 +40,7 @@ async function main() {
     headers: {
       'Content-Type': 'application/json',
       'x-consultation-guest-token': guestToken,
+      ...(await abuseHeaders()),
     },
     body: JSON.stringify({
       content:
@@ -59,4 +67,3 @@ main().catch((e) => {
   console.error(`SMOKE FAILED: ${e?.message || String(e)}`);
   process.exit(1);
 });
-

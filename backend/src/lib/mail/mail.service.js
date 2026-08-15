@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { getEnv } from '../../config/env.js';
 import { escapeHtml } from '../htmlEscape.js';
+import { logger } from '../logger.js';
 
 /** @type {{ to: string; subject: string; text: string; html: string } | null} */
 let lastTestOutbound = null;
@@ -28,10 +29,13 @@ export function isSmtpConfigured() {
 
 function createTransport() {
   const env = getEnv();
+  const host = String(env.SMTP_HOST || '').trim().toLowerCase();
+  const local = !host || host === 'mailpit' || host === 'localhost' || host === '127.0.0.1';
   const options = {
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     secure: env.SMTP_SECURE,
+    requireTLS: env.NODE_ENV === 'production' && !local && !env.SMTP_SECURE,
   };
   if (env.SMTP_USER) {
     options.auth = { user: env.SMTP_USER, pass: env.SMTP_PASS || '' };

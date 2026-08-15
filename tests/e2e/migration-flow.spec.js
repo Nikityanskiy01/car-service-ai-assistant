@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { e2eUsers } from './credentials.js';
 
 const unique = Date.now();
 const clientEmail = `client.${unique}@example.local`;
@@ -39,10 +40,7 @@ test('2. Регистрация и вход клиента', async ({ page }) =>
 test('3. Клиентский кабинет открывается', async ({ page }) => {
   const ok = await loginAny(page, [
     { email: clientEmail, password: clientPassword },
-    { email: 'client@example.local', password: 'Client-Demo-2026!' },
-    { email: 'client@example.local', password: 'demo' },
-    { email: 'client@example.local', password: '1q2w3e4r' },
-    { email: 'user@example.com', password: '1q2w3e4r' },
+    e2eUsers.client,
   ]);
   expect(ok).toBeTruthy();
   await page.goto('/dashboard/client');
@@ -65,26 +63,14 @@ test('5. Гость создает заявку через форму запис
 });
 
 test('6. Менеджер видит кабинет и может менять статус заявки', async ({ page }) => {
-  const ok = await loginAny(page, [
-    { email: 'manager@example.local', password: 'Manager-Demo-2026!' },
-    { email: 'manager@example.local', password: 'demo' },
-    { email: 'manager@example.local', password: '1q2w3e4r5t' },
-    { email: 'manager@example.com', password: '1q2w3e4r5t' },
-    { email: 'manager@fox.local', password: 'Admin12345!' },
-  ]);
+  const ok = await loginAny(page, [e2eUsers.manager]);
   expect(ok).toBeTruthy();
   await page.goto('/dashboard/manager');
   await expect(page.getByRole('heading', { name: 'Кабинет менеджера' })).toBeVisible();
 });
 
 test('7. Администратор открывает админ-панель', async ({ page }) => {
-  const ok = await loginAny(page, [
-    { email: 'admin@example.local', password: 'Admin-Demo-2026!' },
-    { email: 'admin@example.local', password: 'demo' },
-    { email: 'admin@example.local', password: '1q2w3e4r5t6y' },
-    { email: 'admin@example.com', password: '1q2w3e4r5t6y' },
-    { email: 'admin@fox.local', password: 'Admin12345!' },
-  ]);
+  const ok = await loginAny(page, [e2eUsers.admin]);
   expect(ok).toBeTruthy();
   await page.goto('/dashboard/admin');
   await expect(page.getByRole('heading', { name: 'Административная панель' })).toBeVisible();
@@ -93,10 +79,7 @@ test('7. Администратор открывает админ-панель',
 test('8. Неправильная роль получает запрет', async ({ page }) => {
   const ok = await loginAny(page, [
     { email: clientEmail, password: clientPassword },
-    { email: 'client@example.local', password: 'Client-Demo-2026!' },
-    { email: 'client@example.local', password: 'demo' },
-    { email: 'client@example.local', password: '1q2w3e4r' },
-    { email: 'user@example.com', password: '1q2w3e4r' },
+    e2eUsers.client,
   ]);
   expect(ok).toBeTruthy();
   await page.goto('/dashboard/admin');

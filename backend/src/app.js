@@ -10,8 +10,10 @@ import helmet from 'helmet';
 import pinoHttp from 'pino-http';
 import { context, trace } from '@opentelemetry/api';
 import { getEnv } from './config/env.js';
+import './lib/zodRu.js';
+import { apiMessages } from './config/apiMessages.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { createRateLimiter } from './middleware/rateLimitConfig.js';
+import { createRateLimiter, isOperationalApiPath } from './middleware/rateLimitConfig.js';
 import { logger } from './lib/logger.js';
 import { httpMetricsMiddleware } from './lib/httpMetrics.js';
 import { sendProblem } from './lib/problem.js';
@@ -129,7 +131,7 @@ export function createApp() {
     );
   }
 
-  const limiter = createRateLimiter({ max: 300 });
+  const limiter = createRateLimiter({ max: 300, skip: isOperationalApiPath });
   app.use('/api/', limiter);
 
   app.use('/api', api);
@@ -140,14 +142,14 @@ export function createApp() {
 
   app.use((req, res) => {
     if (req.path.startsWith('/api') || !env.SERVE_FRONTEND) {
-      return sendProblem(res, { status: 404, detail: 'Not found', code: 'NOT_FOUND', instance: req.path });
+      return sendProblem(res, { status: 404, detail: apiMessages.common.notFound, code: 'NOT_FOUND', instance: req.path });
     }
     const isGetLike = req.method === 'GET' || req.method === 'HEAD';
     const hasFileExt = path.extname(req.path).length > 0;
     if (isGetLike && !hasFileExt && fs.existsSync(frontendIndex)) {
       return res.sendFile(frontendIndex);
     }
-    return sendProblem(res, { status: 404, detail: 'Not found', code: 'NOT_FOUND', instance: req.path });
+    return sendProblem(res, { status: 404, detail: apiMessages.common.notFound, code: 'NOT_FOUND', instance: req.path });
   });
 
   // Keep JSON errors for API, nice page for frontend.

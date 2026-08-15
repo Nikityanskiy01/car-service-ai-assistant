@@ -208,8 +208,8 @@ describe('auth', () => {
     const loginBefore = await request(app)
       .post('/api/auth/login')
       .send({ email, password: 'Password123!ab' });
-    expect(loginBefore.status).toBe(403);
-    expect(loginBefore.body.code).toBe('EMAIL_NOT_VERIFIED');
+    expect(loginBefore.status).toBe(401);
+    expect(loginBefore.body.code).toBe('UNAUTHORIZED');
 
     const code = extractVerificationCodeFromEmail(getLastTestEmail());
     const verify = await request(app).post('/api/auth/verify-email').send({ email, code });

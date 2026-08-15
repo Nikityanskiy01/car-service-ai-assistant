@@ -1,0 +1,194 @@
+/* Client cases page */
+.client-cases-page {
+  --status-tone-new: #60a5fa;
+  --status-tone-active: #38bdf8;
+  --status-tone-scheduled: #a78bfa;
+  --status-tone-done: #4ade80;
+  --status-tone-muted: #94a3b8;
+  --status-tone-cancelled: #f87171;
+  gap: 1rem;
+}
+
+.client-cases-toolbar {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.client-cases-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.client-cases-search-icon {
+  position: absolute;
+  left: 0.85rem;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.client-cases-search input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 2.4rem 0.65rem 2.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: inherit;
+  font-size: 0.92rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.client-cases-search input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--brand-accent, #f97316) 45%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-accent, #f97316) 16%, transparent);
+}
+
+.client-cases-search-clear {
+  position: absolute;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.client-cases-search-clear:hover {
+  color: var(--color-text-primary, inherit);
+  background: color-mix(in srgb, var(--color-text-secondary) 12%, transparent);
+}
+
+.client-cases-groups {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.client-cases-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.client-cases-group-head h2 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.client-cases-group-head span {
+  min-width: 1.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text-secondary) 12%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.client-cases-group[data-group='unread'] .client-cases-group-head h2 {
+  color: color-mix(in srgb, var(--status-tone-active) 82%, white);
+}
+
+.client-cases-group[data-group='waiting'] .client-cases-group-head h2 {
+  color: color-mix(in srgb, var(--status-tone-new) 82%, white);
+}
+
+.client-cases-group[data-group='working'] .client-cases-group-head h2 {
+  color: color-mix(in srgb, var(--status-tone-active) 82%, white);
+}
+
+.client-cases-group[data-group='scheduled'] .client-cases-group-head h2 {
+  color: color-mix(in srgb, var(--status-tone-scheduled) 82%, white);
+}
+
+.client-case-topic-badge {
+  --topic-tone: var(--status-tone-muted);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.14rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--topic-tone) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--topic-tone) 10%, var(--color-surface));
+  color: color-mix(in srgb, var(--topic-tone) 78%, white);
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.client-case-topic-badge.is-topic-diagnostics { --topic-tone: var(--status-tone-new); }
+.client-case-topic-badge.is-topic-repair { --topic-tone: var(--status-tone-active); }
+.client-case-topic-badge.is-topic-maintenance { --topic-tone: var(--status-tone-done); }
+.client-case-topic-badge.is-topic-tires { --topic-tone: var(--status-tone-scheduled); }
+.client-case-topic-badge.is-topic-electrics { --topic-tone: #818cf8; }
+.client-case-topic-badge.is-topic-other { --topic-tone: var(--status-tone-muted); }
+
+@media (max-width: 720px) {
+  .case-card {
+    grid-template-columns: auto 1fr;
+    gap: 0.75rem;
+  }
+
+  .case-card-cta {
+    display: none;
+  }
+
+  .case-card.is-scheduled {
+    grid-template-columns: 1fr;
+  }
+
+  .case-card-date {
+    min-width: 0;
+    padding-right: 0;
+    padding-bottom: 0.55rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    grid-template-columns: auto auto 1fr;
+    align-items: baseline;
+    gap: 0.45rem;
+  }
+
+  .case-card-date-day,
+  .case-card-date-time,
+  .case-card-date-relative {
+    font-size: 0.85rem;
+  }
+}
+
+.profile-toggle-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.profile-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .client-bottom-nav {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .case-mini-pipeline-dot {
+    transition: none;
+  }
+}
+

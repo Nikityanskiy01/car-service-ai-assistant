@@ -593,8 +593,10 @@ model ConsultationCaseEmbedding {
   model              String?
   topRecommendations Json     @default("[]") @map("top_recommendations")
   costFromMinor      Int?     @map("cost_from_minor")
-  /** JSON-массив float — cosine search в приложении; pgvector опционально позже. */
+  /** JSON-массив float — fallback cosine в Node, если нет pgvector. */
   embedding          Json
+  /** pgvector ANN; пишется raw SQL (см. lib/pgvector.js). */
+  embeddingVec       Unsupported("vector(768)")? @map("embedding_vec")
   dimensions         Int      @default(768)
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")

@@ -42,6 +42,7 @@ export async function truncateAll() {
     prisma.consultationReport.deleteMany(),
     prisma.serviceRequestCompletionDocument.deleteMany(),
     prisma.consultationFeedback.deleteMany(),
+    prisma.consultationCaseEmbedding.deleteMany(),
     prisma.consultationDiagnosisJob.deleteMany(),
     prisma.diagnosticRecommendation.deleteMany(),
     prisma.message.deleteMany(),

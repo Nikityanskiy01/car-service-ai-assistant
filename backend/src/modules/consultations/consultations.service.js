@@ -40,34 +40,34 @@ const sessionDetailInclude = {
 function assertActorCanReadSession(session, actor) {
   if (actor.kind === 'staff') return;
   if (actor.kind === 'owner') {
-    if (session.clientId !== actor.user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    if (session.clientId !== actor.user.id) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
     return;
   }
   if (actor.kind === 'guest') {
-    if (session.clientId != null) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    if (session.clientId != null) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
     return;
   }
-  throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 }
 
 /** @param {import('@prisma/client').ConsultationSession} session @param {ConsultationActor} actor */
 function assertActorCanPost(session, actor) {
-  if (actor.kind === 'staff') throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  if (actor.kind === 'staff') throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
   if (actor.kind === 'owner') {
-    if (session.clientId !== actor.user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    if (session.clientId !== actor.user.id) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
     return;
   }
   if (actor.kind === 'guest') {
-    if (session.clientId != null) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    if (session.clientId != null) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
     return;
   }
-  throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 }
 
 export async function createSessionForClient(clientId, { serviceCategoryId } = {}) {
   if (serviceCategoryId) {
     const cat = await prisma.serviceCategory.findUnique({ where: { id: serviceCategoryId } });
-    if (!cat) throw new AppError(400, 'Unknown service category', 'BAD_REQUEST');
+    if (!cat) throw new AppError(400, 'Неизвестная категория услуги.', 'BAD_REQUEST');
   }
   const row = await prisma.consultationSession.create({
     data: {
@@ -88,7 +88,7 @@ export async function createSessionForClient(clientId, { serviceCategoryId } = {
 export async function createGuestSession({ serviceCategoryId } = {}) {
   if (serviceCategoryId) {
     const cat = await prisma.serviceCategory.findUnique({ where: { id: serviceCategoryId } });
-    if (!cat) throw new AppError(400, 'Unknown service category', 'BAD_REQUEST');
+    if (!cat) throw new AppError(400, 'Неизвестная категория услуги.', 'BAD_REQUEST');
   }
   const guestToken = createGuestToken();
   const row = await prisma.consultationSession.create({
@@ -127,11 +127,11 @@ export async function bootstrapOpeningTurn(sessionId) {
 
 export async function claimSession(sessionId, clientId, guestToken) {
   const t = String(guestToken || '').trim();
-  if (!t) throw new AppError(400, 'guestToken required', 'BAD_REQUEST');
+  if (!t) throw new AppError(400, 'Требуется гостевой токен консультации.', 'BAD_REQUEST');
   const session = await prisma.consultationSession.findUnique({ where: { id: sessionId } });
-  if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
-  if (session.clientId) throw new AppError(409, 'Session already linked to account', 'CONFLICT');
-  if (!guestTokenMatches(session.guestToken, t)) throw new AppError(403, 'Invalid guest token', 'FORBIDDEN');
+  if (!session) throw new AppError(404, 'Сессия не найдена.', 'NOT_FOUND');
+  if (session.clientId) throw new AppError(409, 'Сессия уже привязана к аккаунту.', 'CONFLICT');
+  if (!guestTokenMatches(session.guestToken, t)) throw new AppError(403, 'Недействительный гостевой токен.', 'FORBIDDEN');
   await prisma.$transaction([
     prisma.consultationSession.update({
       where: { id: sessionId },
@@ -193,7 +193,7 @@ export async function getSessionDetail(sessionId, actor) {
     where: { id: sessionId },
     include: sessionDetailInclude,
   });
-  if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
+  if (!session) throw new AppError(404, 'Сессия не найдена.', 'NOT_FOUND');
   assertActorCanReadSession(session, actor);
   if (!Array.isArray(session.messages) || session.messages.length === 0) {
     await bootstrapOpeningTurn(sessionId);
@@ -207,7 +207,7 @@ export async function getSessionDetail(sessionId, actor) {
 
 export async function postMessage(sessionId, actor, content, onProgress) {
   const trimmed = String(content || '').trim();
-  if (!trimmed) throw new AppError(400, 'Message required', 'BAD_REQUEST');
+  if (!trimmed) throw new AppError(400, 'Введите сообщение.', 'BAD_REQUEST');
 
   const session = await prisma.consultationSession.findUnique({
     where: { id: sessionId },
@@ -217,14 +217,14 @@ export async function postMessage(sessionId, actor, content, onProgress) {
       serviceRequest: true,
     },
   });
-  if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
+  if (!session) throw new AppError(404, 'Сессия не найдена.', 'NOT_FOUND');
   assertActorCanPost(session, actor);
   await assertGuestMessageQuota(sessionId, actor);
   if (session.status === 'COMPLETED' || session.serviceRequest) {
-    throw new AppError(400, 'Consultation is closed', 'CLOSED');
+    throw new AppError(400, 'Консультация уже завершена. Начните новую сессию или оформите заявку.', 'CLOSED');
   }
   if (session.status === 'ABANDONED') {
-    throw new AppError(400, 'Session abandoned', 'ABANDONED');
+    throw new AppError(400, 'Сессия была прервана. Пожалуйста, начните новую консультацию.', 'ABANDONED');
   }
 
   await prisma.message.create({
@@ -567,12 +567,12 @@ export async function saveReport(sessionId, userId, { label } = {}) {
       messages: { orderBy: { createdAt: 'asc' }, take: 80 },
     },
   });
-  if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
-  if (session.clientId !== userId) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  if (!session) throw new AppError(404, 'Сессия не найдена.', 'NOT_FOUND');
+  if (session.clientId !== userId) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 
   const ext = session.extracted;
   if (!isExtractedComplete(ext) && session.status !== 'COMPLETED') {
-    throw new AppError(400, 'Complete consultation before saving report', 'INCOMPLETE');
+    throw new AppError(400, 'Сначала завершите консультацию, чтобы сохранить отчёт.', 'INCOMPLETE');
   }
 
   const snapshotJson = {
@@ -621,28 +621,29 @@ export async function analyzeConsultationPhoto(sessionId, actor, payload) {
     where: { id: sessionId },
     include: { extracted: true, serviceRequest: true },
   });
-  if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
+  if (!session) throw new AppError(404, 'Сессия не найдена.', 'NOT_FOUND');
   assertActorCanPost(session, actor);
+  await assertGuestMessageQuota(sessionId, actor);
   if (session.status === 'COMPLETED' || session.serviceRequest) {
-    throw new AppError(400, 'Consultation is closed', 'CLOSED');
+    throw new AppError(400, 'Консультация уже завершена. Начните новую сессию или оформите заявку.', 'CLOSED');
   }
 
   const mimeType = String(payload?.mimeType || '').trim();
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
-    throw new AppError(400, 'Unsupported image type', 'BAD_REQUEST');
+    throw new AppError(400, 'Неподдерживаемый тип изображения.', 'BAD_REQUEST');
   }
   const imageBase64 = String(payload?.imageBase64 || '').trim().replace(/^data:[^;]+;base64,/, '');
   if (imageBase64.length < 100 || imageBase64.length > 6_000_000) {
-    throw new AppError(400, 'Invalid image payload', 'BAD_REQUEST');
+    throw new AppError(400, 'Некорректные данные изображения.', 'BAD_REQUEST');
   }
   let raw;
   try {
     raw = Buffer.from(imageBase64, 'base64');
   } catch {
-    throw new AppError(400, 'Invalid image payload', 'BAD_REQUEST');
+    throw new AppError(400, 'Некорректные данные изображения.', 'BAD_REQUEST');
   }
   if (!raw.length || raw.length > 4 * 1024 * 1024) {
-    throw new AppError(400, 'Invalid image payload', 'BAD_REQUEST');
+    throw new AppError(400, 'Некорректные данные изображения.', 'BAD_REQUEST');
   }
   assertMagicMime(raw, mimeType);
   const clean = sanitizeImageBuffer(raw, mimeType);

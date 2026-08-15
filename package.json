@@ -15,6 +15,8 @@
     "test:frontend": "npm --prefix frontend run test",
     "test:backend": "npm --prefix backend run test",
     "test:e2e": "playwright test",
+    "test:eval": "npm --prefix backend run test:eval",
+    "test:eval:live": "npm --prefix backend run test:eval:live",
     "lint": "npm --prefix frontend run lint && npm --prefix backend run lint",
     "routes:inventory": "node backend/scripts/list-api-routes.mjs --write",
     "routes:check": "node backend/scripts/list-api-routes.mjs --check",

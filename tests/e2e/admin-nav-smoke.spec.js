@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { e2eUsers } from './credentials.js';
 
 async function loginAdmin(page) {
   await page.goto('/login');
@@ -8,8 +9,8 @@ async function loginAdmin(page) {
     await expect(page).not.toHaveURL(/\/login/);
     return;
   }
-  await page.getByLabel('Телефон или почта').fill('admin@example.local');
-  await page.getByLabel('Пароль').fill('Admin-Demo-2026!');
+  await page.getByLabel('Телефон или почта').fill(e2eUsers.admin.email);
+  await page.getByLabel('Пароль').fill(e2eUsers.admin.password);
   await page.getByRole('button', { name: 'Войти' }).click();
   await expect(page).not.toHaveURL(/\/login/);
 }

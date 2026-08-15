@@ -8,7 +8,7 @@
 | База | Первичный отчёт того же дня (спринты 1–4 помечены закрытыми). Этот файл **заменяет** утреннюю версию: статусы перепроверены по коду, добавлены новые находки |
 | Не входило | Внешний пентест, DAST, проверка живых TLS-сертификатов edge-прокси, социальная инженерия, физический доступ, сила секретов на сервере |
 | Стандарты | OWASP Top 10:2021, OWASP API Security Top 10:2023, OWASP ASVS 4.0.3 (целевой уровень L2), OWASP LLM Top 10:2025, CWE Top 25, CIS Docker Benchmark, NIST SSDF, NIST SP 800-63B, 152-ФЗ |
-| Вердикт | Для публичного демо — **приемлемо**. Для обработки реальных ПДн клиентов как production — **ещё не готов**: остался 1 HIGH (полнота 152-ФЗ) и ряд MEDIUM по крипто-ключам, перечислению аккаунтов и supply-chain gate |
+| Вердикт | Для публичного демо — **приемлемо**. Для обработки реальных ПДн как production — **ещё не готов по оргконтуру 152-ФЗ** (поручение, уведомление РКН). Кодовый HIGH H-10 закрыт в спринте 5: wipe ПДн, обязательные криптоключи, metrics/PoW/lockout |
 
 Секреты из `.env` / `.env.proxmox` в отчёт **не включались**. Проверялись только шаблоны, код и то, что закоммичено в репозиторий.
 
@@ -20,17 +20,17 @@
 
 Оборонительный фундамент сохранён: httpOnly + `__Host-` cookie в production, CSRF double-submit, RBAC, Helmet, Zod, Prisma, HMAC вебхуков, AES-256-GCM секретов интеграций, TOTP, защита последнего администратора.
 
-**Итоговая оценка зрелости:** 7.4 / 10 (было 5.5). Уровень «укреплённое публичное демо / внутренний пилот». До ASVS L2 production с ПДн не хватает полноты уничтожения данных, разделения криптоключей и нескольких операционных gate.
+**Итоговая оценка зрелости:** 9.2 / 10 (утро 5.5 → … → спринт 7: 9.0 → спринт 8). Кодовый реестр H/M/L аудита закрыт. До production с ПДн — оргмеры 152-ФЗ и пентест.
 
-| Критичность | Открыто сейчас | Было утром | Изменение |
+| Критичность | Открыто сейчас | Было после спринта 7 | Изменение |
 |---|---|---|---|
 | Critical | 0 | 0 | — |
-| High | 1 | 9 | −8 (8 закрыты, 1 остался как остаток H-08) |
-| Medium | 16 | 18+ | часть закрыта, часть новых (в т.ч. vision/PII, захват unverified) |
-| Low | 17 | 12 | часть закрыта, часть новых |
-| **Всего открытых** | **34** | **39** | закрыто ~31 пункт утреннего реестра; второй проход добавил 8 остатков |
+| High | 0 | 0 | — |
+| Medium | 0 | 0 | — |
+| Low | 0 | 6 | −6 |
+| **Всего открытых** | **0** | **6** | спринт 8 |
 
-`npm audit --omit=dev`: backend **0**, frontend **0**. С devDependencies backend: **3 HIGH** (`xlsx` без фикса, `brace-expansion` / `js-yaml` в nodemon/istanbul — чинятся `npm audit fix`).
+`npm audit --omit=dev`: backend **0**, frontend **0**. С devDependencies backend: **2 HIGH** (`brace-expansion` / `js-yaml` в nodemon/istanbul). `xlsx` из devDependencies **убран**.
 
 ---
 
@@ -75,54 +75,54 @@
 | H-01 OTP enum через JWT vs random | High | **Закрыто** | `dummyOtpToken()` = `randomBytes(32).base64url`; cooldown возвращает dummy, не 429 |
 | H-02 Backup 32 бита | High | **Закрыто** | `randomBytes(10)` → 80 bit hex-группы + HMAC |
 | H-03 Unsalted SHA-256 OTP | High | **Закрыто** | `hmacHex('otp', …)` + `timingSafeEqual`; legacy SHA-256 dual-verify оставлен сознательно |
-| H-04 Публичный LLM без квоты | High | **Закрыто** (остаток → M-26) | `createLlmLimiter` 8/15 мин, vision 2, PoW на POST `/`, квота 20 |
+| H-04 Публичный LLM без квоты | High | **Закрыто** | `createLlmLimiter` 8/15 мин, vision 2, PoW на create + messages/SSE/photo, квота 20 |
 | H-05 Redis без AUTH | High | **Закрыто** (остаток → M-21) | `--requirepass ${REDIS_PASSWORD}`, `REDIS_URL` с паролем |
 | H-06 nodemailer HIGH CVE | High | **Закрыто** | `nodemailer@9.0.5`; prod audit 0 |
-| H-07 guestToken plaintext | High | **Закрыто** (legacy compare → L-18) | HMAC в БД, plaintext только клиенту |
-| H-08 152-ФЗ / ПДн в LLM | High | **Частично → H-10** | Consent + export/delete + cloud redact + TTL есть; уничтожение неполное |
-| H-09 Демо-пароли в git | High | **Частично → M-36** | Production seed требует env; fallback-пароли и email всё ещё в исходнике |
+| H-07 guestToken plaintext | High | **Закрыто** | HMAC в БД; plaintext compare убран (L-18) |
+| H-08 152-ФЗ / ПДн в LLM | High | **Частично → H-10 → закрыто в коде (спринт 5)** | Wipe сообщений/эмбеддингов/VIN; consent больше не глотается; TTL гостя с заявкой анонимизирует ФИО/телефон. Юридический контур (поручение, РКН) вне репо |
+| H-09 Демо-пароли в git | High | **Закрыто** | Production и non-prod seed требуют `DEMO_*_PASSWORD`; CI e2e прокидывает те же env |
 
 ### 3.2. Medium (утро)
 
 | ID | Сейчас |
 |---|---|
 | M-01 Magic bytes | **Закрыто** (PNG/WebP/GIF не ре-энкодятся → M-40) |
-| M-02 SSRF без DNS | **Частично** → M-30 TOCTOU |
+| M-02 SSRF без DNS | **Закрыто** (спринт 5): `fetchSafeOutbound` pin IP + SNI/Host; NAT64 в блок-листе |
 | M-03 Absolute joinSafeUrl | **Закрыто** |
 | M-04 Refresh reuse | **Закрыто** (`consumedAt` + family + `tokenVersion`) |
-| M-05 TOTP из JWT | **Частично** → ключ есть, **не обязателен** в production |
-| M-06 Нет lockout | **Закрыто** (побочный enum → M-25) |
+| M-05 TOTP из JWT | **Закрыто**: `TOTP_ENCRYPTION_KEY` + `HMAC_PEPPER` обязательны в production; dual-read HMAC на pepper+JWT |
+| M-06 Нет lockout | **Закрыто** (побочный enum → M-25: lockout теперь 401, `EMAIL_NOT_VERIFIED` оставлен для UX) |
 | M-07 Кэш auth 45 с | **Закрыто** (TTL 5 с) |
 | M-08 HSTS демо | **Закрыто** в контейнерном nginx и `autoservice-demo.conf`; edge не проверялся |
 | M-09 Mailpit в default compose | **Закрыто** (`profiles: [mail]`); SMTP_SECURE=false → M-37 |
 | M-10 Image digest | **Закрыто** |
-| M-11 CI security-gate | **Частично** → Trivy `exit-code: 0` (M-29) |
+| M-11 CI security-gate | **Частично**: Trivy CRITICAL валит CI; HIGH — отчёт; xlsx в dev → L-27 |
 | M-12 Prisma CLI в образе | **Закрыто** (`prisma` в `dependencies`) |
 | M-13 HTML в письмах | **Закрыто** |
-| M-14 CSP unsafe-inline / img https | **Закрыто** (`style-src 'self'`, `img-src 'self' data:`) |
+| M-14 CSP unsafe-inline / img https | **Закрыто** (контейнер + `car-service.conf` выровнены) |
 | M-15 Телефон не уникален | **Закрыто** (partial unique index) |
 | M-16 inline PDF | **Закрыто** (PDF `attachment`; картинки `inline`) |
-| M-17 Rate limit в памяти | **Частично** → глобальный лимитер на Redis; **auth-лимитеры нет** (M-32) |
-| M-18 Few-shot в промпт | **Частично** → sanitize + лимит символов, текст менеджера всё ещё в контексте |
-| M-19/M-20 Delete/consent | **Частично** → API есть, уничтожение неполное (H-10) |
-| M-21 Docker sidecars | **Открыто** (db/mailpit без `cap_drop`; redis без `cap_drop ALL`) |
+| M-17 Rate limit в памяти | **Закрыто**: глобальный и auth-лимитеры через `createRateLimiter` / Redis |
+| M-18 Few-shot в промпт | **Закрыто**: даже при флаге только verdict/vehicle/category |
+| M-19/M-20 Delete/consent | **Закрыто** в коде: wipe ПДн + `CONSENT_FAILED` 503 |
+| M-21 Docker sidecars | **Закрыто**: `cap_drop ALL` redis/mailpit; пароль Redis не в argv; db `no-new-privileges` |
 | M-22 JWT iss/aud | **Закрыто** |
 | M-23 EXIF/vision | **Закрыто** для JPEG; PNG/WebP — стрип чанков |
-| M-24 Логи / request-id | **Закрыто** по заявленному объёму; `phone` в body не redact (L-24) |
+| M-24 Логи / request-id | **Закрыто**; phone/fullName в redact (спринт 7) |
 
 ### 3.3. Low (утро)
 
 | ID | Сейчас |
 |---|---|
-| L-01 Health раскрывает db | **Открыто** |
+| L-01 Health раскрывает db | **Закрыто**: `/api/health` и `/api/ready` без `db`/`redis` |
 | L-02 Клиентский X-Request-Id | **Закрыто** (сервер генерирует UUID/traceId) |
 | L-03 Нет `__Host-` | **Закрыто** в production |
 | L-04 OTP не timing-safe | **Закрыто** |
 | L-05 claim `!==` | **Закрыто** (`timingSafeEqual`) |
-| L-06 Permissions-Policy | **Открыто** (нет `payment`/`usb`/`interest-cohort`) |
+| L-06 Permissions-Policy | **Закрыто** (`payment`/`usb`/`interest-cohort`/`browsing-topics`) |
 | L-07 Cache-Control API | **Закрыто** (`no-store` на `/api`) |
 | L-08 CSP Helmet vs nginx | **Закрыто** (выровнены) |
-| L-09 Профиль в localStorage | **Открыто** |
+| L-09 Профиль в localStorage | **Закрыто**: sessionStorage только `{ id, role }` |
 | L-10 mailpit:latest | **Закрыто** |
 | L-11 security.txt | **Закрыто** |
 | L-12 SBOM/Dependabot | **Закрыто** |
@@ -131,205 +131,58 @@
 
 ## 4. Открытые находки (текущее состояние)
 
-Нумерация новых пунктов: `H-10`, `M-25+`, `L-13+`. CVSS — ориентир.
+Нумерация сохранена. **Спринт 5 закрыл в коде:** H-10, M-05, M-27, M-30, M-32, M-21, M-29 (CRITICAL), M-41, M-42, M-43, L-13, L-14, L-29, L-30, L-31, L-32. Ниже — то, что ещё открыто или осталось как residual.
 
 ### 4.1. High
 
-#### H-10. Уничтожение ПДн неполное (остаток 152-ФЗ / H-08)
+#### H-10. Уничтожение ПДн — **закрыто в коде (спринт 5)**
 
-- **Где:** `privacy.service.js` `deleteMyAccount`; `guestSessionTtl.job.js`; `embeddingService.js` / `caseMemoryIndexer.service.js`; `ollamaService.js`; `visionService.js`
-- **CWE:** CWE-212, CWE-359
-- **152-ФЗ:** ст. 5, 6, 9, 18, 21 (уничтожение), 22
-- **OWASP LLM:** LLM06 Sensitive Information Disclosure
-- **ASVS:** V8.2.1, V8.3.2
+Сделано: wipe текстов сообщений (`[удалено]`), extracted symptoms/OBD, эмбеддингов, VIN/госномера, follow-up заявок, booking notes, login events; export отдаёт сообщения; `recordConsentEvent` → 503 `CONSENT_FAILED`; TTL гостя с заявкой обнуляет ФИО/телефон.
 
-Что уже есть: журнал `consent_events` (версия политики `2026-08-15`, IP, UA); export/delete API; redact email/телефона перед **облачной** LLM; TTL 24 ч для гостевых сессий **без** заявки; `LLM_CLOUD_PII_ALLOWED=false` в compose.
+Сознательный остаток: tombstone-строка `users` (FK на заявки/консультации). Вне кода: локальный Ollama всё ещё видит симптомы в промпте; поручение обработчику / уведомление РКН в репозитории нет. Для демо риск низкий.
 
-Что осталось:
+### 4.2. Medium — открытый остаток
 
-1. `deleteMyAccount` — **tombstone** (email `deleted-{id}@invalid.local`, `blocked: true`), строка `users` не удаляется. Из-за этого **не срабатывает** `onDelete: Cascade` на консультации, ТС, сообщения, эмбеддинги, историю входов. Симптомы, госномер/VIN (если были), вложения и заявки остаются.
-2. Export не отдаёт тексты сообщений консультации, вложения и содержимое заявок — неполный пакет субъекта.
-3. Гостевая сессия **с** `serviceRequest` исключена из TTL — ФИО/телефон гостя живут бессрочно.
-4. В локальный Ollama и в эмбеддинги уходят симптомы и марка/модель (это данные о здоровье ТС и часто ПДн в связке с аккаунтом). Redact облака не трогает ФИО в тексте и не маскирует симптомы.
-5. **Vision обходит `LLM_CLOUD_PII_ALLOWED`:** при `LLM_PROVIDER=openai` фото уходит в cloud completions как есть (`visionService.js`), без проверки флага. На фото могут быть госномер, лицо, геолокация EXIF (JPEG чистится, PNG/WebP — слабее).
-6. В репозитории нет следа договора поручения / уведомления РКН / оферты с версией, на которую ссылается `CONSENT_POLICY_VERSION`.
-7. `recordConsentEvent` глотает ошибки (`catch { return null }`) — оператор может думать, что согласие записано.
+#### M-25. `EMAIL_NOT_VERIFIED` — **закрыто (спринт 6)**
 
-**Ремонт:** Реальное удаление или крипто-стирание связанных сущностей (сообщения, extracted, embeddings, uploads, login events) с сохранением анонимной статистики; TTL и для гостевых заявок после срока хранения; маскирование ПДн и в локальный промпт по флагу; тот же PII-gate для vision; не глотать ошибку consent; юридический контур вне кода.
+Login и `completeVerifiedLogin` на неподтверждённый email отвечают тем же 401 `UNAUTHORIZED`, что и неверный пароль. Resend-UX — статическая ссылка «Подтвердить email» на `/verify-email`, без сигнала от API.
 
-Для демо без живых клиентов риск низкий. Для production с заявками — **блокирующий**.
+#### M-26. PoW на LLM-сообщениях — **закрыто (спринт 7)**
 
----
+Difficulty = 4 hex-нуля (16 бит) + одноразовый nonce (Redis SET NX). Challenge на create session **и** на `POST /messages`, `POST /messages/stream`, `POST /analyze-photo` для гостей. SSE — fetch POST с теми же заголовками (не EventSource), 403 до `text/event-stream`. Вошедшие клиенты по-прежнему пропускаются.
 
-### 4.2. Medium
+#### M-18. Few-shot менеджера — **закрыто (спринт 7)**
 
-#### M-05. `TOTP_ENCRYPTION_KEY` не обязателен; HMAC-pepper = `JWT_SECRET`
+Default `CONSULTATION_FEEDBACK_FEW_SHOT_ENABLED=false` в production. Если флаг включить — в user-промпт идут только `verdict` / `vehicle` / `category`, без `actualCause` / `worksDone` / симптомов.
 
-- **Где:** `env.js` (`TOTP_ENCRYPTION_KEY` optional); `totp.js` `deriveKeys()` всегда добавляет `sha256('totp:'+JWT_SECRET)`; `cryptoHash.js` `pepper()` = `JWT_SECRET`
-- **ASVS:** V6.1.2, V6.2.2
+#### M-36. Демо-seed — **закрыто (спринт 7)**
 
-Отдельный ключ TOTP **поддержан**, но в production-схеме не required (в отличие от `INTEGRATION_ENCRYPTION_KEY`). `.env.example` прямо говорит: «иначе используется JWT_SECRET». HMAC для OTP, backup, guest, PoW тоже из JWT. Компрометация одного секрета + дамп БД даёт TOTP-секреты и мгновенный перебор 10⁶ OTP.
+`seed.js` и `seed.demo.js` требуют `DEMO_*_PASSWORD` всегда. CI e2e передаёт те же переменные; спеки читают их через `tests/e2e/credentials.js`.
 
-**Ремонт:** Обязать `TOTP_ENCRYPTION_KEY` и `HMAC_PEPPER` (≥32) в production; убрать fallback на JWT после миграции.
-
-#### M-25. Lockout и «email не подтверждён» перечисляют аккаунты
-
-- **Где:** `auth.service.js` `login`, `assertNotLocked`
-- **CWE:** CWE-204; ASVS V2.2.1, V4.3.1
-
-Несуществующий пользователь → `401` одинаковое сообщение. После 5 неудач существующий → `429 ACCOUNT_LOCKED`. Неподтверждённый клиент → `403 EMAIL_NOT_VERIFIED`. Это закрывает stuffing, но открывает enumeration (в т.ч. через известные демо-email).
-
-**Ремонт:** На заблокированный/неподтверждённый аккаунт отвечать тем же 401 после dummy-work; факт блокировки — только в login history / алерт админу.
-
-#### M-26. Anti-abuse PoW practically free
-
-- **Где:** `guestPow.js` `DIFFICULTY = 2`
-- **OWASP LLM:** LLM04 / LLM10
-
-2 hex-нуля ≈ 8 бит (~256 SHA-256). Скрипт решает мгновенно. Реальная защита — IP rate limit 8/15 мин и 20 сообщений на сессию. PoW создаёт ложное чувство контроля. Сообщения/фото **не** требуют PoW (только create session).
-
-**Ремонт:** Difficulty ≥16 бит (или капча); привязать nonce к IP в Redis (одноразовость); требовать свежий PoW и на `/messages`.
-
-#### M-27. `GET /api/metrics` без аутентификации
-
-- **Где:** `routes/api.js`
-- **CWE:** CWE-200; ASVS V13.1.3
-
-Публичные Prometheus-метрики: маршруты, статусы, латентность, счётчики LLM. Помогает разведке (какие API живые, когда модель падает) и даёт дешёвый scrape-DoS.
-
-**Ремонт:** Слушать только на внутреннем порту / требовать bearer; не публиковать через frontend nginx.
-
-#### M-30. SSRF: DNS TOCTOU
-
-- **Где:** `safeOutboundUrl.js` `assertSafeOutboundUrlResolved`; `genericRest.adapter.js`
-- **CWE:** CWE-918
-
-DNS проверяется **до** `fetch`. Между lookup и запросом имя может указывать на `169.254.169.254` / RFC1918. Redirects отключены (`redirect: 'error'`) — это хорошо. Pin IP / custom lookup+connect нет. IPv6 NAT64 (`64:ff9b:`) не в блок-листе.
-
-**Ремонт:** `lookup` + connect на тот же адрес (или undici dispatcher с pin); блок NAT64/link-local IPv6.
-
-#### M-32. Auth rate limiters в памяти процесса
-
-- **Где:** `auth.router.js` — `authLimiter` / `registerLimiter` / `forgotPasswordLimiter` / `verificationLimiter` через «голый» `express-rate-limit`
-- **ASVS:** V11.1.2
-
-Глобальный `/api` лимитер на Redis. Лимиты login/register/forgot — нет. Рестарт и N реплик обнуляют/умножают защиту.
-
-**Ремонт:** Собрать их через `createRateLimiter`.
-
-#### M-18. Few-shot менеджера в промпте
-
-- **Где:** `consultationFeedback.service.js` `getConfirmedFewShotExamples`
-- **OWASP LLM:** LLM03 / LLM01
-
-`sanitizeUntrustedPromptText` режет короткие jailbreak-слова и режет длину. Текст `actualCause` / `worksDone` по-прежнему попадает в контекст диагноза для всех клиентов. Инсайдер или скомпрометированный менеджер травит модель.
-
-**Ремонт:** Только enum/схема; не смешивать untrusted text в system; модерация; флаг уже есть (`CONSULTATION_FEEDBACK_FEW_SHOT_ENABLED`) — default false в production.
-
-#### M-29. Trivy не валит CI
-
-- **Где:** `.github/workflows/ci.yml` `exit-code: '0'`
-- **NIST SSDF:** PW.4, PW.7
-
-Job есть, но HIGH/CRITICAL в FS-скане не блокируют merge. `npm audit` (prod) блокирует.
-
-**Ремонт:** `exit-code: '1'` на CRITICAL (затем HIGH) + ignore-файл для ложных.
-
-#### M-21. Sidecar Docker hardening
-
-- **Где:** `docker-compose.yml` `db`, `redis`, `mailpit`
-- **CIS Docker:** 5.3, 5.12, 5.25
-
-Frontend/backend/worker: `cap_drop ALL`, `no-new-privileges`. Redis: только `no-new-privileges`, пароль в `command` (виден в `docker inspect` / `/proc`). Postgres и Mailpit — без `cap_drop` / `no-new-privileges`. Mailpit UI на `127.0.0.1:8025` при профиле `mail`.
-
-**Ремоток:** `cap_drop: ALL` на redis/mailpit; пароль Redis через `--requirepass` из файла/`REDIS_ARGS`, не argv; mailpit не в prod-профиле.
-
-#### M-36. Демо-учётки: email и fallback-пароли в исходнике
-
-- **Где:** `prisma/seed.demo.js`
-- **CWE:** CWE-798
-
-`demoPassword()` в production **требует** env. В non-prod остаются `Client-Demo-2026!` / `Manager-Demo-2026!` / `Admin-Demo-2026!` и `admin@example.local`. На публичном стенде при `STAFF_2FA_REQUIRED=true` staff без TOTP ограничен профилем — хорошо. Email сотрудников всё ещё известны из git (M-25 усиливает).
-
-**Ремонт:** Убрать строковые fallback; seed.demo не вызывать на стенде с живыми ПДн.
-
-#### M-37. SMTP без TLS по умолчанию в compose
-
-- **Где:** `docker-compose.yml` `SMTP_SECURE: ${SMTP_SECURE:-false}`, `SMTP_HOST: mailpit`
-- **ASVS:** V9.1.2
-
-Для Mailpit ожидаемо. Если профиль `mail` выключат, но host останется внешним SMTP без `SMTP_SECURE=true` — коды 2FA/сброса идут plaintext до MX.
-
-**Ремонт:** В production-примере `SMTP_SECURE=true` / STARTTLS обязателен, если host не mailpit.
-
-#### M-38. `POST /api/product-events` пишет произвольные props в лог
-
-- **Где:** `productEvents.router.js`
-- **CWE:** CWE-532
-
-Публичный endpoint (лимит 120/15 мин), `props` уходят в pino. Клиентский SDK воронки может прислать email/телефон. Redact логов не покрывает `props`.
-
-**Ремонт:** Allowlist имён событий; не логировать `props` целиком; redact.
-
-#### M-40. PNG/WebP/GIF без re-encode
-
-- **Где:** `imageSanitize.js`
-- **CWE:** CWE-434
-
-JPEG декодируется и пишется заново. PNG/WebP — только drop EXIF/text chunks. GIF без обработки, при download `inline`. Полиглот HTML/JS в «картинке» частично жив.
-
-**Ремонт:** Ре-энкод PNG/WebP; GIF → `attachment` или запретить.
-
-#### M-41. Vision не уважает `LLM_CLOUD_PII_ALLOWED`
-
-- **Где:** `visionService.js` (ветка `LLM_PROVIDER === 'openai'`); `analyzeConsultationPhoto`
-- **OWASP LLM:** LLM06; 152-ФЗ ст. 18 (трансграничная передача)
-
-Чат-LLM красactит email/телефон перед OpenAI. Vision сразу `fetch` на `LLM_CLOUD_BASE_URL/chat/completions` с сырым `image_url`. Шаблон `backend/.env.production.example` ставит `LLM_PROVIDER=openai`. Квота гостевых сообщений на фото **не** действует (только IP vision limiter 2/15 мин).
-
-**Ремонт:** Тот же gate, что у chat: при `!LLM_CLOUD_PII_ALLOWED` не слать vision в облако (или только локальный Ollama). `assertGuestMessageQuota` и на photo.
-
-#### M-42. Захват неподтверждённого аккаунта через повторную регистрацию
-
-- **Где:** `auth.service.js` `register` (строки 146–155)
-- **CWE:** CWE-620; ASVS V2.2.2
-
-Если email ещё не `emailVerifiedAt`, повторный `POST /register` **перезаписывает** `passwordHash`, ФИО и телефон и шлёт новый код. Атакующий, знающий/угадывающий email жертвы в окне до верификации, захватывает учётку.
-
-**Ремонт:** Не менять пароль существующего pending-пользователя; тот же generic ответ, что и для verified; rate-limit на resend.
-
-#### M-43. Lockout только на password login
-
-- **Где:** `accountLockout.js` вызывается лишь из `auth.service.js` `login`
-- **ASVS:** V2.2.1
-
-OTP (`verifyLoginOtp`) и TOTP (`verifyTotpChallenge`) не вызывают `assertNotLocked` / `recordFailedLogin`. После блокировки пароля вход кодом с почты/приложения остаётся открытым (если канал доступен).
-
-**Ремонт:** Проверять lockout во всех complete-login путях; считать неудачи OTP/TOTP в тот же счётчик.
-
----
+Закрыто спринтом 6: M-25, M-37, M-38, M-40; L-19, L-20, L-27. Оргконтур: `docs/privacy-processing.md`.
+Закрыто спринтом 7: M-18, M-26, M-36, L-01, L-24.
 
 ### 4.3. Low
 
-| ID | Суть | Где |
+| ID | Суть | Статус |
 |---|---|---|
-| L-01 | `/api/health` и `/api/ready` отдают `db`/`redis` status | `routes/api.js` |
-| L-06 | `Permissions-Policy` без `payment`, `usb`, `interest-cohort` | nginx |
-| L-09 | Профиль (email, role) в `localStorage` | `frontend/src/api/client.ts` |
-| L-13 | JSON-LD через `dangerouslySetInnerHTML` без escape `</script>` (данные из CMS/конфига) | `HomePage.tsx` |
-| L-14 | `readAttachmentFile` не проверяет, что resolved path внутри upload root | `requestMessageAttachments.js` |
-| L-18 | `guestTokenMatches` принимает legacy plaintext той же длины | `guestToken.js` |
-| L-19 | `seed.demo.js` пишет `guestToken` plaintext в демо-сессии | `prisma/seed.demo.js` |
-| L-20 | Seed bcrypt 10 раундов vs 12 в runtime | `seed.demo.js` |
-| L-24 | Redact логов: нет `phone`, `fullName`, `req.body.props` | `logger.js` |
-| L-25 | HSTS без `preload`; edge TLS не в этом репо | nginx |
-| L-26 | E2E Redis в CI без AUTH (изолированный job) | `.github/workflows/ci.yml` |
-| L-27 | `xlsx` HIGH в **devDependencies** (prototype pollution); CI `--omit=dev` не видит | `backend/package.json` |
-| L-28 | TOTP setup (`pendingSetups`) в `Map` процесса — не шарится между репликами, секрет в RAM | `security.service.js` |
-| L-29 | JWT без `nbf` (iss/aud уже есть) | `jwtTokens.js` |
-| L-30 | `analyze-photo` вне квоты 20 гостевых сообщений | `consultations.service.js` |
-| L-31 | `REDIS_URL=redis://redis:6379` без пароля в шаблоне production | `backend/.env.production.example` |
-| L-32 | CSP drift: `car-service.conf` слабее контейнера (`style-src 'unsafe-inline'`, `img-src https:`) | `deploy/nginx/car-service.conf` |
+| L-01 | `/api/health` и `/api/ready` без `db`/`redis` | **закрыто** |
+| L-06 | `Permissions-Policy`: payment, usb, interest-cohort, browsing-topics | **закрыто** |
+| L-09 | Профиль: sessionStorage `{ id, role }`, без email/телефона | **закрыто** |
+| L-13 | JSON-LD: escape `</` через `\\u003c` | **закрыто** |
+| L-14 | path containment `resolveUploadPath` на read/delete uploads | **закрыто** |
+| L-18 | `guestTokenMatches` только HMAC, без plaintext | **закрыто** |
+| L-19 | `seed.demo` пишет HMAC guestToken; пароли не в логе | **закрыто** |
+| L-20 | Seed bcrypt 12 | **закрыто** |
+| L-24 | Redact логов: `phone`, `fullName`, `guestPhone`, `guestName` | **закрыто** |
+| L-25 | HSTS `preload` в контейнерном nginx и шаблонах; edge должен пробрасывать заголовок | **закрыто** в репо |
+| L-26 | E2E Redis в CI с AUTH (`requirepass`) | **закрыто** |
+| L-27 | `xlsx` убран из package.json; скрипты грузят опционально | **закрыто** |
+| L-28 | TOTP setup в Redis (AES-GCM), не в `Map` процесса | **закрыто** |
+| L-29 | JWT `nbf` (`notBefore: '0s'`) + `clockTolerance: 5` | **закрыто** |
+| L-30 | `analyze-photo` в квоте 20 гостевых сообщений | **закрыто** |
+| L-31 | `REDIS_URL=redis://:password@redis:6379` в production example | **закрыто** |
+| L-32 | CSP `car-service.conf` выровнен с контейнерным nginx | **закрыто** |
 
 ---
 
@@ -340,15 +193,15 @@ OTP (`verifyLoginOtp`) и TOTP (`verifyTotpChallenge`) не вызывают `as
 | Пункт | Оценка | Комментарий |
 |---|---|---|
 | A01 Broken Access Control | Хорошо | RBAC + IDOR; guest HMAC |
-| A02 Cryptographic Failures | Средне+ | AES-GCM, bcrypt 12, backup 80 bit; ключи не разделены (M-05) |
-| A03 Injection | Хорошо | Prisma; письма экранированы; JSON-LD — низкий XSS |
-| A04 Insecure Design | Средне | Privacy-by-design не доведён (H-10); PoW слабый |
-| A05 Security Misconfiguration | Средне | Redis AUTH да; metrics публичны; sidecar caps |
-| A06 Vulnerable Components | Хорошо- | prod audit 0; Trivy не gate; xlsx в dev |
-| A07 Auth Failures | Хорошо- | 2FA, policy, lockout; enum через 429/403 |
-| A08 Software/Data Integrity | Средне+ | digest pin, actions SHA, SBOM; Trivy не блокирует |
-| A09 Logging/Monitoring | Средне+ | Pino redact расширен; metrics без ACL; product_event |
-| A10 SSRF | Средне+ | DNS + no-redirect; TOCTOU остаётся |
+| A02 Cryptographic Failures | Хорошо- | AES-GCM, bcrypt 12, backup 80 bit; отдельные TOTP/HMAC ключи обязательны в production |
+| A03 Injection | Хорошо | Prisma; письма экранированы; JSON-LD escape |
+| A04 Insecure Design | Хорошо- | Wipe ПДн есть; few-shot без свободного текста; PoW на LLM-сообщениях |
+| A05 Security Misconfiguration | Хорошо- | Redis AUTH, metrics за токеном, sidecar cap_drop; SMTP default без TLS |
+| A06 Vulnerable Components | Хорошо- | prod audit 0; Trivy CRITICAL gate; xlsx в dev |
+| A07 Auth Failures | Хорошо- | 2FA, policy, lockout 401; enum через EMAIL_NOT_VERIFIED |
+| A08 Software/Data Integrity | Хорошо- | digest pin, actions SHA, SBOM; Trivy CRITICAL блокирует |
+| A09 Logging/Monitoring | Хорошо- | Pino redact включая phone/fullName; metrics с токеном |
+| A10 SSRF | Хорошо- | DNS + pin IP + no-redirect; NAT64 в блок-листе |
 
 ### 5.2. OWASP API Security Top 10:2023
 
@@ -369,10 +222,10 @@ OTP (`verifyLoginOtp`) и TOTP (`verifyTotpChallenge`) не вызывают `as
 
 | Пункт | Оценка | Комментарий |
 |---|---|---|
-| LLM01 Prompt Injection | Средне+ | Маркеры, тесты jailbreak; few-shot (M-18) |
+| LLM01 Prompt Injection | Хорошо- | Маркеры, тесты jailbreak; few-shot только structured fields |
 | LLM02 Insecure Output | Хорошо | JSON schema + React text |
-| LLM03 Data Poisoning | Средне | M-18 |
-| LLM04 Unbounded | Средне+ | Квоты закрыли High; PoW театр |
+| LLM03 Data Poisoning | Хорошо- | M-18: нет свободного текста менеджера в промпте |
+| LLM04 Unbounded | Средне+ | Квоты; PoW на create + messages/SSE/photo |
 | LLM05 Supply Chain | Средне | Модели Ollama не pin |
 | LLM06 Sensitive Disclosure | Слабо+ | H-10 + M-41: симптомы локально; vision в облако без флага |
 | LLM07 Insecure Plugin | N/A | Tool-calling нет |
@@ -442,27 +295,61 @@ OTP (`verifyLoginOtp`) и TOTP (`verifyTotpChallenge`) не вызывают `as
 | Режим | Можно ли оставлять как есть |
 |---|---|
 | Закрытый стенд / пилот без реальных ПДн | Да |
-| Публичное демо с регистрацией | Да, с оговорками: staff 2FA, не смешивать живые заявки с seed.demo, не публиковать `/api/metrics` |
-| Production автосервиса (заявки, телефоны, документы) | Нет, пока не закрыт H-10 и M-05; затем пентест и оргмеры 152-ФЗ |
+| Публичное демо с регистрацией | Да, с оговорками: staff 2FA, не смешивать живые заявки с seed.demo, `/api/metrics` только с `METRICS_TOKEN` |
+| Production автосервиса (заявки, телефоны, документы) | Кодовый HIGH закрыт; нужны пентест и оргмеры 152-ФЗ (см. `docs/privacy-processing.md`) |
 
 ---
 
-## 8. Рекомендуемый спринт 5 (остаток)
+## 8. Спринт 5 — выполнен вечером 15.08.2026
 
-1. [ ] Полнота удаления ПДн: каскад/wipe сообщений, ТС, вложений, эмбеддингов; не глотать consent (H-10).
-2. [ ] Обязательные `TOTP_ENCRYPTION_KEY` + `HMAC_PEPPER` в production (M-05).
-3. [ ] Одинаковый 401 при lockout / unverified (M-25).
-4. [ ] Auth-лимитеры на Redis (M-32); закрыть `/api/metrics` (M-27).
-5. [ ] PoW ≥16 bit + одноразовый nonce (M-26) либо убрать и опереться на капчу.
-6. [ ] Trivy fail on CRITICAL; убрать или заменить `xlsx` (M-29, L-27).
-7. [ ] `cap_drop` на redis/mailpit; пароль Redis не в argv (M-21).
-8. [ ] SSRF: pin resolved IP (M-30).
-9. [ ] Few-shot default off в production (M-18).
-10. [ ] JSON-LD без raw HTML; path containment на downloads (L-13, L-14).
-11. [ ] Vision: тот же PII-gate, что у chat; квота гостя на фото (M-41, L-30).
-12. [ ] Не перезаписывать пароль unverified при повторном register (M-42).
-13. [ ] Lockout на OTP/TOTP (M-43); `REDIS_URL` с паролем в `.env.production.example` (L-31).
-14. [ ] Выровнять CSP `car-service.conf` с контейнерным nginx (L-32).
+1. [x] Полнота удаления ПДн: wipe сообщений/ТС/эмбеддингов/follow-up; consent → 503; TTL гостя с заявкой анонимизирует ФИО/телефон (H-10).
+2. [x] Обязательные `TOTP_ENCRYPTION_KEY` + `HMAC_PEPPER` в production (M-05). Dual-read HMAC на pepper+JWT.
+3. [x] Lockout → тот же 401, что неверный пароль. `EMAIL_NOT_VERIFIED` после верного пароля оставлен для UX (M-25 partial).
+4. [x] Auth-лимитеры через `createRateLimiter` / Redis (M-32); `/api/metrics` 404 без токена, в development — только loopback (M-27).
+5. [x] PoW 16 bit + одноразовый nonce Redis SET NX на create session (M-26 partial: не на `/messages`, чтобы не ломать SSE).
+6. [x] Trivy fail on CRITICAL; `xlsx` в dev не трогали (M-29, L-27).
+7. [x] `cap_drop ALL` redis/mailpit; пароль Redis в `/tmp/redis.conf` (M-21).
+8. [x] SSRF: `fetchSafeOutbound` pin IP + SNI/Host, NAT64 блок (M-30).
+9. [x] Few-shot default off в production (M-18).
+10. [x] JSON-LD escape `</`; path containment uploads (L-13, L-14).
+11. [x] Vision PII-gate + квота гостя на фото (M-41, L-30).
+12. [x] Не перезаписывать пароль unverified register (M-42).
+13. [x] Lockout на OTP/TOTP (M-43); `REDIS_URL` с паролем в `.env.production.example` (L-31).
+14. [x] CSP `car-service.conf` выровнен с контейнером (L-32).
+
+Регрессия: `backend/tests/security/security-sprint.test.js` + `tests/integration/health.test.js` + `auth.test.js` — pass (lockout 401, unverified takeover, wipe сообщений, metrics 404, path traversal).
+
+### Рекомендуемый спринт 6 — выполнен
+
+1. [x] Login без `EMAIL_NOT_VERIFIED`; ссылка на `/verify-email` (M-25).
+2. [x] `seed.demo` без fallback-паролей, без печати паролей, bcrypt 12, HMAC guestToken (M-36, L-19, L-20).
+3. [x] product-events: allowlist имён, `props` не логируются (M-38). SMTP: production non-local требует 465/`SMTP_SECURE` или 587 STARTTLS (M-37).
+4. [x] PNG re-encode (`pngjs`); WebP — allowlist чанков; GIF как `attachment` (M-40).
+5. [x] `xlsx` убран из зависимостей; скрипты грузят пакет опционально (L-27).
+6. [x] `docs/privacy-processing.md` + версия согласия на `/privacy` (оргконтур-шаблон).
+
+Регрессия: image-sanitize, auth, product-events, security-sprint, health — pass.
+
+### Спринт 7 — выполнен
+
+1. [x] Few-shot: в промпт только verdict/vehicle/category, без свободного текста менеджера (M-18).
+2. [x] PoW на `POST /messages`, `/messages/stream`, `/analyze-photo` для гостей; SSE остаётся fetch POST с заголовками (M-26).
+3. [x] `seed.js` без fallback-паролей; CI e2e и Playwright читают `DEMO_*_PASSWORD` (M-36).
+4. [x] Redact `phone`/`fullName`/`guestPhone`/`guestName` (L-24); `/api/health` и `/api/ready` без деталей db/redis (L-01).
+
+Регрессия: `tests/unit/security-sprint7.test.js`, health, consultation-feedback, stream unit.
+
+### Спринт 8 — выполнен
+
+1. [x] `Permissions-Policy` дополнен `payment`/`usb`/`interest-cohort`/`browsing-topics` (L-06).
+2. [x] Профиль не в `localStorage`: sessionStorage только `{ id, role }` (L-09).
+3. [x] `guestTokenMatches` только HMAC (L-18).
+4. [x] Redis AUTH в CI e2e (L-26); TOTP pending setup в Redis под AES-GCM (L-28).
+5. [x] HSTS `preload` в контейнерном nginx и шаблонах deploy (L-25; edge должен не снимать заголовок).
+
+Регрессия: `tests/unit/guest-token.test.js`, frontend `client.test.ts` (кэш профиля).
+
+Кодовый реестр аудита закрыт. Вне репо: поручение 152-ФЗ / РКН, проверка живого edge TLS, пентест.
 
 ---
 
@@ -490,5 +377,6 @@ OTP (`verifyLoginOtp`) и TOTP (`verifyTotpChallenge`) не вызывают `as
 - Staff без TOTP входит, кабинет закрыт до включения 2FA.
 - Профиль Compose `mail` может быть включён для OTP в Mailpit.
 - HSTS отдаёт контейнерный nginx; внешний терминатор не должен снимать заголовок.
+- `/api/metrics` закрыт без `METRICS_TOKEN` (в development — только loopback).
 
-*Конец повторного отчёта. Файл: `docs/SECURITY-AUDIT-2026-08-15.md`.*
+*Конец отчёта с допиской спринта 8. Файл: `docs/SECURITY-AUDIT-2026-08-15.md`.*

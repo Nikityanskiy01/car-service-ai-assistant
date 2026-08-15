@@ -5,6 +5,7 @@ x-backend-environment: &backend-environment
   NODE_ENV: production
   SERVE_FRONTEND: "false"
   STAFF_2FA_REQUIRED: "${STAFF_2FA_REQUIRED:-true}"
+  METRICS_TOKEN: ${METRICS_TOKEN:-}
   LLM_CLOUD_PII_ALLOWED: "false"
   GUEST_SESSION_TTL_HOURS: "${GUEST_SESSION_TTL_HOURS:-24}"
   DEMO_CLIENT_PASSWORD: ${DEMO_CLIENT_PASSWORD:-}
@@ -129,7 +130,10 @@ services:
       - uploads_data:/app/data/uploads
 
   db:
-    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    image: car-service-ai-assistant-postgres:16-pgvector
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
     env_file:
       - ./.env.proxmox
     environment:
@@ -147,28 +151,33 @@ services:
       retries: 5
     restart: unless-stopped
     mem_limit: 1g
+    security_opt:
+      - no-new-privileges:true
     networks:
       - app_net
 
   redis:
     image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    # redis (999:1000): cap_drop ALL убирает DAC_OVERRIDE, root не пишет в AOF 0700
+    user: "999:1000"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     command:
-      - redis-server
-      - --appendonly
-      - "yes"
-      - --appendfsync
-      - everysec
-      - --requirepass
-      - ${REDIS_PASSWORD}
+      - /bin/sh
+      - -c
+      - printf 'appendonly yes\nappendfsync everysec\nrequirepass %s\n' "$REDIS_PASSWORD" > /tmp/redis.conf && exec redis-server /tmp/redis.conf
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
     restart: unless-stopped
     mem_limit: 256m
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
     networks:
@@ -181,6 +190,10 @@ services:
       - "${MAILPIT_SMTP_BIND:-127.0.0.1:1025}:1025"
       - "${MAILPIT_UI_BIND:-127.0.0.1:8025}:8025"
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     networks:
       - app_net
 

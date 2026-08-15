@@ -10,8 +10,9 @@
 | [testing.md](./testing.md) | Lint, unit, integration, e2e, eval, CI |
 | [deploy.md](./deploy.md) | Docker Compose, Nginx, бэкапы, демо-хост |
 | [demo.md](./demo.md) | Золотой путь для живой демонстрации |
+| [STRIX.md](./STRIX.md) | AI-пентест Strix: скиллы, CLI, разрешённые цели |
 | [CHANGELOG.md](../CHANGELOG.md) | Журнал спринтов |
 
-Шаблоны окружения: `backend/.env.example`, `backend/.env.production.example`, `frontend/.env.example`, `.env.proxmox.example`.
+Шаблоны окружения: `backend/.env.example`, `backend/.env.production.example`, `frontend/.env.example`, `.env.proxmox.example`, `.env.strix.example`.
 
-Ранние спеки (март 2026) лежат в [`specs/`](../specs/) и **не описывают** текущий React/Docker-стек.
+Контракт API: инвентарь [`api-route-inventory.json`](./api-route-inventory.json), генерация OpenAPI — `npm run openapi:sync` → `specs/001-ai-consultation-platform/contracts/openapi.yaml` (`npm run openapi:check` в CI).

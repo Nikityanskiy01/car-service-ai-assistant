@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Повторный аудит безопасности</title>
+  <style>
+    :root {
+      --bg: #1c1c1c;
+      --fg: #ececec;
+      --muted: #9a9a9a;
+      --dim: #6e6e6e;
+      --line: #333;
+      --card: #242424;
+      --info: #5b8def;
+      --ok: #3d9a5f;
+      --warn: #c9a227;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      padding: 32px 24px 64px;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-size: 24px; font-weight: 650; margin: 0 0 8px; }
+    h2 { font-size: 18px; font-weight: 650; margin: 24px 0 8px; }
+    p { margin: 0; }
+    .muted { color: var(--muted); }
+    .dim { color: var(--dim); font-size: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 20px 0; }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 12px;
+    }
+    .stat b { display: block; font-size: 20px; font-weight: 650; color: var(--ok); }
+    .stat span { color: var(--muted); font-size: 12px; }
+    .callout {
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--ok);
+      background: var(--card);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin: 16px 0;
+    }
+    .callout strong { display: block; margin-bottom: 4px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .card h3 { margin: 0 0 10px; font-size: 15px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 550; font-size: 12px; }
+    tr:nth-child(even) td { background: #202020; }
+    .bar-track { height: 10px; background: #2a2a2a; border-radius: 4px; overflow: hidden; margin: 8px 0 4px; }
+    .bar-track span { display: block; height: 100%; background: var(--ok); width: 100%; }
+    .bar-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .chart { width: 100%; height: auto; }
+    @media (max-width: 800px) {
+      .stats, .grid2 { grid-template-columns: 1fr 1fr; }
+    }
+    @media print {
+      body { background: #fff; color: #111; }
+      .stat, .card, .callout { background: #fff; border-color: #ccc; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Повторный аудит безопасности</h1>
+    <p class="muted">Автоассистент · 16 августа 2026, спринт 8 · OWASP Top 10, ASVS L2, API Top 10, LLM Top 10, CIS Docker, 152-ФЗ</p>
+
+    <div class="callout">
+      <strong>Вердикт после спринта 8</strong>
+      Кодовый реестр H/M/L закрыт. Для публичного демо — приемлемо. Для production с ПДн нужны пентест и оргмеры 152-ФЗ. Полный текст: docs/SECURITY-AUDIT-2026-08-15.md
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>9.2 / 10</b><span>Зрелость (было 9.0)</span></div>
+      <div class="stat"><b>0</b><span>Открытых находок в коде</span></div>
+      <div class="stat"><b>0</b><span>High открыто</span></div>
+      <div class="stat"><b>0</b><span>Medium открыто</span></div>
+      <div class="stat"><b>0</b><span>Low открыто</span></div>
+    </div>
+
+    <h2>Утренний реестр HIGH: 9 из 9 закрыты в коде</h2>
+    <p class="dim">Источник: сверка с backend/src и docker-compose 15–16.08.2026</p>
+    <div class="bar-meta"><span>9 закрыто · 0 открытых HIGH</span><span>9 HIGH утром</span></div>
+    <div class="bar-track"><span></span></div>
+
+    <div class="grid2" style="margin-top:20px">
+      <div>
+        <h2>Закрыто по спринтам 5–8</h2>
+        <p class="dim">Ось X — спринт, ось Y — число закрытых пунктов реестра</p>
+        <svg class="chart" viewBox="0 0 420 240" role="img" aria-label="Закрыто по спринтам">
+          <rect width="420" height="240" fill="#242424" />
+          <g fill="#3d9a5f">
+            <rect x="48" y="40" width="56" height="160" />
+            <rect x="148" y="130" width="56" height="70" />
+            <rect x="248" y="150" width="56" height="50" />
+            <rect x="348" y="140" width="56" height="60" />
+          </g>
+          <g fill="#ececec" font-size="12" text-anchor="middle">
+            <text x="76" y="36">16</text>
+            <text x="176" y="126">7</text>
+            <text x="276" y="146">5</text>
+            <text x="376" y="136">6</text>
+          </g>
+          <g fill="#9a9a9a" font-size="11" text-anchor="middle">
+            <text x="76" y="220">Спринт 5</text>
+            <text x="176" y="220">Спринт 6</text>
+            <text x="276" y="220">Спринт 7</text>
+            <text x="376" y="220">Спринт 8</text>
+          </g>
+        </svg>
+      </div>
+      <div>
+        <h2>npm audit (prod)</h2>
+        <div class="stats" style="grid-template-columns:1fr 1fr">
+          <div class="stat"><b>0</b><span>Backend HIGH/CRITICAL</span></div>
+          <div class="stat"><b>0</b><span>Frontend HIGH/CRITICAL</span></div>
+        </div>
+        <p class="muted" style="margin-top:12px">
+          nodemailer 9.0.5. xlsx убран из devDependencies. С devDependencies backend: 2 HIGH (brace-expansion и js-yaml в nodemon/istanbul).
+        </p>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3>Закрытые HIGH</h3>
+        <p class="muted">H-01 OTP enum · H-02 Backup entropy · H-03 OTP HMAC · H-04 LLM quotas · H-05 Redis AUTH · H-06 nodemailer · H-07 guest HMAC · H-09 staff 2FA / env passwords · H-10 PII wipe + consent + guest TTL</p>
+      </div>
+      <div class="card">
+        <h3>Спринт 8</h3>
+        <p class="muted">L-06 Permissions-Policy · L-09 sessionStorage id/role · L-18 HMAC-only guest token · L-25 HSTS preload · L-26 CI Redis AUTH · L-28 TOTP setup in Redis</p>
+      </div>
+    </div>
+
+    <h2>Остаток вне кода</h2>
+    <p class="dim">Не входило в SAST и не закрывается правкой репозитория</p>
+    <table>
+      <thead>
+        <tr><th>Тема</th><th>Почему остаётся</th><th>Что нужно</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>152-ФЗ</td>
+          <td>Поручение обработчику и уведомление РКН не живут в git</td>
+          <td>Юридический контур, см. docs/privacy-processing.md</td>
+        </tr>
+        <tr>
+          <td>Edge TLS</td>
+          <td>Терминатор HTTPS на хосте, не в этом репо</td>
+          <td>Проверить, что edge не снимает HSTS preload</td>
+        </tr>
+        <tr>
+          <td>Пентест</td>
+          <td>Аудит был SAST/config review</td>
+          <td>Внешний DAST перед живыми ПДн</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

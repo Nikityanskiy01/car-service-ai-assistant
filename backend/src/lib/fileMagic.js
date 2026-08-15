@@ -40,3 +40,8 @@ export function contentDisposition(fileName, { inline = false } = {}) {
   const kind = inline ? 'inline' : 'attachment';
   return `${kind}; filename="${safe}"; filename*=UTF-8''${safe}`;
 }
+
+export function isInlineSafeImage(mimeType) {
+  const mime = String(mimeType || '').toLowerCase();
+  return mime === 'image/jpeg' || mime === 'image/jpg' || mime === 'image/png' || mime === 'image/webp';
+}

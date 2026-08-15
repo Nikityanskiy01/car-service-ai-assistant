@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { authJwt } from '../../middleware/authJwt.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody } from '../../middleware/validate.js';
-import { contentDisposition } from '../../lib/fileMagic.js';
+import { contentDisposition, isInlineSafeImage } from '../../lib/fileMagic.js';
 import * as requestMessagesService from './requestMessages.service.js';
 
 const attachmentSchema = z.object({
@@ -66,7 +66,7 @@ requestMessagesRouter.get(
       req.user,
     );
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', contentDisposition(file.fileName, { inline: file.mimeType.startsWith('image/') }));
+    res.setHeader('Content-Disposition', contentDisposition(file.fileName, { inline: isInlineSafeImage(file.mimeType) }));
     res.send(file.buffer);
   }),
 );

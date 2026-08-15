@@ -16,4 +16,22 @@ describe('localizeApiError', () => {
       localizeApiError(403, { error: 'Forbidden', code: 'CONSULTATION_FORBIDDEN' }, 'Forbidden'),
     ).toBe('Нет доступа к сохранённой консультации. Начните новую сессию.');
   });
+
+  it('переводит лимит попыток входа', () => {
+    expect(localizeApiError(429, { error: 'Too many attempts, please try again later' }, 'Too Many Requests')).toBe(
+      'Слишком много попыток. Подождите и попробуйте снова.',
+    );
+  });
+
+  it('добавляет время ожидания из Retry-After', () => {
+    expect(
+      localizeApiError(429, { error: 'Too many attempts, please try again later' }, 'Too Many Requests', '372'),
+    ).toBe('Слишком много попыток. Подождите 7 мин. и попробуйте снова.');
+  });
+
+  it('не затирает уже русское сообщение с общим кодом', () => {
+    expect(localizeApiError(400, { error: 'Укажите корректный номер телефона', code: 'BAD_REQUEST' }, '')).toBe(
+      'Укажите корректный номер телефона',
+    );
+  });
 });

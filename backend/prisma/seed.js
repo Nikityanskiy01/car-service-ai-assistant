@@ -1,33 +1,43 @@
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+
+dotenv.config();
 
 const prisma = new PrismaClient();
 
-const accounts = [
-  {
-    email: 'client@example.local',
-    password: 'Client-Demo-2026!',
-    fullName: 'Иван Петров',
-    phone: '+79990000001',
-    role: 'CLIENT',
-  },
-  {
-    email: 'manager@example.local',
-    password: 'Manager-Demo-2026!',
-    fullName: 'Марина Орлова',
-    phone: '+79990000002',
-    role: 'MANAGER',
-  },
-  {
-    email: 'admin@example.local',
-    password: 'Admin-Demo-2026!',
-    fullName: 'Админ Демо',
-    phone: '+79990000003',
-    role: 'ADMINISTRATOR',
-  },
-];
+function demoPassword(envKey) {
+  const fromEnv = String(process.env[envKey] || '').trim();
+  if (!fromEnv) {
+    throw new Error(`${envKey} is required to seed users (do not use hardcoded fallbacks)`);
+  }
+  return fromEnv;
+}
 
 async function main() {
+  const accounts = [
+    {
+      email: process.env.DEMO_CLIENT_EMAIL || 'client@example.local',
+      password: demoPassword('DEMO_CLIENT_PASSWORD'),
+      fullName: 'Иван Петров',
+      phone: '+79990000001',
+      role: 'CLIENT',
+    },
+    {
+      email: process.env.DEMO_MANAGER_EMAIL || 'manager@example.local',
+      password: demoPassword('DEMO_MANAGER_PASSWORD'),
+      fullName: 'Марина Орлова',
+      phone: '+79990000002',
+      role: 'MANAGER',
+    },
+    {
+      email: process.env.DEMO_ADMIN_EMAIL || 'admin@example.local',
+      password: demoPassword('DEMO_ADMIN_PASSWORD'),
+      fullName: 'Админ Демо',
+      phone: '+79990000003',
+      role: 'ADMINISTRATOR',
+    },
+  ];
   await prisma.serviceCategory.upsert({
     where: { slug: 'diagnostics' },
     update: {},
@@ -50,7 +60,7 @@ async function main() {
   }
 
   for (const account of accounts) {
-    const passwordHash = await bcrypt.hash(account.password, 10);
+    const passwordHash = await bcrypt.hash(account.password, 12);
     await prisma.user.upsert({
       where: { email: account.email },
       update: {
@@ -72,10 +82,7 @@ async function main() {
     });
   }
 
-  console.log(
-    'Seed OK:\n' +
-      accounts.map((a) => `  ${a.email} / ${a.password} (${a.role})`).join('\n'),
-  );
+  console.log('Seed OK:\n' + accounts.map((a) => `  ${a.email} (${a.role})`).join('\n'));
 }
 
 main()

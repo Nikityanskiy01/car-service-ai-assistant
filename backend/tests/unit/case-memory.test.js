@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import { toVectorLiteral } from '../../src/lib/vectorLiteral.js';
 import { cosineSimilarity, pseudoEmbedding, toFloatVector } from '../../src/lib/vectorMath.js';
 import { buildCaseMemoryDocument } from '../../src/services/caseMemoryIndexer.service.js';
 
@@ -24,6 +25,18 @@ describe('vectorMath', () => {
 
   it('toFloatVector filters invalid values', () => {
     expect(toFloatVector([1, '2', null, 3.5])).toEqual([1, 2, 3.5]);
+  });
+});
+
+describe('toVectorLiteral', () => {
+  it('formats finite floats for pgvector', () => {
+    expect(toVectorLiteral([1, 0.5, -2])).toBe('[1.00000000,0.50000000,-2.00000000]');
+  });
+
+  it('rejects empty or non-finite input', () => {
+    expect(toVectorLiteral([])).toBeNull();
+    expect(toVectorLiteral([1, Number.NaN])).toBeNull();
+    expect(toVectorLiteral('nope')).toBeNull();
   });
 });
 

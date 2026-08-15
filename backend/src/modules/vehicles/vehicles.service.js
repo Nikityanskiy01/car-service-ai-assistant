@@ -445,7 +445,7 @@ export async function getVehiclePhoto(clientId, vehicleId) {
     where: { id: vehicleId, clientId },
     select: { photoUrl: true },
   });
-  if (!vehicle?.photoUrl) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!vehicle?.photoUrl) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   const buffer = await readVehiclePhotoFile(vehicle.photoUrl);
   return { buffer, mimeType: vehiclePhotoMimeFromKey(vehicle.photoUrl) };
 }

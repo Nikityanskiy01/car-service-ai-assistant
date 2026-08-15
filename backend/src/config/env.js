@@ -26,7 +26,19 @@ const schema = z.object({
       (typeof v === 'string' && v.trim().length >= 32),
     { message: 'INTEGRATION_ENCRYPTION_KEY (min 32 chars) is required in production' },
   ),
-  TOTP_ENCRYPTION_KEY: z.string().optional(),
+  TOTP_ENCRYPTION_KEY: z.string().optional().refine(
+    (v) =>
+      process.env.NODE_ENV !== 'production' ||
+      (typeof v === 'string' && v.trim().length >= 32),
+    { message: 'TOTP_ENCRYPTION_KEY (min 32 chars) is required in production' },
+  ),
+  HMAC_PEPPER: z.string().optional().refine(
+    (v) =>
+      process.env.NODE_ENV !== 'production' ||
+      (typeof v === 'string' && v.trim().length >= 32),
+    { message: 'HMAC_PEPPER (min 32 chars) is required in production' },
+  ),
+  METRICS_TOKEN: z.string().optional(),
   STAFF_2FA_REQUIRED: z
     .enum(['true', 'false', '1', '0'])
     .default(process.env.NODE_ENV === 'production' ? 'true' : 'false')
@@ -73,9 +85,17 @@ const schema = z.object({
     .enum(['true', 'false', '1', '0'])
     .default('true')
     .transform((v) => v === 'true' || v === '1'),
-  CONSULTATION_FEEDBACK_FEW_SHOT_ENABLED: z
+  CASE_MEMORY_PGVECTOR_ENABLED: z
     .enum(['true', 'false', '1', '0'])
     .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  /** Max JSON embeddings loaded into Node when ANN is unavailable. */
+  CASE_MEMORY_MAX_SCAN: z.coerce.number().default(80),
+  /** nomic-embed-text = 768; text-embedding-3-small = 1536. */
+  CASE_MEMORY_VECTOR_DIMS: z.coerce.number().default(768),
+  CONSULTATION_FEEDBACK_FEW_SHOT_ENABLED: z
+    .enum(['true', 'false', '1', '0'])
+    .default(process.env.NODE_ENV === 'production' ? 'false' : 'true')
     .transform((v) => v === 'true' || v === '1'),
   CONSULTATION_FEEDBACK_FEW_SHOT_LIMIT: z.coerce.number().default(3),
   LLM_CIRCUIT_BREAKER_ENABLED: z
@@ -133,6 +153,11 @@ const schema = z.object({
     .transform((v) => v === 'true' || v === '1'),
 });
 
+function isLocalSmtpHost(host) {
+  const h = String(host || '').trim().toLowerCase();
+  return !h || h === 'mailpit' || h === 'localhost' || h === '127.0.0.1';
+}
+
 let cached;
 
 export function getEnv() {
@@ -140,6 +165,12 @@ export function getEnv() {
   const parsed = schema.parse(process.env);
   if (parsed.LLM_PROVIDER === 'openai' && !String(parsed.LLM_API_KEY || '').trim()) {
     throw new Error('LLM_API_KEY is required when LLM_PROVIDER=openai');
+  }
+  if (parsed.NODE_ENV === 'production' && parsed.SMTP_HOST && !isLocalSmtpHost(parsed.SMTP_HOST)) {
+    const starttls = Number(parsed.SMTP_PORT) === 587;
+    if (!parsed.SMTP_SECURE && !starttls) {
+      throw new Error('Non-local SMTP in production requires SMTP_SECURE=true (465) or SMTP_PORT=587 (STARTTLS)');
+    }
   }
   if (process.env.NODE_ENV !== 'test') cached = parsed;
   return parsed;

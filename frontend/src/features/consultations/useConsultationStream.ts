@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { getCsrfToken } from '../../api/client';
 import { parseSseChunk } from './sse';
+import { solveAbuseChallenge } from './abusePow';
 
 type StreamHandlers = {
   onThinking?: (payload: unknown) => void;
@@ -36,6 +37,12 @@ export function useConsultationStream() {
       const csrf = getCsrfToken();
       if (csrf) headers.set('X-CSRF-Token', csrf);
       if (guestToken) headers.set('X-Consultation-Guest-Token', guestToken);
+      if (guestToken) {
+        const abuseHeaders = await solveAbuseChallenge();
+        for (const [key, value] of Object.entries(abuseHeaders)) {
+          headers.set(key, value);
+        }
+      }
 
       const response = await fetch(`/api/consultations/${sessionId}/messages/stream`, {
         method: 'POST',

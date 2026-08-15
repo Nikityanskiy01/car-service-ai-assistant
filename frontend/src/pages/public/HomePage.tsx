@@ -147,7 +147,7 @@ export function HomePage() {
             address: productConfig.address
               ? { '@type': 'PostalAddress', streetAddress: productConfig.address }
               : undefined,
-          }),
+          }).replace(/</g, '\\u003c'),
         }}
       />
       <section className="fm-hero" aria-label="Главный экран">

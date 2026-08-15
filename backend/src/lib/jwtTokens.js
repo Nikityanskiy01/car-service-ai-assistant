@@ -14,13 +14,12 @@ export function signAppJwt(payload, options = {}) {
   return jwt.sign(
     { ...payload, iss: jwtIssuer(), aud: jwtAudience() },
     env.JWT_SECRET,
-    { expiresIn: options.expiresIn || env.JWT_EXPIRES_IN, ...stripExpires(options) },
+    { expiresIn: options.expiresIn || env.JWT_EXPIRES_IN, notBefore: '0s', ...stripExpires(options) },
   );
 }
 
-function stripExpires(options) {
-  const { expiresIn, ...rest } = options || {};
-  return rest;
+function stripExpires(options = {}) {
+  return Object.fromEntries(Object.entries(options).filter(([key]) => key !== 'expiresIn'));
 }
 
 export function verifyAppJwt(token, extra = {}) {
@@ -29,6 +28,7 @@ export function verifyAppJwt(token, extra = {}) {
     algorithms: ['HS256'],
     issuer: jwtIssuer(),
     audience: jwtAudience(),
+    clockTolerance: 5,
     ...extra,
   });
 }

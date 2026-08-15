@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { apiMessages } from '../../config/apiMessages.js';
 import { getEnv } from '../../config/env.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody } from '../../middleware/validate.js';
+import { authAttemptKey, createRateLimiter } from '../../middleware/rateLimitConfig.js';
 import { clearAuthCookies, readCookieValue, setAuthCookies } from '../../lib/authCookies.js';
 import { AppError } from '../../lib/errors.js';
 import { registerPasswordSchema } from '../../lib/passwordPolicy.js';
@@ -97,36 +98,36 @@ const resendVerificationSchema = z.object({
 
 const env = getEnv();
 
-const authLimiter = rateLimit({
+const authLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: env.NODE_ENV === 'test' ? 10_000 : 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many attempts, please try again later' },
+  max: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: authAttemptKey,
+  message: { error: apiMessages.common.rateLimited, code: 'RATE_LIMITED' },
 });
 
-const registerLimiter = rateLimit({
+const registerLimiter = createRateLimiter({
   windowMs: 60 * 60 * 1000,
-  max: env.NODE_ENV === 'test' ? 10_000 : 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many registration attempts, please try again later' },
+  max: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: authAttemptKey,
+  message: { error: apiMessages.common.registrationRateLimited, code: 'RATE_LIMITED' },
 });
 
-const forgotPasswordLimiter = rateLimit({
+const forgotPasswordLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: env.NODE_ENV === 'test' ? 10_000 : 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many attempts, please try again later' },
+  max: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: authAttemptKey,
+  message: { error: apiMessages.common.rateLimited, code: 'RATE_LIMITED' },
 });
 
-const verificationLimiter = rateLimit({
+const verificationLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: env.NODE_ENV === 'test' ? 10_000 : 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many attempts, please try again later' },
+  max: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: authAttemptKey,
+  message: { error: apiMessages.common.rateLimited, code: 'RATE_LIMITED' },
 });
 
 function authJsonPayload(out) {
@@ -247,7 +248,7 @@ authRouter.post(
   authLimiter,
   asyncHandler(async (req, res) => {
     const rt = readCookieValue(req, 'refresh');
-    if (!rt) throw new AppError(401, 'Refresh token required', 'UNAUTHORIZED');
+    if (!rt) throw new AppError(401, apiMessages.auth.refreshRequired, 'UNAUTHORIZED');
     const out = await authService.refreshAccessToken(rt, requestAuthMeta(req));
     setAuthCookies(res, out);
     res.json(authJsonPayload(out));

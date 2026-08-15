@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { AppError } from './errors.js';
 import { assertMagicMime } from './fileMagic.js';
 import { sanitizeUploadedImage } from './imageSanitize.js';
+import { resolveUploadPath } from './uploadPath.js';
 
 const UPLOAD_ROOT =
   process.env.AVATAR_UPLOAD_DIR || path.join(process.cwd(), 'data', 'uploads', 'avatars');
@@ -53,13 +54,13 @@ export async function saveAvatarFile(buffer, ext) {
 }
 
 export async function readAvatarFile(storageKey) {
-  const fullPath = path.join(UPLOAD_ROOT, storageKey);
+  const fullPath = resolveUploadPath(UPLOAD_ROOT, storageKey);
   return fs.readFile(fullPath);
 }
 
 export async function deleteAvatarFile(storageKey) {
   if (!storageKey) return;
-  const fullPath = path.join(UPLOAD_ROOT, storageKey);
+  const fullPath = resolveUploadPath(UPLOAD_ROOT, storageKey);
   try {
     await fs.unlink(fullPath);
   } catch (err) {

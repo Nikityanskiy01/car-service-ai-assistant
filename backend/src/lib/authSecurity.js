@@ -5,7 +5,7 @@ export const DUMMY_PASSWORD_HASH =
 export const REGISTRATION_FAILED_MESSAGE =
   'Не удалось зарегистрироваться. Проверьте данные или войдите в существующий аккаунт.';
 
-export const INVALID_CREDENTIALS_MESSAGE = 'Invalid credentials';
+export const INVALID_CREDENTIALS_MESSAGE = 'Неверный телефон, почта или пароль.';
 
 /** @param {string} email */
 export function normalizeAuthEmail(email) {

@@ -22,6 +22,9 @@ import { livePayload, readyPayload } from '../lib/health.js';
 import { renderPrometheusMetrics } from '../lib/httpMetrics.js';
 import { getLlmMetricsSnapshot } from '../services/llmMetrics.service.js';
 import { sendProblem } from '../lib/problem.js';
+import { apiMessages } from '../config/apiMessages.js';
+import { getEnv } from '../config/env.js';
+import crypto from 'crypto';
 
 const api = Router();
 
@@ -37,13 +40,27 @@ api.get('/ready', async (_req, res) => {
 api.get('/health', async (_req, res) => {
   const payload = await readyPayload();
   if (payload.status !== 'ready') {
-    res.status(503).json({ status: 'error', db: payload.checks.db, redis: payload.checks.redis });
+    res.status(503).json({ status: 'error' });
     return;
   }
-  res.json({ status: 'ok', db: 'connected', redis: payload.checks.redis });
+  res.json({ status: 'ok' });
 });
 
-api.get('/metrics', (_req, res) => {
+api.get('/metrics', (req, res) => {
+  const token = String(getEnv().METRICS_TOKEN || '').trim();
+  const header = String(req.headers.authorization || '');
+  let allowed = false;
+  if (token) {
+    const expected = Buffer.from(`Bearer ${token}`);
+    const got = Buffer.from(header);
+    allowed = expected.length === got.length && crypto.timingSafeEqual(expected, got);
+  } else if (getEnv().NODE_ENV === 'development') {
+    const ip = String(req.ip || '');
+    allowed = ip === '127.0.0.1' || ip === '::1' || ip.endsWith('127.0.0.1');
+  }
+  if (!allowed) {
+    return sendProblem(res, { status: 404, detail: apiMessages.common.notFound, code: 'NOT_FOUND' });
+  }
   res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
   res.send(renderPrometheusMetrics(getLlmMetricsSnapshot()));
 });
@@ -67,6 +84,6 @@ api.use('/analytics', analyticsRouter);
 api.use('/manager', integrationsManagerRouter);
 api.use('/webhooks', integrationsPublicWebhookRouter);
 
-api.use((req, res) => sendProblem(res, { status: 404, detail: 'Not found', code: 'NOT_FOUND' }));
+api.use((req, res) => sendProblem(res, { status: 404, detail: apiMessages.common.notFound, code: 'NOT_FOUND' }));
 
 export default api;

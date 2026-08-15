@@ -1,6 +1,7 @@
 import { test } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { e2eUsers } from './credentials.js';
 
 const outDir = path.resolve('artifacts/ui-review');
 
@@ -16,24 +17,9 @@ async function loginWithFallback(page, role) {
     return;
   }
   const creds = {
-    клиент: [
-      { email: 'client@example.local', password: 'Client-Demo-2026!' },
-      { email: 'client@example.local', password: 'demo' },
-      { email: 'client@example.local', password: '1q2w3e4r' },
-      { email: 'user@example.com', password: '1q2w3e4r' },
-    ],
-    менеджер: [
-      { email: 'manager@example.local', password: 'Manager-Demo-2026!' },
-      { email: 'manager@example.local', password: 'demo' },
-      { email: 'manager@example.local', password: '1q2w3e4r5t' },
-      { email: 'manager@example.com', password: '1q2w3e4r5t' },
-    ],
-    администратор: [
-      { email: 'admin@example.local', password: 'Admin-Demo-2026!' },
-      { email: 'admin@example.local', password: 'demo' },
-      { email: 'admin@example.local', password: '1q2w3e4r5t6y' },
-      { email: 'admin@example.com', password: '1q2w3e4r5t6y' },
-    ],
+    клиент: [e2eUsers.client],
+    менеджер: [e2eUsers.manager],
+    администратор: [e2eUsers.admin],
   }[role];
   for (const variant of creds) {
     await page.getByLabel('Телефон или почта').fill(variant.email);

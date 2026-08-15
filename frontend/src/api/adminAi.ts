@@ -8,6 +8,9 @@ export type CaseMemoryStats = {
   lexicalFallback: boolean;
   embeddingModel: string | null;
   topK: number;
+  maxScan?: number;
+  pgvectorEnabled?: boolean;
+  pgvectorAvailable?: boolean;
   lastIndexedAt: string | null;
 };
 

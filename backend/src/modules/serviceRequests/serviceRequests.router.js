@@ -10,7 +10,7 @@ import * as completionDocumentsService from '../completionDocuments/completionDo
 import { buildServiceRequestPdfBuffer } from '../../lib/pdf/serviceRequestPdf.js';
 import { isSlaBreached } from '../../lib/requestSla.js';
 import { listUnreadThreadsForClient } from '../requestMessages/requestMessages.service.js';
-import { contentDisposition } from '../../lib/fileMagic.js';
+import { contentDisposition, isInlineSafeImage } from '../../lib/fileMagic.js';
 
 const listQuerySchema = z.object({
   status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']).optional(),
@@ -323,7 +323,7 @@ serviceRequestsRouter.get(
       req.user,
     );
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', contentDisposition(file.fileName, { inline: file.mimeType.startsWith('image/') }));
+    res.setHeader('Content-Disposition', contentDisposition(file.fileName, { inline: isInlineSafeImage(file.mimeType) }));
     res.send(file.buffer);
   }),
 );

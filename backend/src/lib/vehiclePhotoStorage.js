@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { AppError } from './errors.js';
 import { assertMagicMime } from './fileMagic.js';
 import { sanitizeUploadedImage } from './imageSanitize.js';
+import { resolveUploadPath } from './uploadPath.js';
 
 const UPLOAD_ROOT =
   process.env.VEHICLE_PHOTO_UPLOAD_DIR ||
@@ -54,13 +55,13 @@ export async function saveVehiclePhotoFile(buffer, ext) {
 }
 
 export async function readVehiclePhotoFile(storageKey) {
-  const fullPath = path.join(UPLOAD_ROOT, storageKey);
+  const fullPath = resolveUploadPath(UPLOAD_ROOT, storageKey);
   return fs.readFile(fullPath);
 }
 
 export async function deleteVehiclePhotoFile(storageKey) {
   if (!storageKey) return;
-  const fullPath = path.join(UPLOAD_ROOT, storageKey);
+  const fullPath = resolveUploadPath(UPLOAD_ROOT, storageKey);
   try {
     await fs.unlink(fullPath);
   } catch (err) {

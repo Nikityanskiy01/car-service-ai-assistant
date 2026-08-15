@@ -57,7 +57,7 @@ export async function getPreferences(userId) {
       telegram: true,
     },
   });
-  if (!user) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   const prefs = await getOrCreatePrefs(userId);
   const email = user.emailProfile || user.email;
   return {

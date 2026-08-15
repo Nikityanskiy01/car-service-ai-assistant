@@ -82,7 +82,7 @@ export function evaluatePromptContracts() {
     ['Замена амортизаторов'],
     'P0300: пропуски',
     ['пятно масла'],
-    [{ confirmed_cause: 'износ колодок' }],
+    [{ verdict: 'CORRECT', vehicle: 'Toyota Camry', category: 'Тормоза' }],
   );
   for (const marker of [
     '<<<CONSULTATION_PAYLOAD>>>',

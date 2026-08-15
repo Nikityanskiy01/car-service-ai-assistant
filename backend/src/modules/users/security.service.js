@@ -11,6 +11,8 @@ import {
 } from '../../lib/clientMeta.js';
 import { invalidateAuthUserCache } from '../../middleware/authJwt.js';
 import { isSmtpConfigured, sendSessionRevokeEmail } from '../../lib/mail/mail.service.js';
+import { assertNotLocked, recordFailedLogin, clearFailedLogins } from '../../lib/accountLockout.js';
+import { getRedis } from '../../lib/redis.js';
 import {
   assertOtpCooldown,
   consumeOtpChallenge,
@@ -36,8 +38,51 @@ const MAX_LOGIN_EVENTS = 50;
 const PENDING_SETUP_TTL_MS = 15 * 60 * 1000;
 const SESSION_REVOKE_PURPOSE = 'revoke_sessions';
 
-/** @type {Map<string, { secret: string; backupCodes: string[]; expiresAt: number }>} */
-const pendingSetups = new Map();
+/** Fallback only when Redis is unavailable (tests / local without REDIS_URL). */
+const memoryPendingSetups = new Map();
+
+function totpSetupKey(userId) {
+  return `totp-setup:${userId}`;
+}
+
+async function savePendingSetup(userId, payload) {
+  const encoded = encryptSecret(JSON.stringify(payload));
+  const redis = getRedis();
+  if (redis) {
+    await redis.set(totpSetupKey(userId), encoded, 'PX', PENDING_SETUP_TTL_MS);
+    return;
+  }
+  if (getEnv().NODE_ENV === 'production') {
+    throw new AppError(503, 'Сервис временно недоступен', 'UNAVAILABLE');
+  }
+  memoryPendingSetups.set(userId, { encoded, expiresAt: payload.expiresAt });
+}
+
+async function readPendingSetup(userId) {
+  const redis = getRedis();
+  let encoded = null;
+  if (redis) {
+    encoded = await redis.get(totpSetupKey(userId));
+  } else {
+    const row = memoryPendingSetups.get(userId);
+    if (row && row.expiresAt > Date.now()) encoded = row.encoded;
+    else memoryPendingSetups.delete(userId);
+  }
+  if (!encoded) return null;
+  try {
+    const parsed = JSON.parse(decryptSecret(encoded));
+    if (!parsed?.secret || Number(parsed.expiresAt) < Date.now()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function deletePendingSetup(userId) {
+  const redis = getRedis();
+  if (redis) await redis.del(totpSetupKey(userId));
+  memoryPendingSetups.delete(userId);
+}
 
 export async function recordLoginEvent({
   userId,
@@ -91,7 +136,7 @@ export async function getSecurityStatus(userId) {
       loginTelegramEnabled: true,
     },
   });
-  if (!user) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   const bot = await getTelegramBotInfo();
   const env = getEnv();
   return {
@@ -215,7 +260,7 @@ export async function revokeAllUserSessions(userId) {
  */
 export async function startSessionRevokeChallenge(userId, { scope = 'others', sessionId = null } = {}) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   let targetLabel = 'все другие устройства';
   if (scope === 'one') {
@@ -315,14 +360,14 @@ export async function revokeOtherSessions(userId, currentRefreshTokenValue, { co
 
 export async function beginTotpSetup(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (user.totpEnabledAt) {
     throw new AppError(400, 'Дополнительная защита уже включена', 'BAD_REQUEST');
   }
 
   const secret = generateTotpSecret();
   const backupCodes = generateBackupCodes(8);
-  pendingSetups.set(userId, { secret, backupCodes, expiresAt: Date.now() + PENDING_SETUP_TTL_MS });
+  await savePendingSetup(userId, { secret, backupCodes, expiresAt: Date.now() + PENDING_SETUP_TTL_MS });
 
   const env = getEnv();
   const issuer = 'Автосервис';
@@ -345,15 +390,15 @@ export async function beginTotpSetup(userId) {
   };
 }
 
-export function abortTotpSetup(userId) {
-  pendingSetups.delete(userId);
+export async function abortTotpSetup(userId) {
+  await deletePendingSetup(userId);
   return { ok: true };
 }
 
 export async function confirmTotpSetup(userId, code) {
-  const pending = pendingSetups.get(userId);
-  if (!pending || pending.expiresAt < Date.now()) {
-    pendingSetups.delete(userId);
+  const pending = await readPendingSetup(userId);
+  if (!pending) {
+    await deletePendingSetup(userId);
     throw new AppError(400, 'Время на настройку истекло. Начните заново.', 'BAD_REQUEST');
   }
   if (!verifyTotpToken(pending.secret, code)) {
@@ -372,7 +417,7 @@ export async function confirmTotpSetup(userId, code) {
       tokenVersion: { increment: 1 },
     },
   });
-  pendingSetups.delete(userId);
+  await deletePendingSetup(userId);
   invalidateAuthUserCache(userId);
 
   return { ok: true, backupCodes, user: updated };
@@ -380,7 +425,7 @@ export async function confirmTotpSetup(userId, code) {
 
 export async function disableTotp(userId, { password, code, confirmPhrase }, meta = {}) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (!user.totpEnabledAt || !user.totpSecretEnc) {
     throw new AppError(400, 'Дополнительная защита не включена', 'BAD_REQUEST');
   }
@@ -418,7 +463,7 @@ export async function disableTotp(userId, { password, code, confirmPhrase }, met
   });
   invalidateAuthUserCache(userId);
   await prisma.refreshToken.deleteMany({ where: { userId } });
-  pendingSetups.delete(userId);
+  await deletePendingSetup(userId);
   await recordLoginEvent({
     userId,
     success: true,
@@ -431,7 +476,7 @@ export async function disableTotp(userId, { password, code, confirmPhrase }, met
 
 export async function regenerateBackupCodes(userId, { password, code }) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.blocked) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!user || user.blocked) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (!user.totpEnabledAt || !user.totpSecretEnc) {
     throw new AppError(400, 'Дополнительная защита не включена', 'BAD_REQUEST');
   }
@@ -488,7 +533,6 @@ export function createTotpChallengeToken(userId) {
 }
 
 export async function verifyTotpChallenge(challengeToken, code, meta = {}) {
-  const env = getEnv();
   let payload;
   try {
     payload = verifyAppJwt(challengeToken);
@@ -503,6 +547,7 @@ export async function verifyTotpChallenge(challengeToken, code, meta = {}) {
   if (!user || user.blocked || !user.totpEnabledAt || !user.totpSecretEnc) {
     throw new AppError(401, 'Недействительный токен подтверждения', 'UNAUTHORIZED');
   }
+  await assertNotLocked(user);
 
   const secret = decryptSecret(user.totpSecretEnc);
   let method = 'totp';
@@ -521,6 +566,7 @@ export async function verifyTotpChallenge(challengeToken, code, meta = {}) {
         reason: 'bad_totp',
         ...meta,
       });
+      await recordFailedLogin(user.id);
       throw new AppError(401, 'Неверный код', 'UNAUTHORIZED');
     }
     method = 'backup';
@@ -531,6 +577,7 @@ export async function verifyTotpChallenge(challengeToken, code, meta = {}) {
     });
   }
 
+  await clearFailedLogins(user.id);
   await recordLoginEvent({
     userId: user.id,
     success: true,

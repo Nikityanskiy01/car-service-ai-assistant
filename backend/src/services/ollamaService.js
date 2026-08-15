@@ -1,8 +1,8 @@
 import { getEnv } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
 import { redactPiiDeep } from '../lib/piiRedact.js';
 import {
-  getCircuitBreakerSnapshot,
   isCircuitOpen,
   recordCircuitFailure,
   recordCircuitSuccess,
@@ -282,12 +282,12 @@ export async function chatCompletionWithMeta({
   const env = getEnv();
 
   if (!env.LLM_ENABLED) {
-    throw new AppError(503, 'LLM disabled via configuration', 'LLM_ERROR');
+    throw new AppError(503, 'Модуль ИИ временно недоступен. Попробуйте чуть позже.', 'LLM_ERROR');
   }
 
   if (isCircuitOpen()) {
     recordCircuitOpenRejection();
-    throw new AppError(503, 'LLM temporarily unavailable (circuit open)', 'LLM_ERROR');
+    throw new AppError(503, 'Модуль ИИ временно недоступен. Попробуйте чуть позже.', 'LLM_ERROR');
   }
 
   const provider = env.LLM_PROVIDER;
@@ -339,5 +339,5 @@ export async function chatCompletionWithMeta({
     error: failures.join('; '),
   });
   logger.error({ failures }, 'all LLM providers failed');
-  throw new AppError(503, 'LLM temporarily unavailable', 'LLM_ERROR');
+  throw new AppError(503, 'Модуль ИИ временно недоступен. Попробуйте чуть позже.', 'LLM_ERROR');
 }

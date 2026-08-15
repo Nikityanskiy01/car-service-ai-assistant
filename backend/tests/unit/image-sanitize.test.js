@@ -1,5 +1,7 @@
 import JPEG from 'jpeg-js';
+import { PNG } from 'pngjs';
 import { jpegHasExif, sanitizeImageBuffer } from '../../src/lib/imageSanitize.js';
+import { isInlineSafeImage } from '../../src/lib/fileMagic.js';
 
 function makeJpeg({ width = 8, height = 8, r = 200, g = 40, b = 20 } = {}) {
   const data = Buffer.alloc(width * height * 4);
@@ -22,30 +24,36 @@ function withJpegExif(jpeg) {
   return Buffer.concat([jpeg.subarray(0, 2), app1, jpeg.subarray(2)]);
 }
 
+function crc32(buf) {
+  let crc = ~0;
+  for (let i = 0; i < buf.length; i += 1) {
+    crc ^= buf[i];
+    for (let j = 0; j < 8; j += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (~crc) >>> 0;
+}
+
 function pngChunk(type, data) {
   const buf = Buffer.alloc(12 + data.length);
   buf.writeUInt32BE(data.length, 0);
   buf.write(type, 4, 4, 'ascii');
   data.copy(buf, 8);
-  buf.writeUInt32BE(0, 8 + data.length);
+  buf.writeUInt32BE(crc32(buf.subarray(4, 8 + data.length)), 8 + data.length);
   return buf;
 }
 
 function makePngWithText() {
-  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(1, 0);
-  ihdr.writeUInt32BE(1, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
+  const png = new PNG({ width: 1, height: 1 });
+  png.data[0] = 200;
+  png.data[1] = 40;
+  png.data[2] = 20;
+  png.data[3] = 255;
+  const clean = PNG.sync.write(png);
   const text = Buffer.concat([Buffer.from('Comment\0'), Buffer.from('GPS:55.75,37.62')]);
-  return Buffer.concat([
-    sig,
-    pngChunk('IHDR', ihdr),
-    pngChunk('tEXt', text),
-    pngChunk('IDAT', Buffer.from([0])),
-    pngChunk('IEND', Buffer.alloc(0)),
-  ]);
+  const insert = pngChunk('tEXt', text);
+  const iend = clean.lastIndexOf(Buffer.from('IEND'));
+  const at = iend - 4;
+  return Buffer.concat([clean.subarray(0, at), insert, clean.subarray(at)]);
 }
 
 function makeWebpWithExif() {
@@ -92,12 +100,14 @@ describe('imageSanitize', () => {
     expect(decoded.height).toBeGreaterThan(0);
   });
 
-  it('drops PNG tEXt metadata', () => {
+  it('re-encodes PNG and drops tEXt metadata', () => {
     const dirty = makePngWithText();
     expect(dirty.includes(Buffer.from('tEXt'))).toBe(true);
     const clean = sanitizeImageBuffer(dirty, 'image/png');
     expect(clean.buffer.includes(Buffer.from('tEXt'))).toBe(false);
+    expect(clean.buffer.includes(Buffer.from('GPS:'))).toBe(false);
     expect(clean.buffer.subarray(0, 8).equals(dirty.subarray(0, 8))).toBe(true);
+    expect(PNG.sync.read(clean.buffer).width).toBe(1);
   });
 
   it('drops WebP EXIF chunk', () => {
@@ -106,5 +116,10 @@ describe('imageSanitize', () => {
     const clean = sanitizeImageBuffer(dirty, 'image/webp');
     expect(clean.buffer.includes(Buffer.from('EXIF'))).toBe(false);
     expect(clean.buffer.subarray(8, 12).toString('ascii')).toBe('WEBP');
+  });
+
+  it('does not inline GIF', () => {
+    expect(isInlineSafeImage('image/gif')).toBe(false);
+    expect(isInlineSafeImage('image/jpeg')).toBe(true);
   });
 });

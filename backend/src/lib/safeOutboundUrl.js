@@ -33,6 +33,7 @@ function isPrivateIpv6(ip) {
   }
   if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
   if (normalized.startsWith('fe80')) return true;
+  if (normalized.startsWith('64:ff9b:')) return true;
   return false;
 }
 
@@ -111,4 +112,42 @@ export function joinSafeUrl(baseUrl, path = '/') {
   const joined = `${baseNoSlash}${suffix.startsWith('/') ? '' : '/'}${suffix}`;
   assertSafeOutboundUrl(joined, { allowHttp: true });
   return joined;
+}
+
+function pickPublicAddress(records) {
+  const rows = (records || []).map((row) => String(row.address || '').replace(/^\[|\]$/g, '').toLowerCase());
+  const v4 = rows.find((ip) => net.isIP(ip) === 4 && !isPrivateIpv4(ip));
+  if (v4) return { address: v4, family: 4 };
+  const v6 = rows.find((ip) => net.isIP(ip) === 6 && !isPrivateIpv6(ip));
+  if (v6) return { address: v6, family: 6 };
+  return null;
+}
+
+/**
+ * Resolve, pin IP, then fetch with original Host / TLS SNI to close DNS TOCTOU.
+ */
+export async function fetchSafeOutbound(urlString, init = {}, opts = {}) {
+  const url = assertSafeOutboundUrl(urlString, opts);
+  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  let target = url;
+  let dispatcher;
+  if (!net.isIP(host)) {
+    let records;
+    try {
+      records = await dns.lookup(host, { all: true, verbatim: true });
+    } catch {
+      throw new AppError(400, 'Не удалось разрешить хост внешней системы', 'BAD_REQUEST');
+    }
+    const picked = pickPublicAddress(records);
+    if (!picked) {
+      throw new AppError(400, 'Запрещён доступ к частным IP-адресам', 'BAD_REQUEST');
+    }
+    target = new URL(url);
+    target.hostname = picked.family === 6 ? `[${picked.address}]` : picked.address;
+    const { Agent } = await import('undici');
+    dispatcher = new Agent({ connect: { servername: host } });
+  }
+  const headers = new Headers(init.headers || {});
+  if (!headers.has('Host')) headers.set('Host', host);
+  return fetch(target, { ...init, headers, dispatcher, redirect: 'error' });
 }

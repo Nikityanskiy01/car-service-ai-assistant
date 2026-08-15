@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
-import { ApiError } from '../../api/errors';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AuthUser } from '../../types/auth';
 import { FormField } from '../../components/forms/FormField';
@@ -138,13 +137,6 @@ export function LoginPage() {
       });
       if (handleOtpSuccess(data) && 'user' in data) await finishLogin(data.user, data.totpSetupPending);
     } catch (e) {
-      if (e instanceof ApiError) {
-        const code = String((e.data as Record<string, unknown>)?.code || '').toUpperCase();
-        if (code === 'EMAIL_NOT_VERIFIED' && kind === 'email') {
-          navigate(`/verify-email?email=${encodeURIComponent(identifier.trim())}`, { replace: true });
-          return;
-        }
-      }
       setError(e instanceof Error ? e.message : 'Ошибка входа');
     } finally {
       setLoading(false);
@@ -318,6 +310,16 @@ export function LoginPage() {
 
                 <p className="fm-auth-forgot">
                   <Link to="/forgot-password">Забыли пароль?</Link>
+                  <span aria-hidden="true"> · </span>
+                  <Link
+                    to={
+                      identifier.includes('@')
+                        ? `/verify-email?email=${encodeURIComponent(identifier.trim())}`
+                        : '/verify-email'
+                    }
+                  >
+                    Подтвердить email
+                  </Link>
                 </p>
               </>
             ) : null}

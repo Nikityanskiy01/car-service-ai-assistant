@@ -135,35 +135,28 @@ export async function register({ email, password, fullName, phone }, meta = {}) 
     throw new AppError(400, 'Укажите корректный номер телефона', 'BAD_REQUEST');
   }
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-
   if (existing?.emailVerifiedAt) {
     throw new AppError(400, REGISTRATION_FAILED_MESSAGE, 'REGISTRATION_FAILED');
   }
 
-  let user;
   if (existing) {
-    user = await prisma.user.update({
-      where: { id: existing.id },
-      data: {
-        passwordHash,
-        fullName: trimmedName,
-        phone: digits,
-      },
-    });
-    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
-  } else {
-    user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash,
-        fullName: trimmedName,
-        phone: digits,
-        role: 'CLIENT',
-      },
-    });
+    return {
+      requiresEmailVerification: true,
+      message: REGISTRATION_PENDING_MESSAGE,
+    };
   }
+
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const user = await prisma.user.create({
+    data: {
+      email: normalizedEmail,
+      passwordHash,
+      fullName: trimmedName,
+      phone: digits,
+      role: 'CLIENT',
+    },
+  });
 
   await issueVerificationCode(user);
   await recordConsentEvent({
@@ -263,8 +256,8 @@ export async function login({ identifier, email, password }, meta = {}) {
   if (user && !user.blocked) {
     await assertNotLocked(user);
   }
-  if (!user || !ok || user.blocked) {
-    if (user && !user.blocked) {
+  if (!user || !ok || user.blocked || clientRequiresEmailVerification(user)) {
+    if (user && !user.blocked && !ok) {
       await recordFailedLogin(user.id);
       await securityService.recordLoginEvent({
         userId: user.id,
@@ -276,17 +269,15 @@ export async function login({ identifier, email, password }, meta = {}) {
     }
     throw new AppError(401, INVALID_CREDENTIALS_MESSAGE, 'UNAUTHORIZED');
   }
-  if (clientRequiresEmailVerification(user)) {
-    throw new AppError(403, 'Подтвердите email для входа в личный кабинет', 'EMAIL_NOT_VERIFIED');
-  }
 
   await clearFailedLogins(user.id);
   return completeVerifiedLogin(user, 'password', meta);
 }
 
 export async function completeVerifiedLogin(user, method, meta = {}) {
+  await assertNotLocked(user);
   if (clientRequiresEmailVerification(user)) {
-    throw new AppError(403, 'Подтвердите email для входа в личный кабинет', 'EMAIL_NOT_VERIFIED');
+    throw new AppError(401, INVALID_CREDENTIALS_MESSAGE, 'UNAUTHORIZED');
   }
 
   if (user.totpEnabledAt && user.totpSecretEnc) {
@@ -306,6 +297,7 @@ export async function completeVerifiedLogin(user, method, meta = {}) {
     method,
     ...meta,
   });
+  await clearFailedLogins(user.id);
   return issueTokens(user, { ...meta, totpSetupPending: staffNeedsTotp });
 }
 
@@ -315,7 +307,7 @@ export async function loginWithTotp({ challengeToken, code }, meta = {}) {
 }
 
 export async function refreshAccessToken(refreshTokenValue, meta = {}) {
-  if (!refreshTokenValue) throw new AppError(401, 'Refresh token required', 'UNAUTHORIZED');
+  if (!refreshTokenValue) throw new AppError(401, 'Требуется повторный вход. Обновите страницу.', 'UNAUTHORIZED');
 
   const hashed = hashToken(refreshTokenValue);
   const record = await prisma.refreshToken.findUnique({ where: { token: hashed } });
@@ -330,7 +322,7 @@ export async function refreshAccessToken(refreshTokenValue, meta = {}) {
     } else if (record) {
       await prisma.refreshToken.delete({ where: { id: record.id } }).catch(() => {});
     }
-    throw new AppError(401, 'Refresh token expired or invalid', 'UNAUTHORIZED');
+    throw new AppError(401, 'Сессия истекла. Войдите снова.', 'UNAUTHORIZED');
   }
 
   if (record.consumedAt) {
@@ -342,13 +334,13 @@ export async function refreshAccessToken(refreshTokenValue, meta = {}) {
       })
       .catch(() => {});
     invalidateAuthUserCache(record.userId);
-    throw new AppError(401, 'Refresh token expired or invalid', 'UNAUTHORIZED');
+    throw new AppError(401, 'Сессия истекла. Войдите снова.', 'UNAUTHORIZED');
   }
 
   const user = await prisma.user.findUnique({ where: { id: record.userId } });
   if (!user || user.blocked || clientRequiresEmailVerification(user)) {
     await prisma.refreshToken.deleteMany({ where: { familyId: record.familyId } }).catch(() => {});
-    throw new AppError(401, 'User not found or blocked', 'UNAUTHORIZED');
+    throw new AppError(401, 'Пользователь не найден или заблокирован.', 'UNAUTHORIZED');
   }
 
   const sessionMeta = {

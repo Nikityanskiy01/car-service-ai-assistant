@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import xlsx from 'xlsx';
+import { loadXlsx } from './loadXlsx.js';
 
 function parseMoneyRu(s) {
   if (s == null) return null;
@@ -40,7 +40,8 @@ function toIndex(header) {
   return m;
 }
 
-function main() {
+async function main() {
+  const xlsx = await loadXlsx();
   const input = 'data/service_history.xlsx';
   if (!fs.existsSync(input)) {
     console.error(`Input not found: ${input}`);
@@ -113,5 +114,8 @@ function main() {
   console.log(`OK: data/price_catalog.json (${items.length} work names)`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err.message || err);
+  process.exit(1);
+});
 

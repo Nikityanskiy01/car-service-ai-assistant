@@ -61,7 +61,7 @@ export async function createGuestBooking({
   categoryLabel,
 }) {
   const at = new Date(preferredAt);
-  if (Number.isNaN(at.getTime())) throw new AppError(400, 'Invalid preferredAt', 'BAD_REQUEST');
+  if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
   const slot = assertPreferredAtInBookingWindow(at);
   if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
 
@@ -97,12 +97,12 @@ export async function createGuestBooking({
 
 export async function createBooking(user, { preferredAt, serviceRequestId, notes, vehicleId }) {
   const at = new Date(preferredAt);
-  if (Number.isNaN(at.getTime())) throw new AppError(400, 'Invalid preferredAt', 'BAD_REQUEST');
+  if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
   const slot = assertPreferredAtInBookingWindow(at);
   if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
   if (serviceRequestId) {
     const sr = await prisma.serviceRequest.findUnique({ where: { id: serviceRequestId } });
-    if (!sr || sr.clientId !== user.id) throw new AppError(400, 'Invalid serviceRequestId', 'BAD_REQUEST');
+    if (!sr || sr.clientId !== user.id) throw new AppError(400, 'Заявка не найдена или недоступна', 'BAD_REQUEST');
   }
   let resolvedVehicleId = vehicleId || null;
   if (resolvedVehicleId) {
@@ -110,7 +110,7 @@ export async function createBooking(user, { preferredAt, serviceRequestId, notes
       where: { id: resolvedVehicleId, clientId: user.id },
       select: { id: true },
     });
-    if (!vehicle) throw new AppError(400, 'Invalid vehicleId', 'BAD_REQUEST');
+    if (!vehicle) throw new AppError(400, 'Автомобиль не найден в гараже', 'BAD_REQUEST');
   }
   const booking = await prisma.serviceBooking.create({
     data: {
@@ -131,13 +131,13 @@ export async function getBooking(bookingId, user) {
     where: { id: bookingId },
     include: BOOKING_INCLUDE,
   });
-  if (!row) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!row) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   if (user.role === 'CLIENT') {
-    if (row.clientId !== user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    if (row.clientId !== user.id) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
     return row;
   }
   if (user.role === 'MANAGER' || user.role === 'ADMINISTRATOR') return row;
-  throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 }
 
 export async function listBookings(user, { limit = 50, offset = 0 } = {}) {
@@ -159,15 +159,15 @@ export async function listBookings(user, { limit = 50, offset = 0 } = {}) {
       include: CLIENT_BOOKING_INCLUDE,
     });
   }
-  throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 }
 
 export async function listBookingAudit(bookingId, user) {
   if (user.role !== 'ADMINISTRATOR') {
-    throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
   }
   const exists = await prisma.serviceBooking.findUnique({ where: { id: bookingId }, select: { id: true } });
-  if (!exists) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!exists) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
   const rows = await prisma.serviceBookingAuditLog.findMany({
     where: { bookingId },
     orderBy: { createdAt: 'desc' },
@@ -191,11 +191,11 @@ const bookingDetailInclude = BOOKING_INCLUDE;
  * }} body
  */
 export async function patchClientBooking(bookingId, user, body) {
-  if (user.role !== 'CLIENT') throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  if (user.role !== 'CLIENT') throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 
   const prev = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
-  if (!prev) throw new AppError(404, 'Not found', 'NOT_FOUND');
-  if (prev.clientId !== user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+  if (!prev) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
+  if (prev.clientId !== user.id) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
 
   if (body.status === 'CANCELLED') {
     if (prev.status === 'CANCELLED') {
@@ -219,7 +219,7 @@ export async function patchClientBooking(bookingId, user, body) {
     }
 
     const at = new Date(body.preferredAt);
-    if (Number.isNaN(at.getTime())) throw new AppError(400, 'Invalid preferredAt', 'BAD_REQUEST');
+    if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
     const slot = assertPreferredAtInBookingWindow(at);
     if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
     if (at.getTime() <= Date.now()) {
@@ -263,11 +263,11 @@ export async function patchClientBooking(bookingId, user, body) {
 
 export async function patchBooking(bookingId, user, body) {
   if (user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {
-    throw new AppError(403, 'Forbidden', 'FORBIDDEN');
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
   }
 
   const prev = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
-  if (!prev) throw new AppError(404, 'Not found', 'NOT_FOUND');
+  if (!prev) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
 
   /** @type {Record<string, { from: unknown; to: unknown }>} */
   const changes = {};
@@ -280,7 +280,7 @@ export async function patchBooking(bookingId, user, body) {
 
   if (body.preferredAt !== undefined) {
     const at = new Date(body.preferredAt);
-    if (Number.isNaN(at.getTime())) throw new AppError(400, 'Invalid preferredAt', 'BAD_REQUEST');
+    if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
     const slot = assertPreferredAtInBookingWindow(at);
     if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
     if (at.getTime() !== prev.preferredAt.getTime()) {

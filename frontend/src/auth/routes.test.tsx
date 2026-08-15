@@ -8,7 +8,7 @@ import { dashboardHomeFor } from '../config/dashboardPaths';
 
 function stubUser(role: 'CLIENT' | 'MANAGER' | 'ADMINISTRATOR') {
   const user = { id: '1', role, email: 'a@b.c', fullName: 'Имя', phone: '+79990000000' };
-  localStorage.setItem('car_service_user', JSON.stringify(user));
+  sessionStorage.setItem('car_service_user', JSON.stringify({ id: user.id, role: user.role }));
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue(
@@ -36,6 +36,7 @@ function renderWithAuth(ui: React.ReactNode, path = '/') {
 describe('route guards', () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('redirects unauthenticated to login from protected route', async () => {
@@ -58,10 +59,7 @@ describe('route guards', () => {
   });
 
   it('shows forbidden redirect for wrong role', async () => {
-    localStorage.setItem(
-      'car_service_user',
-      JSON.stringify({ id: '1', role: 'CLIENT', email: 'a', fullName: 'b', phone: 'c' }),
-    );
+    sessionStorage.setItem('car_service_user', JSON.stringify({ id: '1', role: 'CLIENT' }));
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(

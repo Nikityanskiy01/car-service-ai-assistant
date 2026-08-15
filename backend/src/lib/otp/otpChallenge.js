@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { getEnv } from '../../config/env.js';
 import prisma from '../prisma.js';
 import { AppError } from '../errors.js';
-import { hmacHex, sha256Hex, timingSafeEqualHex } from '../cryptoHash.js';
+import { hmacHex, hmacHexMatches, sha256Hex, timingSafeEqualHex } from '../cryptoHash.js';
+import { recordFailedLogin } from '../accountLockout.js';
 
 export function hashOtp(code) {
   return hmacHex('otp', String(code || '').trim());
@@ -10,7 +11,7 @@ export function hashOtp(code) {
 
 export function otpHashMatches(storedHash, code) {
   const normalized = String(code || '').trim();
-  if (timingSafeEqualHex(storedHash, hashOtp(normalized))) return true;
+  if (hmacHexMatches('otp', normalized, storedHash)) return true;
   return timingSafeEqualHex(storedHash, sha256Hex(normalized));
 }
 
@@ -98,6 +99,7 @@ export async function consumeOtpChallenge(token, code, { purpose } = {}) {
       where: { id: row.id },
       data: { attempts: { increment: 1 } },
     });
+    if (row.userId) await recordFailedLogin(row.userId);
     throw new AppError(400, 'Неверный или просроченный код', 'BAD_REQUEST');
   }
 
