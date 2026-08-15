@@ -1,13 +1,16 @@
-import { randomBytes } from 'crypto';
+import { createGuestToken, hashGuestToken, guestTokenMatches } from '../../lib/guestToken.js';
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { isExtractedComplete, mergeExtracted } from '../../lib/consultationProgress.js';
 import { estimateCostFromMinor } from '../../lib/pricing.js';
 import { coerceDiagnosisLine } from './consultationAi.service.js';
 import { indexConsultationCase } from '../../services/caseMemoryIndexer.service.js';
+import { assertGuestMessageQuota } from '../../lib/llmQuota.js';
 import { lookupObdCodes } from '../../lib/obdCodeCatalog.js';
 import { parseObdCodes } from '../../lib/obdCodes.js';
 import { analyzeVehiclePhoto } from '../../services/visionService.js';
+import { assertMagicMime } from '../../lib/fileMagic.js';
+import { sanitizeImageBuffer } from '../../lib/imageSanitize.js';
 import {
   BOOTSTRAP_ASSISTANT_MESSAGE,
   buildConsultationState,
@@ -87,11 +90,11 @@ export async function createGuestSession({ serviceCategoryId } = {}) {
     const cat = await prisma.serviceCategory.findUnique({ where: { id: serviceCategoryId } });
     if (!cat) throw new AppError(400, 'Unknown service category', 'BAD_REQUEST');
   }
-  const guestToken = randomBytes(32).toString('hex');
+  const guestToken = createGuestToken();
   const row = await prisma.consultationSession.create({
     data: {
       clientId: null,
-      guestToken,
+      guestToken: hashGuestToken(guestToken),
       serviceCategoryId: serviceCategoryId || null,
       extracted: { create: {} },
     },
@@ -128,7 +131,7 @@ export async function claimSession(sessionId, clientId, guestToken) {
   const session = await prisma.consultationSession.findUnique({ where: { id: sessionId } });
   if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
   if (session.clientId) throw new AppError(409, 'Session already linked to account', 'CONFLICT');
-  if (session.guestToken !== t) throw new AppError(403, 'Invalid guest token', 'FORBIDDEN');
+  if (!guestTokenMatches(session.guestToken, t)) throw new AppError(403, 'Invalid guest token', 'FORBIDDEN');
   await prisma.$transaction([
     prisma.consultationSession.update({
       where: { id: sessionId },
@@ -216,6 +219,7 @@ export async function postMessage(sessionId, actor, content, onProgress) {
   });
   if (!session) throw new AppError(404, 'Session not found', 'NOT_FOUND');
   assertActorCanPost(session, actor);
+  await assertGuestMessageQuota(sessionId, actor);
   if (session.status === 'COMPLETED' || session.serviceRequest) {
     throw new AppError(400, 'Consultation is closed', 'CLOSED');
   }
@@ -627,12 +631,26 @@ export async function analyzeConsultationPhoto(sessionId, actor, payload) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
     throw new AppError(400, 'Unsupported image type', 'BAD_REQUEST');
   }
-  const imageBase64 = String(payload?.imageBase64 || '').trim();
+  const imageBase64 = String(payload?.imageBase64 || '').trim().replace(/^data:[^;]+;base64,/, '');
   if (imageBase64.length < 100 || imageBase64.length > 6_000_000) {
     throw new AppError(400, 'Invalid image payload', 'BAD_REQUEST');
   }
+  let raw;
+  try {
+    raw = Buffer.from(imageBase64, 'base64');
+  } catch {
+    throw new AppError(400, 'Invalid image payload', 'BAD_REQUEST');
+  }
+  if (!raw.length || raw.length > 4 * 1024 * 1024) {
+    throw new AppError(400, 'Invalid image payload', 'BAD_REQUEST');
+  }
+  assertMagicMime(raw, mimeType);
+  const clean = sanitizeImageBuffer(raw, mimeType);
 
-  const vision = await analyzeVehiclePhoto({ mimeType, imageBase64 });
+  const vision = await analyzeVehiclePhoto({
+    mimeType: clean.mimeType,
+    imageBase64: clean.buffer.toString('base64'),
+  });
   const priorFlow =
     session.flowState && typeof session.flowState === 'object' && !Array.isArray(session.flowState)
       ? session.flowState

@@ -4,6 +4,7 @@ import { getEnv } from '../config/env.js';
 import { createTtlCache } from '../lib/ttlCache.js';
 import { inferCategoryFromText } from '../lib/maintenanceIntervals.js';
 import { upsertFromManagerFeedback } from '../modules/serviceRecords/serviceRecords.service.js';
+import { sanitizeUntrustedPromptText } from '../lib/piiRedact.js';
 
 const fewShotCache = createTtlCache(10 * 60_000);
 
@@ -343,10 +344,10 @@ function formatFewShotExample(row) {
 
   return {
     vehicle: [extracted?.make, extracted?.model].filter(Boolean).join(' ') || null,
-    symptoms: extracted?.symptoms || null,
-    ai_top_cause: aiCause,
-    confirmed_cause: row.actualCause || aiCause,
-    works_done: row.worksDone || null,
+    symptoms: sanitizeUntrustedPromptText(extracted?.symptoms, 240) || null,
+    ai_top_cause: sanitizeUntrustedPromptText(aiCause, 200),
+    confirmed_cause: sanitizeUntrustedPromptText(row.actualCause || aiCause, 200),
+    works_done: sanitizeUntrustedPromptText(row.worksDone, 200) || null,
     verdict: row.verdict,
   };
 }

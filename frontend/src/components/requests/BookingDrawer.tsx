@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, X } from 'lucide-react';
 import { getBookingAudit, patchBooking, type BookingAuditEntry } from '../../api/dashboard';
+import { getBookingVehicleLabel } from '../../lib/bookingDisplay';
 import { Button } from '../ui/Button';
+import { CopyPhoneButton } from '../ui/CopyPhoneButton';
 import { Loader } from '../ui/Loader';
 import { StatusBadge } from '../ui/StatusBadge';
+import { useToast } from '../ui/toastContext';
 import type { ServiceBooking } from '../../types/dashboard';
+
+type BookingStatus = 'CONFIRMED' | 'ARRIVED' | 'NO_SHOW' | 'CANCELLED';
 
 type Props = {
   booking: ServiceBooking | null;
@@ -15,6 +20,26 @@ type Props = {
   requestBasePath?: string;
 };
 
+const STATUS_ACTIONS: Array<{ status: BookingStatus; label: string; variant: 'secondary' | 'ghost' }> = [
+  { status: 'CONFIRMED', label: 'Подтвердить', variant: 'secondary' },
+  { status: 'ARRIVED', label: 'Приехал', variant: 'ghost' },
+  { status: 'NO_SHOW', label: 'Не приехал', variant: 'ghost' },
+  { status: 'CANCELLED', label: 'Отменить', variant: 'ghost' },
+];
+
+const STATUS_TOASTS: Record<BookingStatus, string> = {
+  CONFIRMED: 'Запись подтверждена',
+  ARRIVED: 'Отмечен приезд клиента',
+  NO_SHOW: 'Отмечена неявка',
+  CANCELLED: 'Запись отменена',
+};
+
+function toLocalInputValue(iso: string) {
+  const date = new Date(iso);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+}
+
 export function BookingDrawer({
   booking,
   onClose,
@@ -22,55 +47,81 @@ export function BookingDrawer({
   showAudit = false,
   requestBasePath = '/dashboard/manager/requests',
 }: Props) {
+  const { success, error: toastError } = useToast();
   const [audit, setAudit] = useState<BookingAuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rescheduleAt, setRescheduleAt] = useState('');
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  const bookingId = booking?.id;
+  const preferredAt = booking?.preferredAt;
 
   useEffect(() => {
-    if (!booking) return;
-    const local = new Date(booking.preferredAt);
-    local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-    setRescheduleAt(local.toISOString().slice(0, 16));
-  }, [booking?.id, booking?.preferredAt]);
+    if (!preferredAt) return;
+    setRescheduleAt(toLocalInputValue(preferredAt));
+  }, [bookingId, preferredAt]);
 
   useEffect(() => {
-    if (!booking || !showAudit) {
+    if (!bookingId || !showAudit) {
       setAudit([]);
       return;
     }
     setAuditLoading(true);
-    void getBookingAudit(booking.id)
+    void getBookingAudit(bookingId)
       .then(setAudit)
       .catch(() => setAudit([]))
       .finally(() => setAuditLoading(false));
-  }, [booking?.id, showAudit]);
+  }, [bookingId, showAudit]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    closeRef.current?.focus();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [bookingId, onClose]);
 
   if (!booking) return null;
 
   const name = booking.client?.fullName || booking.guestName || 'Клиент';
   const phone = booking.client?.phone || booking.guestPhone || '';
-  const sr = booking.serviceRequest;
-  const car = sr ? [sr.snapshotMake, sr.snapshotModel].filter(Boolean).join(' ') : '';
+  const serviceRequest = booking.serviceRequest;
+  const car = getBookingVehicleLabel(booking) || '';
+  const rescheduleChanged = rescheduleAt !== toLocalInputValue(booking.preferredAt);
 
-  async function updateStatus(status: 'CONFIRMED' | 'ARRIVED' | 'NO_SHOW' | 'CANCELLED') {
+  async function updateStatus(status: BookingStatus) {
+    if (!booking) return;
     setBusy(true);
     try {
-      const updated = await patchBooking(booking!.id, { status });
+      const updated = await patchBooking(booking.id, { status });
       onUpdated?.(updated);
+      success(STATUS_TOASTS[status]);
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : 'Не удалось изменить статус записи');
     } finally {
       setBusy(false);
     }
   }
 
   async function reschedule() {
-    if (!rescheduleAt) return;
+    if (!booking || !rescheduleAt) return;
+    const next = new Date(rescheduleAt);
+    if (Number.isNaN(next.getTime())) {
+      toastError('Некорректная дата переноса');
+      return;
+    }
     setBusy(true);
     try {
-      const updated = await patchBooking(booking!.id, {
-        preferredAt: new Date(rescheduleAt).toISOString(),
-      });
+      const updated = await patchBooking(booking.id, { preferredAt: next.toISOString() });
       onUpdated?.(updated);
+      success('Запись перенесена', {
+        description: next.toLocaleString('ru-RU'),
+      });
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : 'Не удалось перенести запись');
     } finally {
       setBusy(false);
     }
@@ -81,21 +132,27 @@ export function BookingDrawer({
       <aside
         className="booking-drawer"
         role="dialog"
-        aria-label="Карточка записи"
-        onClick={(e) => e.stopPropagation()}
+        aria-modal="true"
+        aria-label={`Запись ${new Date(booking.preferredAt).toLocaleString('ru-RU')}`}
+        onClick={(event) => event.stopPropagation()}
       >
         <header className="booking-drawer-header">
-          <h2>Запись</h2>
-          <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Закрыть">
-            <X size={18} />
+          <div>
+            <h2>Запись</h2>
+            <p className="muted tnum">{new Date(booking.preferredAt).toLocaleString('ru-RU')}</p>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={onClose}
+            aria-label="Закрыть (Esc)"
+          >
+            <X size={18} aria-hidden />
           </button>
         </header>
 
         <dl className="detail-dl">
-          <div>
-            <dt>Дата и время</dt>
-            <dd>{new Date(booking.preferredAt).toLocaleString('ru-RU')}</dd>
-          </div>
           <div>
             <dt>Клиент</dt>
             <dd>{name}</dd>
@@ -103,8 +160,11 @@ export function BookingDrawer({
           {phone ? (
             <div>
               <dt>Телефон</dt>
-              <dd>
-                <a href={`tel:${phone}`}>{phone}</a>
+              <dd className="booking-drawer-phone">
+                <a href={`tel:${phone}`} className="tnum">
+                  {phone}
+                </a>
+                <CopyPhoneButton phone={phone} label="" />
               </dd>
             </div>
           ) : null}
@@ -126,29 +186,41 @@ export function BookingDrawer({
               <dd>{booking.notes}</dd>
             </div>
           ) : null}
-          {sr?.snapshotSymptoms ? (
+          {serviceRequest?.snapshotSymptoms ? (
             <div>
-              <dt>Диагноз / симптомы</dt>
-              <dd>{sr.snapshotSymptoms}</dd>
+              <dt>Симптомы</dt>
+              <dd>{serviceRequest.snapshotSymptoms}</dd>
             </div>
           ) : null}
-          {sr ? (
+          {serviceRequest ? (
             <div>
               <dt>Заявка</dt>
               <dd>
-                <Link to={`${requestBasePath}/${sr.id}`}>Открыть заявку</Link>
+                <Link to={`${requestBasePath}/${serviceRequest.id}`}>Открыть заявку</Link>
               </dd>
             </div>
           ) : null}
         </dl>
 
-        <label className="stack gap-xs booking-reschedule">
-          <span>Перенести на</span>
-          <input type="datetime-local" value={rescheduleAt} onChange={(e) => setRescheduleAt(e.target.value)} />
-          <Button type="button" variant="ghost" disabled={busy} onClick={() => void reschedule()}>
-            Сохранить время
-          </Button>
-        </label>
+        <div className="booking-reschedule">
+          <label htmlFor="booking-reschedule-input">Перенести на</label>
+          <div className="booking-reschedule-row">
+            <input
+              id="booking-reschedule-input"
+              type="datetime-local"
+              value={rescheduleAt}
+              onChange={(event) => setRescheduleAt(event.target.value)}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy || !rescheduleChanged}
+              onClick={() => void reschedule()}
+            >
+              Сохранить время
+            </Button>
+          </div>
+        </div>
 
         {showAudit ? (
           <section className="booking-audit-panel">
@@ -158,7 +230,7 @@ export function BookingDrawer({
             <ul className="booking-audit-list">
               {audit.map((entry) => (
                 <li key={entry.id}>
-                  <time>{new Date(entry.createdAt).toLocaleString('ru-RU')}</time>
+                  <time className="tnum">{new Date(entry.createdAt).toLocaleString('ru-RU')}</time>
                   <span>{entry.actor?.fullName || entry.actor?.email || 'Система'}</span>
                 </li>
               ))}
@@ -168,23 +240,25 @@ export function BookingDrawer({
 
         <div className="booking-drawer-actions">
           {phone ? (
-            <a href={`tel:${phone}`} className="btn btn-secondary">
+            <a href={`tel:${phone}`} className="btn btn-primary">
               <Phone size={16} aria-hidden />
               Позвонить
             </a>
           ) : null}
-          <Button type="button" variant="secondary" disabled={busy} onClick={() => void updateStatus('CONFIRMED')}>
-            Подтвердить
-          </Button>
-          <Button type="button" variant="ghost" disabled={busy} onClick={() => void updateStatus('ARRIVED')}>
-            Приехал
-          </Button>
-          <Button type="button" variant="ghost" disabled={busy} onClick={() => void updateStatus('NO_SHOW')}>
-            No-show
-          </Button>
-          {sr ? (
-            <Link to={`${requestBasePath}/${sr.id}`}>
-              <Button>К заявке</Button>
+          {STATUS_ACTIONS.filter((action) => action.status !== booking.status).map((action) => (
+            <Button
+              key={action.status}
+              type="button"
+              variant={action.variant}
+              disabled={busy}
+              onClick={() => void updateStatus(action.status)}
+            >
+              {action.label}
+            </Button>
+          ))}
+          {serviceRequest ? (
+            <Link to={`${requestBasePath}/${serviceRequest.id}`} className="btn btn-ghost">
+              К заявке
             </Link>
           ) : null}
         </div>

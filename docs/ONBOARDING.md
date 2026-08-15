@@ -1,183 +1,136 @@
-# Быстрый старт для разработчика
+# Быстрый старт
 
-Краткая шпаргалка: как поднять проект, войти в кабинеты и не сломать себе вход.
+Как поднять стек, войти в кабинеты и не перепутать Docker с локальным Vite.
 
-## Что это за проект
+## Что это
 
-Веб-приложение автосервиса: публичный сайт, ИИ-консультация, заявки, кабинеты клиента / менеджера / администратора, интеграции с CRM (backend).
+Веб-приложение автосервиса: публичный сайт, ИИ-консультация, заявки, записи, кабинеты клиента / менеджера / администратора.
 
-**Стек:** React (Vite + TS) · Node.js + Express + Prisma · PostgreSQL · LLM (VseLLM / Ollama / OpenAI-compatible).
+**Стек:** React (Vite + TypeScript) · Node.js + Express + Prisma · PostgreSQL · Redis · LLM (OpenAI-compatible / Ollama).
 
----
-
-## 1. Первый запуск
-
-**Требования:** Node.js 22+ (см. `.nvmrc`), npm, Docker + Docker Compose.
-
-```bash
-git clone https://github.com/Nikityanskiy01/car-service-ai-assistant.git
-cd car-service-ai-assistant
-
-docker compose up -d
-
-npm --prefix backend install
-npm --prefix frontend install
-
-cp backend/.env.example backend/.env
-# отредактируйте backend/.env: DATABASE_URL, LLM_* при необходимости
-
-npm --prefix backend run db:setup
-npm run dev
-```
-
-| Сервис | URL по умолчанию |
-|--------|------------------|
-| Frontend (Vite) | http://127.0.0.1:5173 |
-| Backend API (Docker) | http://127.0.0.1:3000/api |
-| PostgreSQL (хост) | localhost:5433 |
-
-`docker compose` поднимает PostgreSQL 16 и (опционально) Ollama.
-
-Альтернатива без `db:setup`:
-
-```bash
-npm --prefix backend run prisma:migrate
-npm --prefix backend run db:seed
-npm --prefix backend run dev
-```
-
-Ollama без Docker: установите [Ollama](https://ollama.com/), `ollama pull qwen2.5:7b`, в `.env` — `LLM_BASE_URL=http://127.0.0.1:11434` и `LLM_MODEL=qwen2.5:7b`.
+**Демо в проде:** https://autoservice-demo.zernov.online  
+На этой машине демо обслуживает Docker Compose, не `npm run dev`.
 
 ---
 
-## 2. Два режима backend — важно для входа
+## 1. Основной запуск — Docker Compose
 
-На машине могут одновременно работать **два** backend:
-
-| Режим | Порт | База | Как запущен |
-|-------|------|------|-------------|
-| **Docker** | 3000 | внутренняя `car_service` | `docker compose up` |
-| **Локальный dev** | 3001 (или 3000) | из `backend/.env` | `npm --prefix backend run dev` |
-
-**Vite по умолчанию проксирует `/api` на порт 3000** (Docker).
-
-Если вы создали пользователей через `npm run db:seed` в `backend/.env` (например `foxmotors_test` на :5433), а frontend ходит на Docker — **логин не сработает**.
-
-### Решение A — работать через Docker
+**Требования:** Docker + Docker Compose, файлы `.env.proxmox` и `backend/.env`.
 
 ```bash
-docker compose exec backend node prisma/seed.js
+cd /home/demo/car-service-ai-assistant   # или корень клона
+
+cp .env.proxmox.example .env.proxmox
+cp backend/.env.production.example backend/.env
+# отредактируйте секреты: JWT_SECRET, INTEGRATION_ENCRYPTION_KEY,
+# CORS_ORIGIN, LLM_API_KEY, POSTGRES_PASSWORD
+
+sudo docker compose --env-file .env.proxmox up -d --build
+sudo docker compose --env-file .env.proxmox ps
 ```
 
-Учётки Docker (другие email):
+| Сервис | URL |
+|--------|-----|
+| Сайт (Nginx в контейнере frontend) | http://127.0.0.1:8080 |
+| API напрямую | http://127.0.0.1:3000/api/health |
+| Mailpit (письма, только demo/dev) | http://127.0.0.1:8025 |
 
-| Роль | Email | Пароль |
-|------|--------|--------|
-| Клиент | `user@example.com` | `1q2w3e4r` |
-| Менеджер | `manager@example.com` | `1q2w3e4r5t` |
-| Админ | `admin@example.com` | `1q2w3e4r5t6y` |
+Контейнеры: `frontend`, `backend`, `db`, `redis`, `mailpit`. PostgreSQL и Redis **не** публикуются на хост — к ним ходит только backend внутри сети Compose.
 
-### Решение B — локальный backend на 3001
+Пользователей после первого подъёма:
 
 ```bash
-# терминал 1
-$env:PORT=3001; npm --prefix backend run dev
-
-# терминал 2 — скопируйте frontend/.env.example → frontend/.env.local
-npm --prefix frontend run dev
+sudo docker compose --env-file .env.proxmox exec backend node prisma/seed.js
+# демо-заявки и записи (не для production с живыми клиентами):
+sudo docker compose --env-file .env.proxmox exec backend node prisma/seed.demo.js
 ```
 
-В `frontend/.env.local`:
+### Учётные записи seed
 
-```env
-VITE_API_PROXY_TARGET=http://127.0.0.1:3001
-```
-
-Учётки после `npm --prefix backend run db:seed`:
+Один набор и в Docker, и в `npm --prefix backend run db:seed`:
 
 | Роль | Email | Пароль |
 |------|--------|--------|
 | Клиент | `client@example.local` | `Client-Demo-2026!` |
 | Менеджер | `manager@example.local` | `Manager-Demo-2026!` |
-| Админ | `admin@example.local` | `Admin-Demo-2026!` |
+| Администратор | `admin@example.local` | `Admin-Demo-2026!` |
 
-Проверка пользователей в БД:
+Вход: `/login` (email или телефон + пароль). Демо-вход без пароля отключён.
+
+---
+
+## 2. Frontend в Vite (опционально)
+
+Нужен, когда правите UI и хотите HMR. API берётся из Docker-backend на `:3000`.
 
 ```bash
-cd backend
-node scripts/list-users.mjs
-node scripts/verify-login.mjs
+npm --prefix frontend install
+npm --prefix frontend run dev
+```
+
+Открыть: http://127.0.0.1:5173  
+Прокси `/api` → `VITE_API_PROXY_TARGET` (по умолчанию `http://127.0.0.1:3000`). Шаблон: `frontend/.env.example`.
+
+---
+
+## 3. Локальный backend без Docker (редко)
+
+Compose **не** пробрасывает Postgres на `localhost:5433`. Локальный `npm --prefix backend run dev` заработает, только если вы сами поднимите PostgreSQL и пропишете `DATABASE_URL` в `backend/.env`.
+
+Для обычной разработки это не нужно: правьте код и пересобирайте контейнеры (см. ниже).
+
+```bash
+cp backend/.env.example backend/.env
+npm --prefix backend install
+npm --prefix backend run db:setup   # migrate + seed, нужен доступный Postgres
+npm --prefix backend run dev
+```
+
+Если Vite должен ходить в этот процесс, а не в Docker:
+
+```env
+# frontend/.env.local
+VITE_API_PROXY_TARGET=http://127.0.0.1:3001
 ```
 
 ---
 
-## 3. Куда заходить после логина
+## 4. Куда заходить после логина
 
-| Роль | URL |
-|------|-----|
+| Роль | Стартовый URL |
+|------|----------------|
 | Клиент | `/dashboard/client` |
 | Менеджер | `/dashboard/manager` |
 | Администратор | `/dashboard/admin` |
 
-### Менеджер
+Полная карта экранов: [product.md](./product.md).
 
-- Рабочий стол — `/dashboard/manager`
-- Заявки (список / канбан) — `/dashboard/manager/requests`
-- Карточка заявки — `/dashboard/manager/requests/:id`
-- Календарь — `/dashboard/manager/calendar`
-- Клиенты — `/dashboard/manager/clients`
-- Обращения с сайта — `/dashboard/manager/contacts`
+**Горячие клавиши в админке и у менеджера:** `Ctrl+K` — command palette.
 
-### Администратор
-
-Навигация: **7 зон** в сайдбаре. Полная спека: [admin-redesign-spec.md](./admin-redesign-spec.md).
-
-| Зона | URL |
-|------|-----|
-| **Пульт** | `/dashboard/admin` |
-| **Аналитика** | `/dashboard/admin/analytics` |
-| **Операции → Заявки** | `/dashboard/admin/operations/requests` |
-| **Операции → Записи** | `/dashboard/admin/operations/bookings` |
-| **Операции → Клиенты** | `/dashboard/admin/operations/clients` |
-| **Операции → Обращения** | `/dashboard/admin/operations/contacts` |
-| **Команда → Пользователи** | `/dashboard/admin/team/users` |
-| **Команда → Активность** | `/dashboard/admin/team/activity` |
-| **ИИ → Статус** | `/dashboard/admin/ai/status` |
-| **ИИ → Сценарии** | `/dashboard/admin/ai/scenarios` |
-| **ИИ → Справочники** | `/dashboard/admin/ai/reference` |
-| **ИИ → Память кейсов** | `/dashboard/admin/ai/memory` |
-| **ИИ → Обратная связь** | `/dashboard/admin/ai/feedback` |
-| **Сайт → Контент** | `/dashboard/admin/site/items` |
-| **Сайт → Блоки** | `/dashboard/admin/site/blocks` |
-| **Сайт → Оформление** | `/dashboard/admin/site/appearance` |
-| **Сайт → Юр. данные** | `/dashboard/admin/site/legal` |
-| **Интеграции** | `/dashboard/admin/integrations` |
-| **Интеграции → Очередь** | `/dashboard/admin/integrations/jobs` |
-| **Интеграции → Конфликты** | `/dashboard/admin/integrations/conflicts` |
-| **Безопасность → Журнал** | `/dashboard/admin/security/audit` |
-
-**Горячие клавиши:** `Ctrl+K` — command palette (поиск по разделам и действиям).
-
-Старые URL (`/dashboard/admin/users`, `/dashboard/admin/audit`) редиректят на новые.
+Старые URL (`/dashboard/admin/users`, `/dashboard/client/requests`, `*.html`) редиректят на актуальные маршруты.
 
 ---
 
-## 4. Полезные команды
+## 5. После изменений в коде
+
+Демо-сайт отдаёт **собранные контейнеры**. Локальный Vite не обновляет https://autoservice-demo.zernov.online.
+
+Из корня репозитория:
 
 ```bash
-# всё сразу (frontend + backend)
-npm run dev
+sudo docker compose --env-file .env.proxmox up -d --build
+sudo docker compose --env-file .env.proxmox ps
+curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/
+```
 
-# только frontend / backend
-npm run dev:frontend
-npm run dev:backend
+Пересборка нужна после правок `frontend/**`, `backend/**`, Docker-файлов, Prisma-схемы, env.
 
-# миграции и seed
-npm --prefix backend run db:migrate
-npm --prefix backend run db:seed
-npm --prefix backend run db:seed:demo   # демо-заявки и данные
+---
 
-# тесты
+## 6. Полезные команды
+
+```bash
+# lint / сборка / тесты
 npm run lint
 npm run build
 npm run test:frontend
@@ -185,59 +138,66 @@ npm run test:backend
 npm run test:e2e
 npm run test:ai
 
-# проверка LLM
+# seed с хоста (нужен DATABASE_URL до живой БД)
+npm --prefix backend run db:migrate
+npm --prefix backend run db:seed
+npm --prefix backend run db:seed:demo
+
+# LLM
 npm --prefix backend run llm:check
+npm --prefix backend run llm:bench
+
+# память кейсов
+npm --prefix backend run case-memory:backfill
 ```
 
 ---
 
-## 5. LLM (ИИ-консультация)
+## 7. LLM
 
-В `backend/.env` типичная настройка для облака:
+В `backend/.env` для облака (типичный прод/демо):
 
 ```env
 LLM_PROVIDER=openai
+LLM_FALLBACK_ENABLED=true
 LLM_CLOUD_BASE_URL=https://api.vsellm.ru/v1
-LLM_API_KEY=<ваш ключ>
+LLM_API_KEY=<ключ>
 LLM_MODEL=qwen3.5-flash
+LLM_EXTRACTION_MODEL=qwen3.5-flash
+LLM_DIAGNOSIS_MODEL=qwen3.5-flash
 ```
 
-Локально через Ollama:
+Локально через Ollama (ставится **на хост**, в Compose её нет):
 
 ```env
 LLM_PROVIDER=ollama
 LLM_BASE_URL=http://127.0.0.1:11434
 LLM_MODEL=qwen2.5:7b
+LLM_EXTRACTION_MODEL=qwen2.5:3b
+LLM_DIAGNOSIS_MODEL=qwen2.5:7b
 ```
 
-Проверка: `npm --prefix backend run llm:check`.
+Из контейнера backend `127.0.0.1` — это сам контейнер. Для Ollama на хосте используйте IP шлюза Docker или публикуйте Ollama так, чтобы контейнер до него достучался. Проверка: `npm --prefix backend run llm:check` или `GET /api/admin/llm-status` под админом.
+
+При сбое модели консультация **не падает**: rule-based fallback (гибрид правил + LLM).
 
 ---
 
-## 6. Частые проблемы
+## 8. Частые проблемы
 
-| Симптом | Причина | Что сделать |
-|---------|---------|-------------|
-| «Требуется авторизация» при входе | Неверный email или frontend бьёт не в ту БД | См. раздел 2 |
-| `Too many attempts` | Rate limit на `/auth/login` | Подождать 15 мин или `docker compose restart backend` |
-| Порт 5173 занят | Старый Vite | Закрыть процесс или открыть URL из консоли (5174…) |
-| ИИ не отвечает | LLM недоступен | `llm:check`, проверить ключ и URL |
-| `db:seed` прошёл, вход не работает | Seed в другую БД, чем backend | Сверить `DATABASE_URL` и порт прокси |
-
----
-
-## 7. Документация
-
-- [Архитектура](architecture.md)
-- [Тестирование](testing.md)
-- [Self-host Proxmox](proxmox-selfhost.md)
-- [Демо-сценарий](demo-defense.md)
-- [OpenAPI](../specs/001-ai-consultation-platform/contracts/openapi.yaml)
+| Симптом | Что сделать |
+|---------|-------------|
+| Сайт на :8080 старый | Пересобрать Compose, не полагаться на Vite |
+| «Требуется авторизация» | Неверный email/пароль или Vite смотрит не в тот backend |
+| `Too many attempts` | Rate limit на `/auth/login` — подождать или `sudo docker compose --env-file .env.proxmox restart backend` |
+| ИИ молчит | `llm:check`, ключ, `LLM_CLOUD_BASE_URL`; на демо должен быть облачный провайдер |
+| Письма не приходят | Mailpit UI на :8025; в проде нужен реальный SMTP в `.env.proxmox` |
+| Backend unhealthy | Логи: `sudo docker compose --env-file .env.proxmox logs backend --tail 80` |
 
 ---
 
-## 8. Секреты
+## 9. Секреты
 
-**Не коммитьте:** `backend/.env`, `frontend/.env.local`, ключи API.
+**Не коммитить:** `.env.proxmox`, `backend/.env`, `frontend/.env.local`, ключи API.
 
-Шаблоны: `backend/.env.example`, `frontend/.env.example`.
+Шаблоны: `.env.proxmox.example`, `backend/.env.example`, `backend/.env.production.example`, `frontend/.env.example`.

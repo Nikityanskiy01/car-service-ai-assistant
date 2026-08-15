@@ -7,7 +7,7 @@ import { getUrgencyFromRequest } from '../../lib/requestDiagnosis.js';
 import { isSlaBreached, SLA_HOURS } from '../../lib/requestSla.js';
 import { getRelevantCases } from '../../services/caseMemory.service.js';
 import { notifyNewServiceRequest } from '../notifications/telegram.service.js';
-import { dispatchOutbox, enqueueOutboxEvent, processPendingJobs } from '../integrations/integrations.service.js';
+import { enqueueOutboxEvent } from '../integrations/integrations.service.js';
 import { exportRequestToConnection } from '../integrations/integrations.service.js';
 import { findOrCreateVehicleForClient, listVehiclesForDossier } from '../vehicles/vehicles.service.js';
 
@@ -96,8 +96,6 @@ export async function createFromSession(sessionId, user) {
     entityId: sr.id,
     payloadJson: { source: 'consultation', actor: 'client' },
   });
-  await dispatchOutbox();
-  await processPendingJobs();
   await notifyNewServiceRequest(full);
   return full;
 }
@@ -153,8 +151,6 @@ export async function createFromGuestSession(sessionId, actor, { fullName, phone
     entityId: sr.id,
     payloadJson: { source: 'consultation', actor: 'guest' },
   });
-  await dispatchOutbox();
-  await processPendingJobs();
   await notifyNewServiceRequest(full);
   return full;
 }
@@ -403,8 +399,6 @@ export async function patchRequestStatus(requestId, user, { status, expectedVers
     entityId: requestId,
     payloadJson: { status },
   });
-  await dispatchOutbox();
-  await processPendingJobs();
   return row;
 }
 

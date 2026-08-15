@@ -6,10 +6,17 @@ import { VehiclePhotoMedia } from './VehiclePhotoMedia';
 type Props = {
   vehicle: ClientVehicle;
   onUpdated: (vehicle: ClientVehicle) => void | Promise<void>;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'banner';
+  variant?: 'default' | 'banner';
 };
 
-export function VehiclePhotoPicker({ vehicle, onUpdated, size = 'lg' }: Props) {
+export function VehiclePhotoPicker({
+  vehicle,
+  onUpdated,
+  size,
+  variant = 'default',
+}: Props) {
+  const mediaSize = size ?? (variant === 'banner' ? 'banner' : 'lg');
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -58,7 +65,7 @@ export function VehiclePhotoPicker({ vehicle, onUpdated, size = 'lg' }: Props) {
   }
 
   return (
-    <div className="vehicle-photo-picker">
+    <div className={`vehicle-photo-picker${variant === 'banner' ? ' is-banner' : ''}`}>
       <button
         type="button"
         className={`vehicle-photo-picker-trigger${dragOver ? ' is-dragover' : ''}${busy ? ' is-busy' : ''}`}
@@ -77,7 +84,7 @@ export function VehiclePhotoPicker({ vehicle, onUpdated, size = 'lg' }: Props) {
           if (file) void handleFile(file);
         }}
       >
-        <VehiclePhotoMedia vehicle={vehicle} size={size} showLabel />
+        <VehiclePhotoMedia vehicle={vehicle} size={mediaSize} showLabel />
         <span className="vehicle-photo-picker-overlay" aria-hidden>
           {busy ? <Loader2 size={22} className="vehicle-photo-picker-spinner" /> : <Camera size={22} />}
           <span>{busy ? 'Загрузка…' : vehicle.photoUrl ? 'Сменить фото' : 'Добавить фото'}</span>

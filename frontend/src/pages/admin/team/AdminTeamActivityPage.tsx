@@ -4,9 +4,9 @@ import { listAuditEvents, listRequestActivity, type ActivityItem } from '../../.
 import type { AuditEvent } from '../../../types/dashboard';
 import { PageHeader } from '../../../components/layout/dashboard/PageHeader';
 import { Card } from '../../../components/ui/Card';
+import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { auditActionLabel, auditEntityLabel } from '../../../lib/auditLabels';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
@@ -63,14 +63,13 @@ export function AdminTeamActivityPage() {
   }, [items]);
 
   if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="stack dashboard-page">
       <PageHeader
         title="Активность команды"
         description="Заявки, feedback, правки CMS и действия администраторов."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/team/activity')}
       />
 
       <Card>
@@ -87,6 +86,7 @@ export function AdminTeamActivityPage() {
 
       <Card>
         <h2>Лента событий</h2>
+        {items.length ? (
         <ul className="activity-feed activity-feed-rich">
           {items.map((item) => (
             <li key={item.id} className={`is-${item.kind}`}>
@@ -100,6 +100,9 @@ export function AdminTeamActivityPage() {
             </li>
           ))}
         </ul>
+        ) : (
+          <EmptyState title="Событий пока нет" description="Действия команды появятся здесь." />
+        )}
       </Card>
     </div>
   );

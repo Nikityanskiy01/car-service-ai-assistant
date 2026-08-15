@@ -8,6 +8,10 @@ import {
 } from '../../middleware/consultationAccess.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
+import { idempotency } from '../../middleware/idempotency.js';
+import { createLlmLimiter, createVisionLimiter } from '../../middleware/rateLimitConfig.js';
+import { createAbuseChallenge, verifyAbuseChallenge } from '../../lib/guestPow.js';
+import { recordConsentEvent } from '../privacy/consent.service.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import { isAppError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
@@ -51,11 +55,34 @@ const staffSessionsQuerySchema = z.object({
 export const consultationsRouter = Router();
 
 const createSessionLimiter = createPublicWriteLimiter(40);
+const llmLimiter = createLlmLimiter();
+const visionLimiter = createVisionLimiter();
+
+function requireAbuseChallenge(req, res, next) {
+  if (process.env.NODE_ENV === 'test' || req.user) return next();
+  const ok = verifyAbuseChallenge({
+    nonce: req.headers['x-abuse-nonce'],
+    issuedAt: req.headers['x-abuse-issued'],
+    difficulty: req.headers['x-abuse-difficulty'],
+    sig: req.headers['x-abuse-sig'],
+    solution: req.headers['x-abuse-solution'],
+  });
+  if (!ok) {
+    return res.status(403).json({ error: 'Требуется проверка антибота', code: 'ABUSE_CHALLENGE' });
+  }
+  next();
+}
+
+consultationsRouter.get('/abuse-challenge', createSessionLimiter, (_req, res) => {
+  res.json(createAbuseChallenge());
+});
 
 consultationsRouter.post(
   '/',
   createSessionLimiter,
   optionalAuthJwt,
+  requireAbuseChallenge,
+  idempotency(),
   asyncHandler(async (req, res) => {
     if (req.user?.role === 'CLIENT') {
       const session = await consultationsService.createSessionForClient(req.user.id, req.body || {});
@@ -161,6 +188,7 @@ consultationsRouter.get(
 
 consultationsRouter.post(
   '/:sessionId/messages',
+  llmLimiter,
   optionalAuthJwt,
   consultationSessionAccess,
   blockStaffFromPosting,
@@ -188,6 +216,7 @@ consultationsRouter.post(
 
 consultationsRouter.post(
   '/:sessionId/analyze-photo',
+  visionLimiter,
   optionalAuthJwt,
   consultationSessionAccess,
   blockStaffFromPosting,
@@ -218,6 +247,7 @@ consultationsRouter.post(
 
 consultationsRouter.post(
   '/:sessionId/messages/stream',
+  llmLimiter,
   optionalAuthJwt,
   consultationSessionAccess,
   blockStaffFromPosting,
@@ -374,12 +404,19 @@ consultationsRouter.post(
   consultationSessionAccess,
   blockStaffFromPosting,
   validateBody(guestRequestSchema),
+  idempotency(),
   asyncHandler(async (req, res) => {
     const sr = await serviceRequestsService.createFromGuestSession(
       req.params.sessionId,
       req.consultationActor,
       req.validatedBody,
     );
+    await recordConsentEvent({
+      subjectKey: req.validatedBody.phone || req.validatedBody.email || 'guest',
+      purpose: 'guest_service_request',
+      ip: String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim() || null,
+      userAgent: req.get('user-agent') || null,
+    });
     res.status(201).json(serializeServiceRequest(sr));
   }),
 );

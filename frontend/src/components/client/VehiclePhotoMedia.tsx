@@ -12,7 +12,7 @@ type VehiclePhotoMediaProps = {
     'id' | 'make' | 'model' | 'year' | 'photoUrl' | 'updatedAt' | 'color'
   >;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'banner';
   showLabel?: boolean;
 };
 
@@ -31,6 +31,7 @@ export function VehiclePhotoMedia({
     .join('')
     .slice(0, 2)
     .toUpperCase();
+  const carSize = size === 'banner' || size === 'lg' ? 56 : size === 'sm' ? 28 : 40;
 
   return (
     <div
@@ -44,10 +45,12 @@ export function VehiclePhotoMedia({
         <div className="vehicle-photo-media-placeholder">
           <span className="vehicle-photo-media-glow" />
           <span className="vehicle-photo-media-silhouette" aria-hidden>
-            <Car size={size === 'lg' ? 56 : size === 'sm' ? 28 : 40} strokeWidth={1.5} />
+            <Car size={carSize} strokeWidth={1.5} />
           </span>
           <span className="vehicle-photo-media-initials">{initials || 'АВ'}</span>
-          {vehicle.color ? <span className="vehicle-photo-media-color">{vehicle.color}</span> : null}
+          {vehicle.color && size !== 'banner' ? (
+            <span className="vehicle-photo-media-color">{vehicle.color}</span>
+          ) : null}
         </div>
       )}
     </div>

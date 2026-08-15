@@ -11,10 +11,14 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { Loader } from '../../components/ui/Loader';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Tabs } from '../../components/ui/Tabs';
+import { useToast } from '../../components/ui/toastContext';
+import { managerZonePaths } from '../../config/managerPaths';
 import { requestNeedsFeedback } from '../../lib/managerRequestHelpers';
 import { usePageMeta } from '../../hooks/usePageMeta';
+
+const paths = managerZonePaths(false);
 
 const VERDICT_LABELS: Record<string, string> = {
   CORRECT: 'Верный',
@@ -29,21 +33,32 @@ export function ManagerAiQualityPage() {
   const [report, setReport] = useState<AiFeedbackReport | null>(null);
   const [pendingItems, setPendingItems] = useState<Awaited<ReturnType<typeof listServiceRequests>>['items']>([]);
   const [period, setPeriod] = useState('7');
+  const [exporting, setExporting] = useState(false);
+  const { success, error: toastError } = useToast();
 
   useEffect(() => {
     const days = period === 'today' ? 1 : Number(period) || 7;
     setLoading(true);
     setError(null);
+    let cancelled = false;
     void Promise.all([
       getAiFeedbackReport(days),
       listServiceRequests({ pageSize: 100, sort: 'createdAt', dir: 'desc' }),
     ])
       .then(([feedback, requests]) => {
+        if (cancelled) return;
         setReport(feedback);
         setPendingItems(requests.items.filter((item) => requestNeedsFeedback(item, 24)));
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [period]);
 
   const days = period === 'today' ? 1 : Number(period) || 7;
@@ -61,17 +76,31 @@ export function ManagerAiQualityPage() {
     [report],
   );
 
-  if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} onRetry={() => setPeriod((prev) => prev)} />;
+
+  if (loading && !report) {
+    return (
+      <div className="stack dashboard-page">
+        <Skeleton className="skeleton-hero" />
+        <div className="metrics-grid metrics-grid-4">
+          <Skeleton className="skeleton-card" />
+          <Skeleton className="skeleton-card" />
+          <Skeleton className="skeleton-card" />
+          <Skeleton className="skeleton-card" />
+        </div>
+        <Skeleton className="skeleton-block" />
+      </div>
+    );
+  }
   if (!report) return null;
 
   return (
-    <div className="stack dashboard-page">
+    <div className={`stack dashboard-page${loading ? ' is-refreshing' : ''}`}>
       <PageHeader
         title="Качество ИИ"
         description="Насколько предварительные диагнозы совпадают с реальностью в сервисе."
         breadcrumbs={[
-          { label: 'Рабочий стол', to: '/dashboard/manager' },
+          { label: 'Рабочий стол', to: paths.root },
           { label: 'Качество ИИ' },
         ]}
       />
@@ -101,7 +130,7 @@ export function ManagerAiQualityPage() {
           max={100}
           suffix="%"
         />
-        <Link to="/dashboard/manager/requests?status=COMPLETED&feedback=none" className="kpi-bullet-link">
+        <Link to={`${paths.requests}?feedback=none`} className="kpi-bullet-link">
           <AnalyticsMetricCard label="Ждут оценки (>24ч)" value={pendingCount} />
         </Link>
       </div>
@@ -112,9 +141,16 @@ export function ManagerAiQualityPage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => void downloadApiFile(`/analytics/ai-feedback.csv?days=${days}`)}
+            disabled={exporting}
+            onClick={() => {
+              setExporting(true);
+              void downloadApiFile(`/analytics/ai-feedback.csv?days=${days}`)
+                .then(() => success('Отчёт выгружен'))
+                .catch((e) => toastError(e instanceof Error ? e.message : 'Не удалось выгрузить отчёт'))
+                .finally(() => setExporting(false));
+            }}
           >
-            Скачать CSV
+            {exporting ? 'Готовим…' : 'Скачать CSV'}
           </Button>
         </div>
 
@@ -192,7 +228,7 @@ export function ManagerAiQualityPage() {
           <div>
             <strong>Нужна ваша оценка: {pendingCount}</strong>
             <p>Откройте завершённые или активные заявки и отметьте, насколько диагноз ИИ совпал с реальностью.</p>
-            <Link to="/dashboard/manager/requests?feedback=none">
+            <Link to={`${paths.requests}?feedback=none`}>
               <Button variant="secondary">Перейти в очередь</Button>
             </Link>
           </div>

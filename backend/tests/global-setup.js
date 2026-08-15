@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { assertTestDatabaseUrl } from '../scripts/assert-test-database.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
@@ -21,9 +22,6 @@ export default async function globalSetup() {
       process.env.DATABASE_URL ||
       'postgresql://car_service_app:change-me@localhost:5433/car_service_test',
   };
-  try {
-    execSync('npx prisma migrate deploy', { cwd: root, env, stdio: 'pipe' });
-  } catch (e) {
-    console.warn('global-setup: prisma db setup failed', e.message);
-  }
+  assertTestDatabaseUrl(env.DATABASE_URL);
+  execSync('npx prisma migrate deploy', { cwd: root, env, stdio: 'pipe' });
 }

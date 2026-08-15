@@ -1,3 +1,4 @@
+import dns from 'node:dns/promises';
 import net from 'net';
 import { AppError } from './errors.js';
 
@@ -20,22 +21,40 @@ function isPrivateIpv4(ip) {
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  if (a === 100 && b >= 64 && b <= 127) return true;
   return false;
 }
 
 function isPrivateIpv6(ip) {
   const normalized = ip.toLowerCase();
   if (normalized === '::1') return true;
-  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true; // ULA
-  if (normalized.startsWith('fe80')) return true; // link-local
+  if (normalized.startsWith('::ffff:')) {
+    return isPrivateIpv4(normalized.slice(7));
+  }
+  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+  if (normalized.startsWith('fe80')) return true;
   return false;
 }
 
+function assertHostSafe(host) {
+  if (!host || BLOCKED_HOSTNAMES.has(host)) {
+    throw new AppError(400, 'Запрещённый хост внешней системы', 'BAD_REQUEST');
+  }
+  if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.localhost')) {
+    throw new AppError(400, 'Запрещённый хост внешней системы', 'BAD_REQUEST');
+  }
+  const ipVersion = net.isIP(host);
+  if (ipVersion === 4 && isPrivateIpv4(host)) {
+    throw new AppError(400, 'Запрещён доступ к частным IP-адресам', 'BAD_REQUEST');
+  }
+  if (ipVersion === 6 && isPrivateIpv6(host)) {
+    throw new AppError(400, 'Запрещён доступ к частным IP-адресам', 'BAD_REQUEST');
+  }
+}
+
 /**
- * Blocks SSRF to loopback / private / link-local / cloud metadata.
  * @param {string} urlString
- * @param {{ allowHttp?: boolean }} [opts]
+ * @param {{ allowHttp?: boolean, skipDns?: boolean }} [opts]
  */
 export function assertSafeOutboundUrl(urlString, opts = {}) {
   let url;
@@ -49,39 +68,47 @@ export function assertSafeOutboundUrl(urlString, opts = {}) {
   if (url.protocol === 'https:') {
     // ok
   } else if (url.protocol === 'http:' && allowHttp) {
-    // ok for local/dev adapters when explicitly allowed
+    // ok
   } else {
     throw new AppError(400, 'Разрешены только HTTPS URL внешних систем', 'BAD_REQUEST');
   }
 
   const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (!host || BLOCKED_HOSTNAMES.has(host)) {
-    throw new AppError(400, 'Запрещённый хост внешней системы', 'BAD_REQUEST');
-  }
+  assertHostSafe(host);
+  return url;
+}
 
-  if (host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.localhost')) {
-    throw new AppError(400, 'Запрещённый хост внешней системы', 'BAD_REQUEST');
+export async function assertSafeOutboundUrlResolved(urlString, opts = {}) {
+  const url = assertSafeOutboundUrl(urlString, opts);
+  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (net.isIP(host)) return url;
+  let records;
+  try {
+    records = await dns.lookup(host, { all: true, verbatim: true });
+  } catch {
+    throw new AppError(400, 'Не удалось разрешить хост внешней системы', 'BAD_REQUEST');
   }
-
-  const ipVersion = net.isIP(host);
-  if (ipVersion === 4 && isPrivateIpv4(host)) {
-    throw new AppError(400, 'Запрещён доступ к частным IP-адресам', 'BAD_REQUEST');
+  for (const row of records || []) {
+    const ip = String(row.address || '').replace(/^\[|\]$/g, '').toLowerCase();
+    if (!ip) continue;
+    if (net.isIP(ip) === 4 && isPrivateIpv4(ip)) {
+      throw new AppError(400, 'Запрещён доступ к частным IP-адресам', 'BAD_REQUEST');
+    }
+    if (net.isIP(ip) === 6 && isPrivateIpv6(ip)) {
+      throw new AppError(400, 'Запрещён доступ к частным IP-адресам', 'BAD_REQUEST');
+    }
   }
-  if (ipVersion === 6 && isPrivateIpv6(host)) {
-    throw new AppError(400, 'Запрещён доступ к частным IP-адресам', 'BAD_REQUEST');
-  }
-
   return url;
 }
 
 export function joinSafeUrl(baseUrl, path = '/') {
   const base = assertSafeOutboundUrl(baseUrl, { allowHttp: true });
-  const baseNoSlash = `${base.origin}${base.pathname}`.replace(/\/+$/, '');
   const suffix = String(path || '/');
-  const joined =
-    suffix.startsWith('http://') || suffix.startsWith('https://')
-      ? suffix
-      : `${baseNoSlash}${suffix.startsWith('/') ? '' : '/'}${suffix}`;
+  if (/^https?:\/\//i.test(suffix) || suffix.startsWith('//')) {
+    throw new AppError(400, 'Путь внешней системы не должен быть абсолютным URL', 'BAD_REQUEST');
+  }
+  const baseNoSlash = `${base.origin}${base.pathname}`.replace(/\/+$/, '');
+  const joined = `${baseNoSlash}${suffix.startsWith('/') ? '' : '/'}${suffix}`;
   assertSafeOutboundUrl(joined, { allowHttp: true });
   return joined;
 }

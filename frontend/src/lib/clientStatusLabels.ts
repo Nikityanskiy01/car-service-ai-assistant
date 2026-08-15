@@ -1,5 +1,5 @@
 import type { ServiceRequestStatus } from '../types/serviceRequest';
-import { CLIENT_BOOKING_STATUS_LEGEND, CLIENT_REQUEST_STATUS_LEGEND } from './clientStatusLegend';
+import { CLIENT_BOOKING_STATUS_LEGEND } from './clientStatusLegend';
 
 export const CLIENT_REQUEST_STATUS_LABELS: Record<ServiceRequestStatus, string> = {
   NEW: 'Ждёт менеджера',

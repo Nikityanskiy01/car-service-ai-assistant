@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { AppError } from './errors.js';
+import { assertMagicMime } from './fileMagic.js';
+import { sanitizeUploadedImage } from './imageSanitize.js';
 
 const UPLOAD_ROOT =
   process.env.VEHICLE_PHOTO_UPLOAD_DIR ||
@@ -31,8 +33,14 @@ export function validateVehiclePhotoInput({ mimeType, contentBase64 }) {
   if (buffer.length > MAX_FILE_BYTES) {
     throw new AppError(400, 'Файл слишком большой (макс. 4 МБ)', 'BAD_REQUEST');
   }
-  const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
-  return { mimeType: mime, buffer, sizeBytes: buffer.length, ext };
+  assertMagicMime(buffer, mime);
+  const clean = sanitizeUploadedImage(buffer, mime);
+  return {
+    mimeType: clean.mimeType,
+    buffer: clean.buffer,
+    sizeBytes: clean.sizeBytes,
+    ext: clean.ext,
+  };
 }
 
 export async function saveVehiclePhotoFile(buffer, ext) {

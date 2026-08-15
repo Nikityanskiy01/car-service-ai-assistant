@@ -8,6 +8,9 @@ type Props = {
   onChange: (value: string) => void;
   placeholder?: string;
   autoComplete?: string;
+  required?: boolean;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
 };
 
 export function ProfilePasswordField({
@@ -17,6 +20,8 @@ export function ProfilePasswordField({
   onChange,
   placeholder,
   autoComplete,
+  required = false,
+  ...rest
 }: Props) {
   return (
     <div className="profile-password-field">
@@ -29,7 +34,9 @@ export function ProfilePasswordField({
         value={value}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        required={required}
         onChange={(e) => onChange(e.target.value)}
+        {...rest}
       />
     </div>
   );

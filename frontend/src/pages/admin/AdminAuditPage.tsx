@@ -4,11 +4,12 @@ import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { Input } from '../../components/ui/Input';
 import { Loader } from '../../components/ui/Loader';
 import { Select } from '../../components/ui/Select';
-import { resolveAdminBreadcrumbs } from '../../config/adminRoutes';
-import { auditActionLabel, auditEntityLabel, auditEventDetail, auditEventsToCsv } from '../../lib/auditLabels';
+import { auditActionLabel, auditActionOptions, auditEntityLabel, auditEventDetail, auditEventsToCsv } from '../../lib/auditLabels';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { AuditEvent } from '../../types/dashboard';
 
@@ -30,6 +31,9 @@ export function AdminAuditPage() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [actionFilter, setActionFilter] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
+  const [actorQuery, setActorQuery] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -37,20 +41,31 @@ export function AdminAuditPage() {
     void listAuditEvents({
       action: actionFilter || undefined,
       entityType: entityFilter || undefined,
+      from: from || undefined,
+      to: to ? `${to}T23:59:59.999Z` : undefined,
       limit: 200,
     })
       .then(setEvents)
       .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
       .finally(() => setLoading(false));
-  }, [actionFilter, entityFilter]);
+  }, [actionFilter, entityFilter, from, to]);
 
-  const actionOptions = useMemo(() => {
-    const unique = Array.from(new Set(events.map((e) => e.action))).sort();
-    return [{ value: '', label: 'Все действия' }, ...unique.map((a) => ({ value: a, label: auditActionLabel(a) }))];
-  }, [events]);
+  const actionOptions = useMemo(
+    () => [{ value: '', label: 'Все действия' }, ...auditActionOptions()],
+    [],
+  );
+
+  const visible = useMemo(() => {
+    const q = actorQuery.trim().toLowerCase();
+    if (!q) return events;
+    return events.filter((e) => {
+      const who = `${e.actor?.fullName || ''} ${e.actor?.email || ''} ${e.actorEmail || ''}`.toLowerCase();
+      return who.includes(q);
+    });
+  }, [events, actorQuery]);
 
   function exportCsv() {
-    const blob = new Blob([auditEventsToCsv(events)], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([auditEventsToCsv(visible)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -59,19 +74,18 @@ export function AdminAuditPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} />;
+  if (loading && !events.length) return <Loader />;
+  if (error && !events.length) return <ErrorState message={error} onRetry={() => void listAuditEvents({ limit: 200 }).then(setEvents)} />;
 
   return (
     <div className="stack dashboard-page">
       <PageHeader
         title="Журнал действий"
         description="Кто, что и когда изменил."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/security/audit')}
-        actions={<Button variant="secondary" onClick={exportCsv}>Экспорт CSV</Button>}
+        actions={<Button variant="secondary" onClick={exportCsv} disabled={!visible.length}>Экспорт CSV</Button>}
       />
 
-      <Card className="filter-bar analytics-toolbar">
+      <Card className="admin-toolbar">
         <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} aria-label="Тип сущности">
           {ENTITY_OPTIONS.map((o) => (
             <option key={o.value || 'all'} value={o.value}>
@@ -86,25 +100,37 @@ export function AdminAuditPage() {
             </option>
           ))}
         </Select>
+        <Input
+          value={actorQuery}
+          onChange={(e) => setActorQuery(e.target.value)}
+          placeholder="Кто (имя или email)"
+          aria-label="Фильтр по автору"
+        />
+        <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Дата с" />
+        <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Дата по" />
       </Card>
 
       <Card>
-        <DataTable
-          columns={[
-            { key: 'when', label: 'Когда' },
-            { key: 'who', label: 'Кто' },
-            { key: 'what', label: 'Действие' },
-            { key: 'entity', label: 'Сущность' },
-            { key: 'detail', label: 'Детали' },
-          ]}
-          rows={events.map((e) => ({
-            when: e.createdAt ? new Date(e.createdAt).toLocaleString('ru-RU') : '—',
-            who: e.actor?.fullName || e.actor?.email || e.actorEmail || 'Система',
-            what: auditActionLabel(e.action),
-            entity: auditEntityLabel(e.entityType),
-            detail: auditEventDetail(e) || e.entityId || '—',
-          }))}
-        />
+        {!visible.length ? (
+          <EmptyState title="Записей нет" description="Измените фильтры или выполните действие в админке." />
+        ) : (
+          <DataTable
+            columns={[
+              { key: 'when', label: 'Когда' },
+              { key: 'who', label: 'Кто' },
+              { key: 'what', label: 'Действие' },
+              { key: 'entity', label: 'Сущность' },
+              { key: 'detail', label: 'Детали' },
+            ]}
+            rows={visible.map((e) => ({
+              when: e.createdAt ? new Date(e.createdAt).toLocaleString('ru-RU') : '—',
+              who: e.actor?.fullName || e.actor?.email || e.actorEmail || 'Система',
+              what: auditActionLabel(e.action),
+              entity: auditEntityLabel(e.entityType),
+              detail: auditEventDetail(e) || e.entityId || '—',
+            }))}
+          />
+        )}
       </Card>
     </div>
   );

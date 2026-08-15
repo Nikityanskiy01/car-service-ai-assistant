@@ -1,3 +1,4 @@
+import { Check, CheckCheck } from 'lucide-react';
 import type { FollowUpMessage } from '../../api/dashboard';
 import { MessageAttachmentList } from '../requests/MessageAttachmentList';
 
@@ -17,6 +18,20 @@ function initials(name: string) {
     .join('');
 }
 
+function DeliveryTicks({ status }: { status: 'sent' | 'read' }) {
+  const read = status === 'read';
+  const Icon = read ? CheckCheck : Check;
+  return (
+    <span
+      className={`follow-up-bubble-ticks ${read ? 'is-read' : 'is-sent'}`}
+      aria-label={read ? 'Прочитано' : 'Отправлено'}
+      title={read ? 'Прочитано' : 'Отправлено'}
+    >
+      <Icon size={14} strokeWidth={2.4} aria-hidden />
+    </span>
+  );
+}
+
 type Props = {
   message: FollowUpMessage;
   viewerRole?: 'CLIENT' | 'MANAGER' | 'ADMINISTRATOR';
@@ -30,6 +45,7 @@ export function FollowUpMessageBubble({ message, viewerRole = 'CLIENT' }: Props)
   const name = isOwn
     ? 'Вы'
     : message.author?.fullName || (viewerRole === 'CLIENT' ? 'Менеджер' : 'Клиент');
+  const deliveryStatus = isOwn ? message.deliveryStatus || 'sent' : null;
 
   return (
     <article
@@ -46,7 +62,10 @@ export function FollowUpMessageBubble({ message, viewerRole = 'CLIENT' }: Props)
         <div className="follow-up-bubble-card">
           {message.body ? <p className="follow-up-bubble-text">{message.body}</p> : null}
           <MessageAttachmentList attachments={message.attachments} />
-          <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
+          <span className="follow-up-bubble-meta">
+            <time dateTime={message.createdAt}>{formatMessageTime(message.createdAt)}</time>
+            {deliveryStatus ? <DeliveryTicks status={deliveryStatus} /> : null}
+          </span>
         </div>
       </div>
     </article>

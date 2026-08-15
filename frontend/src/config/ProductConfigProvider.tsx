@@ -30,8 +30,8 @@ export function ProductConfigProvider({ children }: { children: React.ReactNode 
 
   async function refresh() {
     try {
-      const data = await getPublicSiteSettings();
-      const { updatedAt: _u, ...rest } = data;
+      const { updatedAt, ...rest } = await getPublicSiteSettings();
+      void updatedAt;
       setConfig(mergeConfig(rest));
     } catch {
       setConfig(productConfig);

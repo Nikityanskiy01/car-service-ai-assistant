@@ -19,29 +19,30 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#0F172A` | `--color-primary` |
+| Primary | `#EA580C` | `--color-primary` / `--brand-primary` |
 | On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#334155` | `--color-secondary` |
-| Accent/CTA | `#0369A1` | `--color-accent` |
-| Background | `#F8FAFC` | `--color-background` |
-| Foreground | `#020617` | `--color-foreground` |
-| Muted | `#E8ECF1` | `--color-muted` |
-| Border | `#E2E8F0` | `--color-border` |
-| Destructive | `#DC2626` | `--color-destructive` |
-| Ring | `#0F172A` | `--color-ring` |
+| Secondary | `#0B0D12` | `--brand-secondary` |
+| Accent/CTA | `#FB923C` | `--brand-accent` |
+| Background (dark) | `#0B0D12` | `--color-background` |
+| Background (light) | `#F4F4F5` | `--color-background` |
+| Foreground (dark) | `#F4F4F5` | `--color-text-primary` |
+| Muted | `#A1A1AA` | `--color-text-secondary` |
+| Border | `rgb(255 255 255 / 0.1)` | `--color-border` |
+| Destructive | `#EF4444` | `--color-danger` |
+| Ring | `#EA580C` | `--color-primary` |
 
-**Color Notes:** Professional navy + blue CTA
+**Color Notes:** Dark-first garage UI, orange CTA. Light theme uses zinc neutrals and the same orange. Navy/blue from the original Stitch export is **not** the shipped brand.
 
 ### Typography
 
 - **Heading Font:** Manrope
-- **Body Font:** Source Sans 3
+- **Body Font:** Manrope
 - **Mood:** professional, automotive, trustworthy, precise, modern service
 - **Note:** Cyrillic-capable pair (Inter avoided per project typography rules)
 
 **CSS Import:**
 ```css
-/* via @fontsource/manrope + @fontsource/source-sans-3 */
+/* via @fontsource/manrope (cyrillic + latin-400) */
 ```
 
 ### Spacing Variables

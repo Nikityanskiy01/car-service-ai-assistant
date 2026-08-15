@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Car, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { DashboardNavItem } from '../../../config/dashboardNav';
@@ -23,11 +23,7 @@ export function DashboardSidebar({
   allowCollapse = true,
 }: SidebarProps) {
   const productConfig = useProductConfig();
-  const itemCount = useMemo(
-    () => (groups ? groups.reduce((sum, g) => sum + g.items.length, 0) : items.length),
-    [groups, items],
-  );
-  const canCollapse = allowCollapse && itemCount <= 7;
+  const canCollapse = allowCollapse;
 
   const [collapsed, setCollapsed] = useState(() => {
     if (!canCollapse) return false;
@@ -112,7 +108,7 @@ export function DashboardSidebar({
           ) : null}
         </div>
 
-        <nav className="dashboard-sidebar-nav">
+        <nav className="dashboard-sidebar-nav" aria-label="Разделы кабинета">
           {itemGroups.map((group, groupIndex) => (
             <div
               key={group.title || 'default'}

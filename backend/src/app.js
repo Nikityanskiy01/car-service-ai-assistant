@@ -6,12 +6,15 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import pinoHttp from 'pino-http';
+import { context, trace } from '@opentelemetry/api';
 import { getEnv } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { createRateLimiter } from './middleware/rateLimitConfig.js';
 import { logger } from './lib/logger.js';
+import { httpMetricsMiddleware } from './lib/httpMetrics.js';
+import { sendProblem } from './lib/problem.js';
 import api from './routes/api.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -58,6 +61,7 @@ export function createApp() {
                 defaultSrc: ["'self'"],
                 scriptSrc: ["'self'"],
                 styleSrc: ["'self'"],
+                styleSrcAttr: ["'unsafe-inline'"],
                 imgSrc: ["'self'", 'data:'],
                 fontSrc: ["'self'"],
                 connectSrc: ["'self'"],
@@ -95,12 +99,18 @@ export function createApp() {
     }),
   );
   app.use((req, res, next) => {
-    const incoming = req.headers['x-request-id'];
-    const requestId = typeof incoming === 'string' && incoming.trim() ? incoming.trim() : crypto.randomUUID();
+    const span = trace.getSpan(context.active());
+    const traceId = span?.spanContext().traceId;
+    const requestId =
+      traceId && traceId !== '00000000000000000000000000000000' ? traceId : crypto.randomUUID();
     req.id = requestId;
     res.setHeader('X-Request-Id', requestId);
+    if (req.path.startsWith('/api')) {
+      res.setHeader('Cache-Control', 'no-store');
+    }
     next();
   });
+  app.use(httpMetricsMiddleware);
 
   if (env.NODE_ENV !== 'test') {
     app.use(
@@ -108,18 +118,18 @@ export function createApp() {
         logger,
         genReqId: (req) => req.id,
         autoLogging: {
-          ignore: (req) => req.url === '/api/health' || req.url?.startsWith('/api/health?'),
+          ignore: (req) =>
+            req.url === '/api/health' ||
+            req.url === '/api/live' ||
+            req.url === '/api/ready' ||
+            req.url === '/api/metrics' ||
+            req.url?.startsWith('/api/health?'),
         },
       }),
     );
   }
 
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: env.NODE_ENV === 'test' ? 10_000 : 300,
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
+  const limiter = createRateLimiter({ max: 300 });
   app.use('/api/', limiter);
 
   app.use('/api', api);
@@ -130,14 +140,14 @@ export function createApp() {
 
   app.use((req, res) => {
     if (req.path.startsWith('/api') || !env.SERVE_FRONTEND) {
-      return res.status(404).json({ error: 'Not found' });
+      return sendProblem(res, { status: 404, detail: 'Not found', code: 'NOT_FOUND', instance: req.path });
     }
     const isGetLike = req.method === 'GET' || req.method === 'HEAD';
     const hasFileExt = path.extname(req.path).length > 0;
     if (isGetLike && !hasFileExt && fs.existsSync(frontendIndex)) {
       return res.sendFile(frontendIndex);
     }
-    return res.status(404).json({ error: 'Not found' });
+    return sendProblem(res, { status: 404, detail: 'Not found', code: 'NOT_FOUND', instance: req.path });
   });
 
   // Keep JSON errors for API, nice page for frontend.

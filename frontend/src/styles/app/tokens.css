@@ -1,0 +1,75 @@
+/* Design tokens — extracted from main.css without visual changes */
+:root {
+  --brand-primary: #ea580c;
+  --brand-secondary: #0b0d12;
+  --brand-accent: #fb923c;
+
+  --color-background: #0b0d12;
+  --color-surface: #151821;
+  --color-surface-secondary: #1c2030;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-border: rgb(255 255 255 / 0.1);
+  --color-primary: var(--brand-primary);
+  --color-primary-hover: #f97316;
+  --color-on-primary: #ffffff;
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-danger: #ef4444;
+
+  --font-heading: 'Manrope', 'Segoe UI', sans-serif;
+  --font-body: 'Manrope', 'Segoe UI', sans-serif;
+
+  --shadow-sm: 0 4px 14px rgb(0 0 0 / 0.25);
+  --shadow-md: 0 12px 32px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 24px 48px rgb(0 0 0 / 0.45);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-3xl: 4rem;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.35rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+
+  --layout-max: 1120px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
+}
+
+:root[data-theme='dark'] {
+  --color-background: #0b0d12;
+  --color-surface: #151821;
+  --color-surface-secondary: #1c2030;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-border: rgb(255 255 255 / 0.1);
+  --color-primary-hover: #fb923c;
+}
+
+:root[data-theme='light'] {
+  --color-background: #f4f4f5;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f4f4f5;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #52525b;
+  --color-border: #d4d4d8;
+  --color-primary-hover: #c2410c;
+  --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.08);
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.12);
+}

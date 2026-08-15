@@ -1,10 +1,6 @@
-import crypto from 'crypto';
 import prisma from '../lib/prisma.js';
+import { guestTokenMatches } from '../lib/guestToken.js';
 
-/**
- * После optionalAuthJwt. Проверяет доступ к сессии :sessionId (JWT-владелец, гость по X-Consultation-Guest-Token, менеджер).
- * Выставляет req.consultationActor: { kind: 'staff'|'owner'|'guest', user? }.
- */
 export async function consultationSessionAccess(req, res, next) {
   const { sessionId } = req.params;
   if (!sessionId) return next();
@@ -28,18 +24,11 @@ export async function consultationSessionAccess(req, res, next) {
       req.consultationActor = { kind: 'owner', user: u };
       return next();
     }
-    return res.status(403).json({ error: 'Forbidden', code: 'FORBIDDEN' });
+    return res.status(403).json({ error: 'Forbidden', code: 'CONSULTATION_FORBIDDEN' });
   }
 
   const hdr = req.headers['x-consultation-guest-token'];
-  const expected = typeof session.guestToken === 'string' ? Buffer.from(session.guestToken) : null;
-  const provided = typeof hdr === 'string' && hdr.length > 0 ? Buffer.from(hdr) : null;
-  if (
-    expected &&
-    provided &&
-    expected.length === provided.length &&
-    crypto.timingSafeEqual(expected, provided)
-  ) {
+  if (guestTokenMatches(session.guestToken, hdr)) {
     req.consultationActor = { kind: 'guest' };
     return next();
   }
@@ -50,7 +39,6 @@ export async function consultationSessionAccess(req, res, next) {
   });
 }
 
-/** Менеджер не пишет в чужой чат от имени клиента. */
 export function blockStaffFromPosting(req, res, next) {
   if (req.consultationActor?.kind === 'staff') {
     return res.status(403).json({ error: 'Недоступно для роли менеджера' });

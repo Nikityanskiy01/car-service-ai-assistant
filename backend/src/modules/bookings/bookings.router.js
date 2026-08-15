@@ -4,12 +4,15 @@ import { authJwt } from '../../middleware/authJwt.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
+import { idempotency } from '../../middleware/idempotency.js';
 import { validateBody } from '../../middleware/validate.js';
+import { recordConsentEvent } from '../privacy/consent.service.js';
 import * as bookingsService from './bookings.service.js';
 
 const createSchema = z.object({
   preferredAt: z.string().min(4),
   serviceRequestId: z.string().uuid().optional().nullable(),
+  vehicleId: z.string().uuid().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 
@@ -37,9 +40,14 @@ const patchSchema = z
   })
   .refine((o) => Object.keys(o).length > 0, { message: 'Укажите хотя бы одно поле' });
 
-const clientPatchSchema = z.object({
-  status: z.literal('CANCELLED'),
-});
+const clientPatchSchema = z
+  .object({
+    status: z.literal('CANCELLED').optional(),
+    preferredAt: z.string().min(4).optional(),
+  })
+  .refine((o) => Boolean(o.status) !== Boolean(o.preferredAt), {
+    message: 'Укажите новую дату или отмену',
+  });
 
 export const bookingsRouter = Router();
 
@@ -49,8 +57,17 @@ bookingsRouter.post(
   '/guest',
   guestWriteLimiter,
   validateBody(createGuestSchema),
+  idempotency(),
   asyncHandler(async (req, res) => {
     const b = await bookingsService.createGuestBooking(req.validatedBody);
+    await recordConsentEvent({
+      subjectKey: `phone:${b.guestPhone || req.validatedBody.phone}`,
+      purpose: 'guest_booking',
+      ip: String(req.headers['x-forwarded-for'] || '')
+        .split(',')[0]
+        .trim() || req.ip || null,
+      userAgent: req.get('user-agent') || null,
+    });
     res.status(201).json(serialize(b));
   }),
 );
@@ -61,6 +78,7 @@ bookingsRouter.post(
   '/',
   requireRole('CLIENT'),
   validateBody(createSchema),
+  idempotency(),
   asyncHandler(async (req, res) => {
     const b = await bookingsService.createBooking(req.user, req.validatedBody);
     res.status(201).json(serialize(b));
@@ -134,6 +152,7 @@ function serialize(b) {
   return {
     id: b.id,
     clientId: b.clientId,
+    vehicleId: b.vehicleId ?? null,
     guestName: b.guestName,
     guestPhone: b.guestPhone,
     guestEmail: b.guestEmail,
@@ -143,6 +162,15 @@ function serialize(b) {
     status: b.status,
     notes: b.notes,
     client: b.client,
+    vehicle: b.vehicle
+      ? {
+          id: b.vehicle.id,
+          make: b.vehicle.make,
+          model: b.vehicle.model,
+          year: b.vehicle.year ?? null,
+          licensePlate: b.vehicle.licensePlate ?? null,
+        }
+      : null,
     serviceRequest: b.serviceRequest
       ? {
           id: b.serviceRequest.id,

@@ -1,5 +1,3 @@
-import type { ServiceRequestStatus } from '../types/serviceRequest';
-
 export type ClientStatusTone =
   | 'new'
   | 'active'

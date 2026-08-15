@@ -243,6 +243,7 @@ export function ClientVehiclesPage() {
             <FormField label="Марка" htmlFor="vehicle-make" error={formErrors.make}>
               <Input
                 id="vehicle-make"
+                required
                 value={vehicleMake}
                 onChange={(e) => {
                   setVehicleMake(e.target.value);
@@ -256,6 +257,7 @@ export function ClientVehiclesPage() {
             <FormField label="Модель" htmlFor="vehicle-model" error={formErrors.model}>
               <Input
                 id="vehicle-model"
+                required
                 value={vehicleModel}
                 onChange={(e) => {
                   setVehicleModel(e.target.value);

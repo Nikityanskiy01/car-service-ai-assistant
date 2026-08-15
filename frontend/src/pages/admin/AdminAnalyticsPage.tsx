@@ -9,6 +9,7 @@ import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DataTable } from '../../components/ui/DataTable';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
 import { Tabs } from '../../components/ui/Tabs';
@@ -55,7 +56,7 @@ export function AdminAnalyticsPage() {
 
   const days = periodToDays(period);
 
-  useEffect(() => {
+  function load() {
     setLoading(true);
     setError(null);
     void Promise.all([getAnalyticsKpi(days), getAiFeedbackReport(days)])
@@ -65,6 +66,11 @@ export function AdminAnalyticsPage() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   const funnelSteps = useMemo(() => {
@@ -96,7 +102,7 @@ export function AdminAnalyticsPage() {
   }
 
   if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} onRetry={load} />;
   if (!kpi) return null;
 
   const funnel = kpi.funnel;
@@ -183,8 +189,12 @@ export function AdminAnalyticsPage() {
         </div>
       )}
 
-      {tab === 'ai-quality' && aiFeedback && (
+      {tab === 'ai-quality' && (
         <Card>
+          {!aiFeedback || !aiFeedback.totalFeedback ? (
+            <EmptyState title="Оценок пока нет" description="Когда менеджеры оценят диагнозы, метрики появятся здесь." />
+          ) : (
+            <>
           <div className="card-header-row">
             <h2>Качество ИИ-диагнозов</h2>
             <Link to="/dashboard/admin/ai/feedback">
@@ -233,12 +243,15 @@ export function AdminAnalyticsPage() {
               </ul>
             </>
           ) : null}
+            </>
+          )}
         </Card>
       )}
 
       {tab === 'managers' && (
         <Card>
           <h2>Эффективность менеджеров</h2>
+          {kpi.managers.length ? (
           <DataTable
             columns={[
               { key: 'name', label: 'Менеджер' },
@@ -251,6 +264,9 @@ export function AdminAnalyticsPage() {
               active: row.activeRequests,
             }))}
           />
+          ) : (
+            <EmptyState title="Нет данных по менеджерам" description="Как только появятся активные заявки, таблица заполнится." />
+          )}
         </Card>
       )}
 

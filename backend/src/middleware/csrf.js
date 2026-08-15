@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { COOKIE_ACCESS, COOKIE_CSRF, COOKIE_REFRESH } from '../lib/authCookies.js';
+import { readCookieValue } from '../lib/authCookies.js';
 
 function csrfTokensMatch(cookie, header) {
   const a = String(cookie || '');
@@ -34,10 +34,10 @@ export function csrfProtection(req, res, next) {
 
   if (fullPath.startsWith('/api/webhooks/')) return next();
 
-  const hasAuthCookie = !!(req.cookies?.[COOKIE_ACCESS] || req.cookies?.[COOKIE_REFRESH]);
+  const hasAuthCookie = !!(readCookieValue(req, 'access') || readCookieValue(req, 'refresh'));
   if (!hasAuthCookie) return next();
 
-  const cookie = req.cookies?.[COOKIE_CSRF];
+  const cookie = readCookieValue(req, 'csrf');
   const header = req.headers['x-csrf-token'];
   if (!csrfTokensMatch(cookie, header)) {
     return res.status(403).json({ error: 'CSRF token missing or invalid', code: 'CSRF' });

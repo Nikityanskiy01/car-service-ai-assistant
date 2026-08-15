@@ -15,7 +15,7 @@ type Props = {
 export function ConsentCheckbox({ id, checked, onChange, error = null, required = true }: Props) {
   return (
     <div className={`consent-field${error ? ' is-invalid' : ''}`}>
-      <label className="consent-label" htmlFor={id}>
+      <label className="consent-label" htmlFor={id} data-required={required || undefined}>
         <input
           id={id}
           className="consent-checkbox"

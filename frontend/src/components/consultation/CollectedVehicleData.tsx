@@ -51,7 +51,14 @@ export function CollectedVehicleData({
         <h3>Готовность данных</h3>
         <strong>{readiness}%</strong>
       </div>
-      <div className="progress-track compact" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={readiness}>
+      <div
+        className="progress-track compact"
+        role="progressbar"
+        aria-label="Готовность данных"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={readiness}
+      >
         <span style={{ width: `${Math.max(0, Math.min(100, readiness))}%` }} />
       </div>
       <VehicleDataChips data={data} />

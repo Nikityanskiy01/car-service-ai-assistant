@@ -1,18 +1,24 @@
+import { shutdownTelemetry } from './instrument.js';
 import { getEnv } from './config/env.js';
 import { createApp } from './app.js';
 import { logger } from './lib/logger.js';
 import prisma from './lib/prisma.js';
-import { startDiagnosisWorker, stopDiagnosisWorker } from './services/diagnosisWorker.service.js';
 import { closeDiagnosisQueue } from './services/diagnosisJob.service.js';
-import { startSlaEscalationJob, stopSlaEscalationJob } from './jobs/slaEscalation.job.js';
+import { closeRedis } from './lib/redis.js';
+import { startBackgroundJobs, stopBackgroundJobs } from './runtime/backgroundJobs.js';
+import { startTelegramAuthBot, stopTelegramAuthBot } from './modules/notifications/telegramAuth.bot.js';
 
 const env = getEnv();
 const app = createApp();
+let jobsStarted = false;
 
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'server listening');
-  startDiagnosisWorker();
-  startSlaEscalationJob();
+  if (env.RUN_BACKGROUND_JOBS) {
+    startBackgroundJobs();
+    jobsStarted = true;
+  }
+  void startTelegramAuthBot();
 });
 
 const SHUTDOWN_TIMEOUT_MS = 15_000;
@@ -28,9 +34,11 @@ async function gracefulShutdown(signal) {
   });
 
   try {
-    await stopDiagnosisWorker();
+    if (jobsStarted) await stopBackgroundJobs();
     await closeDiagnosisQueue();
-    stopSlaEscalationJob();
+    await closeRedis();
+    await stopTelegramAuthBot();
+    await shutdownTelemetry();
   } catch (err) {
     logger.error({ err }, 'error closing diagnosis queue');
   }

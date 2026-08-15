@@ -27,6 +27,7 @@ export type ClientCase = {
   model?: string | null;
   year?: number | null;
   vehicleId?: string | null;
+  unreadCount?: number;
   topic: ClientCaseTopic;
 };
 
@@ -55,6 +56,7 @@ export type RequestCaseInput = {
   snapshotSymptoms?: string | null;
   vehicleId?: string | null;
   consultationSessionId?: string;
+  unreadCount?: number;
   consultationSession?: {
     id?: string;
     status?: string;

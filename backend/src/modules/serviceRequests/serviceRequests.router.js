@@ -6,8 +6,11 @@ import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import * as serviceRequestsService from './serviceRequests.service.js';
 import * as consultationFeedbackService from '../../services/consultationFeedback.service.js';
+import * as completionDocumentsService from '../completionDocuments/completionDocuments.service.js';
 import { buildServiceRequestPdfBuffer } from '../../lib/pdf/serviceRequestPdf.js';
 import { isSlaBreached } from '../../lib/requestSla.js';
+import { listUnreadThreadsForClient } from '../requestMessages/requestMessages.service.js';
+import { contentDisposition } from '../../lib/fileMagic.js';
 
 const listQuerySchema = z.object({
   status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']).optional(),
@@ -64,6 +67,14 @@ const feedbackSchema = z.object({
     .nullable(),
 });
 
+const completionDocumentSchema = z.object({
+  kind: z.enum(['WORK_ORDER', 'RECEIPT', 'WARRANTY', 'ACT', 'OTHER']),
+  label: z.string().max(120).optional().nullable(),
+  fileName: z.string().min(1).max(200),
+  mimeType: z.string().min(3).max(120),
+  contentBase64: z.string().min(1).max(12_000_000),
+});
+
 export const serviceRequestsRouter = Router();
 serviceRequestsRouter.use(authJwt);
 
@@ -95,8 +106,17 @@ serviceRequestsRouter.get(
       period,
       hasDiagnosis,
     });
+    let items = out.items.map(serializeListItem);
+    if (req.user.role === 'CLIENT') {
+      const { threads } = await listUnreadThreadsForClient(req.user.id);
+      const unreadByRequestId = new Map(threads.map((thread) => [thread.requestId, thread.unreadCount]));
+      items = items.map((item) => ({
+        ...item,
+        unreadCount: unreadByRequestId.get(item.id) || 0,
+      }));
+    }
     res.json({
-      items: out.items.map(serializeListItem),
+      items,
       total: out.total,
       page: out.page,
       pageSize: out.pageSize,
@@ -268,6 +288,55 @@ serviceRequestsRouter.put(
         req.params.requestId,
         req.user.id,
         req.validatedBody,
+      ),
+    );
+  }),
+);
+
+serviceRequestsRouter.get(
+  '/:requestId/completion-documents',
+  asyncHandler(async (req, res) => {
+    res.json(await completionDocumentsService.listCompletionDocuments(req.params.requestId, req.user));
+  }),
+);
+
+serviceRequestsRouter.post(
+  '/:requestId/completion-documents',
+  requireRole('MANAGER', 'ADMINISTRATOR'),
+  validateBody(completionDocumentSchema),
+  asyncHandler(async (req, res) => {
+    const doc = await completionDocumentsService.uploadCompletionDocument(
+      req.params.requestId,
+      req.user,
+      req.validatedBody,
+    );
+    res.status(201).json(doc);
+  }),
+);
+
+serviceRequestsRouter.get(
+  '/:requestId/completion-documents/:documentId',
+  asyncHandler(async (req, res) => {
+    const file = await completionDocumentsService.getCompletionDocumentFile(
+      req.params.requestId,
+      req.params.documentId,
+      req.user,
+    );
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', contentDisposition(file.fileName, { inline: file.mimeType.startsWith('image/') }));
+    res.send(file.buffer);
+  }),
+);
+
+serviceRequestsRouter.delete(
+  '/:requestId/completion-documents/:documentId',
+  requireRole('MANAGER', 'ADMINISTRATOR'),
+  asyncHandler(async (req, res) => {
+    res.json(
+      await completionDocumentsService.deleteCompletionDocument(
+        req.params.requestId,
+        req.params.documentId,
+        req.user,
       ),
     );
   }),

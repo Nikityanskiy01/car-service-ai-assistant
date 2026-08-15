@@ -78,10 +78,6 @@ export function AdminIntegrationDetailPage() {
       <PageHeader
         title={connection.name}
         description={INTEGRATION_PROVIDER_LABELS[connection.provider]}
-        breadcrumbs={[
-          { label: 'Интеграции', to: '/dashboard/admin/integrations' },
-          { label: connection.name },
-        ]}
         actions={
           <div className="row gap-sm">
             <Button variant="ghost" onClick={() => void runDiagnostics()}>

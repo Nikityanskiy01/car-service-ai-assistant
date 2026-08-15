@@ -13,7 +13,6 @@ import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
 export function AdminAiMemoryPage() {
@@ -89,10 +88,9 @@ export function AdminAiMemoryPage() {
       <PageHeader
         title="Память кейсов"
         description="Семантический поиск по завершённым консультациям для улучшения диагнозов."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/ai/memory')}
         actions={
           <Button variant="secondary" disabled={backfilling} onClick={() => void onBackfill()}>
-            {backfilling ? 'Индексация…' : 'Запустить backfill'}
+            {backfilling ? 'Индексация…' : 'Проиндексировать кейсы'}
           </Button>
         }
       />
@@ -193,7 +191,9 @@ export function AdminAiMemoryPage() {
                       <p className="muted-text">{row.topRecommendations.join('; ')}</p>
                     ) : null}
                   </div>
-                  {row.costFromMinor != null ? <span>от {row.costFromMinor} ₽</span> : null}
+                  {row.costFromMinor != null ? (
+                    <span>от {Math.round(row.costFromMinor / 100).toLocaleString('ru-RU')} ₽</span>
+                  ) : null}
                 </li>
               ))}
             </ul>

@@ -4,7 +4,9 @@ import { authJwt } from '../../middleware/authJwt.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
+import { idempotency } from '../../middleware/idempotency.js';
 import { validateBody } from '../../middleware/validate.js';
+import { recordConsentEvent } from '../privacy/consent.service.js';
 import * as contactService from './contact.service.js';
 
 const submitSchema = z.object({
@@ -30,8 +32,17 @@ contactRouter.post(
   '/',
   publicWriteLimiter,
   validateBody(submitSchema),
+  idempotency(),
   asyncHandler(async (req, res) => {
     const row = await contactService.createSubmission(req.validatedBody);
+    await recordConsentEvent({
+      subjectKey: `phone:${row.phone}`,
+      purpose: 'contact_form',
+      ip: String(req.headers['x-forwarded-for'] || '')
+        .split(',')[0]
+        .trim() || req.ip || null,
+      userAgent: req.get('user-agent') || null,
+    });
     res.status(201).json({ ok: true, id: row.id });
   }),
 );

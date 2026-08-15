@@ -6,13 +6,14 @@ import {
   retryIntegrationJob,
 } from '../../api/integrations';
 import { PageHeader } from '../../components/layout/dashboard/PageHeader';
+import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { IntegrationStatusBadge } from '../../components/ui/IntegrationStatusBadge';
 import { Loader } from '../../components/ui/Loader';
 import { Select } from '../../components/ui/Select';
-import { resolveAdminBreadcrumbs } from '../../config/adminRoutes';
 import { INTEGRATION_JOB_STATUS_LABELS } from '../../lib/labels';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { IntegrationJob } from '../../types/integration';
@@ -25,7 +26,8 @@ const CANCELLABLE = new Set(['PENDING', 'RETRYING', 'FAILED']);
 export function AdminIntegrationJobsPage() {
   usePageMeta({ title: 'Очередь синхронизации', description: 'Задачи передачи данных во внешние системы.' });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -37,7 +39,8 @@ export function AdminIntegrationJobsPage() {
 
   async function load() {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
+    setActionError(null);
     setSelected(new Set());
     try {
       const connections = await listIntegrations();
@@ -52,7 +55,7 @@ export function AdminIntegrationJobsPage() {
       );
       setJobs(allJobs.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+      setLoadError(e instanceof Error ? e.message : 'Ошибка загрузки');
     } finally {
       setLoading(false);
     }
@@ -83,7 +86,7 @@ export function AdminIntegrationJobsPage() {
       await Promise.all(ids.map((id) => retryIntegrationJob(id)));
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка повтора');
+      setActionError(e instanceof Error ? e.message : 'Ошибка повтора');
     } finally {
       setBulkBusy(false);
     }
@@ -97,7 +100,7 @@ export function AdminIntegrationJobsPage() {
       await Promise.all(ids.map((id) => cancelIntegrationJob(id)));
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка отмены');
+      setActionError(e instanceof Error ? e.message : 'Ошибка отмены');
     } finally {
       setBulkBusy(false);
     }
@@ -106,15 +109,14 @@ export function AdminIntegrationJobsPage() {
   const selectedRetryCount = jobs.filter((j) => selected.has(j.id) && RETRYABLE.has(j.status)).length;
   const selectedCancelCount = jobs.filter((j) => selected.has(j.id) && CANCELLABLE.has(j.status)).length;
 
-  if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
+  if (loading && !jobs.length) return <Loader />;
+  if (loadError && !jobs.length) return <ErrorState message={loadError} onRetry={() => void load()} />;
 
   return (
     <div className="stack dashboard-page">
       <PageHeader
-        title="Очередь синхронизации"
+        title="Очередь"
         description="Ожидающие, выполняемые и неуспешные задачи."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/integrations/jobs')}
         actions={
           <div className="row gap-sm">
             <Button variant="secondary" disabled={!selectedRetryCount || bulkBusy} onClick={() => void bulkRetry()}>
@@ -126,6 +128,8 @@ export function AdminIntegrationJobsPage() {
           </div>
         }
       />
+
+      {actionError ? <Alert kind="error">{actionError}</Alert> : null}
 
       <Card className="filter-bar">
         <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Статус задачи">
@@ -139,6 +143,9 @@ export function AdminIntegrationJobsPage() {
       </Card>
 
       <Card>
+        {!jobs.length ? (
+          <EmptyState title="Задач нет" description="Очередь синхронизации пуста. Новые задачи появятся после обмена с CRM." />
+        ) : (
         <ul className="job-list job-list-bulk">
           <li className="job-list-head">
             <label className="checkbox-row">
@@ -174,6 +181,7 @@ export function AdminIntegrationJobsPage() {
             </li>
           ))}
         </ul>
+        )}
       </Card>
     </div>
   );

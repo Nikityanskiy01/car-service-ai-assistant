@@ -20,9 +20,11 @@ const columns: Array<{ status: ServiceRequestStatus; title: string; collapsible?
 export function ManagerKanban({
   requests,
   onStatusChange,
+  requestBasePath = '/dashboard/manager/requests',
 }: {
   requests: ServiceRequest[];
   onStatusChange: (request: ServiceRequest, next: ServiceRequestStatus) => void;
+  requestBasePath?: string;
 }) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<ServiceRequestStatus | null>(null);
@@ -49,7 +51,7 @@ export function ManagerKanban({
         return (
           <article
             key={column.status}
-            className={`kanban-column${dropTarget === column.status ? ' is-drop-target' : ''}${overWip ? ' is-wip-over' : ''}`}
+            className={`kanban-column${dropTarget === column.status ? ' is-drop-target' : ''}${overWip ? ' is-wip-limit' : ''}`}
             onDragOver={(e) => {
               e.preventDefault();
               setDropTarget(column.status);
@@ -91,28 +93,34 @@ export function ManagerKanban({
                         setDropTarget(null);
                       }}
                     >
-                      <Link to={`/dashboard/manager/requests/${item.id}`} className="request-card-link">
+                      <Link to={`${requestBasePath}/${item.id}`} className="request-card-link">
                         <ServiceRequestCard
                           request={item}
                           extra={
                             <div className="kanban-card-meta">
                               {urgency ? <UrgencyBadge urgency={urgency} /> : null}
                               <SlaBadge request={item} />
-                              <small className="muted">{formatRelativeTime(item.createdAt)}</small>
+                              <small className="muted tnum">{formatRelativeTime(item.createdAt)}</small>
                               {item.assignedManager?.fullName ? (
                                 <small className="muted">{item.assignedManager.fullName}</small>
                               ) : null}
-                              <RequestStatusSelector
-                                value={item.status}
-                                onChange={(value) => onStatusChange(item, value)}
-                              />
                             </div>
                           }
                         />
                       </Link>
+                      {/* Селектор вне ссылки: внутри <a> клик по нему уводил на карточку заявки. */}
+                      <div className="kanban-card-status">
+                        <RequestStatusSelector
+                          value={item.status}
+                          onChange={(value) => onStatusChange(item, value)}
+                        />
+                      </div>
                     </div>
                   );
                 })}
+                {!columnItems.length ? (
+                  <p className="kanban-column-empty muted">Пусто</p>
+                ) : null}
               </div>
             ) : null}
           </article>

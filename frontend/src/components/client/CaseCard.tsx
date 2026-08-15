@@ -5,6 +5,7 @@ import {
   CircleX,
   Clock3,
   FileEdit,
+  MessageSquare,
   Wrench,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -16,6 +17,8 @@ import { clientProgressTone } from './ClientStatusBadge';
 
 function CaseIcon({ group }: { group: ReturnType<typeof presentClientCase>['group'] }) {
   switch (group) {
+    case 'unread':
+      return <MessageSquare size={18} />;
     case 'draft':
       return <FileEdit size={18} />;
     case 'working':
@@ -46,10 +49,15 @@ export function CaseCard({
   const progressTone = clientProgressTone(clientCase.progressStage);
   const isScheduled = presented.group === 'scheduled' && Boolean(presented.bookingParts);
   const isDraft = presented.group === 'draft';
+  const unreadCount = clientCase.unreadCount || 0;
+  const href =
+    unreadCount > 0
+      ? `/dashboard/client/cases/${clientCase.id}?tab=messages`
+      : `/dashboard/client/cases/${clientCase.id}`;
 
   return (
     <Link
-      to={`/dashboard/client/cases/${clientCase.id}`}
+      to={href}
       className={[
         'case-card',
         'is-link',
@@ -81,7 +89,12 @@ export function CaseCard({
 
       <div className="case-card-body">
         <div className="case-card-titles">
-          <strong className="case-card-title">{clientCase.title}</strong>
+          <strong className="case-card-title">
+            {clientCase.title}
+            {unreadCount > 0 ? (
+              <span className="case-card-unread">{unreadCount > 9 ? '9+' : unreadCount}</span>
+            ) : null}
+          </strong>
           {clientCase.symptoms ? (
             <span className="case-card-symptoms">{clientCase.symptoms}</span>
           ) : null}

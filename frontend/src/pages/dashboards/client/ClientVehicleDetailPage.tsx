@@ -1,18 +1,20 @@
 import {
   ArrowLeft,
   CalendarPlus,
+  ChevronDown,
   Download,
   Droplets,
   FileImage,
   Gauge,
-  Hash,
-  Palette,
+  MoreHorizontal,
+  Pencil,
   Plus,
   Trash2,
   Wrench,
 } from 'lucide-react';
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { downloadApiFile } from '../../../api/client';
 import {
   createServiceRecord,
   deleteServiceRecord,
@@ -29,7 +31,6 @@ import {
   type ClientVehicle,
 } from '../../../api/vehicles';
 import { VehiclePhotoPicker } from '../../../components/client/VehiclePhotoPicker';
-import { PageHeader } from '../../../components/layout/dashboard/PageHeader';
 import { FormField } from '../../../components/forms/FormField';
 import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -39,7 +40,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { prefillOilChangeBookingFromPlan } from '../../../features/consultations/bookingPrefill';
 import { usePageMeta } from '../../../hooks/usePageMeta';
-import { formatVehicleCasesLabel } from '../../../lib/russianPlural';
+import { bookingPath } from '../../../lib/bookingPath';
 
 const CATEGORY_OPTIONS: Array<{ id: ServiceRecordCategory; label: string; title: string }> = [
   { id: 'oil_change', label: 'Масло', title: 'Замена масла ДВС' },
@@ -57,6 +58,32 @@ function statusLabel(status?: string) {
   return 'Нет данных';
 }
 
+function oilTitle(status?: string) {
+  if (status === 'overdue') return 'Пора менять масло';
+  if (status === 'soon') return 'Скоро нужна замена';
+  if (status === 'ok') return 'Масло в норме';
+  return 'План замены масла';
+}
+
+function oilLead(status?: string, remainCopy?: string, intervalKm?: number, intervalMonths?: number) {
+  if (status === 'overdue') {
+    return remainCopy
+      ? `Пробег и срок вышли: ${remainCopy}. Запишитесь — сервис подберёт время.`
+      : 'Интервал замены вышел. Запишитесь на удобное время.';
+  }
+  if (status === 'soon') {
+    return remainCopy
+      ? `До замены осталось: ${remainCopy}. Лучше записаться заранее.`
+      : 'Скоро подойдёт срок замены масла.';
+  }
+  if (status === 'ok') {
+    return remainCopy
+      ? `Запас: ${remainCopy}. Можно спокойно ездить.`
+      : 'По текущим данным масло в порядке.';
+  }
+  return `Укажите прошлую замену — рассчитаем срок по регламенту ${intervalKm ?? 7500} км / ${intervalMonths ?? 6} мес.`;
+}
+
 function formatMoney(minor?: number | null) {
   if (minor == null) return null;
   return `${Math.round(minor / 100).toLocaleString('ru-RU')} ₽`;
@@ -68,6 +95,39 @@ function categoryLabel(category: string) {
 
 function categoryTitle(category: ServiceRecordCategory) {
   return CATEGORY_OPTIONS.find((o) => o.id === category)?.title || 'Выполненные работы';
+}
+
+function recordsCountLabel(count: number) {
+  if (!count) return 'Пока пусто';
+  if (count === 1) return '1 запись';
+  if (count < 5) return `${count} записи`;
+  return `${count} записей`;
+}
+
+function oilRemainCopy(plan: MaintenancePlan | null) {
+  const kmLeft = plan?.plan?.kmLeft;
+  const daysLeft = plan?.plan?.daysLeft;
+  const parts: string[] = [];
+
+  if (kmLeft != null) {
+    if (kmLeft < 0) parts.push(`+${Math.abs(kmLeft).toLocaleString('ru-RU')} км сверх нормы`);
+    else parts.push(`${kmLeft.toLocaleString('ru-RU')} км`);
+  }
+  if (daysLeft != null) {
+    if (daysLeft < 0) parts.push(`${Math.abs(daysLeft)} дн. просрочки`);
+    else parts.push(`${daysLeft} дн.`);
+  }
+  return parts.join(' · ');
+}
+
+function oilProgress(plan: MaintenancePlan | null) {
+  if (!plan?.plan || !plan.hasHistory) return null;
+  const interval = plan.intervalKm || 7500;
+  const kmLeft = plan.plan.kmLeft;
+  if (kmLeft == null) return null;
+  const used = interval - kmLeft;
+  const ratio = Math.min(1, Math.max(0, used / interval));
+  return { ratio, overdue: kmLeft < 0 };
 }
 
 export function ClientVehicleDetailPage() {
@@ -88,6 +148,8 @@ export function ClientVehicleDetailPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [mileageDraft, setMileageDraft] = useState('');
   const [savingMileage, setSavingMileage] = useState(false);
+  const [mileageEdit, setMileageEdit] = useState(false);
+  const [metaOpen, setMetaOpen] = useState(false);
   const [plateDraft, setPlateDraft] = useState('');
   const [colorDraft, setColorDraft] = useState('');
   const [vinDraft, setVinDraft] = useState('');
@@ -141,6 +203,7 @@ export function ClientVehicleDetailPage() {
       setVehicle(updated);
       const p = await getMaintenancePlan(vehicle.id);
       setPlan(p);
+      setMileageEdit(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось сохранить пробег');
     } finally {
@@ -163,31 +226,13 @@ export function ClientVehicleDetailPage() {
       setPlateDraft(updated.licensePlate || '');
       setColorDraft(updated.color || '');
       setVinDraft(updated.vin || '');
+      setMetaOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось сохранить данные');
     } finally {
       setSavingMeta(false);
     }
   }
-
-  const mileageHistory = useMemo(() => {
-    const points = records
-      .filter((r) => r.mileageKm != null && Number.isFinite(r.mileageKm))
-      .map((r) => ({
-        id: r.id,
-        performedAt: r.performedAt,
-        mileageKm: Number(r.mileageKm),
-        title: r.title,
-        category: r.category,
-      }))
-      .sort((a, b) => new Date(a.performedAt).getTime() - new Date(b.performedAt).getTime());
-
-    return points.map((point, index) => {
-      const prev = index > 0 ? points[index - 1] : null;
-      const delta = prev ? point.mileageKm - prev.mileageKm : null;
-      return { ...point, delta };
-    });
-  }, [records]);
 
   function openAddModal(preset?: ServiceRecordCategory) {
     const nextCategory = preset || 'oil_change';
@@ -258,7 +303,7 @@ export function ClientVehicleDetailPage() {
       nextDueAt: plan?.plan?.nextDueAt,
       nextDueMileage: plan?.plan?.nextDueMileage,
     });
-    navigate('/booking');
+    navigate(bookingPath(vehicle.id));
   }
 
   if (loading) return <Loader label="Загружаем сервисную книжку…" />;
@@ -278,276 +323,275 @@ export function ClientVehicleDetailPage() {
 
   const titleText = formatVehicleTitle(vehicle);
   const oilStatus = plan?.status || 'unknown';
-  const accentClass =
-    oilStatus === 'overdue'
-      ? 'is-accent-overdue'
-      : oilStatus === 'soon'
-        ? 'is-accent-soon'
-        : oilStatus === 'ok'
-          ? 'is-accent-ok'
-          : 'is-accent-muted';
-  const casesLabel = formatVehicleCasesLabel(vehicle);
+  const oilUrgent = oilStatus === 'overdue' || oilStatus === 'soon';
+  const remainCopy = oilRemainCopy(plan);
+  const progress = oilProgress(plan);
+  const mileageDisplay =
+    vehicle.currentMileageKm != null
+      ? `${vehicle.currentMileageKm.toLocaleString('ru-RU')} км`
+      : 'не указан';
+  const lastServiceLabel = vehicle.lastServiceAt
+    ? new Date(vehicle.lastServiceAt).toLocaleDateString('ru-RU')
+    : null;
+  const extraDetailsHint = [
+    titleCustomized ? title.trim() || null : null,
+    workOrderNumber.trim() || null,
+    amountRub.trim() && Number.isFinite(Number(amountRub))
+      ? `${Number(amountRub).toLocaleString('ru-RU')} ₽`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ') || 'Название, заказ-наряд и сумма — по желанию';
+  const progressPct = progress ? Math.round(progress.ratio * 100) : 0;
 
   return (
-    <div className="client-vehicle-detail stack">
-      <Link to="/dashboard/client/vehicles" className="service-book-back">
-        <ArrowLeft size={16} aria-hidden />
-        К гаражу
-      </Link>
-
-      <PageHeader
-        title={titleText}
-        description="Карточка авто, фото, пробег и сервисная книжка."
-        actions={
-          <Button type="button" onClick={() => openAddModal()}>
-            <Plus size={16} aria-hidden />
-            Добавить работу
-          </Button>
-        }
-      />
+    <div className="service-book stack">
+      <div className="service-book-top">
+        <Link to="/dashboard/client/vehicles" className="service-book-back">
+          <ArrowLeft size={16} aria-hidden />
+          К гаражу
+        </Link>
+        <button
+          type="button"
+          className="service-book-edit-link"
+          onClick={() => setMetaOpen(true)}
+        >
+          <Pencil size={14} aria-hidden />
+          Данные
+        </button>
+      </div>
 
       {error ? <p className="form-error">{error}</p> : null}
 
-      <section className="garage-vehicle-hero" aria-label="Карточка автомобиля">
-        <VehiclePhotoPicker
-          vehicle={vehicle}
-          onUpdated={(updated) => {
-            setVehicle(updated);
-          }}
-        />
-        <div className="garage-vehicle-hero-body">
-          <div className="garage-vehicle-hero-facts">
-            <div>
-              <span className="garage-vehicle-hero-label">Пробег</span>
-              <strong>
-                {vehicle.currentMileageKm != null
-                  ? `${vehicle.currentMileageKm.toLocaleString('ru-RU')} км`
-                  : 'не указан'}
-              </strong>
-            </div>
-            <div>
-              <span className="garage-vehicle-hero-label">Обращения</span>
-              <strong>{casesLabel}</strong>
-            </div>
-            <div>
-              <span className="garage-vehicle-hero-label">Последний сервис</span>
-              <strong>
-                {vehicle.lastServiceAt
-                  ? new Date(vehicle.lastServiceAt).toLocaleDateString('ru-RU')
-                  : 'нет записей'}
-              </strong>
-              {vehicle.lastServiceTitle ? (
-                <span className="muted garage-vehicle-hero-sub">{vehicle.lastServiceTitle}</span>
+      <section className="service-book-identity" aria-label="Автомобиль">
+        <div className="service-book-identity-media">
+          <VehiclePhotoPicker
+            vehicle={vehicle}
+            size="lg"
+            onUpdated={(updated) => {
+              setVehicle(updated);
+            }}
+          />
+        </div>
+
+        <div className="service-book-identity-body">
+          <div className="service-book-identity-heading">
+            <h1>{titleText}</h1>
+            <div className="service-book-identity-meta">
+              {vehicle.year ? <span>{vehicle.year} г.</span> : null}
+              {vehicle.licensePlate ? (
+                <span className="garage-plate is-compact">{vehicle.licensePlate}</span>
               ) : null}
-            </div>
-            <div>
-              <span className="garage-vehicle-hero-label">Масло</span>
-              <strong>{statusLabel(oilStatus)}</strong>
+              {vehicle.color ? <span>{vehicle.color}</span> : null}
+              {vehicle.vin ? <span className="service-book-vin">VIN ···{vehicle.vin.slice(-6)}</span> : null}
             </div>
           </div>
 
-          <form className="garage-vehicle-meta-form" onSubmit={(e) => void handleSaveMeta(e)}>
-            <FormField label="Госномер" htmlFor="vehicle-plate-edit">
-              <Input
-                id="vehicle-plate-edit"
-                value={plateDraft}
-                onChange={(e) => setPlateDraft(e.target.value.toUpperCase())}
-                placeholder="А123ВС777"
-                spellCheck={false}
-              />
-            </FormField>
-            <FormField label="Цвет" htmlFor="vehicle-color-edit">
-              <Input
-                id="vehicle-color-edit"
-                value={colorDraft}
-                onChange={(e) => setColorDraft(e.target.value)}
-                placeholder="Белый"
-              />
-            </FormField>
-            <FormField label="VIN" htmlFor="vehicle-vin-edit">
-              <Input
-                id="vehicle-vin-edit"
-                value={vinDraft}
-                onChange={(e) => setVinDraft(e.target.value.toUpperCase())}
-                placeholder="XTA211440Y0123456"
-                spellCheck={false}
-              />
-            </FormField>
-            <div className="garage-vehicle-meta-actions">
-              <Button type="submit" variant="secondary" disabled={savingMeta}>
-                {savingMeta ? 'Сохранение…' : 'Сохранить данные'}
-              </Button>
+          <div className="service-book-facts" aria-label="Ключевые данные">
+            <div className="service-book-fact">
+              <span className="service-book-fact-icon" aria-hidden>
+                <Gauge size={16} />
+              </span>
+              <div className="service-book-fact-copy">
+                <span className="service-book-fact-label">Пробег</span>
+                {mileageEdit ? (
+                  <form className="service-book-mileage-edit" onSubmit={(e) => void handleSaveMileage(e)}>
+                    <Input
+                      id="vehicle-mileage"
+                      type="number"
+                      min={0}
+                      value={mileageDraft}
+                      onChange={(e) => setMileageDraft(e.target.value)}
+                      placeholder="45200"
+                      autoFocus
+                      aria-label="Текущий пробег, км"
+                    />
+                    <Button type="submit" disabled={savingMileage}>
+                      {savingMileage ? '…' : 'OK'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setMileageDraft(
+                          vehicle.currentMileageKm != null ? String(vehicle.currentMileageKm) : '',
+                        );
+                        setMileageEdit(false);
+                      }}
+                    >
+                      Отмена
+                    </Button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    className="service-book-fact-value is-action"
+                    onClick={() => setMileageEdit(true)}
+                  >
+                    <strong>{mileageDisplay}</strong>
+                    <span>изменить</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="service-book-fact">
+              <span className="service-book-fact-icon" aria-hidden>
+                <Wrench size={16} />
+              </span>
+              <div className="service-book-fact-copy">
+                <span className="service-book-fact-label">Последний сервис</span>
+                <strong className="service-book-fact-value">
+                  {lastServiceLabel || 'ещё не было'}
+                </strong>
+                {vehicle.lastServiceTitle ? (
+                  <span className="service-book-fact-sub">{vehicle.lastServiceTitle}</span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className={`service-book-fact is-oil is-${oilStatus}`}>
+              <span className="service-book-fact-icon" aria-hidden>
+                <Droplets size={16} />
+              </span>
+              <div className="service-book-fact-copy">
+                <span className="service-book-fact-label">Масло</span>
+                <strong className="service-book-fact-value">{statusLabel(oilStatus)}</strong>
+                {remainCopy ? <span className="service-book-fact-sub">{remainCopy}</span> : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="service-book-quick-actions">
+            {oilUrgent ? (
               <Button type="button" onClick={bookOilChange}>
+                <CalendarPlus size={16} aria-hidden />
+                Записаться на замену
+              </Button>
+            ) : (
+              <Button type="button" variant="secondary" onClick={bookOilChange}>
                 <CalendarPlus size={16} aria-hidden />
                 Записаться
               </Button>
-            </div>
-          </form>
-
-          <ul className="garage-vehicle-hero-chips" aria-label="Краткие данные">
-            {vehicle.year ? (
-              <li>
-                <Hash size={13} aria-hidden />
-                {vehicle.year} г.
-              </li>
-            ) : null}
-            {vehicle.color ? (
-              <li>
-                <Palette size={13} aria-hidden />
-                {vehicle.color}
-              </li>
-            ) : null}
-            {vehicle.licensePlate ? (
-              <li className="garage-plate">{vehicle.licensePlate}</li>
-            ) : null}
-          </ul>
+            )}
+            <Button type="button" variant="secondary" onClick={() => openAddModal()}>
+              <Plus size={16} aria-hidden />
+              Добавить работу
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                void downloadApiFile(
+                  `/api/vehicles/${vehicle.id}/service-history/export.pdf`,
+                  `service-history-${vehicle.id.slice(0, 8)}.pdf`,
+                )
+              }
+            >
+              <Download size={16} aria-hidden />
+              PDF книжки
+            </Button>
+          </div>
         </div>
       </section>
 
-      <section
-        className={`service-oil-plan client-overview-focus-primary ${accentClass}`}
-        data-status={oilStatus}
-        aria-label="План замены масла"
-      >
-        <div className="client-overview-focus-primary-inner service-oil-plan-inner">
-          <div className="client-overview-focus-primary-head">
-            <span className="client-overview-focus-primary-icon" aria-hidden>
-              <Droplets size={20} strokeWidth={2.1} />
-            </span>
-            <div className="service-oil-copy">
-              <p className="client-overview-focus-kicker">Замена масла</p>
-              <strong className="service-oil-title">Следующая замена</strong>
-              <p className="service-oil-reglament muted">
-                Регламент: 7500 км или 6 месяцев — что раньше
-              </p>
-            </div>
+      <section className={`service-book-oil is-${oilStatus}`} aria-label="План замены масла">
+        <div className="service-book-oil-head">
+          <span className="service-book-oil-icon" aria-hidden>
+            <Droplets size={22} strokeWidth={2} />
+          </span>
+          <div className="service-book-oil-copy">
+            <p className="service-book-oil-kicker">Замена масла</p>
+            <h2 className="service-book-oil-title">{oilTitle(oilStatus)}</h2>
+            <p className="service-book-oil-remain">
+              {oilLead(oilStatus, remainCopy, plan?.intervalKm, plan?.intervalMonths)}
+            </p>
           </div>
-          <span className="service-oil-status">{statusLabel(oilStatus)}</span>
+          <span className="service-book-oil-badge">{statusLabel(oilStatus)}</span>
         </div>
 
         {plan?.hasHistory && plan.plan ? (
-          <div className="service-oil-plan-body">
-            <div className="service-oil-metrics" role="list">
-              <div className="service-oil-metric" role="listitem">
-                <span className="service-oil-metric-label">Последняя</span>
+          <>
+            {progress ? (
+              <div
+                className={`service-book-oil-progress${progress.overdue ? ' is-overdue' : ''}`}
+                role="meter"
+                aria-label="Интервал до замены масла"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progressPct}
+              >
+                <div className="service-book-oil-progress-meta">
+                  <span>Интервал {plan.intervalKm?.toLocaleString('ru-RU') ?? '7 500'} км</span>
+                  <span>{progress.overdue ? 'Просрочено' : `${progressPct}% интервала`}</span>
+                </div>
+                <div className="service-book-oil-progress-track">
+                  <div
+                    className="service-book-oil-progress-fill"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            <div className="service-book-oil-grid">
+              <div>
+                <span>Последняя</span>
                 <strong>
                   {plan.lastRecord?.performedAt
                     ? new Date(plan.lastRecord.performedAt).toLocaleDateString('ru-RU')
                     : '—'}
                 </strong>
-                <span className="muted">
+                <em>
                   {plan.lastRecord?.mileageKm != null
                     ? `${plan.lastRecord.mileageKm.toLocaleString('ru-RU')} км`
                     : 'пробег не указан'}
-                </span>
+                </em>
               </div>
-              <div className="service-oil-metric is-next" role="listitem">
-                <span className="service-oil-metric-label">Следующая</span>
+              <div>
+                <span>Следующая</span>
                 <strong>
                   {plan.plan.nextDueAt
                     ? new Date(plan.plan.nextDueAt).toLocaleDateString('ru-RU')
                     : '—'}
                 </strong>
-                <span className="muted">
+                <em>
                   {plan.plan.nextDueMileage != null
                     ? `${plan.plan.nextDueMileage.toLocaleString('ru-RU')} км`
                     : 'по дате'}
-                </span>
+                </em>
               </div>
             </div>
-            <div className="service-oil-plan-actions">
-              <Button type="button" onClick={bookOilChange}>
-                <CalendarPlus size={16} aria-hidden />
-                Записаться
-              </Button>
-              <a
-                className="btn btn-secondary"
-                href={`/api/vehicles/${vehicle.id}/service-history/export.pdf`}
-              >
-                <Download size={16} aria-hidden />
-                PDF истории
-              </a>
-            </div>
-          </div>
+
+            {oilUrgent ? (
+              <div className="service-book-oil-actions">
+                <Button type="button" onClick={bookOilChange}>
+                  <CalendarPlus size={16} aria-hidden />
+                  Записаться на замену
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => openAddModal('oil_change')}>
+                  Уже менял — записать
+                </Button>
+              </div>
+            ) : null}
+          </>
         ) : (
-          <div className="service-oil-plan-body service-oil-plan-empty">
-            <p className="muted">
-              Пока нет записей о замене масла. Добавьте прошлую замену — рассчитаем следующий срок.
-            </p>
-            <Button type="button" variant="secondary" onClick={() => openAddModal('oil_change')}>
+          <div className="service-book-oil-empty">
+            <p>Нет записей о замене масла. Укажите прошлую — рассчитаем следующий срок.</p>
+            <Button type="button" onClick={() => openAddModal('oil_change')}>
               Указать замену масла
             </Button>
           </div>
         )}
       </section>
 
-      <section className="service-mileage-panel" aria-label="Пробег">
-        <div className="service-mileage-panel-head">
-          <span className="service-mileage-icon" aria-hidden>
-            <Gauge size={18} />
-          </span>
-          <div>
-            <strong>Пробег</strong>
-            <p className="muted">Текущее значение и история по записям обслуживания</p>
-          </div>
-        </div>
-        <form className="service-mileage-form" onSubmit={(e) => void handleSaveMileage(e)}>
-          <FormField label="Сейчас, км" htmlFor="vehicle-mileage">
-            <Input
-              id="vehicle-mileage"
-              type="number"
-              min={0}
-              value={mileageDraft}
-              onChange={(e) => setMileageDraft(e.target.value)}
-              placeholder="например 45200"
-            />
-          </FormField>
-          <Button type="submit" variant="secondary" disabled={savingMileage}>
-            {savingMileage ? 'Сохранение…' : 'Обновить'}
-          </Button>
-        </form>
-
-        {mileageHistory.length > 0 ? (
-          <div className="service-mileage-history">
-            <h3 className="service-mileage-history-title">История пробега</h3>
-            <ol className="service-mileage-timeline">
-              {[...mileageHistory].reverse().map((point) => (
-                <li key={point.id} className="service-mileage-point">
-                  <span className="service-mileage-point-dot" aria-hidden />
-                  <div className="service-mileage-point-body">
-                    <div className="service-mileage-point-top">
-                      <strong>{point.mileageKm.toLocaleString('ru-RU')} км</strong>
-                      {point.delta != null && point.delta > 0 ? (
-                        <span className="service-mileage-delta">+{point.delta.toLocaleString('ru-RU')} км</span>
-                      ) : null}
-                    </div>
-                    <div className="service-mileage-point-meta">
-                      <span>{new Date(point.performedAt).toLocaleDateString('ru-RU')}</span>
-                      <span>{point.title}</span>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : (
-          <p className="service-mileage-empty muted">
-            История появится, когда в работах укажете пробег — или добавьте запись обслуживания.
-          </p>
-        )}
-      </section>
-
-      <section className="service-records-panel" aria-label="История работ">
-        <header className="service-records-header">
+      <section className="service-book-history" aria-label="История работ">
+        <header className="service-book-history-header">
           <div>
             <h2>История работ</h2>
-            <p className="muted">
-              {records.length
-                ? `${records.length} ${records.length === 1 ? 'запись' : records.length < 5 ? 'записи' : 'записей'}`
-                : 'Пока пусто'}
-            </p>
+            <p className="muted">{recordsCountLabel(records.length)}</p>
           </div>
-          <Button type="button" variant="secondary" onClick={() => openAddModal()}>
+          <Button type="button" onClick={() => openAddModal()}>
             <Plus size={16} aria-hidden />
             Добавить
           </Button>
@@ -564,69 +608,95 @@ export function ClientVehicleDetailPage() {
             }
           />
         ) : (
-          <ul className="service-record-rows">
-            {records.map((record) => {
+          <ul className="service-book-records">
+            {records.map((record, index) => {
               const day = new Date(record.performedAt);
+              const isFirst = index === 0;
               return (
-                <li key={record.id} className="service-record-row">
-                  <div className="service-record-date" aria-hidden>
-                    <span className="service-record-date-day">
-                      {day.toLocaleDateString('ru-RU', { day: '2-digit' })}
-                    </span>
-                    <span className="service-record-date-month">
-                      {day.toLocaleDateString('ru-RU', { month: 'short' })}
-                    </span>
+                <li key={record.id} className={`service-book-record${isFirst ? ' is-latest' : ''}`}>
+                  <div className="service-book-record-rail" aria-hidden>
+                    <span className="service-book-record-dot" />
                   </div>
-                  <span className="service-record-icon" aria-hidden>
-                    {record.category === 'oil_change' ? <Droplets size={16} /> : <Wrench size={16} />}
-                  </span>
-                  <div className="service-record-main">
-                    <div className="service-record-titles">
-                      <strong>{record.title}</strong>
-                      <span className="service-record-cat">{categoryLabel(String(record.category))}</span>
+                  <div className="service-book-record-card">
+                    <div className="service-book-record-top">
+                      <div className="service-book-record-when">
+                        <time dateTime={record.performedAt}>
+                          {day.toLocaleDateString('ru-RU', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </time>
+                        {record.mileageKm != null ? (
+                          <span>{record.mileageKm.toLocaleString('ru-RU')} км</span>
+                        ) : null}
+                        <span className="service-book-record-cat">
+                          {categoryLabel(String(record.category))}
+                        </span>
+                      </div>
+                      <details className="service-book-record-more">
+                        <summary aria-label="Ещё действия">
+                          <MoreHorizontal size={16} aria-hidden />
+                        </summary>
+                        <div className="service-book-record-more-menu">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void downloadApiFile(
+                                `/api/service-records/${record.id}/export.pdf`,
+                                `service-record-${record.id.slice(0, 8)}.pdf`,
+                              )
+                            }
+                          >
+                            <Download size={14} aria-hidden />
+                            PDF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void downloadApiFile(
+                                `/api/service-records/${record.id}/export.jpg`,
+                                `service-record-${record.id.slice(0, 8)}.jpg`,
+                              )
+                            }
+                          >
+                            <FileImage size={14} aria-hidden />
+                            JPEG
+                          </button>
+                          {record.source === 'client_manual' ? (
+                            <button type="button" onClick={() => setDeleteId(record.id)}>
+                              <Trash2 size={14} aria-hidden />
+                              Удалить
+                            </button>
+                          ) : null}
+                        </div>
+                      </details>
                     </div>
-                    <div className="case-card-meta">
-                      {record.mileageKm != null ? (
-                        <span>{record.mileageKm.toLocaleString('ru-RU')} км</span>
-                      ) : null}
-                      {record.workOrderNumber ? <span>ЗН {record.workOrderNumber}</span> : null}
-                      {formatMoney(record.amountMinor) ? (
-                        <span>{formatMoney(record.amountMinor)}</span>
-                      ) : null}
-                      <span className="service-record-source">
-                        {record.source === 'manager_feedback' ? 'Сервис' : 'Вручную'}
+
+                    <div className="service-book-record-main">
+                      <span className="service-book-record-icon" aria-hidden>
+                        {record.category === 'oil_change' ? (
+                          <Droplets size={16} />
+                        ) : (
+                          <Wrench size={16} />
+                        )}
                       </span>
+                      <div className="service-book-record-titles">
+                        <strong>{record.title}</strong>
+                        <div className="service-book-record-meta">
+                          {record.workOrderNumber ? <span>ЗН {record.workOrderNumber}</span> : null}
+                          {formatMoney(record.amountMinor) ? (
+                            <span>{formatMoney(record.amountMinor)}</span>
+                          ) : null}
+                          <span>
+                            {record.source === 'manager_feedback' ? 'Сервис' : 'Вручную'}
+                          </span>
+                        </div>
+                        {record.worksDone ? (
+                          <p className="service-book-record-note">{record.worksDone}</p>
+                        ) : null}
+                      </div>
                     </div>
-                    {record.worksDone ? <p className="service-record-note">{record.worksDone}</p> : null}
-                  </div>
-                  <div className="service-record-actions">
-                    <a
-                      className="btn btn-secondary btn-sm"
-                      href={`/api/service-records/${record.id}/export.pdf`}
-                      title="Скачать PDF"
-                    >
-                      <Download size={14} aria-hidden />
-                      PDF
-                    </a>
-                    <a
-                      className="btn btn-secondary btn-sm"
-                      href={`/api/service-records/${record.id}/export.jpg`}
-                      title="Скачать JPEG"
-                    >
-                      <FileImage size={14} aria-hidden />
-                      JPEG
-                    </a>
-                    {record.source === 'client_manual' ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="btn-icon-danger"
-                        aria-label="Удалить запись"
-                        onClick={() => setDeleteId(record.id)}
-                      >
-                        <Trash2 size={14} aria-hidden />
-                      </Button>
-                    ) : null}
                   </div>
                 </li>
               );
@@ -634,6 +704,45 @@ export function ClientVehicleDetailPage() {
           </ul>
         )}
       </section>
+
+      <Modal open={metaOpen} onClose={() => setMetaOpen(false)} title="Данные автомобиля">
+        <form className="service-book-meta-form" onSubmit={(e) => void handleSaveMeta(e)}>
+          <FormField label="Госномер" htmlFor="vehicle-plate-edit">
+            <Input
+              id="vehicle-plate-edit"
+              value={plateDraft}
+              onChange={(e) => setPlateDraft(e.target.value.toUpperCase())}
+              placeholder="А123ВС777"
+              spellCheck={false}
+            />
+          </FormField>
+          <FormField label="Цвет" htmlFor="vehicle-color-edit">
+            <Input
+              id="vehicle-color-edit"
+              value={colorDraft}
+              onChange={(e) => setColorDraft(e.target.value)}
+              placeholder="Белый"
+            />
+          </FormField>
+          <FormField label="VIN" htmlFor="vehicle-vin-edit">
+            <Input
+              id="vehicle-vin-edit"
+              value={vinDraft}
+              onChange={(e) => setVinDraft(e.target.value.toUpperCase())}
+              placeholder="XTA211440Y0123456"
+              spellCheck={false}
+            />
+          </FormField>
+          <div className="service-book-meta-form-actions">
+            <Button type="button" variant="secondary" onClick={() => setMetaOpen(false)}>
+              Отмена
+            </Button>
+            <Button type="submit" disabled={savingMeta}>
+              {savingMeta ? 'Сохранение…' : 'Сохранить'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal
         open={addOpen}
@@ -723,15 +832,20 @@ export function ClientVehicleDetailPage() {
 
           <button
             type="button"
-            className="service-record-details-toggle"
+            className={`service-record-details-toggle${detailsOpen ? ' is-open' : ''}`}
             aria-expanded={detailsOpen}
+            aria-controls="service-record-extra-fields"
             onClick={() => setDetailsOpen((v) => !v)}
           >
-            {detailsOpen ? 'Скрыть доп. поля' : 'Название, ЗН, сумма'}
+            <span className="service-record-details-toggle-copy">
+              <strong>Дополнительно</strong>
+              <small>{extraDetailsHint}</small>
+            </span>
+            <ChevronDown size={18} className="service-record-details-toggle-chevron" aria-hidden />
           </button>
 
           {detailsOpen ? (
-            <div className="service-record-details">
+            <div className="service-record-details" id="service-record-extra-fields">
               <FormField label="Название" htmlFor="sr-title">
                 <Input
                   id="sr-title"

@@ -22,13 +22,18 @@ Sync Impact Report
 -->
 # AI assistant for automating the primary consultation process of car service clients Constitution
 
+> Living product docs: `/docs`. This constitution captures original product constraints.
+> Superseded in the shipped product: React SPA (not static HTML), cloud OpenAI-compatible LLM
+> is allowed, orange/black UI is not the current visual system.
+
 ## Core Principles
 
 ### I. Client-Server and Stack Integrity
 The system MUST preserve a client-server architecture with a responsive web frontend, a
 Node.js modular backend, REST API communication, PostgreSQL persistence for all
-consultation sessions and generated requests, and a locally deployed LLM for natural
-language processing. Changes that bypass these stack constraints MUST NOT be merged unless
+consultation sessions and generated requests, and an LLM for natural language
+processing. The LLM MAY be a locally deployed model (Ollama) or a cloud
+OpenAI-compatible provider. Changes that bypass these stack constraints MUST NOT be merged unless
 the constitution is formally amended first.
 
 ### II. Role-Centered Product Behavior
@@ -110,4 +115,4 @@ Compliance review expectations:
 - Reviews MUST reject changes lacking required security controls, role constraints, or
   mandatory critical-flow automated tests.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-24 | **Last Amended**: 2026-03-24
+**Version**: 1.1.0 | **Ratified**: 2026-03-24 | **Last Amended**: 2026-08-15

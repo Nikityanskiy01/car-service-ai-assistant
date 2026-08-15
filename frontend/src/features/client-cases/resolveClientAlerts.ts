@@ -24,7 +24,14 @@ function formatBookingDate(value: string) {
   });
 }
 
-function unreadLabel(count: number) {
+function unreadLabel(thread: { unreadCount: number; title?: string }, fallbackCount: number) {
+  const count = thread.unreadCount || fallbackCount;
+  const name = thread.title;
+  if (name) {
+    if (count === 1) return `Новое сообщение: ${name}`;
+    if (count < 5) return `${count} новых сообщения: ${name}`;
+    return `${count} новых сообщений: ${name}`;
+  }
   if (count === 1) return '1 новое сообщение от менеджера';
   if (count < 5) return `${count} новых сообщения от менеджера`;
   return `${count} новых сообщений от менеджера`;
@@ -32,15 +39,24 @@ function unreadLabel(count: number) {
 
 export function resolveClientAlerts(summary: ClientDashboardSummary): ClientAlert[] {
   const alerts: ClientAlert[] = [];
+  const threads = summary.unreadThreads?.length
+    ? summary.unreadThreads
+    : summary.unreadMessagesCount > 0
+      ? [{ requestId: '', title: '', unreadCount: summary.unreadMessagesCount, lastMessagePreview: '' }]
+      : [];
 
-  if (summary.unreadMessagesCount > 0) {
+  for (const thread of threads.slice(0, 2)) {
     alerts.push({
-      id: 'unread',
+      id: thread.requestId ? `unread-${thread.requestId}` : 'unread',
       tone: 'info',
-      title: unreadLabel(summary.unreadMessagesCount),
-      description: 'Откройте переписку, чтобы не пропустить ответ по ремонту.',
-      ctaLabel: 'Открыть обращения',
-      ctaTo: '/dashboard/client/cases',
+      title: unreadLabel(thread, summary.unreadMessagesCount),
+      description: thread.lastMessagePreview
+        ? `«${truncate(thread.lastMessagePreview, 72)}»`
+        : 'Откройте переписку, чтобы не пропустить ответ по ремонту.',
+      ctaLabel: 'Открыть чат',
+      ctaTo: thread.requestId
+        ? `/dashboard/client/cases/${thread.requestId}?tab=messages`
+        : '/dashboard/client/cases',
     });
   }
 

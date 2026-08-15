@@ -11,6 +11,7 @@ import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Alert } from '../../components/ui/Alert';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { IntegrationStatusBadge } from '../../components/ui/IntegrationStatusBadge';
 import { Loader } from '../../components/ui/Loader';
@@ -35,7 +36,8 @@ const PROVIDER_CARDS: Array<{ provider: IntegrationProvider; description: string
 export function AdminIntegrationsPage() {
   usePageMeta({ title: 'Интеграции', description: 'Подключение CRM и учётных систем.' });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
@@ -49,11 +51,11 @@ export function AdminIntegrationsPage() {
 
   async function load() {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       setConnections(await listIntegrations());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+      setLoadError(e instanceof Error ? e.message : 'Ошибка загрузки');
     } finally {
       setLoading(false);
     }
@@ -61,18 +63,23 @@ export function AdminIntegrationsPage() {
 
   async function createConnection() {
     if (!selectedProvider) return;
-    const row = await createIntegration({
-      name: form.name || INTEGRATION_PROVIDER_LABELS[selectedProvider],
-      provider: selectedProvider,
-      mode: 'api',
-      config: { baseUrl: form.baseUrl, healthPath: form.healthPath },
-      credentials: form.token ? { token: form.token } : undefined,
-    });
-    setConnections((prev) => [row, ...prev]);
-    setWizardOpen(false);
-    setWizardStep(1);
-    setSelectedProvider(null);
-    setForm({ name: '', baseUrl: '', healthPath: '/health', token: '' });
+    setActionError(null);
+    try {
+      const row = await createIntegration({
+        name: form.name || INTEGRATION_PROVIDER_LABELS[selectedProvider],
+        provider: selectedProvider,
+        mode: 'api',
+        config: { baseUrl: form.baseUrl, healthPath: form.healthPath },
+        credentials: form.token ? { token: form.token } : undefined,
+      });
+      setConnections((prev) => [row, ...prev]);
+      setWizardOpen(false);
+      setWizardStep(1);
+      setSelectedProvider(null);
+      setForm({ name: '', baseUrl: '', healthPath: '/health', token: '' });
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Не удалось создать подключение');
+    }
   }
 
   async function runTest(id: string) {
@@ -80,18 +87,20 @@ export function AdminIntegrationsPage() {
     setTestResult(out.ok ? 'Подключение успешно проверено' : out.message || 'Проверка не пройдена');
   }
 
-  if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
+  if (loading && !connections.length) return <Loader />;
+  if (loadError && !connections.length) return <ErrorState message={loadError} onRetry={() => void load()} />;
 
   return (
     <div className="stack dashboard-page">
       <PageHeader
-        title="Интеграции"
+        title="Подключения"
         description="Подключите учётную систему для передачи заявок и клиентов."
         actions={
           <Button onClick={() => setWizardOpen(true)}>Подключить систему</Button>
         }
       />
+
+      {actionError ? <Alert kind="error">{actionError}</Alert> : null}
 
       {testResult ? <div className="alert">{testResult}</div> : null}
 
@@ -214,7 +223,7 @@ export function AdminIntegrationsPage() {
               <Button variant="ghost" onClick={() => setWizardStep(1)}>
                 Назад
               </Button>
-              <Button onClick={() => void createConnection().catch((e) => setError(String(e)))}>
+              <Button onClick={() => void createConnection()}>
                 Создать и проверить позже
               </Button>
             </div>

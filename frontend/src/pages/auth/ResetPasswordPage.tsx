@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import { FormField } from '../../components/forms/FormField';
 import { PasswordInput } from '../../components/forms/PasswordInput';
+import { PasswordStrengthIndicator } from '../../components/forms/PasswordStrengthIndicator';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { usePageMeta } from '../../hooks/usePageMeta';
@@ -107,6 +108,7 @@ export function ResetPasswordPage() {
                     if (error) setError(null);
                   }}
                 />
+                <PasswordStrengthIndicator password={password} id="resetPassword" />
               </FormField>
 
               <FormField label="Повторите пароль" htmlFor="resetPasswordConfirm" error={confirmError}>

@@ -2,11 +2,13 @@ import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { extractVerificationCodeFromEmail, getLastTestEmail } from '../src/lib/mail/mail.service.js';
 import prisma from '../src/lib/prisma.js';
+import { assertTestDatabaseConnection } from '../scripts/assert-test-database.mjs';
 
 export const app = createApp();
 
 /** Очистка БД (PostgreSQL): удаление в порядке FK. */
 export async function truncateAll() {
+  await assertTestDatabaseConnection(prisma);
   await prisma.$transaction([
     prisma.integrationOutboxEvent.deleteMany(),
     prisma.integrationSyncCursor.deleteMany(),
@@ -19,15 +21,26 @@ export async function truncateAll() {
     prisma.integrationStatusMapping.deleteMany(),
     prisma.integrationCredential.deleteMany(),
     prisma.integrationConnection.deleteMany(),
+    prisma.consentEvent.deleteMany(),
     prisma.refreshToken.deleteMany(),
     prisma.passwordResetToken.deleteMany(),
     prisma.emailVerificationCode.deleteMany(),
+    prisma.authOtpChallenge.deleteMany(),
+    prisma.userLoginEvent.deleteMany(),
+    prisma.inboxNotificationDelivery.deleteMany(),
+    prisma.inboxNotification.deleteMany(),
+    prisma.userNotificationPreference.deleteMany(),
     prisma.contactSubmission.deleteMany(),
     prisma.notification.deleteMany(),
+    prisma.requestFollowUpAttachment.deleteMany(),
     prisma.requestFollowUpMessage.deleteMany(),
     prisma.serviceBookingAuditLog.deleteMany(),
     prisma.serviceBooking.deleteMany(),
+    prisma.vehicleServiceRecord.deleteMany(),
+    prisma.clientVehicleExclusion.deleteMany(),
+    prisma.clientVehicle.deleteMany(),
     prisma.consultationReport.deleteMany(),
+    prisma.serviceRequestCompletionDocument.deleteMany(),
     prisma.consultationFeedback.deleteMany(),
     prisma.consultationDiagnosisJob.deleteMany(),
     prisma.diagnosticRecommendation.deleteMany(),

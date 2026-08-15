@@ -1,6 +1,6 @@
-import jwt from 'jsonwebtoken';
 import { getEnv } from '../config/env.js';
-import { COOKIE_ACCESS } from '../lib/authCookies.js';
+import { readCookieValue } from '../lib/authCookies.js';
+import { verifyAppJwt } from '../lib/jwtTokens.js';
 import { createTtlCache } from '../lib/ttlCache.js';
 import prisma from '../lib/prisma.js';
 
@@ -12,11 +12,19 @@ const AUTH_USER_SELECT = {
   tokenVersion: true,
 };
 
-/** Short TTL — role/block changes propagate within ~45s without a round-trip every request. */
-const authUserCache = createTtlCache(45_000);
+const authUserCache = createTtlCache(5_000);
+
+const TOTP_SETUP_ALLOW = new Set([
+  '/api/users/me',
+  '/api/users/me/security',
+  '/api/users/me/2fa/setup',
+  '/api/users/me/2fa/setup/cancel',
+  '/api/users/me/2fa/confirm',
+  '/api/auth/logout',
+]);
 
 function getAccessTokenString(req) {
-  const c = req.cookies?.[COOKIE_ACCESS];
+  const c = readCookieValue(req, 'access');
   if (c && typeof c === 'string') return c;
   if (getEnv().NODE_ENV === 'test') {
     const h = req.headers.authorization;
@@ -29,23 +37,24 @@ function readTokenVersion(payload) {
   return typeof payload.tv === 'number' && Number.isInteger(payload.tv) ? payload.tv : 0;
 }
 
-function toAuthUser(user) {
-  return { id: user.id, role: user.role, email: user.email };
+function toAuthUser(user, totpSetupPending = false) {
+  return { id: user.id, role: user.role, email: user.email, totpSetupPending };
 }
 
 async function userFromToken(req) {
   const token = getAccessTokenString(req);
   if (!token) return null;
-  const payload = jwt.verify(token, getEnv().JWT_SECRET, { algorithms: ['HS256'] });
+  const payload = verifyAppJwt(token);
   const sub = payload.sub;
   if (typeof sub !== 'string') return null;
   const tokenVersion = readTokenVersion(payload);
+  const totpSetupPending = payload.stp === 1;
 
   const cached = authUserCache.get(sub);
   if (cached) {
     if (cached.blocked) return null;
     if ((cached.tokenVersion ?? 0) !== tokenVersion) return null;
-    return toAuthUser(cached);
+    return toAuthUser(cached, totpSetupPending);
   }
 
   const user = await prisma.user.findUnique({
@@ -56,12 +65,16 @@ async function userFromToken(req) {
   authUserCache.set(sub, user);
   if (user.blocked) return null;
   if ((user.tokenVersion ?? 0) !== tokenVersion) return null;
-  return toAuthUser(user);
+  return toAuthUser(user, totpSetupPending);
 }
 
-/** Invalidate cached auth identity (call after block/role/password changes). */
 export function invalidateAuthUserCache(userId) {
   if (userId) authUserCache.del(userId);
+}
+
+function pathAllowedDuringTotpSetup(req) {
+  const path = String(req.originalUrl || req.url || '').split('?')[0];
+  return TOTP_SETUP_ALLOW.has(path);
 }
 
 export async function authJwt(req, res, next) {
@@ -70,6 +83,12 @@ export async function authJwt(req, res, next) {
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    if (user.totpSetupPending && !pathAllowedDuringTotpSetup(req)) {
+      return res.status(403).json({
+        error: 'Включите двухфакторную защиту, чтобы продолжить',
+        code: 'TOTP_SETUP_REQUIRED',
+      });
+    }
     req.user = user;
     next();
   } catch {
@@ -77,7 +96,6 @@ export async function authJwt(req, res, next) {
   }
 }
 
-/** Bearer опционален: при отсутствии или невалидном токене req.user = null (без 401). */
 export async function optionalAuthJwt(req, res, next) {
   try {
     req.user = await userFromToken(req);

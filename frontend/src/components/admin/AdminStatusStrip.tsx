@@ -45,33 +45,37 @@ export function AdminStatusStrip({ llm, integrationIssues, failedJobs, newReques
         to="/dashboard/admin/ai/status"
         className={`admin-status-pill is-${llmState}`}
         title={llm?.message || 'Статус интеллектуального модуля'}
+        aria-label={llmLabel(llm?.state)}
       >
         <BrainCircuit size={14} aria-hidden />
-        <span>{llmLabel(llm?.state)}</span>
+        <span className="admin-status-pill-label">{llmLabel(llm?.state)}</span>
       </Link>
       <Link
         to="/dashboard/admin/integrations"
         className={`admin-status-pill is-${crmTone(integrationIssues)}`}
         title="Подключения CRM и учётных систем"
+        aria-label={integrationIssues ? `CRM: ${integrationIssues} ошибок` : 'CRM в норме'}
       >
         <Plug size={14} aria-hidden />
-        <span>{integrationIssues ? `CRM: ${integrationIssues} ошибок` : 'CRM: в норме'}</span>
+        <span className="admin-status-pill-label">{integrationIssues ? `CRM: ${integrationIssues}` : 'CRM: норма'}</span>
       </Link>
       <Link
         to="/dashboard/admin/integrations/jobs"
         className={`admin-status-pill is-${failedJobs ? 'warn' : 'ok'}`}
         title="Очередь синхронизации"
+        aria-label={failedJobs ? `Очередь: ${failedJobs}` : 'Очередь в норме'}
       >
         <Link2 size={14} aria-hidden />
-        <span>{failedJobs ? `Очередь: ${failedJobs}` : 'Очередь: пусто'}</span>
+        <span className="admin-status-pill-label">{failedJobs ? `Очередь: ${failedJobs}` : 'Очередь: ок'}</span>
       </Link>
       <Link
         to="/dashboard/admin/operations/requests?status=NEW"
         className={`admin-status-pill is-${newRequests ? 'accent' : 'ok'}`}
         title="Новые заявки"
+        aria-label={newRequests ? `Новых заявок: ${newRequests}` : 'Новых заявок нет'}
       >
         <ClipboardList size={14} aria-hidden />
-        <span>{newRequests ? `Заявки: ${newRequests} новых` : 'Заявки: нет новых'}</span>
+        <span className="admin-status-pill-label">{newRequests ? `Заявки: ${newRequests}` : 'Заявки: нет'}</span>
       </Link>
     </nav>
   );

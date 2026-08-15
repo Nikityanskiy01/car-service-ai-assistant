@@ -59,5 +59,81 @@ describe('admin users', () => {
       .post('/api/auth/login')
       .send({ email: 'vic@test.local', password: 'Password123!ab' });
     expect(login2.status).toBe(403);
+
+    const audit = await request(app).get('/api/admin/audit-events').set('Authorization', `Bearer ${at}`);
+    expect(audit.status).toBe(200);
+    const actions = audit.body.map((e) => e.action);
+    expect(actions).toContain('USER_ROLE_UPDATE');
+    expect(actions).toContain('USER_BLOCKED');
+  });
+
+  it('rejects demoting or blocking the last administrator', async () => {
+    const hash = await bcrypt.hash('Password123!ab', 8);
+    const admin = await prisma.user.create({
+      data: {
+        email: 'solo-admin@test.local',
+        passwordHash: hash,
+        fullName: 'Solo',
+        phone: '+7',
+        role: 'ADMINISTRATOR',
+      },
+    });
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'solo-admin@test.local', password: 'Password123!ab' });
+    const at = login.body.accessToken;
+
+    const demote = await request(app)
+      .patch(`/api/admin/users/${admin.id}/role`)
+      .set('Authorization', `Bearer ${at}`)
+      .send({ role: 'MANAGER' });
+    expect(demote.status).toBe(409);
+
+    const block = await request(app)
+      .post(`/api/admin/users/${admin.id}/block`)
+      .set('Authorization', `Bearer ${at}`);
+    expect(block.status).toBe(409);
+
+    const stillAdmin = await prisma.user.findUnique({ where: { id: admin.id } });
+    expect(stillAdmin.role).toBe('ADMINISTRATOR');
+    expect(stillAdmin.blocked).toBe(false);
+  });
+
+  it('filters users by role and query', async () => {
+    const hash = await bcrypt.hash('Password123!ab', 8);
+    await prisma.user.create({
+      data: {
+        email: 'filter-admin@test.local',
+        passwordHash: hash,
+        fullName: 'Filter Admin',
+        phone: '+8',
+        role: 'ADMINISTRATOR',
+      },
+    });
+    await prisma.user.create({
+      data: {
+        email: 'ivan.manager@test.local',
+        passwordHash: hash,
+        fullName: 'Иван Менеджер',
+        phone: '+9',
+        role: 'MANAGER',
+      },
+    });
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'filter-admin@test.local', password: 'Password123!ab' });
+    const at = login.body.accessToken;
+
+    const managers = await request(app)
+      .get('/api/admin/users?role=MANAGER')
+      .set('Authorization', `Bearer ${at}`);
+    expect(managers.status).toBe(200);
+    expect(managers.body.every((u) => u.role === 'MANAGER')).toBe(true);
+
+    const search = await request(app)
+      .get('/api/admin/users?q=ivan')
+      .set('Authorization', `Bearer ${at}`);
+    expect(search.status).toBe(200);
+    expect(search.body.some((u) => u.email === 'ivan.manager@test.local')).toBe(true);
   });
 });

@@ -13,6 +13,8 @@ const ACTION_LABELS: Record<string, string> = {
   USER_ROLE_UPDATE: 'Изменена роль пользователя',
   USER_BLOCKED: 'Пользователь заблокирован',
   USER_UNBLOCKED: 'Пользователь разблокирован',
+  SESSION_REVOKE: 'Сессия завершена',
+  SESSION_REVOKE_ALL: 'Все сессии пользователя завершены',
   INTEGRATION_CONNECT: 'Подключена интеграция',
   INTEGRATION_UPDATE: 'Обновлены настройки интеграции',
   REQUEST_STATUS_CHANGE: 'Изменён статус заявки',
@@ -27,6 +29,10 @@ const ENTITY_LABELS: Record<string, string> = {
   integration_connection: 'Интеграция',
   service_request: 'Заявка',
 };
+
+export function auditActionOptions(): Array<{ value: string; label: string }> {
+  return Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label }));
+}
 
 export function auditActionLabel(action: string): string {
   if (ACTION_LABELS[action]) return ACTION_LABELS[action];

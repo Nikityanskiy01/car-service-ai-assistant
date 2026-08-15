@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { getEnv } from '../../config/env.js';
-import { logger } from '../logger.js';
+import { escapeHtml } from '../htmlEscape.js';
 
 /** @type {{ to: string; subject: string; text: string; html: string } | null} */
 let lastTestOutbound = null;
@@ -71,6 +71,7 @@ export async function sendMail(payload) {
 export async function sendPasswordResetEmail({ to, resetUrl, userName, ttlMinutes }) {
   const subject = 'Сброс пароля — Автоассистент';
   const greeting = userName ? `Здравствуйте, ${userName}!` : 'Здравствуйте!';
+  const greetingHtml = userName ? `Здравствуйте, ${escapeHtml(userName)}!` : 'Здравствуйте!';
   const text = [
     greeting,
     '',
@@ -82,9 +83,9 @@ export async function sendPasswordResetEmail({ to, resetUrl, userName, ttlMinute
   ].join('\n');
 
   const html = `
-    <p>${greeting}</p>
+    <p>${greetingHtml}</p>
     <p>Вы запросили сброс пароля для личного кабинета.</p>
-    <p><a href="${resetUrl}">Сбросить пароль</a></p>
+    <p><a href="${escapeHtml(resetUrl)}">Сбросить пароль</a></p>
     <p>Ссылка действует ${ttlMinutes} мин.</p>
     <p style="color:#666;font-size:14px">Если вы не запрашивали сброс, просто проигнорируйте это письмо.</p>
   `.trim();
@@ -98,6 +99,7 @@ export async function sendPasswordResetEmail({ to, resetUrl, userName, ttlMinute
 export async function sendEmailVerificationEmail({ to, code, userName, ttlMinutes, verifyUrl }) {
   const subject = 'Подтверждение email — Автоассистент';
   const greeting = userName ? `Здравствуйте, ${userName}!` : 'Здравствуйте!';
+  const greetingHtml = userName ? `Здравствуйте, ${escapeHtml(userName)}!` : 'Здравствуйте!';
   const text = [
     greeting,
     '',
@@ -111,13 +113,121 @@ export async function sendEmailVerificationEmail({ to, code, userName, ttlMinute
   ].join('\n');
 
   const html = `
-    <p>${greeting}</p>
+    <p>${greetingHtml}</p>
     <p>Для завершения регистрации введите код подтверждения:</p>
     <p style="font-size:28px;font-weight:700;letter-spacing:0.2em">${code}</p>
     <p>Код действует ${ttlMinutes} мин.</p>
-    <p><a href="${verifyUrl}">Подтвердить email</a></p>
+    <p><a href="${escapeHtml(verifyUrl)}">Подтвердить email</a></p>
     <p style="color:#666;font-size:14px">Если вы не регистрировались, проигнорируйте это письмо.</p>
   `.trim();
 
+  await sendMail({ to, subject, text, html });
+}
+
+/**
+ * @param {{ to: string; code: string; userName: string; ttlMinutes: number }} params
+ */
+export async function sendLoginOtpEmail({ to, code, userName, ttlMinutes }) {
+  const subject = 'Код для входа — Автоассистент';
+  const greeting = userName ? `Здравствуйте, ${userName}!` : 'Здравствуйте!';
+  const greetingHtml = userName ? `Здравствуйте, ${escapeHtml(userName)}!` : 'Здравствуйте!';
+  const text = [
+    greeting,
+    '',
+    'Код для входа в личный кабинет:',
+    code,
+    '',
+    `Код действует ${ttlMinutes} мин.`,
+    '',
+    'Если вы не запрашивали вход, проигнорируйте это письмо.',
+  ].join('\n');
+
+  const html = `
+    <p>${greetingHtml}</p>
+    <p>Код для входа в личный кабинет:</p>
+    <p style="font-size:28px;font-weight:700;letter-spacing:0.2em">${code}</p>
+    <p>Код действует ${ttlMinutes} мин.</p>
+    <p style="color:#666;font-size:14px">Если вы не запрашивали вход, проигнорируйте это письмо.</p>
+  `.trim();
+
+  await sendMail({ to, subject, text, html });
+}
+
+/**
+ * @param {{ to: string; code: string; userName: string; phoneHint: string; ttlMinutes: number }} params
+ */
+export async function sendPhoneVerifyEmail({ to, code, userName, phoneHint, ttlMinutes }) {
+  const subject = 'Подтверждение телефона — Автоассистент';
+  const greeting = userName ? `Здравствуйте, ${userName}!` : 'Здравствуйте!';
+  const greetingHtml = userName ? `Здравствуйте, ${escapeHtml(userName)}!` : 'Здравствуйте!';
+  const text = [
+    greeting,
+    '',
+    `Подтвердите номер ${phoneHint} кодом:`,
+    code,
+    '',
+    `Код действует ${ttlMinutes} мин.`,
+    '',
+    'Если вы не запрашивали подтверждение, проигнорируйте это письмо.',
+  ].join('\n');
+
+  const html = `
+    <p>${greetingHtml}</p>
+    <p>Подтвердите номер <strong>${escapeHtml(phoneHint)}</strong> кодом:</p>
+    <p style="font-size:28px;font-weight:700;letter-spacing:0.2em">${code}</p>
+    <p>Код действует ${ttlMinutes} мин.</p>
+    <p style="color:#666;font-size:14px">Если вы не запрашивали подтверждение, проигнорируйте это письмо.</p>
+  `.trim();
+
+  await sendMail({ to, subject, text, html });
+}
+
+/**
+ * @param {{ to: string; code: string; userName: string; ttlMinutes: number; targetLabel: string }} params
+ */
+export async function sendSessionRevokeEmail({ to, code, userName, ttlMinutes, targetLabel }) {
+  const subject = 'Код для завершения сессий — Автоассистент';
+  const greeting = userName ? `Здравствуйте, ${userName}!` : 'Здравствуйте!';
+  const greetingHtml = userName ? `Здравствуйте, ${escapeHtml(userName)}!` : 'Здравствуйте!';
+  const text = [
+    greeting,
+    '',
+    `Подтвердите завершение сессий (${targetLabel}) кодом:`,
+    code,
+    '',
+    `Код действует ${ttlMinutes} мин.`,
+    '',
+    'Если вы этого не запрашивали — смените пароль: кто-то мог получить доступ к аккаунту.',
+  ].join('\n');
+
+  const html = `
+    <p>${greetingHtml}</p>
+    <p>Подтвердите завершение сессий (<strong>${escapeHtml(targetLabel)}</strong>) кодом:</p>
+    <p style="font-size:28px;font-weight:700;letter-spacing:0.2em">${code}</p>
+    <p>Код действует ${ttlMinutes} мин.</p>
+    <p style="color:#666;font-size:14px">Если вы этого не запрашивали — смените пароль: кто-то мог получить доступ к аккаунту.</p>
+  `.trim();
+
+  await sendMail({ to, subject, text, html });
+}
+
+/**
+ * @param {{ to: string; title: string; body: string; href?: string | null; userName?: string | null }} params
+ */
+export async function sendNotificationEmail({ to, title, body, href, userName }) {
+  const env = getEnv();
+  const greeting = userName ? `Здравствуйте, ${userName}!` : 'Здравствуйте!';
+  const greetingHtml = userName ? `Здравствуйте, ${escapeHtml(userName)}!` : 'Здравствуйте!';
+  const link = href ? `${String(env.APP_PUBLIC_URL || '').replace(/\/$/, '')}${href}` : null;
+  const subject = `${title} — Автоассистент`;
+  const text = [greeting, '', body, link ? `\nОткрыть: ${link}` : '', '', 'Это письмо отправлено, потому что уведомления включены в профиле.']
+    .filter(Boolean)
+    .join('\n');
+  const html = `
+    <p>${greetingHtml}</p>
+    <p>${body.replace(/\n/g, '<br/>')}</p>
+    ${link ? `<p><a href="${link}">Открыть в кабинете</a></p>` : ''}
+    <p style="color:#666;font-size:14px">Это письмо отправлено, потому что уведомления включены в профиле.</p>
+  `.trim();
   await sendMail({ to, subject, text, html });
 }

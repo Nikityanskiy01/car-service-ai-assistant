@@ -1,3 +1,5 @@
+import { managerZonePaths, type ManagerZonePaths } from '../config/managerPaths';
+import { formatRequestNumber } from './labels';
 import type { ContactSubmission, ServiceBooking } from '../types/dashboard';
 import type { ConsultationDiagnosis, ServiceRequest, ServiceRequestDetail } from '../types/serviceRequest';
 
@@ -98,12 +100,14 @@ export type AttentionItem = {
   requestId?: string;
   bookingId?: string;
   version?: number;
+  status?: ServiceRequest['status'];
 };
 
 export function buildAttentionItems(
   requests: ServiceRequest[],
   bookings: ServiceBooking[],
   contacts: ContactSubmission[],
+  paths: ManagerZonePaths = managerZonePaths(false),
 ): AttentionItem[] {
   const items: AttentionItem[] = [];
   const now = Date.now();
@@ -118,14 +122,15 @@ export function buildAttentionItems(
     const phone = request.client?.phone || request.guestPhone || undefined;
     const symptoms = request.snapshotSymptoms?.slice(0, 48) || 'без описания';
     const base = {
-      title: `№${request.id.slice(0, 8).toUpperCase()} · ${car}`,
+      title: `№${formatRequestNumber(request.id)} · ${car}`,
       meta: `${client} · ${symptoms}`,
-      to: `/dashboard/manager/requests/${request.id}`,
+      to: `${paths.requests}/${request.id}`,
       phone,
       urgency,
       isGuest: !request.clientId,
       requestId: request.id,
       version: request.version,
+      status: request.status,
     };
 
     if (request.status === 'NEW') {
@@ -166,7 +171,7 @@ export function buildAttentionItems(
         id: `booking-${booking.id}`,
         title: booking.client?.fullName || booking.guestName || 'Запись',
         reason: `Запись через ${Math.round(diffMin)} мин`,
-        to: '/dashboard/manager/calendar',
+        to: paths.calendar,
         phone: booking.client?.phone || booking.guestPhone || undefined,
         priority: 90 - Math.round(diffMin),
         bookingId: booking.id,
@@ -181,7 +186,7 @@ export function buildAttentionItems(
       title: contact.fullName,
       reason: 'Новое обращение с сайта',
       meta: contact.message?.slice(0, 60) || contact.phone,
-      to: '/dashboard/manager/contacts',
+      to: paths.contacts,
       phone: contact.phone,
       priority: 55 - Math.min(ageMin, 30),
     });

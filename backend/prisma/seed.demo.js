@@ -1,20 +1,29 @@
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
+import { seedDemoInboxNotifications } from './lib/demoInboxNotifications.js';
 
 const prisma = new PrismaClient();
+
+function demoPassword(envKey, fallback) {
+  const fromEnv = process.env[envKey];
+  if (process.env.NODE_ENV === 'production' && !fromEnv) {
+    throw new Error(`${envKey} is required when seeding demo users in production`);
+  }
+  return fromEnv || fallback;
+}
 
 const defaults = {
   client: {
     email: process.env.DEMO_CLIENT_EMAIL || 'client@example.local',
-    password: process.env.DEMO_CLIENT_PASSWORD || 'Client-Demo-2026!',
+    password: demoPassword('DEMO_CLIENT_PASSWORD', 'Client-Demo-2026!'),
   },
   manager: {
     email: process.env.DEMO_MANAGER_EMAIL || 'manager@example.local',
-    password: process.env.DEMO_MANAGER_PASSWORD || 'Manager-Demo-2026!',
+    password: demoPassword('DEMO_MANAGER_PASSWORD', 'Manager-Demo-2026!'),
   },
   admin: {
     email: process.env.DEMO_ADMIN_EMAIL || 'admin@example.local',
-    password: process.env.DEMO_ADMIN_PASSWORD || 'Admin-Demo-2026!',
+    password: demoPassword('DEMO_ADMIN_PASSWORD', 'Admin-Demo-2026!'),
   },
 };
 
@@ -49,8 +58,12 @@ async function resetOperationalData() {
   await prisma.integrationCredential.deleteMany();
   await prisma.integrationConnection.deleteMany();
 
+  await prisma.consentEvent.deleteMany();
   await prisma.serviceBookingAuditLog.deleteMany();
   await prisma.serviceBooking.deleteMany();
+  await prisma.inboxNotificationDelivery.deleteMany();
+  await prisma.inboxNotification.deleteMany();
+  await prisma.serviceRequestCompletionDocument.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.requestFollowUpMessage.deleteMany();
   await prisma.serviceRequest.deleteMany();
@@ -1123,11 +1136,27 @@ async function main() {
   const contactsCount = await prisma.contactSubmission.count();
   const jobsCount = await prisma.integrationJob.count();
 
+  const clientBookings = await prisma.serviceBooking.findMany({
+    where: { clientId: client.id },
+    orderBy: { preferredAt: 'asc' },
+    select: { id: true, status: true, preferredAt: true },
+  });
+  const clientRequests = await prisma.serviceRequest.findMany({
+    where: { clientId: client.id },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, status: true },
+  });
+  const inboxCount = await seedDemoInboxNotifications(prisma, {
+    userId: client.id,
+    bookings: clientBookings,
+    requests: clientRequests,
+  });
+
   console.log(`Demo seed OK:
   client:  ${defaults.client.email} / ${defaults.client.password}
   manager: ${defaults.manager.email} / ${defaults.manager.password}
   admin:   ${defaults.admin.email} / ${defaults.admin.password}
-  data: ${createdRequests} requests, ${bookingsCount} bookings, ${contactsCount} contacts, ${jobsCount} integration jobs
+  data: ${createdRequests} requests, ${bookingsCount} bookings, ${contactsCount} contacts, ${jobsCount} integration jobs, ${inboxCount} inbox notifications
 `);
 }
 

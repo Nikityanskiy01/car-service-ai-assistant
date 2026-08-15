@@ -6,6 +6,7 @@ const base: ClientDashboardSummary = {
   profile: { fullName: 'Иван', phone: '+79990000000' },
   activeCasesCount: 0,
   unreadMessagesCount: 0,
+  unreadThreads: [],
   hasAnyHistory: false,
   nextBooking: null,
   draftConsultation: null,

@@ -12,6 +12,7 @@ export type AdminSystemStatus = {
 };
 
 const FAILED_JOB_STATUSES = new Set(['FAILED', 'DEAD_LETTER', 'RETRYING']);
+const POLL_MS = 45_000;
 
 export function useAdminSystemStatus(enabled = true) {
   const [status, setStatus] = useState<AdminSystemStatus>({
@@ -24,7 +25,6 @@ export function useAdminSystemStatus(enabled = true) {
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
-    setStatus((prev) => ({ ...prev, loading: true }));
     try {
       const [llm, integrations, requests] = await Promise.all([
         getLlmStatus(false),
@@ -70,8 +70,11 @@ export function useAdminSystemStatus(enabled = true) {
   }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     void refresh();
-  }, [refresh]);
+    const timer = window.setInterval(() => void refresh(), POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [enabled, refresh]);
 
   return { ...status, refresh };
 }

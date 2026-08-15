@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  analyzePasswordStrength,
   getEmailError,
   getFullNameError,
   getPasswordConfirmError,
@@ -73,5 +74,21 @@ describe('getPasswordConfirmError', () => {
     expect(getPasswordConfirmError('Password123!ab', 'Password123!ab')).toBeNull();
     expect(getPasswordConfirmError('Password123!ab', '')).toBeTruthy();
     expect(getPasswordConfirmError('Password123!ab', 'other')).toBe('Пароли не совпадают');
+  });
+});
+
+describe('analyzePasswordStrength', () => {
+  it('marks policy-compliant passwords as strong', () => {
+    const result = analyzePasswordStrength('Password123!ab');
+    expect(result.meetsPolicy).toBe(true);
+    expect(result.level).toBe(4);
+    expect(result.checks.every((check) => check.met)).toBe(true);
+  });
+
+  it('reports missing requirements for weak passwords', () => {
+    const result = analyzePasswordStrength('short');
+    expect(result.meetsPolicy).toBe(false);
+    expect(result.level).toBeLessThan(4);
+    expect(result.checks.find((check) => check.id === 'length')?.met).toBe(false);
   });
 });

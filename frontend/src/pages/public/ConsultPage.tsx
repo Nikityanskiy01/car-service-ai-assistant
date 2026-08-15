@@ -21,15 +21,18 @@ import { Loader } from '../../components/ui/Loader';
 import { Modal } from '../../components/ui/Modal';
 import { Tabs } from '../../components/ui/Tabs';
 import { useProductConfig } from '../../config/ProductConfigProvider';
+import { managerZonePaths } from '../../config/managerPaths';
 import { prefillBookingFromConsultation } from '../../features/services/prefill';
 import {
   clearStoredConsultationSession,
   isStaleConsultationAccessError,
 } from '../../features/consultations/consultationAccess';
 import { useConsultationStream } from '../../features/consultations/useConsultationStream';
+import { solveAbuseChallenge } from '../../features/consultations/abusePow';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
+import { trackProductEvent } from '../../lib/productEvents';
 import { STORAGE_KEYS } from '../../lib/storageKeys';
 import { getFullNameError, getPhoneError } from '../../lib/validation';
 import type { ConsultationDetail } from '../../types/consultation';
@@ -86,7 +89,7 @@ export function ConsultPage() {
     description: 'Чат-диагностика симптомов до записи в автосервис.',
   });
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const online = useOnlineStatus();
   const [sessionId, setSessionId] = useState<string | null>(sessionStorage.getItem(STORAGE_KEYS.consultSessionId));
   const [guestToken, setGuestToken] = useState<string | null>(
@@ -123,6 +126,7 @@ export function ConsultPage() {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contactModalIntent, setContactModalIntent] = useState<'request' | 'login'>('request');
   const bootRef = useRef(false);
+  const diagnosisShownRef = useRef(false);
   const retryRef = useRef<(() => void) | null>(null);
   const { start, stop } = useConsultationStream();
   const stage = String(detail?.flowState?.stage || 'INITIAL');
@@ -212,6 +216,16 @@ export function ConsultPage() {
     return () => window.clearInterval(timer);
   }, [sessionId, guestToken, diagnosisPending]);
 
+  useEffect(() => {
+    if (diagnosisShownRef.current) return;
+    if (!detail?.diagnosis || diagnosisPending) return;
+    diagnosisShownRef.current = true;
+    trackProductEvent('diagnosis_shown', {
+      sessionId: sessionId || '',
+      provider: String(detail.diagnosis.execution_meta?.provider || ''),
+    });
+  }, [detail, diagnosisPending, sessionId]);
+
   async function openConsultationSession() {
     const existingId = sessionStorage.getItem(STORAGE_KEYS.consultSessionId);
     const existingToken = sessionStorage.getItem(STORAGE_KEYS.consultGuestToken);
@@ -241,7 +255,16 @@ export function ConsultPage() {
     setBootstrapping(true);
     setSuccessRequestId(null);
     try {
-      const created = await api<{ id: string; guestToken?: string }>('/consultations', { method: 'POST', body: {} });
+      const abuseHeaders = user ? undefined : await solveAbuseChallenge();
+      const idempotencyKey =
+        sessionStorage.getItem(STORAGE_KEYS.consultIdempotencyKey) || crypto.randomUUID();
+      sessionStorage.setItem(STORAGE_KEYS.consultIdempotencyKey, idempotencyKey);
+      const created = await api<{ id: string; guestToken?: string }>('/consultations', {
+        method: 'POST',
+        body: {},
+        headers: { ...(abuseHeaders || {}), 'Idempotency-Key': idempotencyKey },
+      });
+      trackProductEvent('consult_started', { guest: created.guestToken ? true : false });
       setSessionId(created.id);
       sessionStorage.setItem(STORAGE_KEYS.consultSessionId, created.id);
       if (created.guestToken) {
@@ -425,6 +448,7 @@ export function ConsultPage() {
             },
           });
       setSuccessRequestId(payload.id);
+      trackProductEvent('request_created', { requestId: payload.id });
       setContactModalOpen(false);
       setMobilePanel('result');
     } catch (e) {
@@ -485,8 +509,15 @@ export function ConsultPage() {
               Выбрать время записи
             </Button>
             {isAuthenticated ? (
-              <Link className="btn btn-secondary" to="/dashboard/client/requests">
-                В кабинет
+              <Link
+                className="btn btn-secondary"
+                to={
+                  user?.role === 'CLIENT'
+                    ? '/dashboard/client/cases'
+                    : `${managerZonePaths(user?.role === 'ADMINISTRATOR').requests}/${successRequestId}`
+                }
+              >
+                {user?.role === 'CLIENT' ? 'В кабинет' : 'Открыть заявку'}
               </Link>
             ) : (
               <button type="button" className="btn btn-secondary" onClick={() => openContactModal('login')}>
@@ -599,6 +630,7 @@ export function ConsultPage() {
                 <Input
                   name="fullName"
                   autoComplete="name"
+                  required
                   placeholder="Иван Иванов"
                   value={guestName}
                   onChange={(e) => {
@@ -615,6 +647,7 @@ export function ConsultPage() {
               >
                 <PhoneInput
                   name="phone"
+                  required
                   value={guestPhone}
                   onChange={(value) => {
                     setGuestPhone(value);

@@ -1,6 +1,58 @@
 import type { ServiceBooking } from '../types/dashboard';
+import { formatRequestNumber } from './labels';
+
+type RequestLike = {
+  id: string;
+  snapshotMake?: string | null;
+  snapshotModel?: string | null;
+  snapshotSymptoms?: string | null;
+  createdAt?: string;
+};
+
+function truncateLabel(value: string, max: number) {
+  const text = value.trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, Math.max(1, max - 1))}…`;
+}
+
+export function getRequestVehicleLabel(request: Pick<RequestLike, 'snapshotMake' | 'snapshotModel'>): string {
+  return [request.snapshotMake, request.snapshotModel].filter(Boolean).join(' ');
+}
+
+export function formatBookingRequestOption(request: RequestLike): string {
+  const number = `№${formatRequestNumber(request.id)}`;
+  const topic = truncateLabel(request.snapshotSymptoms || '', 36);
+  const car = getRequestVehicleLabel(request);
+  const date = request.createdAt
+    ? new Date(request.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    : '';
+  const parts = [number, topic || car || 'без темы'];
+  if (topic && car) parts.push(car);
+  if (date) parts.push(date);
+  return parts.join(' · ');
+}
+
+export function formatBookingRequestSummary(request: Pick<RequestLike, 'id' | 'snapshotSymptoms'>): string {
+  const topic = truncateLabel(request.snapshotSymptoms || '', 48);
+  const number = `№${formatRequestNumber(request.id)}`;
+  return topic ? `${number} · ${topic}` : `Обращение ${number}`;
+}
+
+export function requestCarDiffersFromBooking(
+  request: Pick<RequestLike, 'snapshotMake' | 'snapshotModel'>,
+  bookingVehicleTitle?: string | null,
+): boolean {
+  const requestCar = getRequestVehicleLabel(request).toLowerCase();
+  const bookingCar = (bookingVehicleTitle || '').trim().toLowerCase();
+  if (!requestCar || !bookingCar) return false;
+  return !bookingCar.includes(requestCar) && !requestCar.includes(bookingCar);
+}
 
 export function getBookingVehicleLabel(booking: ServiceBooking): string | null {
+  if (booking.vehicle) {
+    const fromGarage = [booking.vehicle.make, booking.vehicle.model].filter(Boolean).join(' ');
+    if (fromGarage) return fromGarage;
+  }
   const sr = booking.serviceRequest;
   if (!sr) return null;
   const car = [sr.snapshotMake, sr.snapshotModel].filter(Boolean).join(' ');

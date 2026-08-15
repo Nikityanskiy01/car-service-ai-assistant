@@ -21,7 +21,11 @@ const recordBodySchema = z.object({
 
 export const serviceRecordsRouter = Router();
 
-serviceRecordsRouter.use(authJwt, requireRole('CLIENT'));
+serviceRecordsRouter.use(
+  ['/vehicles', '/service-records', '/maintenance-alerts'],
+  authJwt,
+  requireRole('CLIENT'),
+);
 
 serviceRecordsRouter.get(
   '/vehicles/:vehicleId/service-records',

@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { cancelBooking, getBooking } from '../../../api/dashboard';
 import { BookingStatusRail } from '../../../components/client/BookingStatusRail';
 import { ClientStatusBadge } from '../../../components/client/ClientStatusBadge';
+import { RescheduleBookingModal } from '../../../components/client/RescheduleBookingModal';
 import { Button } from '../../../components/ui/Button';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
@@ -29,7 +30,6 @@ import {
   clientBookingStatusDescription,
 } from '../../../lib/clientStatusLabels';
 import { resolveClientStatusTone } from '../../../lib/clientStatusLegend';
-import { STORAGE_KEYS } from '../../../lib/storageKeys';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 import type { ServiceBooking } from '../../../types/dashboard';
 
@@ -45,6 +45,7 @@ export function ClientBookingDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [booking, setBooking] = useState<ServiceBooking | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   usePageMeta({ title: 'Детали записи', description: 'Дата записи, статус и действия.' });
@@ -77,20 +78,6 @@ export function ClientBookingDetailPage() {
       location: productConfig.address,
     });
     downloadBookingIcs(ics, `booking-${booking.id}.ics`);
-  }
-
-  function handleReschedule() {
-    if (!booking) return;
-    sessionStorage.setItem(
-      STORAGE_KEYS.bookingPrefill,
-      JSON.stringify({
-        serviceRequestId: linkedCaseId || undefined,
-        consultationSummary: booking.notes || booking.comment || undefined,
-        fullName: booking.client?.fullName || undefined,
-        phone: booking.client?.phone || undefined,
-      }),
-    );
-    navigate('/booking');
   }
 
   async function handleCancel() {
@@ -308,7 +295,7 @@ export function ClientBookingDetailPage() {
             ) : null}
 
             {ui.canManage ? (
-              <button type="button" className="booking-toolbar-btn" onClick={handleReschedule}>
+              <button type="button" className="booking-toolbar-btn" onClick={() => setRescheduleOpen(true)}>
                 <RefreshCw size={15} aria-hidden />
                 Перенести
               </button>
@@ -345,6 +332,13 @@ export function ClientBookingDetailPage() {
           {actionError ? <p className="form-error booking-detail-error">{actionError}</p> : null}
         </footer>
       </article>
+
+      <RescheduleBookingModal
+        open={rescheduleOpen}
+        booking={booking}
+        onClose={() => setRescheduleOpen(false)}
+        onUpdated={setBooking}
+      />
     </div>
   );
 }

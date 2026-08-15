@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authJwt } from '../../middleware/authJwt.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody } from '../../middleware/validate.js';
+import { contentDisposition } from '../../lib/fileMagic.js';
 import * as requestMessagesService from './requestMessages.service.js';
 
 const attachmentSchema = z.object({
@@ -20,6 +21,17 @@ const postSchema = z
     message: 'Укажите текст или прикрепите файл',
   });
 
+function serializeMessage(m) {
+  return {
+    id: m.id,
+    body: m.body,
+    createdAt: m.createdAt.toISOString(),
+    author: m.author,
+    attachments: m.attachments,
+    deliveryStatus: m.deliveryStatus ?? null,
+  };
+}
+
 export const requestMessagesRouter = Router({ mergeParams: true });
 requestMessagesRouter.use(authJwt);
 
@@ -27,15 +39,7 @@ requestMessagesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     const list = await requestMessagesService.listMessages(req.params.requestId, req.user);
-    res.json(
-      list.map((m) => ({
-        id: m.id,
-        body: m.body,
-        createdAt: m.createdAt.toISOString(),
-        author: m.author,
-        attachments: m.attachments,
-      })),
-    );
+    res.json(list.map(serializeMessage));
   }),
 );
 
@@ -48,13 +52,7 @@ requestMessagesRouter.post(
       req.user,
       req.validatedBody,
     );
-    res.status(201).json({
-      id: m.id,
-      body: m.body,
-      createdAt: m.createdAt.toISOString(),
-      author: m.author,
-      attachments: m.attachments,
-    });
+    res.status(201).json(serializeMessage(m));
   }),
 );
 
@@ -68,7 +66,7 @@ requestMessagesRouter.get(
       req.user,
     );
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.fileName)}"`);
+    res.setHeader('Content-Disposition', contentDisposition(file.fileName, { inline: file.mimeType.startsWith('image/') }));
     res.send(file.buffer);
   }),
 );

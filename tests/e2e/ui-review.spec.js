@@ -36,7 +36,7 @@ async function loginWithFallback(page, role) {
     ],
   }[role];
   for (const variant of creds) {
-    await page.getByLabel('Email').fill(variant.email);
+    await page.getByLabel('Телефон или почта').fill(variant.email);
     await page.getByLabel('Пароль').fill(variant.password);
     await page.getByRole('button', { name: 'Войти' }).click();
     await page.waitForTimeout(500);

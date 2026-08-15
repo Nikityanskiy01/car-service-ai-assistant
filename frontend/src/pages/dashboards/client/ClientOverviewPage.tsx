@@ -33,6 +33,7 @@ import { resolveClientOverviewFocus } from '../../../features/client-cases/resol
 import type { ClientDashboardSummary } from '../../../features/client-cases/resolveClientHero';
 import { useProductConfig } from '../../../config/ProductConfigProvider';
 import { usePageMeta } from '../../../hooks/usePageMeta';
+import { bookingPath } from '../../../lib/bookingPath';
 import { formatActiveCasesLabel, formatUnreadMessagesLabel } from '../../../lib/russianPlural';
 
 function toClientCase(item: ClientDashboardSummary['recentActiveCases'][number]): ClientCase {
@@ -49,6 +50,7 @@ function toClientCase(item: ClientDashboardSummary['recentActiveCases'][number])
     urgency: item.urgency,
     serviceRequestId: item.serviceRequestId ?? undefined,
     consultationSessionId: item.consultationSessionId ?? undefined,
+    unreadCount: item.unreadCount || 0,
     topic: resolveClientCaseTopic({
       kind: item.kind,
       symptoms: item.symptoms,
@@ -123,6 +125,12 @@ export function ClientOverviewPage() {
   const visibleVehicles = vehicles.slice(0, 4);
   const hiddenVehiclesCount = Math.max(0, vehicles.length - visibleVehicles.length);
   const topOilAlert = oilAlerts[0] || null;
+  const unreadInFocus =
+    focus?.primary.kind === 'unread' || focus?.secondary.some((item) => item.kind === 'unread');
+  const unreadStatTo =
+    summary.unreadThreads?.length === 1
+      ? `/dashboard/client/cases/${summary.unreadThreads[0].requestId}?tab=messages`
+      : '/dashboard/client/cases';
 
   function bookFromOilAlert(alert: MaintenanceAlert) {
     prefillOilChangeBookingFromPlan({
@@ -132,88 +140,52 @@ export function ClientOverviewPage() {
       nextDueAt: alert.plan?.nextDueAt,
       nextDueMileage: alert.plan?.nextDueMileage,
     });
-    navigate('/booking');
+    navigate(bookingPath(alert.vehicleId));
   }
 
   return (
     <div className="stack dashboard-page client-overview">
       <header className="client-overview-header">
         <div className="client-overview-intro">
-          <p className="client-overview-greeting">
-            {summary.profile.fullName ? `${greeting}, ${summary.profile.fullName}` : greeting}
-          </p>
-          <p className="client-overview-subtitle">{subtitle}</p>
-          {topOilAlert ? (
-            <div
-              className={`service-oil-alert client-overview-focus-primary ${
-                topOilAlert.status === 'overdue' ? 'is-accent-overdue' : 'is-accent-soon'
-              }`}
-              data-status={topOilAlert.status}
-            >
-              <div className="client-overview-focus-primary-inner service-oil-alert-inner">
-                <div className="client-overview-focus-primary-head">
-                  <span className="client-overview-focus-primary-icon" aria-hidden>
-                    <Droplets size={18} />
-                  </span>
-                  <div>
-                    <p className="client-overview-focus-kicker">Обслуживание</p>
-                    <strong>
-                      {topOilAlert.status === 'overdue'
-                        ? 'Пора менять масло'
-                        : 'Скоро замена масла'}
-                    </strong>
-                    <p className="muted service-oil-alert-meta">
-                      {formatVehicleTitle(topOilAlert)}
-                      {topOilAlert.plan?.nextDueAt
-                        ? ` · до ${new Date(topOilAlert.plan.nextDueAt).toLocaleDateString('ru-RU')}`
-                        : ''}
-                      {topOilAlert.plan?.nextDueMileage != null
-                        ? ` · ${topOilAlert.plan.nextDueMileage.toLocaleString('ru-RU')} км`
-                        : ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="service-oil-alert-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => bookFromOilAlert(topOilAlert)}
-                  >
-                    Записаться
-                  </button>
-                  <Link
-                    className="btn btn-secondary btn-sm"
-                    to={`/dashboard/client/vehicles/${topOilAlert.vehicleId}`}
-                  >
-                    История
-                  </Link>
-                </div>
-              </div>
+          <div className="client-overview-title-row">
+            <div>
+              <p className="client-overview-greeting">
+                {summary.profile.fullName ? `${greeting}, ${summary.profile.fullName}` : greeting}
+              </p>
+              <p className="client-overview-subtitle">{subtitle}</p>
             </div>
-          ) : null}
+            <ClientStatusHelpButton />
+          </div>
           <div className="client-overview-stats" aria-label="Сводка">
             {summary.activeCasesCount > 0 ? (
               <Link className="client-overview-stat" to="/dashboard/client/cases">
-                <Wrench size={14} aria-hidden />
+                <span className="client-overview-stat-icon" aria-hidden>
+                  <Wrench size={14} />
+                </span>
                 {formatActiveCasesLabel(summary.activeCasesCount)}
               </Link>
             ) : null}
-            {summary.unreadMessagesCount > 0 ? (
-              <Link className="client-overview-stat is-highlight" to="/dashboard/client/cases">
-                <MessageSquare size={14} aria-hidden />
+            {summary.unreadMessagesCount > 0 && !unreadInFocus ? (
+              <Link className="client-overview-stat is-highlight" to={unreadStatTo}>
+                <span className="client-overview-stat-icon" aria-hidden>
+                  <MessageSquare size={14} />
+                </span>
                 {formatUnreadMessagesLabel(summary.unreadMessagesCount)}
               </Link>
             ) : null}
             {vehicles.length > 0 ? (
               <Link className="client-overview-stat" to="/dashboard/client/vehicles">
-                <Car size={14} aria-hidden />
+                <span className="client-overview-stat-icon" aria-hidden>
+                  <Car size={14} />
+                </span>
                 <strong>{vehicles.length}</strong> авто
               </Link>
             ) : null}
           </div>
         </div>
-        <ClientStatusHelpButton />
       </header>
+
+      {focus ? <ClientOverviewFocusStack primary={focus.primary} secondary={focus.secondary} /> : null}
 
       {summary.nextBooking ? (
         <ClientOverviewBookingSpotlight
@@ -223,7 +195,78 @@ export function ClientOverviewPage() {
         />
       ) : null}
 
-      {focus ? <ClientOverviewFocusStack primary={focus.primary} secondary={focus.secondary} /> : null}
+      {topOilAlert ? (
+        <div
+          className={`service-oil-alert client-overview-focus-primary is-compact ${
+            topOilAlert.status === 'overdue' ? 'is-accent-overdue' : 'is-accent-soon'
+          }`}
+          data-status={topOilAlert.status}
+        >
+          <div className="client-overview-focus-primary-inner service-oil-alert-inner">
+            <div className="client-overview-focus-primary-head">
+              <span className="client-overview-focus-primary-icon service-oil-alert-icon" aria-hidden>
+                <Droplets size={18} strokeWidth={2.1} />
+              </span>
+              <div className="service-oil-alert-copy">
+                <p className="client-overview-focus-kicker">Обслуживание</p>
+                <strong className="service-oil-alert-title">
+                  {topOilAlert.status === 'overdue'
+                    ? 'Пора менять масло'
+                    : 'Скоро замена масла'}
+                </strong>
+                <ul className="service-oil-alert-meta">
+                  <li>{formatVehicleTitle(topOilAlert)}</li>
+                  {topOilAlert.plan?.nextDueAt ? (
+                    <li>
+                      до {new Date(topOilAlert.plan.nextDueAt).toLocaleDateString('ru-RU')}
+                    </li>
+                  ) : null}
+                  {topOilAlert.plan?.nextDueMileage != null ? (
+                    <li>
+                      {topOilAlert.plan.nextDueMileage.toLocaleString('ru-RU')} км
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+            </div>
+            <div className="service-oil-alert-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm service-oil-alert-cta"
+                onClick={() => bookFromOilAlert(topOilAlert)}
+              >
+                <CalendarDays size={15} aria-hidden />
+                Записаться
+              </button>
+              <Link
+                className="btn btn-secondary btn-sm"
+                to={`/dashboard/client/vehicles/${topOilAlert.vehicleId}`}
+              >
+                История
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <nav className="client-overview-quickbar" aria-label="Быстрые действия">
+        <Link to="/consult" className="client-overview-quickbar-item">
+          <MessageSquare size={16} aria-hidden />
+          Диагностика
+        </Link>
+        <Link to="/booking" className="client-overview-quickbar-item">
+          <CalendarDays size={16} aria-hidden />
+          Запись
+        </Link>
+        <Link to="/services" className="client-overview-quickbar-item">
+          <Wrench size={16} aria-hidden />
+          Услуги
+        </Link>
+        <Link to="/dashboard/client/cases" className="client-overview-quickbar-item">
+          <Car size={16} aria-hidden />
+          Обращения
+        </Link>
+      </nav>
 
       {isNewcomer ? (
         <Card className="client-overview-welcome">
@@ -267,102 +310,74 @@ export function ClientOverviewPage() {
         </Card>
       ) : null}
 
-      <div className="client-overview-layout">
-        <div className="client-overview-main">
-          {activeCases.length > 0 ? (
-            <section className="client-overview-section client-overview-panel" aria-label="Активные обращения">
-              <div className="card-section-header">
-                <h2>В работе</h2>
-                <Link to="/dashboard/client/cases">
-                  Все ({summary.activeCasesCount}) <ArrowRight size={14} aria-hidden />
+      {activeCases.length > 0 ? (
+        <section className="client-overview-section client-overview-panel" aria-label="Активные обращения">
+          <div className="card-section-header">
+            <h2>В работе</h2>
+            <Link to="/dashboard/client/cases">
+              Все ({summary.activeCasesCount}) <ArrowRight size={14} aria-hidden />
+            </Link>
+          </div>
+          <div className="client-overview-cases">
+            {activeCases.slice(0, 2).map((item) => (
+              <CaseCard key={item.id} clientCase={item} compact />
+            ))}
+          </div>
+        </section>
+      ) : !isNewcomer && !focus ? (
+        <Card className="client-overview-idle">
+          <p className="muted-text">
+            Сейчас нет активных обращений — если появится проблема, начните с диагностики.
+          </p>
+          <Link className="btn btn-primary btn-sm" to="/consult">
+            Новая диагностика
+          </Link>
+        </Card>
+      ) : null}
+
+      {!isNewcomer ? (
+        <section className="client-overview-section client-overview-panel client-overview-garage" aria-label="Мой гараж">
+          <div className="card-section-header">
+            <div className="client-overview-garage-heading">
+              <h2>Мой гараж</h2>
+              {vehicles.length > 0 ? (
+                <span className="client-overview-garage-count">{vehicles.length}</span>
+              ) : null}
+            </div>
+            <Link to="/dashboard/client/vehicles">Управлять</Link>
+          </div>
+          {vehicles.length === 0 ? (
+            <div className="client-overview-garage-empty">
+              <p className="muted-text">
+                Добавьте автомобиль вручную или пройдите диагностику — машина появится здесь автоматически.
+              </p>
+              <div className="row gap-sm">
+                <Link className="btn btn-primary btn-sm" to="/dashboard/client/vehicles">
+                  <Plus size={16} aria-hidden />
+                  Добавить авто
+                </Link>
+                <Link className="btn btn-secondary btn-sm" to="/consult">
+                  Начать диагностику
                 </Link>
               </div>
-              <div className="client-overview-cases">
-                {activeCases.slice(0, 3).map((item) => (
-                  <CaseCard key={item.id} clientCase={item} compact />
-                ))}
-              </div>
-            </section>
-          ) : !isNewcomer ? (
-            <Card className="client-overview-idle">
-              <p className="muted-text">
-                Сейчас нет активных обращений — если появится проблема, начните с диагностики.
-              </p>
-              <Link className="btn btn-primary btn-sm" to="/consult">
-                Новая диагностика
-              </Link>
-            </Card>
-          ) : null}
-
-          {!isNewcomer ? (
-            <section className="client-overview-section client-overview-panel client-overview-garage" aria-label="Мой гараж">
-              <div className="card-section-header">
-                <div className="client-overview-garage-heading">
-                  <h2>Мой гараж</h2>
-                  {vehicles.length > 0 ? (
-                    <span className="client-overview-garage-count">{vehicles.length}</span>
-                  ) : null}
-                </div>
-                <Link to="/dashboard/client/vehicles">Управлять</Link>
-              </div>
-              {vehicles.length === 0 ? (
-                <div className="client-overview-garage-empty">
-                  <p className="muted-text">
-                    Добавьте автомобиль вручную или пройдите диагностику — машина появится здесь автоматически.
-                  </p>
-                  <div className="row gap-sm">
-                    <Link className="btn btn-primary btn-sm" to="/dashboard/client/vehicles">
-                      <Plus size={16} aria-hidden />
-                      Добавить авто
-                    </Link>
-                    <Link className="btn btn-secondary btn-sm" to="/consult">
-                      Начать диагностику
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="client-garage-rail">
-                  {visibleVehicles.map((vehicle) => (
-                    <ClientGarageCard key={vehicle.id} vehicle={vehicle} />
-                  ))}
-                  <ClientGarageAddCard to="/dashboard/client/vehicles" />
-                </div>
-              )}
-              {hiddenVehiclesCount > 0 ? (
-                <p className="muted-text client-overview-more-link">
-                  <Link to="/dashboard/client/vehicles">
-                    Ещё {hiddenVehiclesCount} в профиле <ArrowRight size={14} aria-hidden />
-                  </Link>
-                </p>
-              ) : null}
-            </section>
-          ) : null}
-        </div>
-
-        <aside className="client-overview-aside" aria-label="Быстрые действия">
-          <section className="client-overview-actions-panel">
-            <h2>Быстрые действия</h2>
-            <div className="client-overview-actions">
-              <Link to="/consult" className="client-overview-action">
-                <MessageSquare size={18} aria-hidden />
-                <span>Диагностика</span>
-              </Link>
-              <Link to="/booking" className="client-overview-action">
-                <CalendarDays size={18} aria-hidden />
-                <span>Запись</span>
-              </Link>
-              <Link to="/services" className="client-overview-action">
-                <Wrench size={18} aria-hidden />
-                <span>Услуги</span>
-              </Link>
-              <Link to="/dashboard/client/cases" className="client-overview-action">
-                <Car size={18} aria-hidden />
-                <span>Обращения</span>
-              </Link>
             </div>
-          </section>
-        </aside>
-      </div>
+          ) : (
+            <div className="client-garage-rail">
+              {visibleVehicles.map((vehicle) => (
+                <ClientGarageCard key={vehicle.id} vehicle={vehicle} />
+              ))}
+              <ClientGarageAddCard to="/dashboard/client/vehicles" />
+            </div>
+          )}
+          {hiddenVehiclesCount > 0 ? (
+            <p className="muted-text client-overview-more-link">
+              <Link to="/dashboard/client/vehicles">
+                Ещё {hiddenVehiclesCount} в профиле <ArrowRight size={14} aria-hidden />
+              </Link>
+            </p>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }

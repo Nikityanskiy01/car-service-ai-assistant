@@ -1,3 +1,5 @@
+import { metrics as otelMetrics } from '@opentelemetry/api';
+
 const MAX_LATENCY_SAMPLES = 100;
 
 const metrics = {
@@ -13,6 +15,30 @@ const metrics = {
   lastSuccessAt: null,
   lastFailureAt: null,
 };
+
+/** @type {{ calls: import('@opentelemetry/api').Counter; latency: import('@opentelemetry/api').Histogram } | null} */
+let otelInstruments = null;
+
+function otel() {
+  if (!otelInstruments) {
+    const meter = otelMetrics.getMeter('car-service.llm');
+    otelInstruments = {
+      calls: meter.createCounter('llm.calls'),
+      latency: meter.createHistogram('llm.latency', { unit: 'ms' }),
+    };
+  }
+  return otelInstruments;
+}
+
+function recordOtel(result, durationMs, extra = {}) {
+  try {
+    const inst = otel();
+    inst.calls.add(1, { result, ...extra });
+    if (Number.isFinite(durationMs)) inst.latency.record(durationMs, { result, ...extra });
+  } catch {
+    /* no MeterProvider in tests */
+  }
+}
 
 function pushLatency(ms) {
   if (!Number.isFinite(ms)) return;
@@ -30,6 +56,7 @@ export function recordLlmSuccess({ durationMs, status, provider } = {}) {
   metrics.lastSuccessAt = new Date().toISOString();
   metrics.lastError = null;
   if (provider) metrics.lastProvider = provider;
+  recordOtel(status === 'FALLBACK' ? 'fallback' : 'success', durationMs, provider ? { provider } : {});
 }
 
 export function recordLlmFailure({ durationMs, error } = {}) {
@@ -38,6 +65,7 @@ export function recordLlmFailure({ durationMs, error } = {}) {
   pushLatency(durationMs);
   metrics.lastFailureAt = new Date().toISOString();
   metrics.lastError = error ? String(error).slice(0, 240) : 'unknown';
+  recordOtel('failure', durationMs);
 }
 
 export function recordLlmValidationFailure() {

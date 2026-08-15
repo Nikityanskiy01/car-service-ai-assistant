@@ -4,11 +4,13 @@ import {
   Droplets,
   Gauge,
   Hash,
+  History,
   Trash2,
   Wrench,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatVehicleTitle, type ClientVehicle } from '../../api/vehicles';
+import { bookingPath } from '../../lib/bookingPath';
 import { formatVehicleCasesLabel } from '../../lib/russianPlural';
 import { Button } from '../ui/Button';
 import { VehiclePhotoMedia } from './VehiclePhotoMedia';
@@ -26,7 +28,7 @@ export function ClientVehicleCard({
   const casesLabel = formatVehicleCasesLabel(vehicle);
   const hasActive = Boolean(vehicle.activeCasesCount && vehicle.activeCasesCount > 0);
   const detailHref = `/dashboard/client/vehicles/${encodeURIComponent(vehicle.id)}`;
-  const bookingHref = '/booking';
+  const bookingHref = bookingPath(vehicle.id);
   const vinShort = vehicle.vin
     ? `${vehicle.vin.slice(0, 4)}…${vehicle.vin.slice(-4)}`
     : null;
@@ -109,10 +111,15 @@ export function ClientVehicleCard({
       </Link>
 
       <footer className="garage-vehicle-card-actions">
-        <Link to={detailHref} className="btn btn-secondary btn-sm">
-          Книжка
+        <Link
+          to={detailHref}
+          className="btn btn-secondary btn-sm"
+          aria-label={`История обслуживания ${title}`}
+        >
+          <History size={14} aria-hidden />
+          История
         </Link>
-        <Link to={bookingHref} className="btn btn-secondary btn-sm">
+        <Link to={bookingHref} className="btn btn-secondary btn-sm" aria-label={`Записаться на ${title}`}>
           <CalendarPlus size={14} aria-hidden />
           Запись
         </Link>

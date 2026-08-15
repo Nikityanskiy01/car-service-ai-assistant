@@ -61,6 +61,7 @@ export function PhotoAttachment({
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="sr-only"
+        aria-label="Прикрепить фото автомобиля"
         onChange={(e) => void onFile(e.target.files?.[0] || null)}
       />
       {variant === 'icon' ? (

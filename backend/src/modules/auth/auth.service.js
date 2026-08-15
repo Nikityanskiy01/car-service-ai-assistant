@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { getEnv } from '../../config/env.js';
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
@@ -17,6 +16,16 @@ import {
 } from '../../lib/mail/mail.service.js';
 import { invalidateAuthUserCache } from '../../middleware/authJwt.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
+import { hashRefreshToken } from '../../lib/clientMeta.js';
+import { hmacHex, sha256Hex, timingSafeEqualHex } from '../../lib/cryptoHash.js';
+import { signAppJwt } from '../../lib/jwtTokens.js';
+import {
+  assertNotLocked,
+  clearFailedLogins,
+  recordFailedLogin,
+} from '../../lib/accountLockout.js';
+import * as securityService from '../users/security.service.js';
+import { recordConsentEvent } from '../privacy/consent.service.js';
 
 const SALT_ROUNDS = 12;
 const MAX_REFRESH_SESSIONS = 10;
@@ -31,11 +40,17 @@ export const REGISTRATION_PENDING_MESSAGE =
   'Мы отправили код подтверждения на ваш email. Введите его для завершения регистрации.';
 
 function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return hashRefreshToken(token);
 }
 
 function hashVerificationCode(code) {
-  return crypto.createHash('sha256').update(String(code)).digest('hex');
+  return hmacHex('email-verify', String(code));
+}
+
+function verificationCodeMatches(storedHash, code) {
+  const normalized = String(code || '').trim();
+  if (timingSafeEqualHex(storedHash, hashVerificationCode(normalized))) return true;
+  return timingSafeEqualHex(storedHash, sha256Hex(normalized));
 }
 
 function generateVerificationCode() {
@@ -66,12 +81,16 @@ function toPublicUser(u) {
     telegram: u.telegram,
     preferredContact: u.preferredContact,
     createdAt: u.createdAt?.toISOString?.() ?? u.createdAt,
+    totpEnabled: Boolean(u.totpEnabledAt),
+    emailVerified: Boolean(u.emailVerifiedAt),
+    phoneVerified: Boolean(u.phoneVerifiedAt),
+    telegramLinked: Boolean(u.telegramChatId),
   };
 }
 
 async function pruneRefreshSessions(userId) {
   const sessions = await prisma.refreshToken.findMany({
-    where: { userId },
+    where: { userId, consumedAt: null },
     orderBy: { createdAt: 'desc' },
     select: { id: true },
     skip: MAX_REFRESH_SESSIONS,
@@ -108,7 +127,7 @@ async function issueVerificationCode(user) {
   });
 }
 
-export async function register({ email, password, fullName, phone }) {
+export async function register({ email, password, fullName, phone }, meta = {}) {
   const normalizedEmail = normalizeAuthEmail(email);
   const trimmedName = String(fullName || '').trim();
   const digits = normalizePhone(phone);
@@ -147,6 +166,13 @@ export async function register({ email, password, fullName, phone }) {
   }
 
   await issueVerificationCode(user);
+  await recordConsentEvent({
+    userId: user.id,
+    subjectKey: normalizedEmail,
+    purpose: 'registration',
+    ip: meta.ip,
+    userAgent: meta.userAgent,
+  });
 
   return {
     requiresEmailVerification: true,
@@ -180,7 +206,7 @@ export async function verifyEmail({ email, code }) {
   }
 
   const normalizedCode = String(code || '').trim();
-  if (!/^\d{6}$/.test(normalizedCode) || hashVerificationCode(normalizedCode) !== record.codeHash) {
+  if (!/^\d{6}$/.test(normalizedCode) || !verificationCodeMatches(record.codeHash, normalizedCode)) {
     await prisma.emailVerificationCode.update({
       where: { id: record.id },
       data: { attempts: { increment: 1 } },
@@ -216,38 +242,125 @@ export async function resendVerificationEmail(email) {
   return { message: RESEND_VERIFICATION_GENERIC_MESSAGE };
 }
 
-export async function login({ email, password }) {
-  const normalizedEmail = normalizeAuthEmail(email);
-  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+export async function login({ identifier, email, password }, meta = {}) {
+  const rawIdentifier = String(identifier || email || '').trim();
+  let user = null;
+
+  if (rawIdentifier.includes('@')) {
+    const normalizedEmail = normalizeAuthEmail(rawIdentifier);
+    user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  } else {
+    const phone = normalizePhone(rawIdentifier);
+    if (isValidPhoneDigits(phone)) {
+      user = await prisma.user.findFirst({
+        where: { phone, phoneVerifiedAt: { not: null } },
+      });
+    }
+  }
+
   const hash = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
   const ok = await bcrypt.compare(password, hash);
+  if (user && !user.blocked) {
+    await assertNotLocked(user);
+  }
   if (!user || !ok || user.blocked) {
+    if (user && !user.blocked) {
+      await recordFailedLogin(user.id);
+      await securityService.recordLoginEvent({
+        userId: user.id,
+        success: false,
+        method: 'password',
+        reason: 'bad_password',
+        ...meta,
+      });
+    }
     throw new AppError(401, INVALID_CREDENTIALS_MESSAGE, 'UNAUTHORIZED');
   }
   if (clientRequiresEmailVerification(user)) {
     throw new AppError(403, 'Подтвердите email для входа в личный кабинет', 'EMAIL_NOT_VERIFIED');
   }
-  return issueTokens(user);
+
+  await clearFailedLogins(user.id);
+  return completeVerifiedLogin(user, 'password', meta);
 }
 
-export async function refreshAccessToken(refreshTokenValue) {
+export async function completeVerifiedLogin(user, method, meta = {}) {
+  if (clientRequiresEmailVerification(user)) {
+    throw new AppError(403, 'Подтвердите email для входа в личный кабинет', 'EMAIL_NOT_VERIFIED');
+  }
+
+  if (user.totpEnabledAt && user.totpSecretEnc) {
+    return {
+      requires2fa: true,
+      challengeToken: securityService.createTotpChallengeToken(user.id),
+    };
+  }
+
+  const staffNeedsTotp =
+    getEnv().STAFF_2FA_REQUIRED &&
+    (user.role === 'MANAGER' || user.role === 'ADMINISTRATOR');
+
+  await securityService.recordLoginEvent({
+    userId: user.id,
+    success: true,
+    method,
+    ...meta,
+  });
+  return issueTokens(user, { ...meta, totpSetupPending: staffNeedsTotp });
+}
+
+export async function loginWithTotp({ challengeToken, code }, meta = {}) {
+  const user = await securityService.verifyTotpChallenge(challengeToken, code, meta);
+  return issueTokens(user, meta);
+}
+
+export async function refreshAccessToken(refreshTokenValue, meta = {}) {
   if (!refreshTokenValue) throw new AppError(401, 'Refresh token required', 'UNAUTHORIZED');
 
   const hashed = hashToken(refreshTokenValue);
   const record = await prisma.refreshToken.findUnique({ where: { token: hashed } });
   if (!record || record.expiresAt < new Date()) {
-    if (record) await prisma.refreshToken.delete({ where: { id: record.id } }).catch(() => {});
+    if (record?.consumedAt) {
+      await prisma.refreshToken.deleteMany({ where: { familyId: record.familyId } });
+      await prisma.user.update({
+        where: { id: record.userId },
+        data: { tokenVersion: { increment: 1 } },
+      }).catch(() => {});
+      invalidateAuthUserCache(record.userId);
+    } else if (record) {
+      await prisma.refreshToken.delete({ where: { id: record.id } }).catch(() => {});
+    }
+    throw new AppError(401, 'Refresh token expired or invalid', 'UNAUTHORIZED');
+  }
+
+  if (record.consumedAt) {
+    await prisma.refreshToken.deleteMany({ where: { familyId: record.familyId } });
+    await prisma.user
+      .update({
+        where: { id: record.userId },
+        data: { tokenVersion: { increment: 1 } },
+      })
+      .catch(() => {});
+    invalidateAuthUserCache(record.userId);
     throw new AppError(401, 'Refresh token expired or invalid', 'UNAUTHORIZED');
   }
 
   const user = await prisma.user.findUnique({ where: { id: record.userId } });
   if (!user || user.blocked || clientRequiresEmailVerification(user)) {
-    await prisma.refreshToken.delete({ where: { id: record.id } }).catch(() => {});
+    await prisma.refreshToken.deleteMany({ where: { familyId: record.familyId } }).catch(() => {});
     throw new AppError(401, 'User not found or blocked', 'UNAUTHORIZED');
   }
 
-  await prisma.refreshToken.delete({ where: { id: record.id } });
-  return issueTokens(user);
+  const sessionMeta = {
+    ip: meta.ip || record.ip,
+    userAgent: meta.userAgent || record.userAgent,
+    familyId: record.familyId,
+  };
+  await prisma.refreshToken.update({
+    where: { id: record.id },
+    data: { consumedAt: new Date() },
+  });
+  return issueTokens(user, sessionMeta);
 }
 
 export async function logout(refreshTokenValue) {
@@ -348,19 +461,44 @@ export async function changePassword(userId, { currentPassword, newPassword }) {
   return issueTokens(updated);
 }
 
-async function issueTokens(user) {
+async function issueTokens(user, meta = {}) {
   const env = getEnv();
   const tokenVersion = user.tokenVersion ?? 0;
-  const accessToken = jwt.sign({ sub: user.id, tv: tokenVersion }, env.JWT_SECRET, {
-    expiresIn: env.JWT_EXPIRES_IN,
-  });
+  const accessToken = signAppJwt(
+    {
+      sub: user.id,
+      tv: tokenVersion,
+      ...(meta.totpSetupPending ? { stp: 1 } : {}),
+    },
+    { expiresIn: env.JWT_EXPIRES_IN },
+  );
 
   const refreshTokenValue = crypto.randomBytes(48).toString('base64url');
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const familyId = meta.familyId || crypto.randomUUID();
   await prisma.refreshToken.create({
-    data: { userId: user.id, token: hashToken(refreshTokenValue), expiresAt },
+    data: {
+      userId: user.id,
+      token: hashToken(refreshTokenValue),
+      familyId,
+      expiresAt,
+      ip: meta.ip ? String(meta.ip).slice(0, 64) : null,
+      userAgent: meta.userAgent ? String(meta.userAgent).slice(0, 500) : null,
+      lastUsedAt: now,
+    },
   });
   await pruneRefreshSessions(user.id);
 
-  return { accessToken, refreshToken: refreshTokenValue, user: toPublicUser(user) };
+  return {
+    accessToken,
+    refreshToken: refreshTokenValue,
+    user: toPublicUser(user),
+    totpSetupPending: Boolean(meta.totpSetupPending),
+  };
+}
+
+/** Новая сессия без флага stp (после включения TOTP или смены пароля). */
+export async function issueSession(user, meta = {}) {
+  return issueTokens(user, meta);
 }

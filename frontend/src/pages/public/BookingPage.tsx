@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   CalendarPlus,
+  Car,
   ChevronLeft,
   CircleCheck,
   ClipboardList,
@@ -8,10 +9,12 @@ import {
   Sparkles,
   UserRound,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
+import { trackProductEvent } from '../../lib/productEvents';
 import { listServiceRequests } from '../../api/dashboard';
+import { formatVehicleTitle, listVehicles, type ClientVehicle } from '../../api/vehicles';
 import { useAuth } from '../../auth/AuthProvider';
 import { ConsentCheckbox } from '../../components/forms/ConsentCheckbox';
 import { FormField } from '../../components/forms/FormField';
@@ -21,6 +24,13 @@ import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import { useProductConfig } from '../../config/ProductConfigProvider';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import {
+  formatBookingRequestOption,
+  formatBookingRequestSummary,
+  getRequestVehicleLabel,
+  requestCarDiffersFromBooking,
+} from '../../lib/bookingDisplay';
+import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
 import { STORAGE_KEYS } from '../../lib/storageKeys';
 import { getEmailError, getFullNameError, getPhoneError } from '../../lib/validation';
 import type { ServiceRequest } from '../../types/serviceRequest';
@@ -37,6 +47,7 @@ type BookingPrefill = {
   consultationSummary?: string;
   fromConsultation?: boolean;
   serviceRequestId?: string;
+  vehicleId?: string;
   fullName?: string;
   phone?: string;
 };
@@ -170,6 +181,8 @@ function BookingLiveSummary({
   notes,
   isClient,
   userName,
+  vehicleTitle,
+  requestSummary,
 }: {
   step: number;
   preferredAt: string;
@@ -178,13 +191,21 @@ function BookingLiveSummary({
   notes: string;
   isClient: boolean;
   userName?: string;
+  vehicleTitle?: string;
+  requestSummary?: string;
 }) {
   const contactName = isClient ? userName : fullName;
-  const hasAny = preferredAt || contactName || phone || notes;
+  const hasAny = preferredAt || contactName || phone || notes || vehicleTitle || requestSummary;
   if (!hasAny || step === 4) return null;
 
   return (
     <div className="booking-live-summary" aria-live="polite">
+      {vehicleTitle ? (
+        <span className="booking-live-chip">
+          <Car size={14} aria-hidden="true" />
+          {vehicleTitle}
+        </span>
+      ) : null}
       {preferredAt ? (
         <span className="booking-live-chip">
           <CalendarDays size={14} aria-hidden="true" />
@@ -197,6 +218,12 @@ function BookingLiveSummary({
           {contactName || phone}
         </span>
       ) : null}
+      {requestSummary ? (
+        <span className="booking-live-chip">
+          <ClipboardList size={14} aria-hidden="true" />
+          {requestSummary}
+        </span>
+      ) : null}
       {notes ? (
         <span className="booking-live-chip booking-live-chip-muted">
           <ClipboardList size={14} aria-hidden="true" />
@@ -207,13 +234,51 @@ function BookingLiveSummary({
   );
 }
 
+function BookingRequestPreview({
+  request,
+  bookingVehicleTitle,
+}: {
+  request: ServiceRequest;
+  bookingVehicleTitle?: string;
+}) {
+  const number = formatRequestNumber(request.id);
+  const topic = request.snapshotSymptoms?.trim() || 'Тема не указана';
+  const car = getRequestVehicleLabel(request);
+  const status = SERVICE_REQUEST_STATUS_LABELS[request.status] || request.status;
+  const created = request.createdAt
+    ? new Date(request.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+    : '';
+  const mismatch = requestCarDiffersFromBooking(request, bookingVehicleTitle);
+
+  return (
+    <div className="booking-request-preview" id="booking-request-preview">
+      <div className="booking-request-preview-top">
+        <strong>Обращение №{number}</strong>
+        <span>{status}</span>
+      </div>
+      <p className="booking-request-preview-topic">{topic}</p>
+      <p className="booking-request-preview-meta">
+        {car ? <span>Авто в заявке: {car}</span> : <span>Авто в заявке не указано</span>}
+        {created ? <span>от {created}</span> : null}
+      </p>
+      {mismatch ? (
+        <p className="booking-request-preview-note">
+          Запись на {bookingVehicleTitle} — это другое авто, чем в обращении.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function BookingPage() {
   const productConfig = useProductConfig();
   usePageMeta({ title: 'Записаться в сервис', description: 'Онлайн-запись на ремонт и ТО.' });
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuth();
   const isClient = isAuthenticated && user?.role === 'CLIENT';
   const quickSlots = useMemo(() => buildQuickSlots(), []);
+  const queryVehicleId = searchParams.get('vehicleId')?.trim() || '';
 
   const prefill = useMemo(() => {
     try {
@@ -234,6 +299,9 @@ export function BookingPage() {
   const [preferredAt, setPreferredAt] = useState('');
   const [serviceRequestId, setServiceRequestId] = useState(prefill.serviceRequestId || '');
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
+  const [vehicles, setVehicles] = useState<ClientVehicle[]>([]);
+  const [vehicleId, setVehicleId] = useState(queryVehicleId || prefill.vehicleId || '');
+  const vehicleLocked = Boolean(queryVehicleId);
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [guestFieldErrors, setGuestFieldErrors] = useState<GuestFieldErrors>({});
@@ -241,6 +309,7 @@ export function BookingPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [statusError, setStatusError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     if (!isClient || !user) return;
@@ -262,7 +331,22 @@ export function BookingPage() {
     })();
   }, [isClient]);
 
+  useEffect(() => {
+    if (!isClient) return;
+    void listVehicles()
+      .then((rows) => {
+        setVehicles(rows);
+        setVehicleId((current) => {
+          if (current) return current;
+          return rows.length === 1 ? rows[0].id : '';
+        });
+      })
+      .catch(() => setVehicles([]));
+  }, [isClient]);
+
   const selectedRequest = requests.find((r) => r.id === serviceRequestId);
+  const selectedVehicle = vehicles.find((row) => row.id === vehicleId) || null;
+  const vehicleTitle = selectedVehicle ? formatVehicleTitle(selectedVehicle) : '';
   const currentStep = STEPS[step - 1];
 
   function validateStep(current: number): boolean {
@@ -330,18 +414,22 @@ export function BookingPage() {
       if (isClient) {
         const booking = await api<CreatedBooking>('/bookings', {
           method: 'POST',
+          headers: { 'Idempotency-Key': idempotencyKeyRef.current },
           body: {
             preferredAt,
             notes: notes || null,
             serviceRequestId: serviceRequestId || null,
+            vehicleId: vehicleId || null,
           },
         });
+        idempotencyKeyRef.current = crypto.randomUUID();
         navigate(`/dashboard/client/bookings/${booking.id}`, { replace: true });
         return;
       }
 
       await api('/bookings/guest', {
         method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKeyRef.current },
         body: {
           preferredAt,
           fullName,
@@ -354,7 +442,9 @@ export function BookingPage() {
         },
         skipAuthRefresh: true,
       });
+      idempotencyKeyRef.current = crypto.randomUUID();
       setStatus('Запись отправлена. Мы свяжемся для подтверждения.');
+      trackProductEvent('booking_confirmed', { guest: true });
       setConsent(false);
       setStep(1);
     } catch (error) {
@@ -485,26 +575,32 @@ export function BookingPage() {
             onChange={(e) => setNotes(e.target.value)}
           />
         </FormField>
-        {isClient ? (
-          <FormField label="Привязать к обращению (необязательно)" htmlFor="bookingRequest">
-            <select
-              id="bookingRequest"
-              className="input"
-              value={serviceRequestId}
-              onChange={(e) => setServiceRequestId(e.target.value)}
+        {isClient && requests.length > 0 ? (
+          <div className="booking-request-field">
+            <FormField
+              label="Привязать к обращению"
+              htmlFor="bookingRequest"
+              hint="Заявка из кабинета, не автомобиль. Можно не выбирать."
             >
-              <option value="">Без привязки</option>
-              {requests.map((req) => {
-                const car = [req.snapshotMake, req.snapshotModel].filter(Boolean).join(' ');
-                const label = car || `Заявка ${req.id.slice(0, 8)}`;
-                return (
+              <select
+                id="bookingRequest"
+                className="input"
+                value={serviceRequestId}
+                onChange={(e) => setServiceRequestId(e.target.value)}
+                aria-controls={selectedRequest ? 'booking-request-preview' : undefined}
+              >
+                <option value="">Не привязывать к заявке</option>
+                {requests.map((req) => (
                   <option key={req.id} value={req.id}>
-                    {label}
+                    {formatBookingRequestOption(req)}
                   </option>
-                );
-              })}
-            </select>
-          </FormField>
+                ))}
+              </select>
+            </FormField>
+            {selectedRequest ? (
+              <BookingRequestPreview request={selectedRequest} bookingVehicleTitle={vehicleTitle} />
+            ) : null}
+          </div>
         ) : null}
       </>
     );
@@ -516,6 +612,12 @@ export function BookingPage() {
             <dt>Время записи</dt>
             <dd>{formatSummaryDate(preferredAt)}</dd>
           </div>
+          {selectedVehicle ? (
+            <div>
+              <dt>Автомобиль</dt>
+              <dd>{vehicleTitle}</dd>
+            </div>
+          ) : null}
           {!isClient ? (
             <>
               <div>
@@ -538,7 +640,10 @@ export function BookingPage() {
             <div>
               <dt>Обращение</dt>
               <dd>
-                {[selectedRequest.snapshotMake, selectedRequest.snapshotModel].filter(Boolean).join(' ') || 'Заявка'}
+                {formatBookingRequestSummary(selectedRequest)}
+                {getRequestVehicleLabel(selectedRequest)
+                  ? ` · ${getRequestVehicleLabel(selectedRequest)}`
+                  : ''}
               </dd>
             </div>
           ) : null}
@@ -556,9 +661,20 @@ export function BookingPage() {
     );
   }
 
-  const subtitle = prefill.fromConsultation
-    ? 'Осталось выбрать время — данные диагностики уже подставлены.'
-    : 'Три шага — и мы подготовим приём вашего автомобиля.';
+  const subtitle = selectedVehicle
+    ? `Запись на ${vehicleTitle} — выберите время, и мы подготовим приём.`
+    : prefill.fromConsultation
+      ? 'Осталось выбрать время — данные диагностики уже подставлены.'
+      : 'Три шага — и мы подготовим приём вашего автомобиля.';
+
+  const vehicleInitials = selectedVehicle
+    ? `${(selectedVehicle.make || '').trim().charAt(0)}${(selectedVehicle.model || '').trim().charAt(0)}`.toUpperCase()
+    : '';
+  const vehicleMeta = selectedVehicle
+    ? [selectedVehicle.licensePlate, selectedVehicle.year ? `${selectedVehicle.year} г.` : null]
+        .filter(Boolean)
+        .join(' · ')
+    : '';
 
   return (
     <div className="fm-page booking-page">
@@ -582,6 +698,19 @@ export function BookingPage() {
           </div>
         ) : null}
 
+        {isClient && vehicleLocked && selectedVehicle ? (
+          <div className="booking-profile-card booking-vehicle-card" role="status">
+            <span className="booking-profile-avatar" aria-hidden="true">
+              {vehicleInitials || 'А'}
+            </span>
+            <div>
+              <p className="booking-profile-name">{vehicleTitle}</p>
+              {vehicleMeta ? <p className="muted-text">{vehicleMeta}</p> : null}
+              <p className="booking-profile-hint">Запись будет привязана к этому автомобилю из гаража.</p>
+            </div>
+          </div>
+        ) : null}
+
         <section className="booking-card fm-card fm-card-static" aria-labelledby="booking-step-title">
           <div className="booking-step-content" key={step}>
             <header className="booking-step-intro">
@@ -593,6 +722,28 @@ export function BookingPage() {
             </header>
 
             <form className="fm-form booking-form stack" onSubmit={onSubmit} noValidate>
+              {isClient && !vehicleLocked && vehicles.length > 0 ? (
+                <FormField
+                  label="Автомобиль"
+                  htmlFor="bookingVehicle"
+                  hint="Можно не выбирать, если записываетесь не из гаража"
+                >
+                  <select
+                    id="bookingVehicle"
+                    className="input"
+                    value={vehicleId}
+                    onChange={(e) => setVehicleId(e.target.value)}
+                  >
+                    <option value="">Не выбран</option>
+                    {vehicles.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {formatVehicleTitle(row)}
+                        {row.licensePlate ? ` · ${row.licensePlate}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+              ) : null}
               {stepContent}
 
               {stepError ? <p className="form-error">{stepError}</p> : null}
@@ -605,6 +756,10 @@ export function BookingPage() {
                 notes={notes}
                 isClient={isClient}
                 userName={user?.fullName}
+                vehicleTitle={vehicleTitle || undefined}
+                requestSummary={
+                  selectedRequest ? formatBookingRequestSummary(selectedRequest) : undefined
+                }
               />
 
               <div className="booking-form-footer">

@@ -12,7 +12,6 @@ import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
 export function AdminSiteBlocksPage() {
@@ -109,7 +108,6 @@ export function AdminSiteBlocksPage() {
       <PageHeader
         title="Текстовые блоки"
         description="Контент с историей версий и откатом."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/site/blocks')}
       />
 
       {error ? <ErrorState message={error} onRetry={() => void load()} /> : null}

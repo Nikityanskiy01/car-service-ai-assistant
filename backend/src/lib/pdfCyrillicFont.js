@@ -14,6 +14,7 @@ export function resolvePdfBodyFontPath() {
     path.join(process.cwd(), 'assets', 'fonts', 'DejaVuSans.ttf'),
     process.platform === 'win32' ? path.join(winRoot, 'Fonts', 'arial.ttf') : null,
     process.platform === 'win32' ? path.join(winRoot, 'Fonts', 'segoeui.ttf') : null,
+    '/usr/share/fonts/dejavu/DejaVuSans.ttf',
     '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
     '/usr/share/fonts/TTF/DejaVuSans.ttf',
     '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',

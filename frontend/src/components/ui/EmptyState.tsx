@@ -8,7 +8,7 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="state-card">
+    <div className="state-card" role="status">
       <h3>{title}</h3>
       {description ? <p>{description}</p> : null}
       {action ? <div className="state-card-action">{action}</div> : null}

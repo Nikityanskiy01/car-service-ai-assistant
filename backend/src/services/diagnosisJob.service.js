@@ -1,20 +1,13 @@
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
 import { getEnv } from '../config/env.js';
 import prisma from '../lib/prisma.js';
 import { logger } from '../lib/logger.js';
+import { getRedis, getRedisUrl } from '../lib/redis.js';
 
 const QUEUE_NAME = 'consultation-diagnosis';
 
-/** @type {IORedis | null} */
-let redisConnection = null;
 /** @type {Queue | null} */
 let bullQueue = null;
-
-function getRedisUrl() {
-  const env = getEnv();
-  return String(env.REDIS_URL || '').trim() || null;
-}
 
 export function shouldUseAsyncDiagnosis() {
   const env = getEnv();
@@ -22,12 +15,14 @@ export function shouldUseAsyncDiagnosis() {
 }
 
 function getRedisConnection() {
-  const url = getRedisUrl();
-  if (!url) return null;
-  if (!redisConnection) {
-    redisConnection = new IORedis(url, { maxRetriesPerRequest: null });
-  }
-  return redisConnection;
+  return getRedis();
+}
+
+export async function pingRedis() {
+  const connection = getRedisConnection();
+  if (!connection) return false;
+  const pong = await connection.ping();
+  return pong === 'PONG';
 }
 
 function getBullQueue() {
@@ -155,10 +150,6 @@ export async function closeDiagnosisQueue() {
     await bullQueue.close();
     bullQueue = null;
   }
-  if (redisConnection) {
-    await redisConnection.quit();
-    redisConnection = null;
-  }
 }
 
-export { QUEUE_NAME, getRedisConnection };
+export { QUEUE_NAME, getRedisConnection, getRedisUrl };

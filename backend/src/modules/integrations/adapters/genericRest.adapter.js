@@ -1,5 +1,5 @@
 import { DEFAULT_CAPABILITIES } from '../integration.constants.js';
-import { assertSafeOutboundUrl, joinSafeUrl } from '../../../lib/safeOutboundUrl.js';
+import { assertSafeOutboundUrl, assertSafeOutboundUrlResolved, joinSafeUrl } from '../../../lib/safeOutboundUrl.js';
 
 function safeJsonParse(value) {
   if (!value) return null;
@@ -57,7 +57,7 @@ export class GenericRestAdapter {
     const authHeaders = this.#buildAuthHeaders(config);
     const startedAt = Date.now();
     try {
-      assertSafeOutboundUrl(baseUrl, { allowHttp: false });
+      await assertSafeOutboundUrlResolved(baseUrl, { allowHttp: false });
       const url = joinSafeUrl(baseUrl, healthPath);
       const res = await fetch(url, {
         method: 'GET',
@@ -93,7 +93,7 @@ export class GenericRestAdapter {
     const endpoint = String(config?.requestEndpoint || '/service-requests');
     const timeoutMs = Number(config?.timeoutMs) > 0 ? Number(config.timeoutMs) : 20_000;
     const authHeaders = this.#buildAuthHeaders(config);
-    assertSafeOutboundUrl(baseUrl, { allowHttp: false });
+    await assertSafeOutboundUrlResolved(baseUrl, { allowHttp: false });
     const url = joinSafeUrl(baseUrl, endpoint);
     const payload = {
       source: 'car-service-ai-assistant',

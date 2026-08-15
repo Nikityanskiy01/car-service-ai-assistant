@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Phone } from 'lucide-react';
+import { CalendarPlus, Phone, RefreshCw, Send, UserCheck } from 'lucide-react';
 import {
   exportRequestToCrm,
   getRequestIntegrations,
@@ -28,24 +28,28 @@ import { ConsultationPhotoGallery } from '../../components/consultation/Consulta
 import { ConsultationStagesTimeline } from '../../components/consultation/ConsultationStagesTimeline';
 import { AssistantMessage } from '../../components/consultation/AssistantMessage';
 import { ConsultationFeedbackPanel } from '../../components/requests/ConsultationFeedbackPanel';
+import { RequestCompletionDocumentsPanel } from '../../components/requests/RequestCompletionDocumentsPanel';
 import { RequestSummaryPanel } from '../../components/requests/RequestSummaryPanel';
 import { SimilarCasesPanel } from '../../components/requests/SimilarCasesPanel';
 import { UserMessage } from '../../components/consultation/UserMessage';
 import { ManagerPicker } from '../../components/manager/ManagerPicker';
 import { FollowUpChatPanel } from '../../components/messages/FollowUpChatPanel';
-import { MessageAttachmentInput, type PendingAttachment } from '../../components/requests/MessageAttachmentInput';
+import type { PendingAttachment } from '../../components/requests/MessageAttachmentInput';
 import { RequestStatusSelector } from '../../components/requests/RequestStatusSelector';
 import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { CopyPhoneButton } from '../../components/ui/CopyPhoneButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { IntegrationStatusBadge } from '../../components/ui/IntegrationStatusBadge';
 import { Loader } from '../../components/ui/Loader';
-import { StatusBadge } from '../../components/ui/StatusBadge';
+import { Modal } from '../../components/ui/Modal';
+import { Select } from '../../components/ui/Select';
 import { Tabs } from '../../components/ui/Tabs';
+import { useToast } from '../../components/ui/toastContext';
 import { UrgencyBadge } from '../../components/consultation/UrgencyBadge';
+import { managerZonePaths } from '../../config/managerPaths';
 import { MESSAGE_TEMPLATES } from '../../lib/messageTemplates';
 import {
   formatRequestNumber,
@@ -60,9 +64,23 @@ import type { ServiceRequestDetail, ServiceRequestStatus } from '../../types/ser
 import type { FollowUpMessage } from '../../api/dashboard';
 import type { ConsultationDetail } from '../../types/consultation';
 
-export function ManagerRequestDetailPage() {
+type ManagerRequestDetailPageProps = {
+  adminZone?: boolean;
+};
+
+const TABS = [
+  { id: 'summary', label: 'Сводка' },
+  { id: 'consultation', label: 'Диалог ИИ' },
+  { id: 'messages', label: 'Переписка' },
+  { id: 'works', label: 'Работы и оценка' },
+  { id: 'history', label: 'История и CRM' },
+];
+
+export function ManagerRequestDetailPage({ adminZone = false }: ManagerRequestDetailPageProps) {
   const { requestId = '' } = useParams();
   const navigate = useNavigate();
+  const paths = managerZonePaths(adminZone);
+  const { success, error: toastError } = useToast();
   usePageMeta({ title: 'Заявка', description: 'Подробная карточка обращения.' });
 
   const [loading, setLoading] = useState(true);
@@ -75,43 +93,45 @@ export function ManagerRequestDetailPage() {
   const [reply, setReply] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [assignManagerId, setAssignManagerId] = useState('');
+  const [assigning, setAssigning] = useState(false);
   const [sending, setSending] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const [exportConnectionId, setExportConnectionId] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryItem[]>([]);
 
-  async function load() {
+  const load = useCallback(async (silent = false) => {
     if (!requestId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
-      const [req, msgs, integ] = await Promise.all([
+      const [detail, msgs, integ] = await Promise.all([
         getServiceRequest(requestId),
         listRequestMessages(requestId).catch(() => []),
         getRequestIntegrations(requestId).catch(() => ({ links: [], jobs: [] })),
       ]);
-      setRequest(req);
+      setRequest(detail);
       setMessages(msgs);
       setIntegrations(integ);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось загрузить заявку');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }
+  }, [requestId]);
 
   useEffect(() => {
     void load();
-  }, [requestId]);
+  }, [load]);
 
   useEffect(() => {
     void listManagerIntegrations()
       .then((rows) =>
         setConnections(
-          rows.map((c) => ({
-            ...c,
-            capabilities: c.capabilities || { pushRequests: true },
+          rows.map((connection) => ({
+            ...connection,
+            capabilities: connection.capabilities || { pushRequests: true },
           })) as IntegrationConnection[],
         ),
       )
@@ -134,7 +154,7 @@ export function ManagerRequestDetailPage() {
   const urgency = getRequestUrgency(session);
 
   const exportableConnections = useMemo(
-    () => connections.filter((c) => c.capabilities?.pushRequests),
+    () => connections.filter((connection) => connection.capabilities?.pushRequests),
     [connections],
   );
   const threadClosed = request?.status === 'COMPLETED' || request?.status === 'CANCELLED';
@@ -160,19 +180,21 @@ export function ManagerRequestDetailPage() {
     try {
       const updated = await patchServiceRequestStatus(request.id, status, request.version);
       setRequest({ ...request, status: updated.status, version: updated.version });
+      success(`Статус: ${SERVICE_REQUEST_STATUS_LABELS[updated.status]}`);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         const fresh = await getServiceRequest(request.id);
         setRequest(fresh);
         setActionError(
-          `Конфликт версий: вы меняли статус на «${SERVICE_REQUEST_STATUS_LABELS[status]}», в системе сейчас «${SERVICE_REQUEST_STATUS_LABELS[fresh.status]}» (v${fresh.version}, было v${request.version} / «${SERVICE_REQUEST_STATUS_LABELS[previousStatus]}»).`,
+          `Заявку уже изменил другой сотрудник. Вы выбирали «${SERVICE_REQUEST_STATUS_LABELS[status]}», сейчас в системе «${SERVICE_REQUEST_STATUS_LABELS[fresh.status]}» (было «${SERVICE_REQUEST_STATUS_LABELS[previousStatus]}»). Проверьте и повторите.`,
         );
+        toastError('Конфликт версий: данные обновлены');
         return;
       }
-      setActionError(
-        e instanceof Error ? e.message : 'Не удалось изменить статус',
-      );
-      await load();
+      const message = e instanceof Error ? e.message : 'Не удалось изменить статус';
+      setActionError(message);
+      toastError(message);
+      await load(true);
     }
   }
 
@@ -181,7 +203,7 @@ export function ManagerRequestDetailPage() {
     setSending(true);
     setActionError(null);
     try {
-      const msg = await sendRequestMessage(request.id, {
+      const message = await sendRequestMessage(request.id, {
         body: reply.trim(),
         attachments: pendingAttachments.map(({ fileName, mimeType, contentBase64 }) => ({
           fileName,
@@ -189,18 +211,39 @@ export function ManagerRequestDetailPage() {
           contentBase64,
         })),
       });
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => [...prev, message]);
       setReply('');
       setPendingAttachments([]);
+      success('Сообщение отправлено клиенту');
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Не удалось отправить сообщение');
+      const message = e instanceof Error ? e.message : 'Не удалось отправить сообщение';
+      setActionError(message);
+      toastError(message);
     } finally {
       setSending(false);
     }
   }
 
+  async function handleAssignToMe() {
+    if (!request) return;
+    setAssigning(true);
+    setActionError(null);
+    try {
+      await assignRequestToMe(request.id);
+      await load(true);
+      success('Заявка назначена на вас');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Не удалось назначить заявку';
+      setActionError(message);
+      toastError(message);
+    } finally {
+      setAssigning(false);
+    }
+  }
+
   async function handleAssignManager() {
     if (!request || !assignManagerId) return;
+    setAssigning(true);
     setActionError(null);
     try {
       const updated = await assignRequestToManager(request.id, assignManagerId);
@@ -210,20 +253,32 @@ export function ManagerRequestDetailPage() {
         assignedManager: updated.assignedManager || request.assignedManager,
         version: updated.version,
       });
+      setAssignManagerId('');
+      success(`Ответственный: ${updated.assignedManager?.fullName || 'обновлён'}`);
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Не удалось назначить менеджера');
+      const message = e instanceof Error ? e.message : 'Не удалось назначить менеджера';
+      setActionError(message);
+      toastError(message);
+    } finally {
+      setAssigning(false);
     }
   }
 
   async function handleExport() {
     if (!request || !exportConnectionId) return;
+    setExportBusy(true);
     setActionError(null);
     try {
       const out = await exportRequestToCrm(request.id, exportConnectionId);
       setIntegrations(out);
       setExportOpen(false);
+      success('Заявка отправлена в учётную систему');
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Не удалось передать заявку');
+      const message = e instanceof Error ? e.message : 'Не удалось передать заявку';
+      setActionError(message);
+      toastError(message);
+    } finally {
+      setExportBusy(false);
     }
   }
 
@@ -233,72 +288,62 @@ export function ManagerRequestDetailPage() {
     try {
       const out = await retryRequestIntegration(request.id, connectionId);
       setIntegrations(out);
+      success('Повторная отправка поставлена в очередь');
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Повтор не удался');
+      const message = e instanceof Error ? e.message : 'Повтор не удался';
+      setActionError(message);
+      toastError(message);
     }
   }
 
-  if (loading) return <Loader />;
-  if (error || !request) return <ErrorState message={error || 'Заявка не найдена'} onRetry={() => void load()} />;
+  if (loading) return <Loader label="Загружаем заявку…" />;
+  if (error || !request) {
+    return <ErrorState message={error || 'Заявка не найдена'} onRetry={() => void load()} />;
+  }
+
+  const selectedExportConnection = exportableConnections.find(
+    (connection) => connection.id === exportConnectionId,
+  );
 
   return (
     <div className="stack dashboard-page request-detail-page">
       <PageHeader
         title={`Заявка №${formatRequestNumber(request.id)}`}
-        breadcrumbs={[
-          { label: 'Рабочий стол', to: '/dashboard/manager' },
-          { label: 'Очередь', to: '/dashboard/manager/requests' },
-          { label: `№${formatRequestNumber(request.id)}` },
-        ]}
+        breadcrumbs={adminZone ? undefined : [
+                { label: 'Рабочий стол', to: paths.root },
+                { label: 'Очередь', to: paths.requests },
+                { label: `№${formatRequestNumber(request.id)}` },
+              ]
+        }
         actions={
           <div className="request-detail-actions">
             {phone ? (
-              <>
-                <a href={`tel:${phone}`} className="btn btn-ghost">
-                  <Phone size={16} aria-hidden />
-                  Позвонить
-                </a>
-                <Button variant="ghost" onClick={() => void navigator.clipboard.writeText(phone)}>
-                  Скопировать телефон
-                </Button>
-              </>
+              <a href={`tel:${phone}`} className="btn btn-secondary">
+                <Phone size={16} aria-hidden />
+                Позвонить
+              </a>
             ) : null}
-            <Button variant="secondary" onClick={() => openBooking()}>
+            <Button variant="ghost" onClick={() => openBooking()}>
+              <CalendarPlus size={16} aria-hidden />
               Назначить запись
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                void assignRequestToMe(request.id).then(() => void load());
-              }}
-            >
-              Назначить на себя
-            </Button>
-            <div className="manager-assign-row">
-              <ManagerPicker
-                value={assignManagerId || request.assignedManagerId || ''}
-                onChange={setAssignManagerId}
-                allowEmpty
-                placeholder="Менеджер"
-              />
-              <Button
-                variant="ghost"
-                disabled={!assignManagerId}
-                onClick={() => void handleAssignManager()}
-              >
-                Назначить
-              </Button>
-            </div>
             {exportableConnections.length ? (
               <Button
+                variant="ghost"
                 onClick={() => {
-                  setExportConnectionId(exportableConnections.length === 1 ? exportableConnections[0].id : '');
+                  setExportConnectionId(
+                    exportableConnections.length === 1 ? exportableConnections[0].id : '',
+                  );
                   setExportOpen(true);
                 }}
               >
-                Передать в учётную систему
+                <Send size={16} aria-hidden />
+                В учётную систему
               </Button>
             ) : null}
+            <Button variant="ghost" onClick={() => void load()} aria-label="Обновить данные заявки">
+              <RefreshCw size={16} aria-hidden />
+            </Button>
           </div>
         }
       />
@@ -307,47 +352,75 @@ export function ManagerRequestDetailPage() {
         <div className="request-summary-grid">
           <div>
             <span className="label">Статус</span>
-            <StatusBadge status={request.status} />
+            <RequestStatusSelector value={request.status} onChange={(next) => void changeStatus(next)} />
           </div>
           <div>
             <span className="label">Клиент</span>
             <strong>{owner}</strong>
+            {phone ? (
+              <span className="request-summary-phone">
+                <a href={`tel:${phone}`} className="tnum">
+                  {phone}
+                </a>
+                <CopyPhoneButton phone={phone} label="" />
+              </span>
+            ) : null}
           </div>
           <div>
             <span className="label">Автомобиль</span>
             <strong>{car}</strong>
           </div>
           <div>
-            <span className="label">ИИ</span>
+            <span className="label">Диагноз ИИ</span>
             <div className="request-ai-badges">
-              {urgency ? <UrgencyBadge urgency={urgency} /> : <span className="muted">—</span>}
-              {confidence != null ? <span className="ai-confidence-pill">{confidence}%</span> : null}
+              {urgency ? <UrgencyBadge urgency={urgency} /> : <span className="muted">нет</span>}
+              {confidence != null ? <span className="ai-confidence-pill tnum">{confidence}%</span> : null}
             </div>
           </div>
           <div>
-            <span className="label">Дата</span>
-            <strong>{new Date(request.createdAt).toLocaleString('ru-RU')}</strong>
+            <span className="label">Создана</span>
+            <strong className="tnum">{new Date(request.createdAt).toLocaleString('ru-RU')}</strong>
           </div>
-          <div>
-            <span className="label">Изменить статус</span>
-            <RequestStatusSelector value={request.status} onChange={(s) => void changeStatus(s)} />
+          <div className="request-summary-assign">
+            <span className="label">Ответственный</span>
+            <div className="manager-assign-row">
+              <ManagerPicker
+                value={assignManagerId || request.assignedManagerId || ''}
+                onChange={setAssignManagerId}
+                allowEmpty
+                placeholder="Не назначен"
+                disabled={assigning}
+              />
+              {assignManagerId && assignManagerId !== request.assignedManagerId ? (
+                <Button variant="secondary" disabled={assigning} onClick={() => void handleAssignManager()}>
+                  Назначить
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  disabled={assigning}
+                  onClick={() => void handleAssignToMe()}
+                  title="Назначить заявку на себя"
+                >
+                  <UserCheck size={16} aria-hidden />
+                  На себя
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </Card>
 
-      {actionError ? <div className="alert alert-error">{actionError}</div> : null}
+      {actionError ? (
+        <div className="alert alert-error" role="alert">
+          {actionError}
+          <button type="button" className="alert-dismiss" onClick={() => setActionError(null)}>
+            Скрыть
+          </button>
+        </div>
+      ) : null}
 
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        items={[
-          { id: 'summary', label: 'Сводка' },
-          { id: 'consultation', label: 'Диалог ИИ' },
-          { id: 'messages', label: 'Переписка' },
-          { id: 'works', label: 'Работы и оценка' },
-          { id: 'history', label: 'История и CRM' },
-        ]}
-      />
+      <Tabs value={tab} onChange={setTab} items={TABS} />
 
       {tab === 'summary' && (
         <Card>
@@ -379,18 +452,21 @@ export function ManagerRequestDetailPage() {
           />
           <ConsultationPhotoGallery
             photoObservations={session?.flowState?.photo_observations}
-            messageContents={(session?.messages || []).map((m) => m.content)}
+            messageContents={(session?.messages || []).map((message) => message.content)}
           />
           {session?.messages?.length ? (
-            session.messages.map((m) =>
-              m.sender === 'ASSISTANT' || m.sender === 'assistant' ? (
-                <AssistantMessage key={m.id} message={m} />
+            session.messages.map((message) =>
+              message.sender === 'ASSISTANT' || message.sender === 'assistant' ? (
+                <AssistantMessage key={message.id} message={message} />
               ) : (
-                <UserMessage key={m.id} message={m} />
+                <UserMessage key={message.id} message={message} />
               ),
             )
           ) : (
-            <EmptyState title="Диалог пуст" description="Сообщения консультации не сохранены." />
+            <EmptyState
+              title="Диалог пуст"
+              description="Клиент пришёл без консультации ИИ либо переписка не сохранилась."
+            />
           )}
         </Card>
       )}
@@ -404,11 +480,21 @@ export function ManagerRequestDetailPage() {
           disabled={threadClosed}
           sending={sending}
           error={null}
-          placeholder="Ответ клиенту..."
+          placeholder="Ответ клиенту…"
           attachments={pendingAttachments}
           onAttachmentsChange={setPendingAttachments}
-          templates={threadClosed ? undefined : MESSAGE_TEMPLATES.map((tpl) => ({ id: tpl.id, label: tpl.label, body: tpl.body }))}
-          closedMessage={threadClosed ? 'Переписка закрыта — заявка завершена или отменена.' : undefined}
+          templates={
+            threadClosed
+              ? undefined
+              : MESSAGE_TEMPLATES.map((template) => ({
+                  id: template.id,
+                  label: template.label,
+                  body: template.body,
+                }))
+          }
+          closedMessage={
+            threadClosed ? 'Переписка закрыта: заявка завершена или отменена.' : undefined
+          }
           viewerRole="MANAGER"
           emptyTitle="Сообщений пока нет"
           emptyDescription="Напишите клиенту первое сообщение."
@@ -436,6 +522,9 @@ export function ManagerRequestDetailPage() {
             />
           </Card>
           <Card>
+            <RequestCompletionDocumentsPanel requestId={request.id} requestStatus={request.status} />
+          </Card>
+          <Card>
             <SimilarCasesPanel requestId={request.id} />
           </Card>
         </div>
@@ -447,36 +536,42 @@ export function ManagerRequestDetailPage() {
             <h2>История</h2>
             <ul className="activity-timeline">
               <li>
-                <time>{new Date(request.createdAt).toLocaleString('ru-RU')}</time>
+                <time className="tnum">{new Date(request.createdAt).toLocaleString('ru-RU')}</time>
                 <span>Заявка создана</span>
               </li>
               {statusHistory.map((row) => (
                 <li key={row.id}>
-                  <time>{new Date(row.createdAt).toLocaleString('ru-RU')}</time>
+                  <time className="tnum">{new Date(row.createdAt).toLocaleString('ru-RU')}</time>
                   <span>
-                    Статус: {row.fromStatus ? SERVICE_REQUEST_STATUS_LABELS[row.fromStatus as ServiceRequestStatus] || row.fromStatus : '—'} →{' '}
-                    {SERVICE_REQUEST_STATUS_LABELS[row.toStatus as ServiceRequestStatus] || row.toStatus}
+                    Статус:{' '}
+                    {row.fromStatus
+                      ? SERVICE_REQUEST_STATUS_LABELS[row.fromStatus as ServiceRequestStatus] ||
+                        row.fromStatus
+                      : 'нет'}{' '}
+                    → {SERVICE_REQUEST_STATUS_LABELS[row.toStatus as ServiceRequestStatus] || row.toStatus}
                     {row.actor?.fullName ? ` (${row.actor.fullName})` : ''}
                   </span>
                 </li>
               ))}
-              {messages.map((m) => (
-                <li key={m.id}>
-                  <time>{new Date(m.createdAt).toLocaleString('ru-RU')}</time>
+              {messages.map((message) => (
+                <li key={message.id}>
+                  <time className="tnum">{new Date(message.createdAt).toLocaleString('ru-RU')}</time>
                   <span>Отправлено сообщение менеджером</span>
                 </li>
               ))}
               {session?.feedback ? (
                 <li>
-                  <time>{new Date(session.feedback.updatedAt).toLocaleString('ru-RU')}</time>
+                  <time className="tnum">
+                    {new Date(session.feedback.updatedAt).toLocaleString('ru-RU')}
+                  </time>
                   <span>Оценка диагноза ИИ сохранена</span>
                 </li>
               ) : null}
               {integrations?.jobs
-                ?.filter((j) => j.status === 'SUCCEEDED')
-                .map((j) => (
-                  <li key={j.id}>
-                    <time>{new Date(j.updatedAt).toLocaleString('ru-RU')}</time>
+                ?.filter((job) => job.status === 'SUCCEEDED')
+                .map((job) => (
+                  <li key={job.id}>
+                    <time className="tnum">{new Date(job.updatedAt).toLocaleString('ru-RU')}</time>
                     <span>Заявка передана в учётную систему</span>
                   </li>
                 ))}
@@ -497,19 +592,21 @@ export function ManagerRequestDetailPage() {
                   <li key={link.connectionId}>
                     <strong>{link.connectionName}</strong>
                     <span>{INTEGRATION_PROVIDER_LABELS[link.provider]}</span>
-                    <span>Внешний номер: {link.externalEntityId}</span>
+                    <span className="tnum">Внешний номер: {link.externalEntityId}</span>
                     {link.externalUrl ? (
                       <a href={link.externalUrl} target="_blank" rel="noreferrer">
                         Открыть во внешней системе
                       </a>
                     ) : null}
-                    <small>Синхронизировано: {new Date(link.synchronizedAt).toLocaleString('ru-RU')}</small>
+                    <small className="tnum">
+                      Синхронизировано: {new Date(link.synchronizedAt).toLocaleString('ru-RU')}
+                    </small>
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : connections.length ? (
               <p className="muted">Заявка ещё не передана во внешнюю систему.</p>
-            )}
+            ) : null}
             {integrations?.jobs?.length ? (
               <div className="integration-jobs">
                 <h3>Последние попытки</h3>
@@ -533,32 +630,45 @@ export function ManagerRequestDetailPage() {
         </div>
       )}
 
-      <ConfirmDialog
+      <Modal
         open={exportOpen}
         title="Передать в учётную систему"
-        text={
-          exportableConnections.length === 1
-            ? `Передать заявку клиента ${owner} (${car}) в «${exportableConnections[0].name}»?`
-            : 'Выберите подключение и подтвердите передачу заявки.'
-        }
-        onConfirm={() => void handleExport()}
-        onCancel={() => setExportOpen(false)}
-      />
-      {exportOpen && exportableConnections.length > 1 ? (
-        <div className="export-connection-picker">
-          <label>
-            Подключение
-            <select value={exportConnectionId} onChange={(e) => setExportConnectionId(e.target.value)}>
+        onClose={() => setExportOpen(false)}
+      >
+        <p>
+          Заявка №{formatRequestNumber(request.id)}, клиент {owner}, {car}.
+        </p>
+        {exportableConnections.length > 1 ? (
+          <label className="stack gap-xs">
+            <span>Подключение</span>
+            <Select
+              value={exportConnectionId}
+              onChange={(event) => setExportConnectionId(event.target.value)}
+              aria-label="Подключение учётной системы"
+            >
               <option value="">Выберите систему</option>
-              {exportableConnections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              {exportableConnections.map((connection) => (
+                <option key={connection.id} value={connection.id}>
+                  {connection.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
+        ) : (
+          <p className="muted">Получатель: {exportableConnections[0]?.name}</p>
+        )}
+        <div className="row gap-sm">
+          <Button variant="ghost" onClick={() => setExportOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            disabled={!exportConnectionId || exportBusy}
+            onClick={() => void handleExport()}
+          >
+            {exportBusy ? 'Отправляем…' : `Передать${selectedExportConnection ? ` в ${selectedExportConnection.name}` : ''}`}
+          </Button>
         </div>
-      ) : null}
+      </Modal>
     </div>
   );
 }

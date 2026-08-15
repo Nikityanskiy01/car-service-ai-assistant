@@ -21,6 +21,7 @@ export interface ServiceRequest {
   assignedManager?: { id: string; fullName: string } | null;
   firstResponseAt?: string | null;
   slaBreached?: boolean;
+  unreadCount?: number;
   consultationSession?: {
     feedback?: { id: string; verdict?: ConsultationFeedbackVerdict } | null;
     flowState?: { diagnosis?: ConsultationDiagnosis } | null;

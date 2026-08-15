@@ -17,4 +17,15 @@ docker compose --env-file .env.proxmox exec -T db \
 
 find "${BACKUP_DIR}" -type f -name '*.sql.gz' -mtime +"${RETENTION_DAYS}" -delete
 
+UPLOADS_BACKUP_DIR="/opt/backups/uploads"
+mkdir -p "${UPLOADS_BACKUP_DIR}"
+UPLOADS_FILE="${UPLOADS_BACKUP_DIR}/uploads_${STAMP}.tar.gz"
+if docker compose --env-file .env.proxmox exec -T backend tar -C /app/data -czf - uploads > "${UPLOADS_FILE}"; then
+  find "${UPLOADS_BACKUP_DIR}" -type f -name '*.tar.gz' -mtime +"${RETENTION_DAYS}" -delete
+  echo "Uploads backup completed: ${UPLOADS_FILE}"
+else
+  echo "Uploads backup skipped or failed" >&2
+  rm -f "${UPLOADS_FILE}"
+fi
+
 echo "Backup completed: ${OUT_FILE}"

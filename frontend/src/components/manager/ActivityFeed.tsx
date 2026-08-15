@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import type { ActivityItem } from '../../api/dashboard';
+import { formatRelativeTime } from '../../lib/managerRequestHelpers';
 import { EmptyState } from '../ui/EmptyState';
 
 type Props = {
   items: ActivityItem[];
+  requestBasePath?: string;
 };
 
 const TYPE_LABELS: Record<ActivityItem['type'], string> = {
@@ -15,7 +17,7 @@ const TYPE_LABELS: Record<ActivityItem['type'], string> = {
   CRM_FAILED: 'CRM ошибка',
 };
 
-export function ActivityFeed({ items }: Props) {
+export function ActivityFeed({ items, requestBasePath = '/dashboard/manager/requests' }: Props) {
   if (!items.length) {
     return <EmptyState title="Пока нет событий" description="Активность появится по мере работы." />;
   }
@@ -24,11 +26,13 @@ export function ActivityFeed({ items }: Props) {
     <ul className="activity-feed">
       {items.map((item) => (
         <li key={item.id} className={`activity-feed-item activity-${item.type.toLowerCase()}`}>
-          <time dateTime={item.at}>{new Date(item.at).toLocaleString('ru-RU')}</time>
+          <time dateTime={item.at} title={new Date(item.at).toLocaleString('ru-RU')} className="tnum">
+            {formatRelativeTime(item.at)}
+          </time>
           <div className="activity-feed-body">
             <span className="activity-type">{TYPE_LABELS[item.type]}</span>
             {item.requestId ? (
-              <Link to={`/dashboard/manager/requests/${item.requestId}`}>{item.title}</Link>
+              <Link to={`${requestBasePath}/${item.requestId}`}>{item.title}</Link>
             ) : (
               <span>{item.title}</span>
             )}

@@ -2,8 +2,10 @@ export type AdminUser = {
   id: string;
   fullName: string;
   email: string;
+  phone?: string | null;
   role: 'CLIENT' | 'MANAGER' | 'ADMINISTRATOR';
   blocked: boolean;
+  createdAt?: string;
 };
 
 export type AnalyticsKpi = {
@@ -64,6 +66,14 @@ export type ContactSubmission = {
   createdAt?: string;
 };
 
+export type BookingVehicle = {
+  id: string;
+  make: string;
+  model: string;
+  year?: number | null;
+  licensePlate?: string | null;
+};
+
 export type ServiceBooking = {
   id: string;
   status: string;
@@ -73,6 +83,8 @@ export type ServiceBooking = {
   guestEmail?: string | null;
   notes?: string | null;
   serviceRequestId?: string | null;
+  vehicleId?: string | null;
+  vehicle?: BookingVehicle | null;
   client?: { fullName?: string; phone?: string; email?: string };
   serviceRequest?: {
     id: string;

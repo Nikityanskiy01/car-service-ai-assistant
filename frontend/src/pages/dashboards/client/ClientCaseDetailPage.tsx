@@ -9,19 +9,22 @@ import {
   MessageSquare,
   Sparkles,
 } from 'lucide-react';
-import { api } from '../../../api/client';
+import { api, downloadApiFile } from '../../../api/client';
+import type { CompletionDocument } from '../../../api/dashboard';
 import {
   getServiceRequest,
   listBookings,
+  listCompletionDocuments,
   listRequestMessages,
   sendRequestMessage,
   type FollowUpMessage,
 } from '../../../api/dashboard';
+import { CaseCompletionPanel } from '../../../components/client/CaseCompletionPanel';
 import { CaseNextStep } from '../../../components/client/CaseNextStep';
 import { ClientStatusBadge } from '../../../components/client/ClientStatusBadge';
 import { CaseProgressRail } from '../../../components/client/CaseProgressRail';
 import { CaseVisitPanel } from '../../../components/client/CaseVisitPanel';
-import { MessageAttachmentInput, type PendingAttachment } from '../../../components/requests/MessageAttachmentInput';
+import type { PendingAttachment } from '../../../components/requests/MessageAttachmentInput';
 import { FollowUpChatPanel } from '../../../components/messages/FollowUpChatPanel';
 import { DiagnosticSummary } from '../../../components/consultation/DiagnosticSummary';
 import { Breadcrumbs } from '../../../components/layout/dashboard/Breadcrumbs';
@@ -91,6 +94,7 @@ export function ClientCaseDetailPage() {
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [sending, setSending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [completionDocuments, setCompletionDocuments] = useState<CompletionDocument[]>([]);
 
   usePageMeta({
     title: 'Обращение',
@@ -103,10 +107,11 @@ export function ClientCaseDetailPage() {
     setError(null);
     try {
       try {
-        const [req, msgs, bookings] = await Promise.all([
+        const [req, msgs, bookings, docs] = await Promise.all([
           getServiceRequest(caseId),
           listRequestMessages(caseId).catch(() => []),
           listBookings(),
+          listCompletionDocuments(caseId).catch(() => []),
         ]);
         const booking = (bookings as BookingCaseInput[]).find((b) => b.serviceRequest?.id === req.id);
         const built = buildClientCases([], [req], bookings as BookingCaseInput[])[0] ?? null;
@@ -117,6 +122,7 @@ export function ClientCaseDetailPage() {
         setBookingId(booking?.id);
         setBookingStatus(booking?.status);
         setMessages(msgs);
+        setCompletionDocuments(docs);
         return;
       } catch {
         // not a service request id — try consultation draft
@@ -148,6 +154,7 @@ export function ClientCaseDetailPage() {
       setBookingId(undefined);
       setBookingStatus(undefined);
       setMessages([]);
+      setCompletionDocuments([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось загрузить обращение');
     } finally {
@@ -247,7 +254,9 @@ export function ClientCaseDetailPage() {
         break;
       case 'download_pdf':
         if (request?.id) {
-          window.location.href = `/api/service-requests/${request.id}/export.pdf`;
+          void downloadApiFile(`/api/service-requests/${request.id}/export.pdf`, `zayavka-${request.id.slice(0, 8)}.pdf`).catch(
+            (e) => setActionError(e instanceof Error ? e.message : 'Не удалось скачать PDF'),
+          );
         }
         break;
       case 'back_to_list':
@@ -349,14 +358,19 @@ export function ClientCaseDetailPage() {
             <h1 id="case-detail-title">{title}</h1>
           </div>
           {request ? (
-            <a
+            <button
+              type="button"
               className="case-detail-pdf"
-              href={`/api/service-requests/${request.id}/export.pdf`}
-              download
+              onClick={() =>
+                void downloadApiFile(
+                  `/api/service-requests/${request.id}/export.pdf`,
+                  `zayavka-${request.id.slice(0, 8)}.pdf`,
+                ).catch((e) => setActionError(e instanceof Error ? e.message : 'Не удалось скачать PDF'))
+              }
             >
               <FileDown size={16} aria-hidden />
               PDF
-            </a>
+            </button>
           ) : null}
         </div>
 
@@ -448,6 +462,11 @@ export function ClientCaseDetailPage() {
                 </span>
               </button>
             ) : null}
+
+            <CaseCompletionPanel
+              feedback={request?.consultationSession?.feedback}
+              documents={completionDocuments}
+            />
           </div>
         </div>
       ) : null}

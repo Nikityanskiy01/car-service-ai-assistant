@@ -1,0 +1,758 @@
+{
+  "generatedAt": "2026-08-15",
+  "count": 188,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api"
+    },
+    {
+      "method": "POST",
+      "path": "/api"
+    },
+    {
+      "method": "GET",
+      "path": "/api/:messageId/attachments/:attachmentId"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai/memory/backfill"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/ai/memory/search"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/ai/memory/stats"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/audit-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integration-conflicts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integration-conflicts/:id/resolve"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integration-jobs/:jobId/cancel"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integration-jobs/:jobId/retry"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integrations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integrations"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/integrations/:id"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integrations/:id"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/integrations/:id"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integrations/:id/capabilities"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integrations/:id/conflicts"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integrations/:id/disable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integrations/:id/enable"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integrations/:id/jobs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/integrations/:id/logs"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integrations/:id/sync"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/integrations/:id/test"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/llm-eval"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/llm-status"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/reference/hints/:hintId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/reference/hints/:hintId"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/reference/questions/:questionId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/reference/questions/:questionId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/reference/reference-materials"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reference/reference-materials"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/reference/reference-materials/:materialId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/reference/reference-materials/:materialId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/reference/scenarios"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reference/scenarios"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/reference/scenarios/:scenarioId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/reference/scenarios/:scenarioId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/reference/scenarios/:scenarioId/hints"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reference/scenarios/:scenarioId/hints"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/reference/scenarios/:scenarioId/questions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reference/scenarios/:scenarioId/questions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/reference/service-categories"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/reference/service-categories"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/reference/service-categories/:categoryId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/reference/service-categories/:categoryId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/sessions"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/sessions/:sessionId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/site-content"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/site-content"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/site-content/:blockId"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/site-content/:blockId/rollback"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/site-items"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/site-items"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/site-items/:itemId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/site-items/:itemId"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/site-items/reorder"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/site-settings"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/site-settings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/users"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users/:userId/block"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users/:userId/revoke-sessions"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/admin/users/:userId/role"
+    },
+    {
+      "method": "POST",
+      "path": "/api/admin/users/:userId/unblock"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/ai-feedback"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/ai-feedback.csv"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/kpi"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/kpi.csv"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/manager-kpi"
+    },
+    {
+      "method": "GET",
+      "path": "/api/analytics/summary"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/forgot-password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/login-options"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login/2fa"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/otp/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/otp/verify"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/refresh"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/register"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/resend-verification"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/reset-password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/verify-email"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings/:bookingId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/bookings/:bookingId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bookings/:bookingId/audit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/bookings/guest"
+    },
+    {
+      "method": "GET",
+      "path": "/api/consultations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations"
+    },
+    {
+      "method": "GET",
+      "path": "/api/consultations/:sessionId"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations/:sessionId/analyze-photo"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations/:sessionId/claim"
+    },
+    {
+      "method": "GET",
+      "path": "/api/consultations/:sessionId/diagnosis-job"
+    },
+    {
+      "method": "GET",
+      "path": "/api/consultations/:sessionId/export.pdf"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations/:sessionId/messages"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations/:sessionId/messages/stream"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations/:sessionId/report"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations/:sessionId/service-request"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consultations/:sessionId/service-request-guest"
+    },
+    {
+      "method": "GET",
+      "path": "/api/consultations/abuse-challenge"
+    },
+    {
+      "method": "GET",
+      "path": "/api/consultations/context/active-templates"
+    },
+    {
+      "method": "GET",
+      "path": "/api/consultations/staff"
+    },
+    {
+      "method": "GET",
+      "path": "/api/contact"
+    },
+    {
+      "method": "POST",
+      "path": "/api/contact"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/contact/:contactId"
+    },
+    {
+      "method": "POST",
+      "path": "/api/contact/:contactId/convert-to-request"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/site-items"
+    },
+    {
+      "method": "GET",
+      "path": "/api/content/site-settings"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health"
+    },
+    {
+      "method": "GET",
+      "path": "/api/live"
+    },
+    {
+      "method": "GET",
+      "path": "/api/maintenance-alerts"
+    },
+    {
+      "method": "GET",
+      "path": "/api/manager/integrations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/manager/requests/:requestId/export"
+    },
+    {
+      "method": "GET",
+      "path": "/api/manager/requests/:requestId/integrations"
+    },
+    {
+      "method": "POST",
+      "path": "/api/manager/requests/:requestId/integrations/:connectionId/retry"
+    },
+    {
+      "method": "GET",
+      "path": "/api/metrics"
+    },
+    {
+      "method": "POST",
+      "path": "/api/product-events"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ready"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/service-records/:recordId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/service-records/:recordId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-records/:recordId/export.jpg"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-records/:recordId/export.pdf"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/:requestId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/service-requests/:requestId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/service-requests/:requestId/assign-manager"
+    },
+    {
+      "method": "POST",
+      "path": "/api/service-requests/:requestId/assign-to-me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/:requestId/completion-documents"
+    },
+    {
+      "method": "POST",
+      "path": "/api/service-requests/:requestId/completion-documents"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/service-requests/:requestId/completion-documents/:documentId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/:requestId/completion-documents/:documentId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/:requestId/consultation-feedback"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/service-requests/:requestId/consultation-feedback"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/:requestId/export.pdf"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/:requestId/similar-cases"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/:requestId/status-history"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/activity"
+    },
+    {
+      "method": "POST",
+      "path": "/api/service-requests/bulk/assign"
+    },
+    {
+      "method": "POST",
+      "path": "/api/service-requests/bulk/export-crm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/service-requests/bulk/status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/client-dossier/:clientId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/guest-dossier/:phone"
+    },
+    {
+      "method": "GET",
+      "path": "/api/service-requests/managers"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/me"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/2fa/backup-codes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/2fa/confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/2fa/disable"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/2fa/setup"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/2fa/setup/cancel"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/me/avatar"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/avatar"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/avatar"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/consultation-reports"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/login-history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/login-methods"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/notification-preferences"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/me/notification-preferences"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/notifications"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/notifications/read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/notifications/unread-count"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/password"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/phone/verify/confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/phone/verify/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/privacy/delete"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/privacy/export"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/security"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/sessions"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/me/sessions/:sessionId"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/sessions/revoke-others"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/sessions/revoke/start"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/me/summary"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/telegram/link/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/me/telegram/unlink"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles"
+    },
+    {
+      "method": "POST",
+      "path": "/api/vehicles"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/vehicles/:vehicleId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/:vehicleId"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/vehicles/:vehicleId"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/:vehicleId/maintenance-plan"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/vehicles/:vehicleId/photo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/:vehicleId/photo"
+    },
+    {
+      "method": "POST",
+      "path": "/api/vehicles/:vehicleId/photo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/:vehicleId/service-history/export.pdf"
+    },
+    {
+      "method": "GET",
+      "path": "/api/vehicles/:vehicleId/service-records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/vehicles/:vehicleId/service-records"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/integrations/:connectionId"
+    }
+  ]
+}

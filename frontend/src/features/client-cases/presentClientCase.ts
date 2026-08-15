@@ -1,7 +1,15 @@
 import { formatBookingDateParts, formatBookingRelative } from '../../lib/bookingDisplay';
+import { formatUnreadMessagesLabel } from '../../lib/russianPlural';
 import type { ClientCase } from './types';
 
-export type CaseVisualGroup = 'waiting' | 'working' | 'scheduled' | 'draft' | 'done' | 'cancelled';
+export type CaseVisualGroup =
+  | 'unread'
+  | 'waiting'
+  | 'working'
+  | 'scheduled'
+  | 'draft'
+  | 'done'
+  | 'cancelled';
 
 export type CasePresentation = {
   group: CaseVisualGroup;
@@ -15,6 +23,7 @@ export type CasePresentation = {
 };
 
 const GROUP_ORDER: CaseVisualGroup[] = [
+  'unread',
   'waiting',
   'working',
   'scheduled',
@@ -24,6 +33,7 @@ const GROUP_ORDER: CaseVisualGroup[] = [
 ];
 
 const GROUP_LABELS: Record<CaseVisualGroup, string> = {
+  unread: 'Новые сообщения',
   waiting: 'Ждут ответа',
   working: 'В работе',
   scheduled: 'С записью',
@@ -35,12 +45,26 @@ const GROUP_LABELS: Record<CaseVisualGroup, string> = {
 export function presentClientCase(clientCase: ClientCase): CasePresentation {
   const isDraft = clientCase.kind === 'draft';
   const status = clientCase.requestStatus || clientCase.status;
+  const unreadCount = clientCase.unreadCount || 0;
   const bookingParts = clientCase.bookingPreferredAt
     ? formatBookingDateParts(clientCase.bookingPreferredAt)
     : null;
   const bookingRelative = clientCase.bookingPreferredAt
     ? formatBookingRelative(clientCase.bookingPreferredAt)
     : null;
+
+  if (unreadCount > 0 && !isDraft) {
+    return {
+      group: 'unread',
+      groupLabel: GROUP_LABELS.unread,
+      statusLine: formatUnreadMessagesLabel(unreadCount),
+      detailLine: null,
+      ctaLabel: 'Открыть чат',
+      attention: true,
+      bookingParts,
+      bookingRelative,
+    };
+  }
 
   if (isDraft) {
     return {

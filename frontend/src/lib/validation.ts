@@ -82,3 +82,53 @@ export function getPasswordConfirmError(password: string, confirm: string): stri
   if (password !== confirm) return 'Пароли не совпадают';
   return null;
 }
+
+export type PasswordStrengthLevel = 0 | 1 | 2 | 3 | 4;
+
+export type PasswordStrengthCheck = {
+  id: string;
+  label: string;
+  met: boolean;
+};
+
+export type PasswordStrengthResult = {
+  level: PasswordStrengthLevel;
+  label: string;
+  checks: PasswordStrengthCheck[];
+  meetsPolicy: boolean;
+};
+
+const STRENGTH_LABELS: Record<PasswordStrengthLevel, string> = {
+  0: 'Слабый',
+  1: 'Слабый',
+  2: 'Средний',
+  3: 'Хороший',
+  4: 'Надёжный',
+};
+
+export function analyzePasswordStrength(value: string): PasswordStrengthResult {
+  const s = String(value || '');
+  const checks: PasswordStrengthCheck[] = [
+    { id: 'length', label: 'Не меньше 12 символов', met: s.length >= 12 },
+    { id: 'upper', label: 'Заглавная латиница (A–Z)', met: HAS_UPPER.test(s) },
+    { id: 'lower', label: 'Строчная латиница (a–z)', met: HAS_LOWER.test(s) },
+    { id: 'digit', label: 'Цифра', met: HAS_DIGIT.test(s) },
+    { id: 'special', label: 'Спецсимвол', met: HAS_SPECIAL.test(s) },
+    { id: 'latin', label: 'Без кириллицы', met: !HAS_CYRILLIC.test(s) },
+  ];
+
+  const metCount = checks.filter((check) => check.met).length;
+  let level: PasswordStrengthLevel;
+  if (!s.length) level = 0;
+  else if (metCount <= 2) level = 1;
+  else if (metCount <= 4) level = 2;
+  else if (metCount === 5) level = 3;
+  else level = 4;
+
+  return {
+    level,
+    label: STRENGTH_LABELS[level],
+    checks,
+    meetsPolicy: passwordMeetsPolicy(s),
+  };
+}

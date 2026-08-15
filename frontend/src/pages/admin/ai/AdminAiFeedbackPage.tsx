@@ -10,7 +10,6 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
 import { Tabs } from '../../../components/ui/Tabs';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { requestNeedsFeedback } from '../../../lib/managerRequestHelpers';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
@@ -48,7 +47,7 @@ export function AdminAiFeedbackPage() {
   const recentRows = useMemo(() => report?.recent ?? [], [report]);
 
   if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
   if (!report) return null;
 
   return (
@@ -56,7 +55,6 @@ export function AdminAiFeedbackPage() {
       <PageHeader
         title="Обратная связь"
         description="Насколько предварительные диагнозы совпадают с реальностью в сервисе."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/ai/feedback')}
       />
 
       <Tabs

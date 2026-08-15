@@ -2,7 +2,7 @@ import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
 import { buildClientCasesFromDb, serializeClientCase } from '../../lib/clientCases.js';
-import { countUnreadMessagesForClient } from '../requestMessages/requestMessages.service.js';
+import { listUnreadThreadsForClient } from '../requestMessages/requestMessages.service.js';
 import {
   avatarMimeFromKey,
   deleteAvatarFile,
@@ -23,6 +23,10 @@ const USER_SELECT = {
   telegram: true,
   preferredContact: true,
   createdAt: true,
+  totpEnabledAt: true,
+  emailVerifiedAt: true,
+  phoneVerifiedAt: true,
+  telegramChatId: true,
 };
 
 function toPublic(u) {
@@ -38,6 +42,10 @@ function toPublic(u) {
     telegram: u.telegram,
     preferredContact: u.preferredContact,
     createdAt: u.createdAt?.toISOString?.() ?? u.createdAt,
+    totpEnabled: Boolean(u.totpEnabledAt),
+    emailVerified: Boolean(u.emailVerifiedAt),
+    phoneVerified: Boolean(u.phoneVerifiedAt),
+    telegramLinked: Boolean(u.telegramChatId),
   };
 }
 
@@ -51,13 +59,29 @@ export async function getMe(userId) {
 }
 
 export async function patchMe(userId, data) {
+  const current = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { phone: true, phoneVerifiedAt: true },
+  });
+  if (!current) throw new AppError(404, 'Not found', 'NOT_FOUND');
+
   let phone = data.phone;
+  const phoneChanged = phone != null && normalizePhone(phone) !== current.phone;
   if (phone != null) {
     const digits = normalizePhone(phone);
     if (!isValidPhoneDigits(digits)) {
       throw new AppError(400, 'Укажите корректный номер телефона', 'BAD_REQUEST');
     }
     phone = digits;
+    if (phoneChanged) {
+      const taken = await prisma.user.findFirst({
+        where: { phone, phoneVerifiedAt: { not: null }, id: { not: userId } },
+        select: { id: true },
+      });
+      if (taken) {
+        throw new AppError(400, 'Этот номер уже подтверждён в другом аккаунте', 'PHONE_TAKEN');
+      }
+    }
   }
 
   let telegram = data.telegram;
@@ -70,6 +94,9 @@ export async function patchMe(userId, data) {
     data: {
       ...(data.fullName != null ? { fullName: data.fullName } : {}),
       ...(data.phone != null ? { phone } : {}),
+      ...(phoneChanged
+        ? { phoneVerifiedAt: null, loginSmsEnabled: false }
+        : {}),
       ...(data.emailProfile !== undefined ? { emailProfile: data.emailProfile } : {}),
       ...(data.city !== undefined ? { city: data.city } : {}),
       ...(data.telegram !== undefined ? { telegram } : {}),
@@ -136,7 +163,7 @@ export async function getMeSummary(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new AppError(404, 'Not found', 'NOT_FOUND');
 
-  const [consultations, requests, bookings, unreadMessagesCount] = await Promise.all([
+  const [consultations, requests, bookings, unread] = await Promise.all([
     prisma.consultationSession.findMany({
       where: { clientId: userId },
       orderBy: { createdAt: 'desc' },
@@ -167,8 +194,9 @@ export async function getMeSummary(userId) {
       take: 30,
       include: { serviceRequest: { select: { id: true, status: true } } },
     }),
-    countUnreadMessagesForClient(userId),
+    listUnreadThreadsForClient(userId),
   ]);
+  const unreadByRequestId = new Map(unread.threads.map((thread) => [thread.requestId, thread.unreadCount]));
 
   const cases = buildClientCasesFromDb(consultations, requests, bookings);
   const activeCases = cases.filter(
@@ -198,7 +226,8 @@ export async function getMeSummary(userId) {
       phone: user.phone,
     },
     activeCasesCount: activeCases.length,
-    unreadMessagesCount,
+    unreadMessagesCount: unread.count,
+    unreadThreads: unread.threads,
     hasAnyHistory: cases.length > 0,
     nextBooking: nextBooking
       ? {
@@ -216,6 +245,9 @@ export async function getMeSummary(userId) {
           status: draft.consultationStatus,
         }
       : null,
-    recentActiveCases: activeCases.slice(0, 5).map(serializeClientCase),
+    recentActiveCases: activeCases.slice(0, 5).map((row) => ({
+      ...serializeClientCase(row),
+      unreadCount: unreadByRequestId.get(row.id) || 0,
+    })),
   };
 }

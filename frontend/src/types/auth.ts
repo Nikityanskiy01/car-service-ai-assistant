@@ -15,4 +15,9 @@ export interface AuthUser {
   telegram?: string | null;
   preferredContact?: PreferredContact | null;
   createdAt?: string | null;
+  totpEnabled?: boolean;
+  totpSetupPending?: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  telegramLinked?: boolean;
 }

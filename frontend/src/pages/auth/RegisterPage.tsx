@@ -2,17 +2,15 @@ import { CalendarClock, Car, MessageSquare } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
-import { useAuth } from '../../auth/AuthProvider';
-import type { AuthUser } from '../../types/auth';
 import { ConsentCheckbox } from '../../components/forms/ConsentCheckbox';
 import { FormField } from '../../components/forms/FormField';
 import { PasswordInput } from '../../components/forms/PasswordInput';
+import { PasswordStrengthIndicator } from '../../components/forms/PasswordStrengthIndicator';
 import { PhoneInput } from '../../components/forms/PhoneInput';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useProductConfig } from '../../config/ProductConfigProvider';
-import { claimGuestConsultationSessionIfPresent } from '../../features/consultations/claimGuestSession';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import {
   getEmailError,
@@ -65,7 +63,6 @@ export function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { setUser } = useAuth();
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -91,20 +88,25 @@ export function RegisterPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api<{ requiresEmailVerification?: boolean; message?: string }>('/auth/register', {
+      const data = await api<{
+        requiresEmailVerification?: boolean;
+        message?: string;
+        email?: string;
+      }>('/auth/register', {
         method: 'POST',
         body: { fullName, phone, email, password, consentPersonalData: true },
         skipCsrf: true,
         skipAuthRefresh: true,
       });
-      if (data.requiresEmailVerification) {
-        navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`, { replace: true });
-        return;
-      }
-      const userData = data as { user: AuthUser };
-      setUser(userData.user);
-      await claimGuestConsultationSessionIfPresent();
-      navigate('/dashboard/client', { replace: true });
+
+      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`, {
+        replace: true,
+        state: {
+          justRegistered: true,
+          message: data.message,
+          maskedEmail: data.email,
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка регистрации');
     } finally {
@@ -130,7 +132,7 @@ export function RegisterPage() {
             <FormField
               label="ФИО"
               htmlFor="registerName"
-              hint="Как в паспорте или как к вам обращаться"
+              hint="Как к вам обращаться"
               error={fieldErrors.fullName}
             >
               <Input
@@ -208,6 +210,7 @@ export function RegisterPage() {
                   if (error) setError(null);
                 }}
               />
+              <PasswordStrengthIndicator password={password} id="registerPassword" />
             </FormField>
 
             <FormField

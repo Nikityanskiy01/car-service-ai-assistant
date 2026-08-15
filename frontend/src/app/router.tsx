@@ -1,10 +1,13 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useOutletContext, useParams } from 'react-router-dom';
 import { PageSuspenseFallback } from '../components/ui/PageSuspenseFallback';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { RoleRoute } from '../auth/RoleRoute';
+import { useAuth } from '../auth/AuthProvider';
+import { dashboardHomeFor, dashboardProfileFor } from '../config/dashboardPaths';
+import type { UserRole } from '../types/auth';
 
 const HomePage = lazy(() => import('../pages/public/HomePage').then((m) => ({ default: m.HomePage })));
 const ServicesPage = lazy(() => import('../pages/public/ServicesPage').then((m) => ({ default: m.ServicesPage })));
@@ -95,6 +98,9 @@ const AdminAnalyticsPage = lazy(() =>
   import('../pages/admin/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })),
 );
 const AdminAuditPage = lazy(() => import('../pages/admin/AdminAuditPage').then((m) => ({ default: m.AdminAuditPage })));
+const AdminSessionsPage = lazy(() =>
+  import('../pages/admin/AdminSessionsPage').then((m) => ({ default: m.AdminSessionsPage })),
+);
 const AdminSiteItemsPage = lazy(() =>
   import('../pages/admin/site/AdminSiteItemsPage').then((m) => ({ default: m.AdminSiteItemsPage })),
 );
@@ -109,9 +115,6 @@ const AdminSiteLegalPage = lazy(() =>
 );
 const AdminTeamActivityPage = lazy(() =>
   import('../pages/admin/team/AdminTeamActivityPage').then((m) => ({ default: m.AdminTeamActivityPage })),
-);
-const AdminPlaceholderPage = lazy(() =>
-  import('../pages/admin/AdminPlaceholderPage').then((m) => ({ default: m.AdminPlaceholderPage })),
 );
 const AdminAiStatusPage = lazy(() =>
   import('../pages/admin/ai/AdminAiStatusPage').then((m) => ({ default: m.AdminAiStatusPage })),
@@ -140,6 +143,9 @@ const NotFoundPage = lazy(() =>
 const DashboardNotFoundPage = lazy(() =>
   import('../pages/errors/DashboardNotFoundPage').then((m) => ({ default: m.DashboardNotFoundPage })),
 );
+const DashboardErrorPage = lazy(() =>
+  import('../pages/errors/DashboardErrorPage').then((m) => ({ default: m.DashboardErrorPage })),
+);
 
 const legacyRedirects: Record<string, string> = {
   '/index.html': '/',
@@ -155,20 +161,79 @@ const legacyRedirects: Record<string, string> = {
   '/dashboards/client.html': '/dashboard/client',
   '/dashboards/manager.html': '/dashboard/manager',
   '/dashboards/admin.html': '/dashboard/admin',
-  '/dashboard/admin/users': '/dashboard/admin/team/users',
-  '/dashboard/admin/requests': '/dashboard/admin/operations/requests',
-  '/dashboard/admin/bookings': '/dashboard/admin/operations/bookings',
-  '/dashboard/admin/content': '/dashboard/admin/site/items',
-  '/dashboard/admin/appearance': '/dashboard/admin/site/appearance',
-  '/dashboard/admin/audit': '/dashboard/admin/security/audit',
-  '/dashboard/client/requests': '/dashboard/client/cases',
-  '/dashboard/client/consultations': '/dashboard/client/cases?tab=drafts',
 };
 
 const legacyRoutes = Object.entries(legacyRedirects).map(([from, to]) => ({
   path: from,
   element: <Navigate to={to} replace />,
 }));
+
+const clientRoutes = [
+  { index: true, element: withSuspense(<ClientOverviewPage />) },
+  { path: 'cases', element: withSuspense(<ClientCasesPage />) },
+  { path: 'cases/:caseId', element: withSuspense(<ClientCaseDetailPage />) },
+  { path: 'bookings', element: withSuspense(<ClientBookingsPage />) },
+  { path: 'bookings/:bookingId', element: withSuspense(<ClientBookingDetailPage />) },
+  { path: 'profile', element: withSuspense(<ProfilePage />) },
+  {
+    element: <RoleSection roles={['CLIENT']} />,
+    children: [
+      { path: 'vehicles', element: withSuspense(<ClientVehiclesPage />) },
+      { path: 'vehicles/:vehicleId', element: withSuspense(<ClientVehicleDetailPage />) },
+    ],
+  },
+  { path: 'requests', element: <Navigate to="/dashboard/client/cases" replace /> },
+  { path: 'requests/:requestId', element: <LegacyClientRequestRedirect /> },
+  { path: 'consultations', element: <Navigate to="/dashboard/client/cases?tab=drafts" replace /> },
+  { path: '*', element: withSuspense(<DashboardNotFoundPage />) },
+];
+
+const managerRoutes = [
+  { index: true, element: withSuspense(<ManagerWorkDeskPage />) },
+  { path: 'requests', element: withSuspense(<ManagerRequestsPage />) },
+  { path: 'requests/:requestId', element: withSuspense(<ManagerRequestDetailPage />) },
+  { path: 'calendar', element: withSuspense(<ManagerCalendarPage />) },
+  { path: 'clients', element: withSuspense(<ManagerClientsPage />) },
+  { path: 'contacts', element: withSuspense(<ManagerContactsPage />) },
+  { path: 'ai-quality', element: withSuspense(<ManagerAiQualityPage />) },
+  { path: 'profile', element: withSuspense(<ProfilePage />) },
+  { path: '*', element: withSuspense(<DashboardNotFoundPage />) },
+];
+
+const adminRoutes = [
+  { index: true, element: withSuspense(<AdminOverviewPage />) },
+  { path: 'analytics', element: withSuspense(<AdminAnalyticsPage />) },
+  { path: 'operations/requests', element: withSuspense(<ManagerRequestsPage adminZone />) },
+  { path: 'operations/requests/:requestId', element: withSuspense(<ManagerRequestDetailPage adminZone />) },
+  { path: 'operations/bookings', element: withSuspense(<ManagerCalendarPage adminZone />) },
+  { path: 'operations/clients', element: withSuspense(<ManagerClientsPage adminZone />) },
+  { path: 'operations/contacts', element: withSuspense(<ManagerContactsPage adminZone />) },
+  { path: 'team/users', element: withSuspense(<AdminUsersPage />) },
+  { path: 'team/activity', element: withSuspense(<AdminTeamActivityPage />) },
+  { path: 'ai/status', element: withSuspense(<AdminAiStatusPage />) },
+  { path: 'ai/scenarios', element: withSuspense(<AdminAiScenariosPage />) },
+  { path: 'ai/reference', element: withSuspense(<AdminAiReferencePage />) },
+  { path: 'ai/memory', element: withSuspense(<AdminAiMemoryPage />) },
+  { path: 'ai/feedback', element: withSuspense(<AdminAiFeedbackPage />) },
+  { path: 'site/items', element: withSuspense(<AdminSiteItemsPage />) },
+  { path: 'site/blocks', element: withSuspense(<AdminSiteBlocksPage />) },
+  { path: 'site/appearance', element: withSuspense(<AdminSiteAppearancePage />) },
+  { path: 'site/legal', element: withSuspense(<AdminSiteLegalPage />) },
+  { path: 'integrations', element: withSuspense(<AdminIntegrationsPage />) },
+  { path: 'integrations/jobs', element: withSuspense(<AdminIntegrationJobsPage />) },
+  { path: 'integrations/conflicts', element: withSuspense(<AdminIntegrationConflictsPage />) },
+  { path: 'integrations/:connectionId', element: withSuspense(<AdminIntegrationDetailPage />) },
+  { path: 'security/audit', element: withSuspense(<AdminAuditPage />) },
+  { path: 'security/sessions', element: withSuspense(<AdminSessionsPage />) },
+  { path: 'profile', element: withSuspense(<ProfilePage />) },
+  { path: 'users', element: <Navigate to="/dashboard/admin/team/users" replace /> },
+  { path: 'requests', element: <Navigate to="/dashboard/admin/operations/requests" replace /> },
+  { path: 'bookings', element: <Navigate to="/dashboard/admin/operations/bookings" replace /> },
+  { path: 'content', element: <Navigate to="/dashboard/admin/site/items" replace /> },
+  { path: 'appearance', element: <Navigate to="/dashboard/admin/site/appearance" replace /> },
+  { path: 'audit', element: <Navigate to="/dashboard/admin/security/audit" replace /> },
+  { path: '*', element: withSuspense(<DashboardNotFoundPage />) },
+];
 
 export const router = createBrowserRouter([
   ...legacyRoutes,
@@ -205,149 +270,77 @@ export const router = createBrowserRouter([
   },
   {
     path: '/dashboard',
+    errorElement: withSuspense(<DashboardErrorPage />),
     element: (
       <ProtectedRoute>
         <DashboardLayout />
       </ProtectedRoute>
     ),
     children: [
+      { index: true, element: <DashboardHomeRedirect /> },
+      { path: 'profile', element: <DashboardProfileRedirect /> },
       {
         path: 'client',
-        element: (
-          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
-            {withSuspense(<ClientOverviewPage />)}
-          </RoleRoute>
-        ),
-      },
-      {
-        path: 'client/cases',
-        element: (
-          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
-            {withSuspense(<ClientCasesPage />)}
-          </RoleRoute>
-        ),
-      },
-      {
-        path: 'client/cases/:caseId',
-        element: (
-          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
-            {withSuspense(<ClientCaseDetailPage />)}
-          </RoleRoute>
-        ),
-      },
-      {
-        path: 'client/requests',
-        element: <Navigate to="/dashboard/client/cases" replace />,
-      },
-      {
-        path: 'client/requests/:requestId',
-        element: <LegacyClientRequestRedirect />,
-      },
-      {
-        path: 'client/consultations',
-        element: <Navigate to="/dashboard/client/cases?tab=drafts" replace />,
-      },
-      {
-        path: 'client/bookings',
-        element: (
-          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
-            {withSuspense(<ClientBookingsPage />)}
-          </RoleRoute>
-        ),
-      },
-      {
-        path: 'client/bookings/:bookingId',
-        element: (
-          <RoleRoute roles={['CLIENT']}>
-            {withSuspense(<ClientBookingDetailPage />)}
-          </RoleRoute>
-        ),
-      },
-      {
-        path: 'client/vehicles',
-        element: (
-          <RoleRoute roles={['CLIENT']}>
-            {withSuspense(<ClientVehiclesPage />)}
-          </RoleRoute>
-        ),
-      },
-      {
-        path: 'client/vehicles/:vehicleId',
-        element: (
-          <RoleRoute roles={['CLIENT']}>
-            {withSuspense(<ClientVehicleDetailPage />)}
-          </RoleRoute>
-        ),
-      },
-      {
-        path: 'client/profile',
-        element: (
-          <RoleRoute roles={['CLIENT', 'MANAGER', 'ADMINISTRATOR']}>
-            {withSuspense(<ProfilePage />)}
-          </RoleRoute>
-        ),
+        errorElement: withSuspense(<DashboardErrorPage />),
+        element: <ClientZoneSection />,
+        children: clientRoutes,
       },
       {
         path: 'manager',
-        element: withManager(<ManagerWorkDeskPage />),
+        errorElement: withSuspense(<DashboardErrorPage />),
+        element: <RoleSection roles={['MANAGER', 'ADMINISTRATOR']} />,
+        children: managerRoutes,
       },
-      { path: 'manager/requests', element: withManager(<ManagerRequestsPage />) },
-      { path: 'manager/requests/:requestId', element: withManager(<ManagerRequestDetailPage />) },
-      { path: 'manager/calendar', element: withManager(<ManagerCalendarPage />) },
-      { path: 'manager/clients', element: withManager(<ManagerClientsPage />) },
-      { path: 'manager/contacts', element: withManager(<ManagerContactsPage />) },
-      { path: 'manager/ai-quality', element: withManager(<ManagerAiQualityPage />) },
-      { path: 'manager/profile', element: withManager(<ProfilePage />) },
-      { path: 'admin', element: withAdmin(<AdminOverviewPage />) },
-      { path: 'admin/analytics', element: withAdmin(<AdminAnalyticsPage />) },
-      { path: 'admin/operations/requests', element: withAdmin(<ManagerRequestsPage adminZone />) },
-      { path: 'admin/operations/bookings', element: withAdmin(<ManagerCalendarPage adminZone />) },
-      { path: 'admin/operations/clients', element: withAdmin(<ManagerClientsPage adminZone />) },
-      { path: 'admin/operations/contacts', element: withAdmin(<ManagerContactsPage adminZone />) },
-      { path: 'admin/team/users', element: withAdmin(<AdminUsersPage />) },
       {
-        path: 'admin/team/activity',
-        element: withAdmin(<AdminTeamActivityPage />),
+        path: 'admin',
+        errorElement: withSuspense(<DashboardErrorPage />),
+        element: <RoleSection roles={['ADMINISTRATOR']} />,
+        children: adminRoutes,
       },
-      { path: 'admin/ai/status', element: withAdmin(<AdminAiStatusPage />) },
-      { path: 'admin/ai/scenarios', element: withAdmin(<AdminAiScenariosPage />) },
-      { path: 'admin/ai/reference', element: withAdmin(<AdminAiReferencePage />) },
-      { path: 'admin/ai/memory', element: withAdmin(<AdminAiMemoryPage />) },
-      { path: 'admin/ai/feedback', element: withAdmin(<AdminAiFeedbackPage />) },
-      { path: 'admin/site/items', element: withAdmin(<AdminSiteItemsPage />) },
-      { path: 'admin/site/blocks', element: withAdmin(<AdminSiteBlocksPage />) },
-      { path: 'admin/site/appearance', element: withAdmin(<AdminSiteAppearancePage />) },
-      { path: 'admin/site/legal', element: withAdmin(<AdminSiteLegalPage />) },
-      { path: 'admin/users', element: <Navigate to="/dashboard/admin/team/users" replace /> },
-      { path: 'admin/requests', element: <Navigate to="/dashboard/admin/operations/requests" replace /> },
-      { path: 'admin/bookings', element: <Navigate to="/dashboard/admin/operations/bookings" replace /> },
-      { path: 'admin/content', element: <Navigate to="/dashboard/admin/site/items" replace /> },
-      { path: 'admin/appearance', element: <Navigate to="/dashboard/admin/site/appearance" replace /> },
-      { path: 'admin/audit', element: <Navigate to="/dashboard/admin/security/audit" replace /> },
-      { path: 'admin/integrations', element: withAdmin(<AdminIntegrationsPage />) },
-      { path: 'admin/integrations/jobs', element: withAdmin(<AdminIntegrationJobsPage />) },
-      {
-        path: 'admin/integrations/conflicts',
-        element: withAdmin(<AdminIntegrationConflictsPage />),
-      },
-      { path: 'admin/integrations/:connectionId', element: withAdmin(<AdminIntegrationDetailPage />) },
-      { path: 'admin/security/audit', element: withAdmin(<AdminAuditPage />) },
-      { path: 'admin/profile', element: withAdmin(<ProfilePage />) },
-      { path: '*', element: withSuspense(<DashboardNotFoundPage />) },
+      { path: '*', element: <DashboardHomeRedirect /> },
     ],
   },
 ]);
 
-function withManager(element: ReactNode) {
-  return <RoleRoute roles={['MANAGER', 'ADMINISTRATOR']}>{withSuspense(element)}</RoleRoute>;
-}
-
-function withAdmin(element: ReactNode) {
-  return <RoleRoute roles={['ADMINISTRATOR']}>{withSuspense(element)}</RoleRoute>;
+/** Guard-обёртка для целой зоны кабинета: роль проверяется один раз на секцию. */
+function RoleSection({ roles }: { roles: UserRole[] }) {
+  const outletContext = useOutletContext();
+  return (
+    <RoleRoute roles={roles}>
+      <Outlet context={outletContext} />
+    </RoleRoute>
+  );
 }
 
 function withSuspense(element: ReactNode) {
   return <Suspense fallback={<PageSuspenseFallback />}>{element}</Suspense>;
+}
+
+function DashboardHomeRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={dashboardHomeFor(user?.role)} replace />;
+}
+
+/**
+ * Клиентский кабинет показывает данные текущего пользователя, поэтому сотрудник
+ * увидел бы там пустой «свой» гараж вместо рабочего стола. Возвращаем его в свою зону.
+ */
+function ClientZoneSection() {
+  const { user } = useAuth();
+  const outletContext = useOutletContext();
+  if (user && user.role !== 'CLIENT') {
+    return <Navigate to={dashboardHomeFor(user.role)} replace />;
+  }
+  return (
+    <RoleRoute roles={['CLIENT']}>
+      <Outlet context={outletContext} />
+    </RoleRoute>
+  );
+}
+
+function DashboardProfileRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={dashboardProfileFor(user?.role)} replace />;
 }
 
 function LegacyClientRequestRedirect() {

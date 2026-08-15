@@ -5,7 +5,6 @@ import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { useProductConfig, useProductConfigState } from '../../../config/ProductConfigProvider';
 import type { ProductConfig } from '../../../config/productConfig';
 import { usePageMeta } from '../../../hooks/usePageMeta';
@@ -80,7 +79,6 @@ export function AdminSiteAppearancePage() {
       <PageHeader
         title="Оформление"
         description="Название, контакты и цвета бренда — сразу на публичном сайте."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/site/appearance')}
       />
 
       <div className="grid two">

@@ -2,9 +2,38 @@ import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { invalidateAuthUserCache } from '../../middleware/authJwt.js';
 import * as referenceService from '../reference/reference.service.js';
+import * as securityService from '../users/security.service.js';
 
-export async function listUsers({ limit = 100, offset = 0 } = {}) {
+const LAST_ADMIN_MESSAGE = 'Нельзя лишить доступа последнего администратора';
+
+async function assertKeepsActiveAdmin(userId, { nextRole, nextBlocked } = {}) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError(404, 'Пользователь не найден', 'NOT_FOUND');
+  const isActiveAdmin = user.role === 'ADMINISTRATOR' && !user.blocked;
+  if (!isActiveAdmin) return user;
+  const wouldLoseAdmin = (nextRole && nextRole !== 'ADMINISTRATOR') || nextBlocked === true;
+  if (!wouldLoseAdmin) return user;
+  const others = await prisma.user.count({
+    where: { role: 'ADMINISTRATOR', blocked: false, id: { not: userId } },
+  });
+  if (others === 0) throw new AppError(409, LAST_ADMIN_MESSAGE, 'LAST_ADMIN');
+  return user;
+}
+
+export async function listUsers({ limit = 100, offset = 0, q, role, blocked } = {}) {
+  const where = {};
+  if (role) where.role = role;
+  if (blocked === true || blocked === false) where.blocked = blocked;
+  const query = String(q || '').trim();
+  if (query) {
+    where.OR = [
+      { email: { contains: query, mode: 'insensitive' } },
+      { fullName: { contains: query, mode: 'insensitive' } },
+      { phone: { contains: query } },
+    ];
+  }
   return prisma.user.findMany({
+    where,
     orderBy: { createdAt: 'desc' },
     take: Math.min(limit, 200),
     skip: offset,
@@ -12,6 +41,7 @@ export async function listUsers({ limit = 100, offset = 0 } = {}) {
       id: true,
       email: true,
       fullName: true,
+      phone: true,
       role: true,
       blocked: true,
       createdAt: true,
@@ -19,33 +49,58 @@ export async function listUsers({ limit = 100, offset = 0 } = {}) {
   });
 }
 
-export async function patchUserRole(userId, role) {
-  const u = await prisma.user.findUnique({ where: { id: userId } });
-  if (!u) throw new AppError(404, 'User not found', 'NOT_FOUND');
+export async function patchUserRole(userId, role, actorId) {
+  const prev = await assertKeepsActiveAdmin(userId, { nextRole: role });
   const updated = await prisma.user.update({
     where: { id: userId },
     data: { role, tokenVersion: { increment: 1 } },
     select: { id: true, email: true, role: true, blocked: true },
   });
   invalidateAuthUserCache(userId);
+  await writeAdminAudit(actorId, 'USER_ROLE_UPDATE', 'user', userId, {
+    from: prev.role,
+    to: role,
+    email: prev.email,
+  });
   return updated;
 }
 
-export async function blockUser(userId) {
+export async function blockUser(userId, actorId) {
+  const prev = await assertKeepsActiveAdmin(userId, { nextBlocked: true });
   await prisma.user.update({
     where: { id: userId },
     data: { blocked: true, tokenVersion: { increment: 1 } },
   });
   await prisma.refreshToken.deleteMany({ where: { userId } });
   invalidateAuthUserCache(userId);
+  await writeAdminAudit(actorId, 'USER_BLOCKED', 'user', userId, { email: prev.email, role: prev.role });
 }
 
-export async function unblockUser(userId) {
+export async function unblockUser(userId, actorId) {
+  const prev = await prisma.user.findUnique({ where: { id: userId } });
+  if (!prev) throw new AppError(404, 'Пользователь не найден', 'NOT_FOUND');
   await prisma.user.update({
     where: { id: userId },
     data: { blocked: false },
   });
   invalidateAuthUserCache(userId);
+  await writeAdminAudit(actorId, 'USER_UNBLOCKED', 'user', userId, { email: prev.email, role: prev.role });
+}
+
+export async function listAdminSessions(currentRefreshToken) {
+  return securityService.listAllActiveSessions(currentRefreshToken);
+}
+
+export async function revokeAdminSession(sessionId, actorId) {
+  const out = await securityService.revokeAnySession(sessionId);
+  await writeAdminAudit(actorId, 'SESSION_REVOKE', 'user', out.userId, { sessionId });
+  return out;
+}
+
+export async function revokeAdminUserSessions(userId, actorId) {
+  const out = await securityService.revokeAllUserSessions(userId);
+  await writeAdminAudit(actorId, 'SESSION_REVOKE_ALL', 'user', userId, { revoked: out.revoked });
+  return out;
 }
 
 export async function listContentBlocks({ section } = {}) {
@@ -184,11 +239,16 @@ export async function rollbackContentBlock(blockId, versionId, actorId) {
   });
 }
 
-export async function listAdminAuditEvents({ action, entityType, limit = 100 } = {}) {
+export async function listAdminAuditEvents({ action, entityType, actorId, from, to, limit = 100 } = {}) {
+  const createdAt = {};
+  if (from) createdAt.gte = new Date(from);
+  if (to) createdAt.lte = new Date(to);
   return prisma.adminAuditEvent.findMany({
     where: {
       ...(action ? { action } : {}),
       ...(entityType ? { entityType } : {}),
+      ...(actorId ? { actorId } : {}),
+      ...(Object.keys(createdAt).length ? { createdAt } : {}),
     },
     orderBy: { createdAt: 'desc' },
     take: Math.min(200, Math.max(1, Number(limit) || 100)),

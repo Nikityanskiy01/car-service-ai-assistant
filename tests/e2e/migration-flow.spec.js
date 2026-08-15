@@ -6,7 +6,7 @@ const clientPassword = 'StrongPass123!';
 
 async function login(page, email, password) {
   await page.goto('/login');
-  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Телефон или почта').fill(email);
   await page.getByLabel('Пароль').fill(password);
   await page.getByRole('button', { name: 'Войти' }).click();
 }
@@ -30,7 +30,7 @@ test('2. Регистрация и вход клиента', async ({ page }) =>
   await page.goto('/register');
   await page.getByLabel('ФИО').fill('Тестовый клиент');
   await page.getByLabel('Телефон').fill('+79990000000');
-  await page.getByLabel('Email').fill(clientEmail);
+  await page.getByLabel('Телефон или почта').fill(clientEmail);
   await page.getByLabel('Пароль').fill(clientPassword);
   await page.getByRole('button', { name: 'Создать аккаунт' }).click();
   await expect(page).toHaveURL(/dashboard\/client/);

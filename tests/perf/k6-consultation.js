@@ -1,29 +1,48 @@
 /**
- * k6: документирование методики нагрузки для FR-042 (p95, конкурентность).
- * Запуск: k6 run tests/perf/k6-consultation.js
- * Перед запуском задайте BASE_URL и получите JWT (скрипт упрощённый).
+ * k6: консультация (гость) + health. FR-042: p95 HTTP < 5s.
+ * k6 run tests/perf/k6-consultation.js
+ * BASE_URL=http://127.0.0.1:3000 k6 run tests/perf/k6-consultation.js
  */
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export const options = {
-  vus: 10,
+  vus: 5,
   duration: '30s',
   thresholds: {
     http_req_duration: ['p(95)<5000'],
+    checks: ['rate>0.9'],
   },
 };
 
 const BASE = __ENV.BASE_URL || 'http://127.0.0.1:3000';
-const TOKEN = __ENV.JWT || '';
 
 export default function () {
-  if (!TOKEN) {
+  const live = http.get(`${BASE}/api/live`);
+  check(live, { 'live 200': (r) => r.status === 200 });
+
+  const created = http.post(`${BASE}/api/consultations`, JSON.stringify({}), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  check(created, { 'consultation created': (r) => r.status === 201 });
+  const body = created.json();
+  const sessionId = body && body.id;
+  const guestToken = body && body.guestToken;
+  if (!sessionId || !guestToken) {
+    sleep(1);
     return;
   }
-  const res = http.get(`${BASE}/api/users/me`, {
-    headers: { Authorization: `Bearer ${TOKEN}` },
-  });
-  check(res, { '200': (r) => r.status === 200 });
+
+  const msg = http.post(
+    `${BASE}/api/consultations/${sessionId}/messages`,
+    JSON.stringify({ content: 'Стучит спереди на кочках, Kia Rio 2018, пробег 90000' }),
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Consultation-Guest-Token': guestToken,
+      },
+    },
+  );
+  check(msg, { 'message accepted': (r) => r.status === 200 || r.status === 201 || r.status === 202 });
   sleep(1);
 }

@@ -7,7 +7,6 @@ import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
 export function AdminAiStatusPage() {
@@ -55,7 +54,6 @@ export function AdminAiStatusPage() {
       <PageHeader
         title="Статус и модели"
         description="Конфигурация LLM, метрики и проверка доступности."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/ai/status')}
         actions={
           <div className="row gap-sm">
             {evalReport ? (
@@ -64,7 +62,7 @@ export function AdminAiStatusPage() {
               </span>
             ) : null}
             <Button variant="secondary" disabled={probing} onClick={() => void load(true)}>
-              {probing ? 'Проверка…' : 'Probe now'}
+              {probing ? 'Проверка…' : 'Проверить сейчас'}
             </Button>
           </div>
         }

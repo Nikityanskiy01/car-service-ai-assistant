@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Menu, Search } from 'lucide-react';
 import { AdminStatusStrip } from '../../admin/AdminStatusStrip';
-import { RoleSwitcher } from '../../dashboard/RoleSwitcher';
 import { useAdminSystemStatus } from '../../../hooks/useAdminSystemStatus';
 import { ThemeToggle } from '../ThemeToggle';
+import { InboxBell } from '../../notifications/InboxBell';
 import { UserMenu } from './UserMenu';
 
 export function DashboardTopbar({
   title,
   roleLabel,
+  profilePath,
   onMenuClick,
   integrationIssues,
   adminZone,
@@ -16,6 +17,7 @@ export function DashboardTopbar({
 }: {
   title: string;
   roleLabel?: string;
+  profilePath: string;
   onMenuClick: () => void;
   integrationIssues?: number;
   adminZone?: boolean;
@@ -44,7 +46,7 @@ export function DashboardTopbar({
         />
       ) : null}
       <div className="dashboard-topbar-right">
-        {adminZone && onCommandPalette ? (
+        {onCommandPalette ? (
           <button
             type="button"
             className="dashboard-command-trigger"
@@ -57,7 +59,6 @@ export function DashboardTopbar({
             <kbd>Ctrl+K</kbd>
           </button>
         ) : null}
-        <RoleSwitcher />
         {!adminZone && integrationIssues ? (
           <Link to="/dashboard/admin/integrations" className="dashboard-integration-alert" title="Проблемы интеграций">
             <AlertTriangle size={16} />
@@ -65,14 +66,9 @@ export function DashboardTopbar({
           </Link>
         ) : null}
         <ThemeToggle />
-        <UserMenu profilePath={profilePath(roleLabel)} />
+        <InboxBell />
+        <UserMenu profilePath={profilePath} />
       </div>
     </header>
   );
-}
-
-function profilePath(roleLabel?: string) {
-  if (roleLabel === 'Администратор') return '/dashboard/admin/profile';
-  if (roleLabel === 'Менеджер') return '/dashboard/manager/profile';
-  return '/dashboard/client/profile';
 }

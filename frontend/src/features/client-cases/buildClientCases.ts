@@ -98,6 +98,7 @@ export function buildClientCases(
       make: request.snapshotMake,
       model: request.snapshotModel,
       vehicleId: request.vehicleId ?? null,
+      unreadCount: request.unreadCount || 0,
       topic: resolveClientCaseTopic({
         kind: 'request',
         symptoms,
@@ -146,9 +147,12 @@ export function buildClientCases(
     });
   }
 
-  return cases.sort(
-    (a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime(),
-  );
+  return cases.sort((a, b) => {
+    const aUnread = (a.unreadCount || 0) > 0 ? 1 : 0;
+    const bUnread = (b.unreadCount || 0) > 0 ? 1 : 0;
+    if (aUnread !== bUnread) return bUnread - aUnread;
+    return new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime();
+  });
 }
 
 export function filterCasesByTab(cases: ClientCase[], tab: ClientCaseTab): ClientCase[] {

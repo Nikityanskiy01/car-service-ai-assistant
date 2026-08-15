@@ -20,11 +20,11 @@ export function ProfileAvatarPicker({ name, avatarUrl, onUpdated, size = 112 }: 
 
   async function handleFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      setError('Выберите JPEG, PNG или WebP');
+      setError('Подходят фото JPEG, PNG или WebP');
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setError('Максимум 2 МБ');
+      setError('Размер файла — не больше 2 МБ');
       return;
     }
 
@@ -35,7 +35,7 @@ export function ProfileAvatarPicker({ name, avatarUrl, onUpdated, size = 112 }: 
       await uploadAvatar({ mimeType: file.type, contentBase64: base64 });
       await onUpdated();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить');
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить фото');
     } finally {
       setUploading(false);
     }
@@ -49,7 +49,7 @@ export function ProfileAvatarPicker({ name, avatarUrl, onUpdated, size = 112 }: 
       await removeAvatar();
       await onUpdated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось удалить');
+      setError(err instanceof Error ? err.message : 'Не удалось удалить фото');
     } finally {
       setRemoving(false);
     }
@@ -80,7 +80,7 @@ export function ProfileAvatarPicker({ name, avatarUrl, onUpdated, size = 112 }: 
         <UserAvatar name={name} avatarUrl={avatarUrl} size={size} className="profile-avatar-lg" />
         <span className="profile-avatar-overlay" aria-hidden>
           {busy ? <Loader2 size={22} className="profile-avatar-spinner" /> : <Camera size={22} />}
-          <span>{busy ? 'Загрузка…' : 'Изменить'}</span>
+          <span>{busy ? 'Загрузка…' : avatarUrl ? 'Сменить фото' : 'Добавить фото'}</span>
         </span>
         {avatarUrl && !busy ? (
           <span

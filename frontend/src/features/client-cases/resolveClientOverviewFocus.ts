@@ -1,4 +1,4 @@
-import type { ClientDashboardSummary } from './resolveClientHero';
+import type { ClientDashboardSummary, ClientUnreadThread } from './resolveClientHero';
 
 export type OverviewFocusAccent = 'new' | 'active' | 'scheduled' | 'confirmed' | 'done' | 'muted';
 
@@ -21,12 +21,65 @@ function truncate(value: string, max: number) {
   return `${value.slice(0, max - 3)}...`;
 }
 
-function unreadTitle(count: number) {
+function unreadCountLabel(count: number) {
   if (count === 1) return '1 новое сообщение';
   if (count < 5) return `${count} новых сообщения`;
   return `${count} новых сообщений`;
 }
 
+function unreadThreadTitle(thread: ClientUnreadThread) {
+  const name = thread.title || 'обращению';
+  if (thread.unreadCount <= 1) return `Ответ по ${name}`;
+  return `${unreadCountLabel(thread.unreadCount)} — ${name}`;
+}
+
+function unreadThreadDescription(thread: ClientUnreadThread) {
+  if (thread.lastMessagePreview) {
+    return `«${truncate(thread.lastMessagePreview, 80)}»`;
+  }
+  if (thread.symptoms) {
+    return `${truncate(thread.symptoms, 56)} — откройте этот чат.`;
+  }
+  return 'Откройте этот чат, чтобы не пропустить ответ.';
+}
+
+function unreadThreadItems(summary: ClientDashboardSummary): OverviewFocusItem[] {
+  const threads = summary.unreadThreads?.length
+    ? summary.unreadThreads
+    : summary.unreadMessagesCount > 0
+      ? [
+          {
+            requestId: '',
+            title: '',
+            symptoms: '',
+            unreadCount: summary.unreadMessagesCount,
+            lastMessagePreview: '',
+            lastMessageAt: '',
+          } satisfies ClientUnreadThread,
+        ]
+      : [];
+
+  return threads.map((thread, index) => ({
+    id: thread.requestId ? `unread-${thread.requestId}` : 'unread',
+    kind: 'unread',
+    accent: 'active',
+    priority: 90 - index,
+    title: thread.title ? unreadThreadTitle(thread) : unreadCountLabel(thread.unreadCount),
+    description: thread.requestId
+      ? unreadThreadDescription(thread)
+      : 'Откройте переписку, чтобы не пропустить ответ по ремонту.',
+    ctaLabel: 'Открыть чат',
+    ctaTo: thread.requestId
+      ? `/dashboard/client/cases/${thread.requestId}?tab=messages`
+      : '/dashboard/client/cases',
+  }));
+}
+
+/**
+ * На главной — одно действие «сейчас».
+ * Статусы заявок не дублируем: они в блоке «В работе».
+ * Idle показываем только когда действительно нечем заняться.
+ */
 function buildFocusItems(summary: ClientDashboardSummary): OverviewFocusItem[] {
   const items: OverviewFocusItem[] = [];
 
@@ -48,56 +101,19 @@ function buildFocusItems(summary: ClientDashboardSummary): OverviewFocusItem[] {
       ctaLabel: 'Продолжить в чате',
       ctaTo: '/consult',
       ctaSessionId: draft.id,
-      secondaryLabel: 'Все обращения',
+      secondaryLabel: 'Черновики',
       secondaryTo: '/dashboard/client/cases?tab=drafts',
     });
   }
 
-  if (summary.unreadMessagesCount > 0) {
-    items.push({
-      id: 'unread',
-      kind: 'unread',
-      accent: 'active',
-      priority: 90,
-      title: unreadTitle(summary.unreadMessagesCount),
-      description: 'Откройте переписку, чтобы не пропустить ответ по ремонту.',
-      ctaLabel: 'Открыть обращения',
-      ctaTo: '/dashboard/client/cases',
-    });
-  }
-
-  const primaryCase = summary.recentActiveCases[0];
-  if (primaryCase?.status === 'NEW') {
-    items.push({
-      id: 'new-request',
-      kind: 'new-request',
-      accent: 'scheduled',
-      priority: 60,
-      title: 'Менеджер рассматривает обращение',
-      description: `${primaryCase.title} — ${truncate(primaryCase.symptoms, 64)}`,
-      ctaLabel: 'Открыть переписку',
-      ctaTo: `/dashboard/client/cases/${primaryCase.id}?tab=messages`,
-      secondaryLabel: 'Все обращения',
-      secondaryTo: '/dashboard/client/cases',
-    });
-  }
-
-  if (summary.activeCasesCount > 0 && primaryCase) {
-    items.push({
-      id: 'active',
-      kind: 'active',
-      accent: 'active',
-      priority: 50,
-      title: `Активных обращений: ${summary.activeCasesCount}`,
-      description: `${primaryCase.title} — ${primaryCase.progressLabel}`,
-      ctaLabel: 'Открыть обращение',
-      ctaTo: `/dashboard/client/cases/${primaryCase.id}`,
-      secondaryLabel: 'Все обращения',
-      secondaryTo: '/dashboard/client/cases',
-    });
-  }
+  items.push(...unreadThreadItems(summary));
 
   if (items.length === 0) {
+    // Есть заявки или запись — отдельный hero не нужен, список/spotlight закрывают вопрос.
+    if (summary.activeCasesCount > 0 || summary.nextBooking) {
+      return [];
+    }
+
     items.push({
       id: 'idle',
       kind: 'idle',
@@ -127,9 +143,7 @@ export function resolveClientOverviewFocus(summary: ClientDashboardSummary): {
   const [primary, ...rest] = items;
   if (!primary) return null;
 
-  const secondary = rest
-    .filter((item) => item.id !== primary.id)
-    .slice(0, 2);
+  const secondary = rest.filter((item) => item.kind === 'unread' && item.id !== primary.id);
 
   return { primary, secondary };
 }

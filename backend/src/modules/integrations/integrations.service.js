@@ -227,22 +227,18 @@ export async function enqueueOutboxEvent({ eventType, entityType, entityId, payl
     select: { id: true },
   });
   if (!activeConnections.length) return { queued: 0 };
-  const now = Date.now();
-  await prisma.$transaction(
-    activeConnections.map((conn, idx) =>
-      prisma.integrationOutboxEvent.create({
-        data: {
-          connectionId: conn.id,
-          eventType,
-          entityType,
-          entityId,
-          idempotencyKey: `${entityType}:${entityId}:${eventType}:${now}:${idx}`,
-          payloadJson: payloadJson || null,
-        },
-      }),
-    ),
-  );
-  return { queued: activeConnections.length };
+  const created = await prisma.integrationOutboxEvent.createMany({
+    data: activeConnections.map((conn) => ({
+      connectionId: conn.id,
+      eventType,
+      entityType,
+      entityId,
+      idempotencyKey: `${entityType}:${entityId}:${eventType}`,
+      payloadJson: payloadJson || null,
+    })),
+    skipDuplicates: true,
+  });
+  return { queued: created.count };
 }
 
 export async function dispatchOutbox(connectionId = null) {

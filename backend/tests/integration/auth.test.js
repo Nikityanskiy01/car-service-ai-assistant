@@ -18,9 +18,38 @@ describe('auth', () => {
 
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email, password: 'Password123!ab' });
+      .send({ identifier: email, password: 'Password123!ab' });
     expect(login.status).toBe(200);
     expect(login.body.accessToken).toBeTruthy();
+  });
+
+  it('logs in with a verified phone and rejects an unverified phone', async () => {
+    const phone = '+7 999 222-33-44';
+    const { token } = await registerClient({
+      email: 'phone-password@test.local',
+      phone,
+    });
+
+    const beforeVerification = await request(app)
+      .post('/api/auth/login')
+      .send({ identifier: phone, password: 'Password123!ab' });
+    expect(beforeVerification.status).toBe(401);
+
+    await request(app)
+      .post('/api/users/me/phone/verify/start')
+      .set('Authorization', `Bearer ${token}`);
+    const phoneCode = extractVerificationCodeFromEmail(getLastTestEmail());
+    const confirm = await request(app)
+      .post('/api/users/me/phone/verify/confirm')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: phoneCode });
+    expect(confirm.status).toBe(200);
+
+    const afterVerification = await request(app)
+      .post('/api/auth/login')
+      .send({ identifier: '8 (999) 222-33-44', password: 'Password123!ab' });
+    expect(afterVerification.status).toBe(200);
+    expect(afterVerification.body.accessToken).toBeTruthy();
   });
 
   it('register rejects password without digits', async () => {
@@ -48,7 +77,7 @@ describe('auth', () => {
         consentPersonalData: true,
       });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/букв/i);
+    expect(res.body.error).toMatch(/латиниц|букв/i);
   });
 
   it('register rejects password with Cyrillic', async () => {

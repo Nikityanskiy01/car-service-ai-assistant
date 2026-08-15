@@ -2,6 +2,44 @@ import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { assertPreferredAtInBookingWindow } from '../../lib/bookingHours.js';
 import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
+import {
+  notifyBookingCancelled,
+  notifyBookingConfirmed,
+  notifyBookingCreated,
+  notifyBookingRescheduled,
+} from '../notifications/clientNotify.service.js';
+
+const VEHICLE_SELECT = { id: true, make: true, model: true, year: true, licensePlate: true };
+
+const SERVICE_REQUEST_SELECT = {
+  id: true,
+  status: true,
+  assignedManagerId: true,
+  snapshotMake: true,
+  snapshotModel: true,
+  snapshotSymptoms: true,
+};
+
+const CLIENT_SELECT = { id: true, fullName: true, phone: true, email: true };
+
+const BOOKING_INCLUDE = {
+  client: { select: CLIENT_SELECT },
+  vehicle: { select: VEHICLE_SELECT },
+  serviceRequest: { select: SERVICE_REQUEST_SELECT },
+};
+
+const CLIENT_BOOKING_INCLUDE = {
+  vehicle: { select: VEHICLE_SELECT },
+  serviceRequest: {
+    select: {
+      id: true,
+      status: true,
+      snapshotMake: true,
+      snapshotModel: true,
+      snapshotSymptoms: true,
+    },
+  },
+};
 
 function buildGuestBookingNotes({ serviceTitle, categoryLabel, userNotes }) {
   const parts = [];
@@ -43,7 +81,7 @@ export async function createGuestBooking({
 
   const composedNotes = buildGuestBookingNotes({ serviceTitle, categoryLabel, userNotes: notes });
 
-  return prisma.serviceBooking.create({
+  const booking = await prisma.serviceBooking.create({
     data: {
       clientId: null,
       guestName: name.slice(0, 120),
@@ -53,9 +91,11 @@ export async function createGuestBooking({
       notes: composedNotes,
     },
   });
+  await notifyBookingCreated(booking);
+  return booking;
 }
 
-export async function createBooking(user, { preferredAt, serviceRequestId, notes }) {
+export async function createBooking(user, { preferredAt, serviceRequestId, notes, vehicleId }) {
   const at = new Date(preferredAt);
   if (Number.isNaN(at.getTime())) throw new AppError(400, 'Invalid preferredAt', 'BAD_REQUEST');
   const slot = assertPreferredAtInBookingWindow(at);
@@ -64,31 +104,32 @@ export async function createBooking(user, { preferredAt, serviceRequestId, notes
     const sr = await prisma.serviceRequest.findUnique({ where: { id: serviceRequestId } });
     if (!sr || sr.clientId !== user.id) throw new AppError(400, 'Invalid serviceRequestId', 'BAD_REQUEST');
   }
-  return prisma.serviceBooking.create({
+  let resolvedVehicleId = vehicleId || null;
+  if (resolvedVehicleId) {
+    const vehicle = await prisma.clientVehicle.findFirst({
+      where: { id: resolvedVehicleId, clientId: user.id },
+      select: { id: true },
+    });
+    if (!vehicle) throw new AppError(400, 'Invalid vehicleId', 'BAD_REQUEST');
+  }
+  const booking = await prisma.serviceBooking.create({
     data: {
       clientId: user.id,
       preferredAt: at,
       serviceRequestId: serviceRequestId || null,
+      vehicleId: resolvedVehicleId,
       notes: notes ? String(notes).slice(0, 2000) : null,
     },
+    include: CLIENT_BOOKING_INCLUDE,
   });
+  await notifyBookingCreated(booking);
+  return booking;
 }
 
 export async function getBooking(bookingId, user) {
   const row = await prisma.serviceBooking.findUnique({
     where: { id: bookingId },
-    include: {
-      client: { select: { id: true, fullName: true, phone: true, email: true } },
-      serviceRequest: {
-        select: {
-          id: true,
-          status: true,
-          snapshotMake: true,
-          snapshotModel: true,
-          snapshotSymptoms: true,
-        },
-      },
-    },
+    include: BOOKING_INCLUDE,
   });
   if (!row) throw new AppError(404, 'Not found', 'NOT_FOUND');
   if (user.role === 'CLIENT') {
@@ -106,10 +147,7 @@ export async function listBookings(user, { limit = 50, offset = 0 } = {}) {
       orderBy: { preferredAt: 'asc' },
       take,
       skip: offset,
-      include: {
-        client: { select: { id: true, fullName: true, phone: true, email: true } },
-        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
-      },
+      include: BOOKING_INCLUDE,
     });
   }
   if (user.role === 'CLIENT') {
@@ -118,17 +156,7 @@ export async function listBookings(user, { limit = 50, offset = 0 } = {}) {
       orderBy: { preferredAt: 'desc' },
       take,
       skip: offset,
-      include: {
-        serviceRequest: {
-          select: {
-            id: true,
-            status: true,
-            snapshotMake: true,
-            snapshotModel: true,
-            snapshotSymptoms: true,
-          },
-        },
-      },
+      include: CLIENT_BOOKING_INCLUDE,
     });
   }
   throw new AppError(403, 'Forbidden', 'FORBIDDEN');
@@ -153,52 +181,84 @@ export async function listBookingAudit(bookingId, user) {
   }));
 }
 
+const bookingDetailInclude = BOOKING_INCLUDE;
+
 /**
  * @param {import('@prisma/client').User} user
  * @param {{
  *   status?: import('@prisma/client').BookingStatus;
  *   preferredAt?: string;
- *   notes?: string | null;
- *   guestName?: string;
- *   guestPhone?: string;
- *   guestEmail?: string | null;
  * }} body
  */
-export async function patchClientBooking(bookingId, user, { status }) {
+export async function patchClientBooking(bookingId, user, body) {
   if (user.role !== 'CLIENT') throw new AppError(403, 'Forbidden', 'FORBIDDEN');
-  if (status !== 'CANCELLED') {
-    throw new AppError(400, 'Клиент может только отменить запись', 'BAD_REQUEST');
-  }
 
   const prev = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
   if (!prev) throw new AppError(404, 'Not found', 'NOT_FOUND');
   if (prev.clientId !== user.id) throw new AppError(403, 'Forbidden', 'FORBIDDEN');
-  if (prev.status === 'CANCELLED') {
-    return prisma.serviceBooking.findUnique({
+
+  if (body.status === 'CANCELLED') {
+    if (prev.status === 'CANCELLED') {
+      return prisma.serviceBooking.findUnique({
+        where: { id: bookingId },
+        include: bookingDetailInclude,
+      });
+    }
+    const cancelled = await prisma.serviceBooking.update({
       where: { id: bookingId },
-      include: {
-        client: { select: { id: true, fullName: true, phone: true, email: true } },
-        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
-      },
+      data: { status: 'CANCELLED' },
+      include: bookingDetailInclude,
     });
+    await notifyBookingCancelled(cancelled);
+    return cancelled;
   }
 
-  return prisma.serviceBooking.update({
-    where: { id: bookingId },
-    data: { status: 'CANCELLED' },
-    include: {
-      client: { select: { id: true, fullName: true, phone: true, email: true } },
-      serviceRequest: {
-        select: {
-          id: true,
-          status: true,
-          snapshotMake: true,
-          snapshotModel: true,
-          snapshotSymptoms: true,
-        },
-      },
-    },
-  });
+  if (body.preferredAt) {
+    if (prev.status === 'CANCELLED' || prev.status === 'NO_SHOW' || prev.status === 'ARRIVED') {
+      throw new AppError(400, 'Эту запись нельзя перенести', 'BAD_REQUEST');
+    }
+
+    const at = new Date(body.preferredAt);
+    if (Number.isNaN(at.getTime())) throw new AppError(400, 'Invalid preferredAt', 'BAD_REQUEST');
+    const slot = assertPreferredAtInBookingWindow(at);
+    if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
+    if (at.getTime() <= Date.now()) {
+      throw new AppError(400, 'Выберите дату и время в будущем', 'BAD_REQUEST');
+    }
+    if (at.getTime() === prev.preferredAt.getTime()) {
+      return prisma.serviceBooking.findUnique({
+        where: { id: bookingId },
+        include: bookingDetailInclude,
+      });
+    }
+
+    /** @type {Record<string, { from: unknown; to: unknown }>} */
+    const changes = {
+      preferredAt: { from: prev.preferredAt.toISOString(), to: at.toISOString() },
+    };
+    /** @type {Record<string, unknown>} */
+    const data = { preferredAt: at };
+    if (prev.status === 'CONFIRMED') {
+      data.status = 'PENDING';
+      changes.status = { from: prev.status, to: 'PENDING' };
+    }
+
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.serviceBooking.update({
+        where: { id: bookingId },
+        data,
+        include: bookingDetailInclude,
+      });
+      await tx.serviceBookingAuditLog.create({
+        data: { bookingId, actorId: user.id, changes },
+      });
+      return updated;
+    });
+    await notifyBookingRescheduled(row);
+    return row;
+  }
+
+  throw new AppError(400, 'Клиент может отменить или перенести запись', 'BAD_REQUEST');
 }
 
 export async function patchBooking(bookingId, user, body) {
@@ -275,21 +335,15 @@ export async function patchBooking(bookingId, user, body) {
   if (Object.keys(data).length === 0) {
     return prisma.serviceBooking.findUnique({
       where: { id: bookingId },
-      include: {
-        client: { select: { id: true, fullName: true, phone: true, email: true } },
-        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
-      },
+      include: BOOKING_INCLUDE,
     });
   }
 
-  return prisma.$transaction(async (tx) => {
-    const row = await tx.serviceBooking.update({
+  const row = await prisma.$transaction(async (tx) => {
+    const updated = await tx.serviceBooking.update({
       where: { id: bookingId },
       data,
-      include: {
-        client: { select: { id: true, fullName: true, phone: true, email: true } },
-        serviceRequest: { select: { id: true, status: true, assignedManagerId: true, snapshotMake: true, snapshotModel: true, snapshotSymptoms: true } },
-      },
+      include: BOOKING_INCLUDE,
     });
     await tx.serviceBookingAuditLog.create({
       data: {
@@ -298,6 +352,14 @@ export async function patchBooking(bookingId, user, body) {
         changes,
       },
     });
-    return row;
+    return updated;
   });
+  if (changes.status?.to === 'CONFIRMED') {
+    await notifyBookingConfirmed(row);
+  } else if (changes.status?.to === 'CANCELLED') {
+    await notifyBookingCancelled(row);
+  } else if (changes.preferredAt) {
+    await notifyBookingRescheduled(row);
+  }
+  return row;
 }

@@ -1,3 +1,5 @@
+export const PROMPT_VERSION = 'consultation-prompts.v1';
+
 // ── JSON Schemas for Ollama structured output (format parameter) ─────────────
 
 export const EXTRACTION_FORMAT_SCHEMA = {

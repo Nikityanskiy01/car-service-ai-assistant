@@ -11,6 +11,7 @@ import {
   FileText,
   Gauge,
   GitBranch,
+  Laptop,
   LayoutDashboard,
   Link2,
   MessageSquare,
@@ -50,6 +51,7 @@ export const managerNavItems: DashboardNavItem[] = [
   { id: 'clients', label: 'Клиенты', to: '/dashboard/manager/clients', icon: Users, group: 'Работа' },
   { id: 'contacts', label: 'Входящие', to: '/dashboard/manager/contacts', icon: Bell, group: 'Работа' },
   { id: 'ai-quality', label: 'Качество ИИ', to: '/dashboard/manager/ai-quality', icon: BrainCircuit, group: 'Работа' },
+  { id: 'manager-profile', label: 'Профиль', to: '/dashboard/manager/profile', icon: User, group: 'Работа' },
 ];
 
 export const adminNavGroups: Array<{ title: string; items: DashboardNavItem[] }> = [
@@ -107,12 +109,13 @@ export const adminNavGroups: Array<{ title: string; items: DashboardNavItem[] }>
     title: 'Безопасность',
     items: [
       { id: 'security-audit', label: 'Журнал действий', to: '/dashboard/admin/security/audit', icon: ScrollText },
+      { id: 'security-sessions', label: 'Сессии', to: '/dashboard/admin/security/sessions', icon: Laptop },
     ],
   },
 ];
 
 export const adminQuickActions = [
-  { label: 'Добавить сотрудника', to: '/dashboard/admin/team/users' },
+  { label: 'Пользователи', to: '/dashboard/admin/team/users' },
   { label: 'Подключить CRM', to: '/dashboard/admin/integrations' },
   { label: 'Аналитика', to: '/dashboard/admin/analytics' },
 ];

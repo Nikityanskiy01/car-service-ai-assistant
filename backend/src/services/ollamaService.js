@@ -1,6 +1,6 @@
 import { getEnv } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
-import { logger } from '../lib/logger.js';
+import { redactPiiDeep } from '../lib/piiRedact.js';
 import {
   getCircuitBreakerSnapshot,
   isCircuitOpen,
@@ -146,10 +146,12 @@ async function requestProviderCompletion(
   provider,
   { env, targetModel, messages, temperature, format, options, timeoutMs, keepAlive },
 ) {
+  const safeMessages =
+    provider === 'openai' && !env.LLM_CLOUD_PII_ALLOWED ? redactPiiDeep(messages) : messages;
   const { url, headers, body } = buildProviderRequest(provider, {
     env,
     targetModel,
-    messages,
+    messages: safeMessages,
     temperature,
     format,
     options,

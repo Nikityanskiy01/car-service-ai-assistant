@@ -9,19 +9,19 @@ export const adminRouteTitles: Record<string, string> = {
   '/dashboard/admin/operations/clients': 'Клиенты',
   '/dashboard/admin/operations/contacts': 'Обращения',
   '/dashboard/admin/team/users': 'Пользователи',
-  '/dashboard/admin/team/activity': 'Активность команды',
-  '/dashboard/admin/ai/status': 'Статус ИИ',
+  '/dashboard/admin/team/activity': 'Активность',
+  '/dashboard/admin/ai/status': 'Статус и модели',
   '/dashboard/admin/ai/scenarios': 'Сценарии',
   '/dashboard/admin/ai/reference': 'Справочники',
   '/dashboard/admin/ai/memory': 'Память кейсов',
   '/dashboard/admin/ai/feedback': 'Обратная связь',
-  '/dashboard/admin/site/items': 'Контент сайта',
+  '/dashboard/admin/site/items': 'Услуги и галерея',
   '/dashboard/admin/site/blocks': 'Текстовые блоки',
   '/dashboard/admin/site/appearance': 'Оформление',
   '/dashboard/admin/site/legal': 'Юридические данные',
-  '/dashboard/admin/integrations': 'Интеграции',
-  '/dashboard/admin/integrations/jobs': 'Очередь синхронизации',
-  '/dashboard/admin/integrations/conflicts': 'Конфликты данных',
+  '/dashboard/admin/integrations': 'Подключения',
+  '/dashboard/admin/integrations/jobs': 'Очередь',
+  '/dashboard/admin/integrations/conflicts': 'Конфликты',
   '/dashboard/admin/security/audit': 'Журнал действий',
   '/dashboard/admin/security/sessions': 'Сессии',
   '/dashboard/admin/profile': 'Профиль',
@@ -86,6 +86,7 @@ export const adminBreadcrumbsByPath: Record<string, BreadcrumbItem[]> = {
 export function resolveAdminRouteTitle(pathname: string): string {
   const exact = adminRouteTitles[pathname];
   if (exact) return exact;
+  if (pathname.startsWith('/dashboard/admin/operations/requests/')) return 'Заявка';
   if (pathname.includes('/integrations/') && !pathname.endsWith('/jobs') && !pathname.endsWith('/conflicts')) {
     return 'Подключение';
   }
@@ -95,6 +96,9 @@ export function resolveAdminRouteTitle(pathname: string): string {
 export function resolveAdminBreadcrumbs(pathname: string): BreadcrumbItem[] {
   const exact = adminBreadcrumbsByPath[pathname];
   if (exact) return exact;
+  if (pathname.startsWith('/dashboard/admin/operations/requests/')) {
+    return [...operationsCrumbs, { label: 'Заявки', to: '/dashboard/admin/operations/requests' }, { label: 'Заявка' }];
+  }
   if (pathname.includes('/integrations/')) {
     return [...integrationsCrumbs, { label: 'Подключение' }];
   }

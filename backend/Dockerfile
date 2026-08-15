@@ -1,4 +1,4 @@
-FROM node:22-alpine AS deps
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS deps
 
 WORKDIR /app/backend
 
@@ -8,12 +8,16 @@ RUN npm ci --omit=dev
 COPY backend/prisma ./prisma
 RUN npx prisma generate
 
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runner
+
+# Кириллица в PDF (заявки, консультации, сервисная книжка)
+RUN apk add --no-cache ttf-dejavu
 
 WORKDIR /app/backend
 
 COPY --from=deps /app/backend/node_modules ./node_modules
 COPY --from=deps /app/backend/prisma ./prisma
+COPY backend/package.json ./package.json
 COPY backend/src ./src
 
 RUN chown -R node:node /app

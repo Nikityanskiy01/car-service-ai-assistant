@@ -134,6 +134,22 @@ export function HomePage() {
 
   return (
     <div className="fm-home">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'AutoRepair',
+            name: productConfig.productName,
+            description: productConfig.description,
+            telephone: productConfig.phone,
+            email: productConfig.supportEmail,
+            address: productConfig.address
+              ? { '@type': 'PostalAddress', streetAddress: productConfig.address }
+              : undefined,
+          }),
+        }}
+      />
       <section className="fm-hero" aria-label="Главный экран">
         <div className="fm-hero-copy">
           <p className="fm-brand-hero">{productConfig.productName}</p>

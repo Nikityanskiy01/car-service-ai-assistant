@@ -8,18 +8,24 @@ import {
   Mail,
   MapPin,
   MessageSquare,
+  Monitor,
   Phone,
   Send,
-  Shield,
-  Sparkles,
   User,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
 import { patchProfile } from '../../api/dashboard';
+import {
+  getNotificationPreferences,
+  patchNotificationPreferences,
+  type NotificationPreferences,
+} from '../../api/notifications';
 import { ProfileAvatarPicker } from '../../components/profile/ProfileAvatarPicker';
 import { ProfilePasswordForm } from '../../components/profile/ProfilePasswordForm';
+import { ProfileSecurityPanel } from '../../components/profile/ProfileSecurityPanel';
 import { ProfileSwitch } from '../../components/profile/ProfileSwitch';
+import { NotificationChannelRow } from '../../components/notifications/NotificationChannelRow';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -29,20 +35,22 @@ import { Loader } from '../../components/ui/Loader';
 import { PhoneInput } from '../../components/forms/PhoneInput';
 import { Tabs } from '../../components/ui/Tabs';
 import { parseProfileTab, type ProfileTab } from '../../lib/profileTabs';
-import { STORAGE_KEYS } from '../../lib/storageKeys';
+import { parseSecuritySection, SECURITY_SECTION_ITEMS, type SecuritySection } from '../../lib/profileSecurityTabs';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { PreferredContact } from '../../types/auth';
 
-type NotificationPrefs = {
-  bookingReminders: boolean;
-  messageAlerts: boolean;
-  marketing: boolean;
-};
+type NotificationPrefs = Pick<
+  NotificationPreferences,
+  'bookingReminders' | 'messageAlerts' | 'marketing' | 'channelEmail' | 'channelTelegram' | 'channelSms'
+>;
 
 const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   bookingReminders: true,
   messageAlerts: true,
   marketing: false,
+  channelEmail: true,
+  channelTelegram: true,
+  channelSms: false,
 };
 
 const PREFERRED_CONTACT_OPTIONS: Array<{ value: PreferredContact; label: string; icon: typeof Phone }> = [
@@ -56,19 +64,6 @@ const TAB_ITEMS_CLIENT = [
   { id: 'notifications', label: 'Уведомления' },
   { id: 'security', label: 'Безопасность' },
 ];
-
-function loadNotificationPrefs(): NotificationPrefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.clientNotificationPrefs);
-    return raw ? { ...DEFAULT_NOTIFICATION_PREFS, ...(JSON.parse(raw) as NotificationPrefs) } : DEFAULT_NOTIFICATION_PREFS;
-  } catch {
-    return DEFAULT_NOTIFICATION_PREFS;
-  }
-}
-
-function saveNotificationPrefs(prefs: NotificationPrefs) {
-  localStorage.setItem(STORAGE_KEYS.clientNotificationPrefs, JSON.stringify(prefs));
-}
 
 function formatMemberSince(iso?: string | null) {
   if (!iso) return null;
@@ -94,10 +89,11 @@ function formatPhoneDisplay(phone: string) {
 }
 
 export function ProfilePage() {
-  usePageMeta({ title: 'Профиль', description: 'Контактные данные и настройки аккаунта.' });
+  usePageMeta({ title: 'Профиль', description: 'Личные данные, уведомления и безопасность аккаунта.' });
   const { user, refreshCurrentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = parseProfileTab(searchParams.get('tab'));
+  const securitySection = parseSecuritySection(searchParams.get('section'));
   const isClient = user?.role === 'CLIENT';
 
   const [fullName, setFullName] = useState('');
@@ -111,6 +107,7 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
+  const [notificationMeta, setNotificationMeta] = useState<NotificationPreferences['channels'] | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -124,8 +121,29 @@ export function ProfilePage() {
   }, [user]);
 
   useEffect(() => {
-    setNotificationPrefs(loadNotificationPrefs());
-  }, []);
+    if (!isClient) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const prefs = await getNotificationPreferences();
+        if (cancelled) return;
+        setNotificationPrefs({
+          bookingReminders: prefs.bookingReminders,
+          messageAlerts: prefs.messageAlerts,
+          marketing: prefs.marketing,
+          channelEmail: prefs.channelEmail,
+          channelTelegram: prefs.channelTelegram,
+          channelSms: prefs.channelSms,
+        });
+        setNotificationMeta(prefs.channels);
+      } catch {
+        /* оставляем значения по умолчанию */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isClient]);
 
   useEffect(() => {
     if (!success) return;
@@ -150,6 +168,20 @@ export function ProfilePage() {
   function setTab(next: ProfileTab) {
     const params = new URLSearchParams(searchParams);
     params.set('tab', next);
+    if (next !== 'security') {
+      params.delete('section');
+    }
+    setSearchParams(params, { replace: true });
+  }
+
+  function setSecuritySection(next: SecuritySection) {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', 'security');
+    if (next === 'password') {
+      params.delete('section');
+    } else {
+      params.set('section', next);
+    }
     setSearchParams(params, { replace: true });
   }
 
@@ -169,7 +201,7 @@ export function ProfilePage() {
       await refreshCurrentUser();
       setSuccess('Изменения сохранены');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось сохранить');
+      setError(e instanceof Error ? e.message : 'Не удалось сохранить изменения');
     } finally {
       setSaving(false);
     }
@@ -186,13 +218,27 @@ export function ProfilePage() {
     setError(null);
   }
 
-  function updateNotificationPref<K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) {
+  async function updateNotificationPref<K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]) {
+    const prev = notificationPrefs;
     const next = { ...notificationPrefs, [key]: value };
     setNotificationPrefs(next);
-    saveNotificationPrefs(next);
+    try {
+      const saved = await patchNotificationPreferences({ [key]: value });
+      setNotificationPrefs({
+        bookingReminders: saved.bookingReminders,
+        messageAlerts: saved.messageAlerts,
+        marketing: saved.marketing,
+        channelEmail: saved.channelEmail,
+        channelTelegram: saved.channelTelegram,
+        channelSms: saved.channelSms,
+      });
+      setNotificationMeta(saved.channels);
+    } catch {
+      setNotificationPrefs(prev);
+    }
   }
 
-  if (loading) return <Loader label="Загружаем профиль..." />;
+  if (loading) return <Loader label="Загрузка профиля…" />;
   if (!user) return <ErrorState message="Пользователь не найден" />;
 
   const tabItems = isClient
@@ -222,7 +268,7 @@ export function ProfilePage() {
               {memberSince ? (
                 <span>
                   <Calendar size={14} aria-hidden />
-                  С нами с {memberSince}
+                  В сервисе с {memberSince}
                 </span>
               ) : null}
             </div>
@@ -282,28 +328,33 @@ export function ProfilePage() {
                       <User size={18} />
                     </span>
                     <div>
-                      <h2>Основное</h2>
-                      <p>Имя и контакты для связи с сервисом</p>
+                      <h2>Основные данные</h2>
+                      <p>Имя и телефон, по которым с вами свяжется сервис</p>
                     </div>
                   </header>
                   <div className="profile-fields">
-                    <FormField label="Имя" htmlFor="profile-name">
+                    <FormField label="Имя и фамилия" htmlFor="profile-name">
                       <Input
                         id="profile-name"
+                        required
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Иван Иванов"
                         autoComplete="name"
                       />
                     </FormField>
-                    <FormField label="Email для входа" htmlFor="profile-email" hint="Изменяется через администратора">
+                    <FormField
+                      label="Email для входа"
+                      htmlFor="profile-email"
+                      hint="Этот адрес нужен, чтобы войти в кабинет. Сменить его можно только через сервис."
+                    >
                       <Input id="profile-email" value={user.email} disabled readOnly className="input-readonly" />
                     </FormField>
                     <FormField label="Телефон" htmlFor="profile-phone">
-                      <PhoneInput id="profile-phone" value={phone} onChange={setPhone} />
+                      <PhoneInput id="profile-phone" required value={phone} onChange={setPhone} />
                     </FormField>
                     {isClient ? (
-                      <FormField label="Город" htmlFor="profile-city" hint="Необязательно">
+                      <FormField label="Город" htmlFor="profile-city" hint="Можно не заполнять">
                         <Input
                           id="profile-city"
                           value={city}
@@ -324,11 +375,15 @@ export function ProfilePage() {
                       </span>
                       <div>
                         <h2>Как с вами связаться</h2>
-                        <p>Дополнительные каналы и предпочтения</p>
+                        <p>Дополнительный email, Telegram и удобный способ связи</p>
                       </div>
                     </header>
                     <div className="profile-fields">
-                      <FormField label="Контактный email" htmlFor="profile-email-profile" hint="Для счетов и уведомлений">
+                      <FormField
+                        label="Email для писем"
+                        htmlFor="profile-email-profile"
+                        hint="Сюда придут счета и уведомления. Если не указать — письма придут на адрес для входа."
+                      >
                         <Input
                           id="profile-email-profile"
                           type="email"
@@ -338,18 +393,19 @@ export function ProfilePage() {
                           autoComplete="email"
                         />
                       </FormField>
-                      <FormField label="Telegram" htmlFor="profile-telegram" hint="Без символа @">
+                      <FormField label="Telegram" htmlFor="profile-telegram" hint="Имя пользователя без символа @">
                         <Input
                           id="profile-telegram"
                           value={telegram}
                           onChange={(e) => setTelegram(e.target.value)}
-                          placeholder="username"
+                          placeholder="ivanov"
                           autoComplete="off"
                         />
                       </FormField>
                       <fieldset className="profile-segment-field">
-                        <legend>Предпочтительный способ связи</legend>
-                        <div className="profile-segment" role="radiogroup" aria-label="Предпочтительный способ связи">
+                        <legend>Основной способ связи</legend>
+                        <p className="field-hint">Сервис свяжется с вами этим способом в первую очередь.</p>
+                        <div className="profile-segment" role="radiogroup" aria-label="Основной способ связи">
                           {PREFERRED_CONTACT_OPTIONS.map((opt) => {
                             const Icon = opt.icon;
                             const selected = preferredContact === opt.value;
@@ -412,38 +468,93 @@ export function ProfilePage() {
             aria-labelledby="tab-notifications"
           >
             <Card className="profile-settings-card">
-              <header className="profile-section-head profile-section-head-inline">
-                <span className="profile-section-icon" aria-hidden>
-                  <Bell size={18} />
-                </span>
-                <div>
-                  <h2>Уведомления</h2>
-                  <p>Настройки сохраняются на этом устройстве. Push появятся позже.</p>
+              <section className="profile-settings-section profile-notifications-section">
+                <header className="profile-section-head profile-section-head-inline">
+                  <span className="profile-section-icon" aria-hidden>
+                    <Bell size={18} />
+                  </span>
+                  <div>
+                    <h2>Уведомления</h2>
+                    <p>Сайт и почта работают сразу. Telegram — если бот подключён. SMS подключим позже.</p>
+                  </div>
+                </header>
+                <div className="profile-notifications-layout">
+                  <div className="profile-notifications-block">
+                    <h3 className="profile-notifications-subhead">О чём напоминать</h3>
+                    <div className="profile-switch-list">
+                      <ProfileSwitch
+                        id="pref-booking"
+                        label="Записи в сервис"
+                        description="Подтверждение, перенос, отмена и напоминания за день и за час"
+                        checked={notificationPrefs.bookingReminders}
+                        onChange={(v) => void updateNotificationPref('bookingReminders', v)}
+                      />
+                      <ProfileSwitch
+                        id="pref-messages"
+                        label="Сообщения от менеджера"
+                        description="Когда менеджер ответит по вашей заявке"
+                        checked={notificationPrefs.messageAlerts}
+                        onChange={(v) => void updateNotificationPref('messageAlerts', v)}
+                      />
+                      <ProfileSwitch
+                        id="pref-marketing"
+                        label="Акции и спецпредложения"
+                        description="Скидки на обслуживание и сезонные предложения"
+                        checked={notificationPrefs.marketing}
+                        onChange={(v) => void updateNotificationPref('marketing', v)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="profile-notifications-block">
+                    <h3 className="profile-notifications-subhead">Куда присылать</h3>
+                    <div className="notification-channel-grid">
+                      <NotificationChannelRow
+                        icon={Monitor}
+                        label="На сайте"
+                        description="Колокольчик в кабинете — всегда включён"
+                        tone="inapp"
+                        staticRow
+                        statusLabel="Включено"
+                        statusVariant="on"
+                      />
+                      <NotificationChannelRow
+                        id="pref-channel-email"
+                        icon={Mail}
+                        label="Электронная почта"
+                        description={notificationMeta?.email.destination || 'Письма на адрес аккаунта'}
+                        tone="email"
+                        checked={notificationPrefs.channelEmail}
+                        onChange={(v) => void updateNotificationPref('channelEmail', v)}
+                      />
+                      <NotificationChannelRow
+                        id="pref-channel-telegram"
+                        icon={Send}
+                        label="Telegram"
+                        description={
+                          user.telegramLinked
+                            ? 'Сообщения в привязанный чат с ботом'
+                            : 'Сначала подключите Telegram в «Безопасность» → «Вход»'
+                        }
+                        tone="telegram"
+                        checked={notificationPrefs.channelTelegram}
+                        onChange={(v) => void updateNotificationPref('channelTelegram', v)}
+                        disabled={!user.telegramLinked}
+                      />
+                      <NotificationChannelRow
+                        id="pref-channel-sms"
+                        icon={Phone}
+                        label="SMS"
+                        description="Код готов, провайдера подключим позже — сообщения пока не уходят"
+                        tone="sms"
+                        checked={notificationPrefs.channelSms}
+                        onChange={(v) => void updateNotificationPref('channelSms', v)}
+                        badge="Подключим позже"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </header>
-              <div className="profile-switch-list">
-                <ProfileSwitch
-                  id="pref-booking"
-                  label="Напоминания о записи"
-                  description="За день и за час до записи в сервис"
-                  checked={notificationPrefs.bookingReminders}
-                  onChange={(v) => updateNotificationPref('bookingReminders', v)}
-                />
-                <ProfileSwitch
-                  id="pref-messages"
-                  label="Сообщения от менеджера"
-                  description="Ответы по вашим обращениям"
-                  checked={notificationPrefs.messageAlerts}
-                  onChange={(v) => updateNotificationPref('messageAlerts', v)}
-                />
-                <ProfileSwitch
-                  id="pref-marketing"
-                  label="Акции и спецпредложения"
-                  description="Скидки на ТО и сезонные акции"
-                  checked={notificationPrefs.marketing}
-                  onChange={(v) => updateNotificationPref('marketing', v)}
-                />
-              </div>
+              </section>
             </Card>
           </div>
         ) : null}
@@ -455,7 +566,14 @@ export function ProfilePage() {
             id="tabpanel-security"
             aria-labelledby="tab-security"
           >
-            <div className="profile-security-grid">
+            <Tabs
+              className="profile-tabs profile-security-tabs"
+              value={securitySection}
+              onChange={(next) => setSecuritySection(next as SecuritySection)}
+              items={SECURITY_SECTION_ITEMS}
+            />
+
+            {securitySection === 'password' ? (
               <Card className="profile-security-card profile-password-card">
                 <header className="profile-section-head profile-section-head-inline">
                   <span className="profile-section-icon" aria-hidden>
@@ -463,30 +581,14 @@ export function ProfilePage() {
                   </span>
                   <div>
                     <h2>Смена пароля</h2>
-                    <p>Латиница, цифра и спецсимвол — минимум 12 символов</p>
+                    <p>Новый пароль заменит текущий сразу после сохранения</p>
                   </div>
                 </header>
                 <ProfilePasswordForm onPasswordChanged={refreshCurrentUser} />
               </Card>
-              {isClient ? (
-                <>
-                  <Card className="profile-security-card">
-                    <span className="profile-section-icon" aria-hidden>
-                      <Shield size={20} />
-                    </span>
-                    <h3>Безопасность аккаунта</h3>
-                    <p>Email для входа защищён. При подозрительной активности обратитесь к администратору.</p>
-                  </Card>
-                  <Card className="profile-security-card profile-security-card-muted">
-                    <span className="profile-section-icon" aria-hidden>
-                      <Sparkles size={20} />
-                    </span>
-                    <h3>Скоро</h3>
-                    <p>Двухфакторная аутентификация и история входов в разработке.</p>
-                  </Card>
-                </>
-              ) : null}
-            </div>
+            ) : (
+              <ProfileSecurityPanel section={securitySection} />
+            )}
           </div>
         ) : null}
       </div>

@@ -1,3 +1,5 @@
+import { sendProblem } from '../lib/problem.js';
+
 /**
  * @param {import('zod').ZodSchema} schema
  */
@@ -6,12 +8,13 @@ export function validateBody(schema) {
     const r = schema.safeParse(req.body);
     if (!r.success) {
       const first = r.error.issues[0];
-      const payload = {
-        error: first?.message || 'Validation failed',
+      return sendProblem(res, {
+        status: 400,
+        detail: first?.message || 'Validation failed',
         code: 'VALIDATION_ERROR',
-      };
-      if (process.env.NODE_ENV !== 'production') payload.details = r.error.flatten();
-      return res.status(400).json(payload);
+        instance: req.id ? `/requests/${req.id}` : req.path,
+        extras: process.env.NODE_ENV === 'production' ? undefined : { details: r.error.flatten() },
+      });
     }
     req.validatedBody = r.data;
     next();
@@ -26,12 +29,13 @@ export function validateQuery(schema) {
     const r = schema.safeParse(req.query);
     if (!r.success) {
       const first = r.error.issues[0];
-      const payload = {
-        error: first?.message || 'Validation failed',
+      return sendProblem(res, {
+        status: 400,
+        detail: first?.message || 'Validation failed',
         code: 'VALIDATION_ERROR',
-      };
-      if (process.env.NODE_ENV !== 'production') payload.details = r.error.flatten();
-      return res.status(400).json(payload);
+        instance: req.id ? `/requests/${req.id}` : req.path,
+        extras: process.env.NODE_ENV === 'production' ? undefined : { details: r.error.flatten() },
+      });
     }
     req.validatedQuery = r.data;
     next();

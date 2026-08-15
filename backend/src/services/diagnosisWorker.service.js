@@ -6,6 +6,7 @@ import { finalizeDiagnosisForSession } from '../modules/consultations/consultati
 import {
   loadDiagnosisJobPayload,
   markDiagnosisJobCompleted,
+  markDiagnosisJobFailed,
   markDiagnosisJobProcessing,
   QUEUE_NAME,
   shouldUseAsyncDiagnosis,
@@ -45,10 +46,15 @@ async function processDiagnosisJob(bullJob) {
       confidence: 0.2,
       reason: 'LLM_UNAVAILABLE',
     };
-    await finalizeDiagnosisForSession(sessionId, fallback, payload);
-    await markDiagnosisJobCompleted(jobId, fallback);
-    logger.warn({ sessionId, jobId, err: err instanceof Error ? err.message : String(err) }, 'async diagnosis fallback');
-    return { sessionId, status: 'MANUAL_REVIEW_REQUIRED' };
+    try {
+      await finalizeDiagnosisForSession(sessionId, fallback, payload);
+      await markDiagnosisJobCompleted(jobId, fallback);
+      logger.warn({ sessionId, jobId, err: err instanceof Error ? err.message : String(err) }, 'async diagnosis fallback');
+      return { sessionId, status: 'MANUAL_REVIEW_REQUIRED' };
+    } catch (fatal) {
+      await markDiagnosisJobFailed(jobId, fatal instanceof Error ? fatal.message : String(fatal));
+      throw fatal;
+    }
   }
 }
 
@@ -71,6 +77,9 @@ export function startDiagnosisWorker() {
       { jobId, sessionId, err: err instanceof Error ? err.message : String(err) },
       'async diagnosis job failed',
     );
+    if (jobId) {
+      void markDiagnosisJobFailed(jobId, err instanceof Error ? err.message : String(err));
+    }
   });
 
   worker.on('error', (err) => {

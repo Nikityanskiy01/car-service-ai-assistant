@@ -7,7 +7,6 @@ import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../config/adminRoutes';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { IntegrationConflict } from '../../types/integration';
 
@@ -65,9 +64,8 @@ export function AdminIntegrationConflictsPage() {
   return (
     <div className="stack dashboard-page">
       <PageHeader
-        title="Конфликты CRM"
+        title="Конфликты"
         description="Inbox несогласованных полей между локальной базой и внешними системами."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/integrations/conflicts')}
         actions={
           <div className="row gap-sm">
             <Button variant={statusFilter === 'open' ? 'primary' : 'ghost'} onClick={() => setStatusFilter('open')}>

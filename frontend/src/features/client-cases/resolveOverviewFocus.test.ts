@@ -7,11 +7,16 @@ import {
 import type { ClientDashboardSummary } from './resolveClientHero';
 import { resolveClientHero } from './resolveClientHero';
 
+function inDays(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 function baseSummary(overrides: Partial<ClientDashboardSummary> = {}): ClientDashboardSummary {
   return {
     profile: { fullName: 'Иван', phone: null },
     activeCasesCount: 0,
     unreadMessagesCount: 0,
+    unreadThreads: [],
     hasAnyHistory: true,
     nextBooking: null,
     draftConsultation: null,
@@ -30,7 +35,7 @@ describe('resolveOverviewFocus', () => {
   it('prioritizes draft over booking', () => {
     const summary = baseSummary({
       draftConsultation: { id: 'd1', make: 'BMW', model: 'X5', symptom: 'Стук' },
-      nextBooking: { id: 'b1', preferredAt: '2026-08-01T10:00:00', status: 'CONFIRMED' },
+      nextBooking: { id: 'b1', preferredAt: inDays(3), status: 'CONFIRMED' },
     });
     const hero = resolveClientHero(summary);
     const focus = resolveOverviewFocus(summary, hero);
@@ -39,7 +44,7 @@ describe('resolveOverviewFocus', () => {
 
   it('shows booking focus within 14 days', () => {
     const summary = baseSummary({
-      nextBooking: { id: 'b1', preferredAt: '2026-08-10T10:00:00', status: 'CONFIRMED' },
+      nextBooking: { id: 'b1', preferredAt: inDays(5), status: 'CONFIRMED' },
     });
     const hero = resolveClientHero(summary);
     const focus = resolveOverviewFocus(summary, hero);
@@ -50,7 +55,7 @@ describe('resolveOverviewFocus', () => {
 
   it('falls back to hero when booking is far away', () => {
     const summary = baseSummary({
-      nextBooking: { id: 'b1', preferredAt: '2026-10-01T10:00:00', status: 'CONFIRMED' },
+      nextBooking: { id: 'b1', preferredAt: inDays(45), status: 'CONFIRMED' },
     });
     const hero = resolveClientHero(summary);
     const focus = resolveOverviewFocus(summary, hero);

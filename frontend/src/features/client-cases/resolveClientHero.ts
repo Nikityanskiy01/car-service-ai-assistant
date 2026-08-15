@@ -11,12 +11,23 @@ export type ClientCaseSummaryItem = {
   urgency?: string | null;
   consultationSessionId?: string | null;
   serviceRequestId?: string | null;
+  unreadCount?: number;
+};
+
+export type ClientUnreadThread = {
+  requestId: string;
+  title: string;
+  symptoms: string;
+  unreadCount: number;
+  lastMessagePreview: string;
+  lastMessageAt: string;
 };
 
 export type ClientDashboardSummary = {
   profile: { fullName: string; phone: string | null };
   activeCasesCount: number;
   unreadMessagesCount: number;
+  unreadThreads: ClientUnreadThread[];
   hasAnyHistory: boolean;
   nextBooking: { id: string; preferredAt: string; status: string } | null;
   draftConsultation: {

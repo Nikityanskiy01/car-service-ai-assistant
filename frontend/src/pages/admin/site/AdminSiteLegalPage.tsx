@@ -6,7 +6,6 @@ import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { useProductConfigState } from '../../../config/ProductConfigProvider';
 import type { LegalOperatorConfig } from '../../../config/productConfig';
 import { usePageMeta } from '../../../hooks/usePageMeta';
@@ -54,7 +53,6 @@ export function AdminSiteLegalPage() {
       <PageHeader
         title="Юридические данные"
         description="Реквизиты для юридических документов сайта."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/site/legal')}
         actions={
           <>
             <Link to="/privacy" className="btn btn-secondary" target="_blank" rel="noreferrer">

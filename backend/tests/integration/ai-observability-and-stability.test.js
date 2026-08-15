@@ -17,7 +17,10 @@ describe('ai observability and stability', () => {
     const reqId = 'ai-test-correlation-id';
     const res = await request(app).post('/api/consultations').set('X-Request-Id', reqId).send({});
     expect(res.status).toBe(201);
-    expect(res.headers['x-request-id']).toBe(reqId);
+    expect(res.headers['x-request-id']).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(res.headers['x-request-id']).not.toBe(reqId);
 
     const generated = await request(app).post('/api/consultations').send({});
     expect(generated.status).toBe(201);

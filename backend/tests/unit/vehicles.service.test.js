@@ -17,6 +17,9 @@ const prismaMock = {
   serviceRequest: {
     updateMany: vi.fn(),
   },
+  serviceBooking: {
+    updateMany: vi.fn(),
+  },
   $transaction: vi.fn((ops) => Promise.all(ops)),
 };
 

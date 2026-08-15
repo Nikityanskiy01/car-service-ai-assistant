@@ -20,6 +20,20 @@ function makeCase(overrides: Partial<ClientCase> = {}): ClientCase {
 }
 
 describe('presentClientCase', () => {
+  it('marks unread chats as their own group with a direct chat CTA', () => {
+    const presented = presentClientCase(
+      makeCase({
+        unreadCount: 2,
+        status: 'IN_PROGRESS',
+        requestStatus: 'IN_PROGRESS',
+      }),
+    );
+    expect(presented.group).toBe('unread');
+    expect(presented.attention).toBe(true);
+    expect(presented.statusLine).toContain('новых сообщения');
+    expect(presented.ctaLabel).toBe('Открыть чат');
+  });
+
   it('marks new requests as waiting with attention', () => {
     const presented = presentClientCase(makeCase());
     expect(presented.group).toBe('waiting');

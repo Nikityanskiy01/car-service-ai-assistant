@@ -4,6 +4,7 @@ import { authJwt } from '../../middleware/authJwt.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody } from '../../middleware/validate.js';
+import { readCookieValue } from '../../lib/authCookies.js';
 import * as adminService from './admin.service.js';
 import * as adminAiMemoryService from './adminAiMemory.service.js';
 import * as siteSettingsService from './siteSettings.service.js';
@@ -255,8 +256,12 @@ adminRouter.patch(
 
 adminRouter.get(
   '/users',
-  asyncHandler(async (_req, res) => {
-    const users = await adminService.listUsers();
+  asyncHandler(async (req, res) => {
+    const q = req.query.q ? String(req.query.q) : undefined;
+    const role = req.query.role ? String(req.query.role) : undefined;
+    const blocked =
+      req.query.blocked === 'true' ? true : req.query.blocked === 'false' ? false : undefined;
+    const users = await adminService.listUsers({ q, role, blocked });
     res.json(users);
   }),
 );
@@ -265,7 +270,7 @@ adminRouter.patch(
   '/users/:userId/role',
   validateBody(roleSchema),
   asyncHandler(async (req, res) => {
-    const u = await adminService.patchUserRole(req.params.userId, req.validatedBody.role);
+    const u = await adminService.patchUserRole(req.params.userId, req.validatedBody.role, req.user.id);
     logger.info(
       { action: 'CHANGE_ROLE', adminId: req.user.id, targetUserId: req.params.userId, newRole: req.validatedBody.role },
       'audit: admin changed user role',
@@ -277,7 +282,7 @@ adminRouter.patch(
 adminRouter.post(
   '/users/:userId/block',
   asyncHandler(async (req, res) => {
-    await adminService.blockUser(req.params.userId);
+    await adminService.blockUser(req.params.userId, req.user.id);
     logger.info(
       { action: 'BLOCK_USER', adminId: req.user.id, targetUserId: req.params.userId },
       'audit: admin blocked user',
@@ -289,12 +294,36 @@ adminRouter.post(
 adminRouter.post(
   '/users/:userId/unblock',
   asyncHandler(async (req, res) => {
-    await adminService.unblockUser(req.params.userId);
+    await adminService.unblockUser(req.params.userId, req.user.id);
     logger.info(
       { action: 'UNBLOCK_USER', adminId: req.user.id, targetUserId: req.params.userId },
       'audit: admin unblocked user',
     );
     res.status(204).send();
+  }),
+);
+
+adminRouter.get(
+  '/sessions',
+  asyncHandler(async (req, res) => {
+    const currentRefreshToken = readCookieValue(req, 'refresh') || null;
+    res.json(await adminService.listAdminSessions(currentRefreshToken));
+  }),
+);
+
+adminRouter.delete(
+  '/sessions/:sessionId',
+  asyncHandler(async (req, res) => {
+    const out = await adminService.revokeAdminSession(req.params.sessionId, req.user.id);
+    res.json(out);
+  }),
+);
+
+adminRouter.post(
+  '/users/:userId/revoke-sessions',
+  asyncHandler(async (req, res) => {
+    const out = await adminService.revokeAdminUserSessions(req.params.userId, req.user.id);
+    res.json(out);
   }),
 );
 
@@ -387,8 +416,11 @@ adminRouter.get(
   asyncHandler(async (req, res) => {
     const action = req.query.action ? String(req.query.action) : undefined;
     const entityType = req.query.entityType ? String(req.query.entityType) : undefined;
+    const actorId = req.query.actorId ? String(req.query.actorId) : undefined;
+    const from = req.query.from ? String(req.query.from) : undefined;
+    const to = req.query.to ? String(req.query.to) : undefined;
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
-    const rows = await adminService.listAdminAuditEvents({ action, entityType, limit });
+    const rows = await adminService.listAdminAuditEvents({ action, entityType, actorId, from, to, limit });
     res.json(rows);
   }),
 );

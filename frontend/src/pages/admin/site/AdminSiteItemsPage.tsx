@@ -16,7 +16,6 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
 import { Tabs } from '../../../components/ui/Tabs';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
 const KIND_LABELS: Record<SiteCmsItem['kind'], string> = {
@@ -140,7 +139,6 @@ export function AdminSiteItemsPage() {
       <PageHeader
         title="Услуги и галерея"
         description="Публикация карточек на публичных страницах сервиса."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/site/items')}
         actions={
           <Link to={PREVIEW_PATH[kind]} className="btn btn-secondary" target="_blank" rel="noreferrer">
             Предпросмотр

@@ -1,7 +1,7 @@
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import { notifyNewServiceRequest } from '../notifications/telegram.service.js';
-import { dispatchOutbox, enqueueOutboxEvent, processPendingJobs } from '../integrations/integrations.service.js';
+import { enqueueOutboxEvent } from '../integrations/integrations.service.js';
 
 /**
  * Нормализация телефона: только цифры, ведущая 8 → 7, 10 цифр без кода → +7…
@@ -162,8 +162,6 @@ export async function convertSubmissionToRequest(contactId, managerId) {
     entityId: requestId,
     payloadJson: { source: 'contact_form', contactId },
   });
-  await dispatchOutbox();
-  await processPendingJobs();
   if (full) await notifyNewServiceRequest(full);
 
   return { requestId, alreadyConverted: false };

@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { AppError } from './errors.js';
+import { assertMagicMime } from './fileMagic.js';
+import { sanitizeUploadedImage } from './imageSanitize.js';
 
 const UPLOAD_ROOT =
   process.env.REQUEST_MESSAGE_UPLOAD_DIR ||
@@ -40,7 +42,14 @@ export function validateAttachmentInput({ fileName, mimeType, contentBase64 }) {
   if (buffer.length > MAX_FILE_BYTES) {
     throw new AppError(400, 'Файл слишком большой (макс. 4 МБ)', 'BAD_REQUEST');
   }
-  return { fileName: name, mimeType: mime, buffer, sizeBytes: buffer.length };
+  assertMagicMime(buffer, mime);
+  const clean = sanitizeUploadedImage(buffer, mime);
+  return {
+    fileName: name,
+    mimeType: clean.mimeType,
+    buffer: clean.buffer,
+    sizeBytes: clean.sizeBytes,
+  };
 }
 
 export async function saveAttachmentFile(buffer, attachmentId) {

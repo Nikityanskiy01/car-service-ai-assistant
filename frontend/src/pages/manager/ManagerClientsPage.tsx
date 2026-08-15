@@ -1,21 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { CalendarPlus, Phone, RefreshCw, Send } from 'lucide-react';
 import { getClientDossier, getGuestDossier, listServiceRequests } from '../../api/dashboard';
 import { prefillBookingFromConsultation } from '../../features/services/prefill';
+import { managerZonePaths } from '../../config/managerPaths';
 import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { CopyPhoneButton } from '../../components/ui/CopyPhoneButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Tabs } from '../../components/ui/Tabs';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { usePageMeta } from '../../hooks/usePageMeta';
+import { formatRequestNumber } from '../../lib/labels';
 import type { ClientDossier, GuestDossier } from '../../types/dashboard';
 
 type ClientFilter = 'all' | 'active' | 'guests';
-type ClientSort = 'activity' | 'name';
-type ClientTab = 'history' | 'bookings' | 'consultations';
+type ClientSort = 'activity' | 'recent' | 'name';
+type ClientTab = 'history' | 'bookings' | 'consultations' | 'timeline';
 
 type ClientRow = {
   key: string;
@@ -25,18 +31,38 @@ type ClientRow = {
   clientId?: string;
   guestPhone?: string;
   activeRequests: number;
+  totalRequests: number;
+  lastActivityAt: string;
   isGuest: boolean;
+};
+
+type TimelineEntry = {
+  at: string;
+  type: string;
+  title: string;
+  meta?: string;
 };
 
 type ManagerClientsPageProps = {
   adminZone?: boolean;
 };
 
+const ACTIVE_STATUSES = ['NEW', 'IN_PROGRESS', 'SCHEDULED'];
+
+const currency = new Intl.NumberFormat('ru-RU', {
+  style: 'currency',
+  currency: 'RUB',
+  maximumFractionDigits: 0,
+});
+
 export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProps) {
   usePageMeta({
     title: adminZone ? 'Клиенты — операции' : 'Клиенты',
     description: 'Карточки клиентов и история обращений.',
   });
+  const paths = managerZonePaths(adminZone);
+  const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -45,150 +71,175 @@ export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProp
   const [dossier, setDossier] = useState<ClientDossier | null>(null);
   const [guestDossier, setGuestDossier] = useState<GuestDossier | null>(null);
   const [dossierLoading, setDossierLoading] = useState(false);
+  const [dossierError, setDossierError] = useState<string | null>(null);
   const [clientFilter, setClientFilter] = useState<ClientFilter>('all');
   const [clientSort, setClientSort] = useState<ClientSort>('activity');
   const [clientTab, setClientTab] = useState<ClientTab>('history');
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    void listServiceRequests({ pageSize: 200 })
-      .then((data) => {
-        const map = new Map<string, ClientRow>();
-        for (const r of data.items) {
-          const phone = r.client?.phone || r.guestPhone || '';
-          const key = r.clientId || `guest:${phone || r.guestName || r.id}`;
-          const existing = map.get(key);
-          const active = ['NEW', 'IN_PROGRESS', 'SCHEDULED'].includes(r.status) ? 1 : 0;
-          if (existing) {
-            existing.activeRequests += active;
-          } else {
-            map.set(key, {
-              key,
-              name: r.client?.fullName || r.guestName || 'Гость',
-              phone: phone || '—',
-              email: r.client?.email || undefined,
-              clientId: r.clientId || undefined,
-              guestPhone: !r.clientId && phone ? phone : undefined,
-              activeRequests: active,
-              isGuest: !r.clientId,
-            });
-          }
+  const debouncedSearch = useDebouncedValue(search, 200);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await listServiceRequests({ pageSize: 200, sort: 'createdAt', dir: 'desc' });
+      const map = new Map<string, ClientRow>();
+      for (const request of data.items) {
+        const phone = request.client?.phone || request.guestPhone || '';
+        const key = request.clientId || `guest:${phone || request.guestName || request.id}`;
+        const isActive = ACTIVE_STATUSES.includes(request.status);
+        const existing = map.get(key);
+        if (existing) {
+          existing.activeRequests += isActive ? 1 : 0;
+          existing.totalRequests += 1;
+          if (request.createdAt > existing.lastActivityAt) existing.lastActivityAt = request.createdAt;
+          continue;
         }
-        setClients(Array.from(map.values()));
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Ошибка загрузки'))
-      .finally(() => setLoading(false));
+        map.set(key, {
+          key,
+          name: request.client?.fullName || request.guestName || 'Гость',
+          phone: phone || '',
+          email: request.client?.email || undefined,
+          clientId: request.clientId || undefined,
+          guestPhone: !request.clientId && phone ? phone : undefined,
+          activeRequests: isActive ? 1 : 0,
+          totalRequests: 1,
+          lastActivityAt: request.createdAt,
+          isGuest: !request.clientId,
+        });
+      }
+      setClients(Array.from(map.values()));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить клиентов');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const filteredClients = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let list = [...clients];
-    if (clientFilter === 'active') list = list.filter((c) => c.activeRequests > 0);
-    if (clientFilter === 'guests') list = list.filter((c) => c.isGuest);
-    list.sort((a, b) =>
-      clientSort === 'name'
-        ? a.name.localeCompare(b.name)
-        : b.activeRequests - a.activeRequests || a.name.localeCompare(b.name),
-    );
-    if (!q) return list;
-    return list.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.phone.toLowerCase().includes(q) ||
-        (c.email || '').toLowerCase().includes(q),
-    );
-  }, [clients, search, clientFilter, clientSort]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  async function openClient(client: ClientRow) {
+  const filteredClients = useMemo(() => {
+    const query = debouncedSearch.trim().toLowerCase();
+    let list = clients;
+    if (clientFilter === 'active') list = list.filter((item) => item.activeRequests > 0);
+    if (clientFilter === 'guests') list = list.filter((item) => item.isGuest);
+    if (query) {
+      list = list.filter(
+        (item) =>
+          item.name.toLowerCase().includes(query) ||
+          item.phone.toLowerCase().includes(query) ||
+          (item.email || '').toLowerCase().includes(query),
+      );
+    }
+    return [...list].sort((a, b) => {
+      if (clientSort === 'name') return a.name.localeCompare(b.name, 'ru');
+      if (clientSort === 'recent') return b.lastActivityAt.localeCompare(a.lastActivityAt);
+      return b.activeRequests - a.activeRequests || a.name.localeCompare(b.name, 'ru');
+    });
+  }, [clients, debouncedSearch, clientFilter, clientSort]);
+
+  const profile = dossier?.profile || guestDossier?.profile;
+  const requests = useMemo(
+    () => dossier?.requests || guestDossier?.requests || [],
+    [dossier, guestDossier],
+  );
+  const bookings = useMemo(
+    () => dossier?.bookings || guestDossier?.bookings || [],
+    [dossier, guestDossier],
+  );
+  const metrics = dossier?.metrics || guestDossier?.metrics;
+
+  const timeline = useMemo<TimelineEntry[]>(() => {
+    if (!profile) return [];
+    const items: TimelineEntry[] = [];
+    for (const item of requests) {
+      items.push({ at: item.createdAt, type: 'request', title: 'Заявка', meta: item.status });
+    }
+    for (const item of bookings) {
+      items.push({ at: item.preferredAt, type: 'booking', title: 'Запись', meta: item.status });
+    }
+    for (const item of dossier?.consultations || []) {
+      items.push({ at: item.createdAt, type: 'consultation', title: 'Консультация ИИ', meta: item.status });
+    }
+    for (const item of guestDossier?.contacts || []) {
+      items.push({ at: item.createdAt, type: 'contact', title: 'Обращение с сайта', meta: item.status });
+    }
+    return items.sort((a, b) => b.at.localeCompare(a.at));
+  }, [profile, requests, bookings, dossier, guestDossier]);
+
+  const openClient = useCallback(async (client: ClientRow) => {
     setSelectedKey(client.key);
     setDossierLoading(true);
+    setDossierError(null);
     setDossier(null);
     setGuestDossier(null);
     try {
       if (client.clientId) {
-        const data = await getClientDossier(client.clientId);
-        setDossier(data);
+        setDossier(await getClientDossier(client.clientId));
       } else if (client.guestPhone) {
-        const data = await getGuestDossier(client.guestPhone);
-        setGuestDossier(data);
+        setGuestDossier(await getGuestDossier(client.guestPhone));
+      } else {
+        setDossierError('У гостя нет телефона, историю подтянуть не из чего.');
       }
-    } catch {
-      setDossier(null);
-      setGuestDossier(null);
+    } catch (e) {
+      setDossierError(e instanceof Error ? e.message : 'Не удалось загрузить карточку клиента');
     } finally {
       setDossierLoading(false);
     }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="stack dashboard-page">
+        <PageHeader title="Клиенты" description="Контакты, автомобили и активные заявки." />
+        <div className="grid two">
+          <Card>
+            <Skeleton className="skeleton-line skeleton-line-lg" />
+            <Skeleton className="skeleton-line" />
+            <Skeleton className="skeleton-line" />
+            <Skeleton className="skeleton-line" />
+          </Card>
+          <Card>
+            <Skeleton className="skeleton-line skeleton-line-lg" />
+            <Skeleton className="skeleton-block" />
+          </Card>
+        </div>
+      </div>
+    );
   }
 
-  if (loading) return <Loader />;
-  if (error) return <ErrorState message={error} />;
-
-  const profile = dossier?.profile || guestDossier?.profile;
-
-  const timeline = useMemo(() => {
-    if (!adminZone || !profile) return [];
-    const items: Array<{ at: string; type: string; title: string; meta?: string }> = [];
-    for (const r of dossier?.requests || guestDossier?.requests || []) {
-      items.push({
-        at: r.createdAt,
-        type: 'request',
-        title: 'Заявка',
-        meta: r.status,
-      });
-    }
-    for (const b of dossier?.bookings || guestDossier?.bookings || []) {
-      items.push({
-        at: b.preferredAt,
-        type: 'booking',
-        title: 'Запись',
-        meta: b.status,
-      });
-    }
-    for (const c of dossier?.consultations || []) {
-      items.push({
-        at: c.createdAt,
-        type: 'consultation',
-        title: 'Консультация ИИ',
-        meta: c.status,
-      });
-    }
-    for (const c of guestDossier?.contacts || []) {
-      items.push({
-        at: c.createdAt,
-        type: 'contact',
-        title: 'Обращение с сайта',
-        meta: c.status,
-      });
-    }
-    return items.sort((a, b) => b.at.localeCompare(a.at));
-  }, [adminZone, dossier, guestDossier, profile]);
+  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
 
   return (
-    <div className="stack dashboard-page">
+    <div className="stack dashboard-page manager-clients-page">
       <PageHeader
         title="Клиенты"
         description="Контакты, автомобили и активные заявки."
-        breadcrumbs={
-          adminZone
-            ? [
-                { label: 'Пульт', to: '/dashboard/admin' },
-                { label: 'Операции' },
-                { label: 'Клиенты' },
-              ]
-            : [
-                { label: 'Рабочий стол', to: '/dashboard/manager' },
+        breadcrumbs={adminZone ? undefined : [
+                { label: 'Рабочий стол', to: paths.root },
                 { label: 'Клиенты' },
               ]
         }
+        actions={
+          <Button variant="ghost" onClick={() => void load()}>
+            <RefreshCw size={16} aria-hidden />
+            Обновить
+          </Button>
+        }
       />
 
-      <div className="grid two">
-        <Card>
-          <h2>Список клиентов</h2>
+      <div className="grid two manager-clients-grid">
+        <Card className="client-list-card">
+          <header className="card-section-header">
+            <h2>Список клиентов</h2>
+            <span className="muted tnum">{filteredClients.length} из {clients.length}</span>
+          </header>
           <div className="filter-bar-row client-filters">
             <Tabs
               value={clientFilter}
-              onChange={(v) => setClientFilter(v as ClientFilter)}
+              onChange={(value) => setClientFilter(value as ClientFilter)}
               items={[
                 { id: 'all', label: 'Все' },
                 { id: 'active', label: 'Активные' },
@@ -199,9 +250,10 @@ export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProp
               className="select"
               value={clientSort}
               onChange={(e) => setClientSort(e.target.value as ClientSort)}
-              aria-label="Сортировка"
+              aria-label="Сортировка клиентов"
             >
               <option value="activity">По активности</option>
+              <option value="recent">По дате обращения</option>
               <option value="name">По имени</option>
             </select>
           </div>
@@ -210,24 +262,34 @@ export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProp
             className="client-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по имени или телефону"
+            placeholder="Имя, телефон или email"
             aria-label="Поиск клиентов"
           />
           {!filteredClients.length ? (
-            <EmptyState title="Клиентов не найдено" description="Попробуйте другой запрос." />
+            <EmptyState
+              title="Клиентов не найдено"
+              description={
+                search
+                  ? 'Уточните запрос или сбросьте фильтр.'
+                  : 'Клиенты появятся здесь после первых обращений.'
+              }
+            />
           ) : (
             <ul className="client-list">
-              {filteredClients.map((c) => (
-                <li key={c.key}>
+              {filteredClients.map((client) => (
+                <li key={client.key}>
                   <button
                     type="button"
-                    className={selectedKey === c.key ? 'active' : ''}
-                    onClick={() => void openClient(c)}
+                    className={selectedKey === client.key ? 'active' : ''}
+                    aria-current={selectedKey === client.key ? 'true' : undefined}
+                    onClick={() => void openClient(client)}
                   >
-                    <strong>{c.name}</strong>
-                    <span>{c.phone}</span>
-                    {c.isGuest ? <em className="guest-tag">гость</em> : null}
-                    {c.activeRequests ? <em>{c.activeRequests} активн.</em> : null}
+                    <strong>{client.name}</strong>
+                    <span className="tnum">{client.phone || 'Телефон не указан'}</span>
+                    {client.isGuest ? <em className="guest-tag">гость</em> : null}
+                    {client.activeRequests ? (
+                      <em className="client-active-tag tnum">{client.activeRequests} в работе</em>
+                    ) : null}
                   </button>
                 </li>
               ))}
@@ -235,187 +297,188 @@ export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProp
           )}
         </Card>
 
-        <Card>
+        <Card className="client-detail-card">
           <h2>Карточка клиента</h2>
-          {dossierLoading ? <Loader /> : null}
-          {!selectedKey || !profile ? (
+          {dossierLoading ? <Loader label="Загружаем историю…" /> : null}
+          {!dossierLoading && dossierError ? <div className="alert alert-error">{dossierError}</div> : null}
+          {!dossierLoading && !dossierError && (!selectedKey || !profile) ? (
             <EmptyState title="Выберите клиента" description="Нажмите на строку в списке слева." />
-          ) : (
+          ) : null}
+          {!dossierLoading && profile ? (
             <div className="stack">
-              <p>
-                <strong>{profile.fullName}</strong>
-                {'isGuest' in profile && profile.isGuest ? (
-                  <span className="guest-tag"> · гость</span>
-                ) : null}
-              </p>
-              <p>
-                Телефон:{' '}
-                {profile.phone ? (
-                  <a href={`tel:${profile.phone}`} className="contact-link">
-                    {profile.phone}
-                  </a>
-                ) : (
-                  '—'
-                )}
-              </p>
-              {'email' in profile && profile.email ? <p>Email: {profile.email}</p> : null}
-              {'createdAt' in profile && profile.createdAt ? (
-                <p className="muted">
-                  Клиент с {new Date(profile.createdAt).toLocaleDateString('ru-RU')}
-                </p>
-              ) : null}
+              <div className="client-identity">
+                <div>
+                  <strong className="client-identity-name">{profile.fullName}</strong>
+                  {'isGuest' in profile && profile.isGuest ? <span className="guest-tag">гость</span> : null}
+                </div>
+                <div className="client-identity-contacts">
+                  {profile.phone ? (
+                    <span className="client-contact-line">
+                      <a href={`tel:${profile.phone}`} className="contact-link tnum">
+                        {profile.phone}
+                      </a>
+                      <CopyPhoneButton phone={profile.phone} label="" />
+                    </span>
+                  ) : (
+                    <span className="muted">Телефон не указан</span>
+                  )}
+                  {'email' in profile && profile.email ? (
+                    <a href={`mailto:${profile.email}`} className="contact-link">
+                      {profile.email}
+                    </a>
+                  ) : null}
+                  {'createdAt' in profile && profile.createdAt ? (
+                    <span className="muted">
+                      Клиент с {new Date(profile.createdAt).toLocaleDateString('ru-RU')}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
 
-              {(dossier?.vehicles || []).length ? (
-                <>
-                  <h3>Автомобили</h3>
-                  <ul className="simple-list">
-                    {dossier!.vehicles.map((v, i) => (
-                      <li key={`${v.make}-${v.model}-${i}`}>
-                        {[v.make, v.model, v.year].filter(Boolean).join(' ')}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
-
-              {(dossier?.metrics || guestDossier?.metrics) ? (
+              {metrics ? (
                 <div className="client-metrics-row">
                   <div>
                     <span className="muted">Заявок</span>
-                    <strong>{(dossier?.metrics || guestDossier?.metrics)?.requestsTotal ?? 0}</strong>
+                    <strong className="tnum">{metrics.requestsTotal ?? 0}</strong>
                   </div>
                   <div>
                     <span className="muted">Завершено</span>
-                    <strong>{(dossier?.metrics || guestDossier?.metrics)?.completedRequests ?? 0}</strong>
+                    <strong className="tnum">{metrics.completedRequests ?? 0}</strong>
                   </div>
                   <div>
                     <span className="muted">LTV</span>
-                    <strong>
-                      {new Intl.NumberFormat('ru-RU', {
-                        style: 'currency',
-                        currency: 'RUB',
-                        maximumFractionDigits: 0,
-                      }).format(((dossier?.metrics || guestDossier?.metrics)?.ltvMinor ?? 0) / 100)}
-                    </strong>
+                    <strong className="tnum">{currency.format((metrics.ltvMinor ?? 0) / 100)}</strong>
                   </div>
                 </div>
               ) : null}
 
+              {(dossier?.vehicles || []).length ? (
+                <section>
+                  <h3>Автомобили</h3>
+                  <ul className="client-vehicle-list">
+                    {dossier!.vehicles.map((vehicle, index) => (
+                      <li key={`${vehicle.make}-${vehicle.model}-${index}`}>
+                        {[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ')}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
               <Tabs
                 value={clientTab}
-                onChange={(v) => setClientTab(v as ClientTab)}
+                onChange={(value) => setClientTab(value as ClientTab)}
                 items={[
-                  { id: 'history', label: 'История' },
-                  { id: 'bookings', label: 'Записи' },
+                  { id: 'history', label: `Заявки (${requests.length})` },
+                  { id: 'bookings', label: `Записи (${bookings.length})` },
                   { id: 'consultations', label: 'Консультации' },
+                  { id: 'timeline', label: 'Таймлайн' },
                 ]}
               />
 
               {clientTab === 'history' ? (
-                <>
-                  <h3>Заявки</h3>
-                  <ul className="simple-list">
-                    {(dossier?.requests || guestDossier?.requests || []).map((r) => (
-                      <li key={r.id}>
-                        <Link
-                          to={
-                            adminZone
-                              ? `/dashboard/admin/operations/requests/${r.id}`
-                              : `/dashboard/manager/requests/${r.id}`
-                          }
-                        >
-                          <StatusBadge status={r.status} />
-                          <span>{new Date(r.createdAt).toLocaleDateString('ru-RU')}</span>
-                          {'snapshotMake' in r && (r.snapshotMake || r.snapshotModel) ? (
+                requests.length ? (
+                  <ul className="client-record-list">
+                    {requests.map((request) => (
+                      <li key={request.id}>
+                        <Link to={`${paths.requests}/${request.id}`}>
+                          <span className="tnum">№{formatRequestNumber(request.id)}</span>
+                          <StatusBadge status={request.status} />
+                          <span className="muted tnum">
+                            {new Date(request.createdAt).toLocaleDateString('ru-RU')}
+                          </span>
+                          {'snapshotMake' in request && (request.snapshotMake || request.snapshotModel) ? (
                             <span className="muted">
-                              {[r.snapshotMake, r.snapshotModel].filter(Boolean).join(' ')}
+                              {[request.snapshotMake, request.snapshotModel].filter(Boolean).join(' ')}
                             </span>
                           ) : null}
                         </Link>
                       </li>
                     ))}
                   </ul>
-                </>
+                ) : (
+                  <p className="muted">Заявок пока нет.</p>
+                )
               ) : null}
 
               {clientTab === 'bookings' ? (
-                <>
-                  <h3>Записи</h3>
-                  {(dossier?.bookings || guestDossier?.bookings || []).length ? (
-                    <ul className="simple-list">
-                      {(dossier?.bookings || guestDossier?.bookings || []).map((b) => (
-                        <li key={b.id}>
-                          <span>{new Date(b.preferredAt).toLocaleString('ru-RU')}</span>
-                          <StatusBadge status={b.status} />
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="muted">Записей нет.</p>
-                  )}
-                </>
-              ) : null}
-
-              {clientTab === 'consultations' ? (
-                <>
-                  <h3>Консультации ИИ</h3>
-                  {dossier?.consultations?.length ? (
-                    <ul className="simple-list">
-                      {dossier.consultations.map((c) => (
-                        <li key={c.id}>
-                          <span>{new Date(c.createdAt).toLocaleString('ru-RU')}</span>
-                          <StatusBadge status={c.status} />
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="muted">Консультаций нет (для гостей история в заявках).</p>
-                  )}
-                </>
-              ) : null}
-
-              {guestDossier?.contacts?.length ? (
-                <>
-                  <h3>Обращения с сайта</h3>
-                  <ul className="simple-list">
-                    {guestDossier.contacts.map((c) => (
-                      <li key={c.id}>
-                        <span>{c.fullName}</span>
-                        <span className="muted">{c.message?.slice(0, 40) || '—'}</span>
+                bookings.length ? (
+                  <ul className="client-record-list">
+                    {bookings.map((booking) => (
+                      <li key={booking.id}>
+                        <span className="tnum">{new Date(booking.preferredAt).toLocaleString('ru-RU')}</span>
+                        <StatusBadge status={booking.status} />
                       </li>
                     ))}
                   </ul>
-                </>
+                ) : (
+                  <p className="muted">Записей нет.</p>
+                )
               ) : null}
 
-              {adminZone && timeline.length ? (
-                <>
-                  <h3>Таймлайн взаимодействий</h3>
+              {clientTab === 'consultations' ? (
+                dossier?.consultations?.length ? (
+                  <ul className="client-record-list">
+                    {dossier.consultations.map((consultation) => (
+                      <li key={consultation.id}>
+                        <span className="tnum">
+                          {new Date(consultation.createdAt).toLocaleString('ru-RU')}
+                        </span>
+                        <StatusBadge status={consultation.status} />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted">Консультаций нет. У гостей история собрана в заявках.</p>
+                )
+              ) : null}
+
+              {clientTab === 'timeline' ? (
+                timeline.length ? (
                   <ul className="client-timeline">
                     {timeline.map((item, index) => (
                       <li key={`${item.type}-${item.at}-${index}`}>
-                        <time>{new Date(item.at).toLocaleString('ru-RU')}</time>
+                        <time className="tnum">{new Date(item.at).toLocaleString('ru-RU')}</time>
                         <strong>{item.title}</strong>
                         {item.meta ? <StatusBadge status={item.meta} /> : null}
                       </li>
                     ))}
                   </ul>
-                </>
+                ) : (
+                  <p className="muted">Событий пока нет.</p>
+                )
+              ) : null}
+
+              {guestDossier?.contacts?.length ? (
+                <section>
+                  <h3>Обращения с сайта</h3>
+                  <ul className="client-record-list">
+                    {guestDossier.contacts.map((contact) => (
+                      <li key={contact.id}>
+                        <span>{contact.fullName}</span>
+                        <span className="muted">{contact.message?.slice(0, 60) || 'Без текста'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ) : null}
 
               <div className="client-action-row">
                 {profile.phone ? (
-                  <a href={`tel:${profile.phone}`}>
-                    <Button variant="secondary">Позвонить</Button>
+                  <a href={`tel:${profile.phone}`} className="btn btn-secondary">
+                    <Phone size={16} aria-hidden />
+                    Позвонить
                   </a>
                 ) : null}
                 {'email' in profile && profile.email ? (
-                  <a href={`mailto:${profile.email}`}>
-                    <Button variant="ghost">Написать</Button>
+                  <a href={`mailto:${profile.email}`} className="btn btn-ghost">
+                    <Send size={16} aria-hidden />
+                    Написать на почту
                   </a>
                 ) : profile.phone ? (
-                  <a href={`sms:${profile.phone}`}>
-                    <Button variant="ghost">Написать</Button>
+                  <a href={`sms:${profile.phone}`} className="btn btn-ghost">
+                    <Send size={16} aria-hidden />
+                    Написать SMS
                   </a>
                 ) : null}
                 <Button
@@ -429,11 +492,12 @@ export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProp
                     void navigate('/booking');
                   }}
                 >
+                  <CalendarPlus size={16} aria-hidden />
                   Создать запись
                 </Button>
               </div>
             </div>
-          )}
+          ) : null}
         </Card>
       </div>
     </div>

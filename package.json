@@ -15,9 +15,17 @@
     "test:frontend": "npm --prefix frontend run test",
     "test:backend": "npm --prefix backend run test",
     "test:e2e": "playwright test",
-    "lint": "npm --prefix frontend run lint && npm --prefix backend run lint"
+    "lint": "npm --prefix frontend run lint && npm --prefix backend run lint",
+    "routes:inventory": "node backend/scripts/list-api-routes.mjs --write",
+    "routes:check": "node backend/scripts/list-api-routes.mjs --check",
+    "openapi:sync": "node backend/scripts/sync-openapi.mjs",
+    "openapi:check": "node backend/scripts/sync-openapi.mjs --check"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.50.1",
     "concurrently": "^9.2.0"
   }

@@ -1,23 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../auth/AuthProvider';
 import { getClientDashboardSummary } from '../../../api/dashboard';
 import { resolveAdminRouteTitle } from '../../../config/adminRoutes';
 import { adminNavGroups, clientNavItems, managerNavItems } from '../../../config/dashboardNav';
-import { useAdminCommandPalette } from '../../../hooks/useAdminCommandPalette';
+import { dashboardZoneFor } from '../../../config/dashboardPaths';
+import { useCommandPalette } from '../../../hooks/useCommandPalette';
 import { useTheme } from '../../../theme/ThemeProvider';
 import { AdminBreadcrumbs } from '../../admin/AdminBreadcrumbs';
-import { AdminCommandPalette } from '../../admin/AdminCommandPalette';
+import { CommandPalette } from '../../dashboard/CommandPalette';
 import { ClientBottomNav } from '../../client/ClientBottomNav';
 import { ClientOnboarding } from '../../client/ClientOnboarding';
 import { STORAGE_KEYS } from '../../../lib/storageKeys';
+import { bindDashboardChrome, DashboardContext, type DashboardContextValue } from './dashboardContext';
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardTopbar } from './DashboardTopbar';
 
-export type DashboardOutletContext = {
-  setPageTitle: (title: string) => void;
-  setBadges: (badges: Record<string, number>) => void;
-};
+export type { DashboardContextValue as DashboardOutletContext } from './dashboardContext';
 
 const routeTitles: Record<string, string> = {
   '/dashboard/client': 'Кабинет клиента',
@@ -31,6 +30,7 @@ const routeTitles: Record<string, string> = {
   '/dashboard/manager/calendar': 'Календарь',
   '/dashboard/manager/clients': 'Клиенты',
   '/dashboard/manager/contacts': 'Обращения с сайта',
+  '/dashboard/manager/ai-quality': 'Качество ИИ',
   '/dashboard/admin/profile': 'Профиль',
 };
 
@@ -40,7 +40,13 @@ export function DashboardShell() {
   const { user } = useAuth();
   const location = useLocation();
   const { setMode } = useTheme();
-  const commandPalette = useAdminCommandPalette();
+  const commandPalette = useCommandPalette(
+    location.pathname.startsWith('/dashboard/admin')
+      ? 'admin'
+      : location.pathname.startsWith('/dashboard/manager')
+        ? 'manager'
+        : null,
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pageTitle, setPageTitle] = useState('');
   const [badges, setBadges] = useState<Record<string, number>>({});
@@ -99,9 +105,14 @@ export function DashboardShell() {
   }, [location.pathname, isAdmin, isManager]);
 
   const title = pageTitle || defaultTitle;
-  const outletContext: DashboardOutletContext = { setPageTitle, setBadges };
+  const dashboardContext = useMemo<DashboardContextValue>(() => ({ setPageTitle, setBadges }), []);
+  // Bind during render so lazy pages can call setBadges on the first paint
+  // even if they received a different context copy than this shell.
+  bindDashboardChrome(dashboardContext);
+  useLayoutEffect(() => bindDashboardChrome(dashboardContext), [dashboardContext]);
   const roleLabel =
     user?.role === 'ADMINISTRATOR' ? 'Администратор' : user?.role === 'MANAGER' ? 'Менеджер' : 'Клиент';
+  const profilePath = `${dashboardZoneFor(location.pathname)}/profile`;
 
   return (
     <div className={`dashboard-shell${mobileOpen ? ' mobile-nav-open' : ''}${isAdmin ? ' admin-zone' : ''}${isClient && isClientUser ? ' has-client-bottom-nav' : ''}`}>
@@ -133,7 +144,7 @@ export function DashboardShell() {
           badges={badges}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
-          allowCollapse={false}
+          allowCollapse
         />
       ) : null}
 
@@ -141,21 +152,25 @@ export function DashboardShell() {
         <DashboardTopbar
           title={title}
           roleLabel={roleLabel}
+          profilePath={profilePath}
           onMenuClick={() => setMobileOpen(true)}
-          integrationIssues={badges.integrationIssues}
+          integrationIssues={user?.role === 'ADMINISTRATOR' ? badges.integrationIssues : undefined}
           adminZone={isAdmin}
-          onCommandPalette={() => commandPalette.setOpen(true)}
+          onCommandPalette={isAdmin || isManager ? () => commandPalette.setOpen(true) : undefined}
         />
-        <div className="dashboard-shell-content" id="dashboard-main">
+        <main className="dashboard-shell-content" id="dashboard-main">
           {isAdmin ? <AdminBreadcrumbs /> : null}
-          <Outlet context={outletContext} />
-        </div>
+          <DashboardContext.Provider value={dashboardContext}>
+            <Outlet context={dashboardContext} />
+          </DashboardContext.Provider>
+        </main>
       </div>
-      {isAdmin ? (
-        <AdminCommandPalette
+      {isAdmin || isManager ? (
+        <CommandPalette
           open={commandPalette.open}
           query={commandPalette.query}
           items={commandPalette.items}
+          placeholder={isAdmin ? 'Поиск разделов админки…' : 'Разделы, фильтры очереди, действия…'}
           onQueryChange={commandPalette.setQuery}
           onSelect={commandPalette.select}
           onClose={commandPalette.close}

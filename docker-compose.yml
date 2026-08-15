@@ -1,3 +1,26 @@
+x-backend-environment: &backend-environment
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+  DIAGNOSIS_ASYNC_ENABLED: "true"
+  NODE_ENV: production
+  SERVE_FRONTEND: "false"
+  STAFF_2FA_REQUIRED: "${STAFF_2FA_REQUIRED:-true}"
+  LLM_CLOUD_PII_ALLOWED: "false"
+  GUEST_SESSION_TTL_HOURS: "${GUEST_SESSION_TTL_HOURS:-24}"
+  DEMO_CLIENT_PASSWORD: ${DEMO_CLIENT_PASSWORD:-}
+  DEMO_MANAGER_PASSWORD: ${DEMO_MANAGER_PASSWORD:-}
+  DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-}
+  REQUEST_MESSAGE_UPLOAD_DIR: /app/data/uploads/request-messages
+  COMPLETION_DOCUMENT_UPLOAD_DIR: /app/data/uploads/completion-documents
+  PDF_BODY_FONT: /usr/share/fonts/dejavu/DejaVuSans.ttf
+  SMTP_HOST: ${SMTP_HOST:-mailpit}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_FROM: ${SMTP_FROM:-Автоассистент <noreply@autoservice.local>}
+  APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://127.0.0.1:8080}
+
 services:
   frontend:
     build:
@@ -24,29 +47,21 @@ services:
       retries: 10
       start_period: 10s
     restart: unless-stopped
+    mem_limit: 512m
     networks:
       - app_net
 
   backend:
+    image: car-service-ai-assistant-api:latest
     build:
       context: .
       dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379
-      DIAGNOSIS_ASYNC_ENABLED: "true"
-      NODE_ENV: production
-      SERVE_FRONTEND: "false"
-      REQUEST_MESSAGE_UPLOAD_DIR: /app/data/uploads/request-messages
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-Автоассистент <noreply@autoservice.local>}
-      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://127.0.0.1:8080}
+      <<: *backend-environment
+      RUN_BACKGROUND_JOBS: "false"
+      OTEL_SERVICE_NAME: car-service-api
     ports:
       - "${BACKEND_BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-3000}:3000"
     depends_on:
@@ -62,19 +77,59 @@ services:
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/live >/dev/null 2>&1 || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
       start_period: 30s
     restart: unless-stopped
+    mem_limit: 1g
+    networks:
+      - app_net
+    volumes:
+      - uploads_data:/app/data/uploads
+
+  worker:
+    image: car-service-ai-assistant-api:latest
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["node", "src/worker.js"]
+    env_file:
+      - ./backend/.env
+    environment:
+      <<: *backend-environment
+      RUN_BACKGROUND_JOBS: "true"
+      OTEL_SERVICE_NAME: car-service-worker
+    depends_on:
+      backend:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    init: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/worker-ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    mem_limit: 1g
     networks:
       - app_net
     volumes:
       - uploads_data:/app/data/uploads
 
   db:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
     env_file:
       - ./.env.proxmox
     environment:
@@ -91,23 +146,37 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    mem_limit: 1g
     networks:
       - app_net
 
   redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --requirepass
+      - ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    mem_limit: 256m
+    security_opt:
+      - no-new-privileges:true
     networks:
       - app_net
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.30.7@sha256:d5ecbb067db3705fa953d79e1b7f81ef84038df67aba6c52825d8c02a1ea748a
+    profiles: ["mail"]
     ports:
       - "${MAILPIT_SMTP_BIND:-127.0.0.1:1025}:1025"
       - "${MAILPIT_UI_BIND:-127.0.0.1:8025}:8025"
@@ -118,6 +187,7 @@ services:
 volumes:
   pgdata:
   uploads_data:
+  redisdata:
 
 networks:
   app_net:

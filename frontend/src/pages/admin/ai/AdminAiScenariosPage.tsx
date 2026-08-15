@@ -19,7 +19,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { Loader } from '../../../components/ui/Loader';
-import { resolveAdminBreadcrumbs } from '../../../config/adminRoutes';
+import { AdminTextDialog } from '../../../components/admin/AdminTextDialog';
 import { usePageMeta } from '../../../hooks/usePageMeta';
 
 export function AdminAiScenariosPage() {
@@ -34,6 +34,7 @@ export function AdminAiScenariosPage() {
   const [hintText, setHintText] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editItem, setEditItem] = useState<{ kind: 'question' | 'hint'; id: string; text: string } | null>(null);
 
   const selected = scenarios.find((s) => s.id === selectedId) || null;
 
@@ -133,7 +134,6 @@ export function AdminAiScenariosPage() {
       <PageHeader
         title="Сценарии консультации"
         description="Вопросы и подсказки, которые видит клиент в ИИ-диагностике."
-        breadcrumbs={resolveAdminBreadcrumbs('/dashboard/admin/ai/scenarios')}
       />
 
       {error ? <ErrorState message={error} onRetry={() => void load()} /> : null}
@@ -225,13 +225,7 @@ export function AdminAiScenariosPage() {
                     <li key={q.id}>
                       <span>{q.order}. {q.text}</span>
                       <div className="row gap-sm">
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            const text = window.prompt('Текст вопроса', q.text);
-                            if (text?.trim()) void updateScenarioQuestion(q.id, { text: text.trim() }).then(load);
-                          }}
-                        >
+                        <Button variant="ghost" onClick={() => setEditItem({ kind: 'question', id: q.id, text: q.text })}>
                           Изменить
                         </Button>
                         <Button variant="ghost" onClick={() => void deleteScenarioQuestion(q.id).then(load)}>
@@ -261,13 +255,7 @@ export function AdminAiScenariosPage() {
                     <li key={h.id}>
                       <span>{h.order}. {h.text}</span>
                       <div className="row gap-sm">
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            const text = window.prompt('Текст подсказки', h.text);
-                            if (text?.trim()) void updateScenarioHint(h.id, { text: text.trim() }).then(load);
-                          }}
-                        >
+                        <Button variant="ghost" onClick={() => setEditItem({ kind: 'hint', id: h.id, text: h.text })}>
                           Изменить
                         </Button>
                         <Button variant="ghost" onClick={() => void deleteScenarioHint(h.id).then(load)}>
@@ -289,6 +277,19 @@ export function AdminAiScenariosPage() {
         text="Вопросы и подсказки будут удалены без возможности восстановления."
         onCancel={() => setPendingDeleteId(null)}
         onConfirm={() => void confirmDelete()}
+      />
+      <AdminTextDialog
+        open={!!editItem}
+        title={editItem?.kind === 'hint' ? 'Изменить подсказку' : 'Изменить вопрос'}
+        fields={[{ name: 'text', label: 'Текст', value: editItem?.text || '', multiline: true }]}
+        onClose={() => setEditItem(null)}
+        onSubmit={async (values) => {
+          if (!editItem || !values.text?.trim()) return;
+          if (editItem.kind === 'question') await updateScenarioQuestion(editItem.id, { text: values.text.trim() });
+          else await updateScenarioHint(editItem.id, { text: values.text.trim() });
+          setEditItem(null);
+          await load();
+        }}
       />
     </div>
   );

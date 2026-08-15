@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { downloadApiFile } from '../../../api/client';
 import { getServiceRequest, listRequestMessages, sendRequestMessage } from '../../../api/dashboard';
 import { DiagnosticSummary } from '../../../components/consultation/DiagnosticSummary';
 import { StatusPipeline } from '../../../components/dashboard/StatusPipeline';
@@ -100,9 +101,18 @@ export function ClientRequestDetailPage() {
           { label: `№${formatRequestNumber(request.id)}` },
         ]}
         actions={
-          <a className="btn btn-secondary" href={`/api/service-requests/${request.id}/export.pdf`} download>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() =>
+              void downloadApiFile(
+                `/api/service-requests/${request.id}/export.pdf`,
+                `zayavka-${request.id.slice(0, 8)}.pdf`,
+              )
+            }
+          >
             Скачать PDF
-          </a>
+          </Button>
         }
       />
 

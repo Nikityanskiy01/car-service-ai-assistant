@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { flushSync } from 'react-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AuthUser } from '../../types/auth';
@@ -7,10 +8,17 @@ import { FormField } from '../../components/forms/FormField';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { dashboardHomeFor } from '../../config/dashboardPaths';
 import { claimGuestConsultationSessionIfPresent } from '../../features/consultations/claimGuestSession';
 import { usePageMeta } from '../../hooks/usePageMeta';
 
 const RESEND_COOLDOWN_SEC = 60;
+
+type VerifyEmailLocationState = {
+  justRegistered?: boolean;
+  message?: string;
+  maskedEmail?: string;
+};
 
 export function VerifyEmailPage() {
   usePageMeta({
@@ -19,16 +27,19 @@ export function VerifyEmailPage() {
   });
 
   const [params] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { setUser } = useAuth();
+  const locationState = (location.state as VerifyEmailLocationState | null) ?? null;
 
   const [email, setEmail] = useState(params.get('email') || '');
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(locationState?.message ?? null);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(locationState?.justRegistered ? RESEND_COOLDOWN_SEC : 0);
+  const emailLocked = Boolean(locationState?.justRegistered && email.trim());
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -56,9 +67,9 @@ export function VerifyEmailPage() {
         skipCsrf: true,
         skipAuthRefresh: true,
       });
-      setUser(data.user);
-      await claimGuestConsultationSessionIfPresent();
-      navigate('/dashboard/client', { replace: true });
+      flushSync(() => setUser(data.user));
+      if (data.user.role === 'CLIENT') await claimGuestConsultationSessionIfPresent();
+      navigate(dashboardHomeFor(data.user.role), { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось подтвердить email');
     } finally {
@@ -87,16 +98,21 @@ export function VerifyEmailPage() {
     }
   }
 
+  const maskedEmail = locationState?.maskedEmail;
+  const subtitle = locationState?.justRegistered
+    ? maskedEmail
+      ? `Мы отправили 6-значный код на ${maskedEmail}. Введите его ниже, чтобы завершить регистрацию.`
+      : 'Мы отправили 6-значный код на вашу почту. Введите его ниже, чтобы завершить регистрацию.'
+    : 'Мы отправили 6-значный код на вашу почту. Введите его ниже, чтобы завершить регистрацию.';
+
   return (
     <div className="fm-page fm-auth-page">
       <div className="fm-auth-shell fm-auth-shell--narrow">
         <section className="fm-auth-main" aria-labelledby="verify-title">
           <header className="fm-auth-head">
-            <p className="fm-pill">Регистрация</p>
+            <p className="fm-pill">{locationState?.justRegistered ? 'Регистрация' : 'Подтверждение'}</p>
             <h1 id="verify-title">Подтвердите email</h1>
-            <p className="fm-auth-subtitle">
-              Мы отправили 6-значный код на вашу почту. Введите его ниже, чтобы завершить регистрацию.
-            </p>
+            <p className="fm-auth-subtitle">{subtitle}</p>
           </header>
 
           <form className="fm-form fm-auth-form stack" onSubmit={onSubmit} noValidate>
@@ -109,10 +125,13 @@ export function VerifyEmailPage() {
                 name="email"
                 type="email"
                 required
+                readOnly={emailLocked}
                 autoComplete="email"
                 placeholder="client@example.com"
                 value={email}
+                className={emailLocked ? 'input-readonly' : undefined}
                 onChange={(e) => {
+                  if (emailLocked) return;
                   setEmail(e.target.value);
                   if (error) setError(null);
                 }}
@@ -129,6 +148,7 @@ export function VerifyEmailPage() {
                 maxLength={6}
                 placeholder="123456"
                 value={code}
+                autoFocus={locationState?.justRegistered}
                 onChange={(e) => {
                   setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
                   if (error) setError(null);

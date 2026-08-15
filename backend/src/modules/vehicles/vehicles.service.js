@@ -477,6 +477,10 @@ export async function deleteVehicle(clientId, vehicleId) {
       where: { vehicleId: { in: vehicleIds } },
       data: { vehicleId: null },
     }),
+    prisma.serviceBooking.updateMany({
+      where: { vehicleId: { in: vehicleIds } },
+      data: { vehicleId: null },
+    }),
     prisma.clientVehicle.deleteMany({ where: { id: { in: vehicleIds }, clientId } }),
   ]);
 
