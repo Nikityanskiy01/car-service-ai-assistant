@@ -1,0 +1,243 @@
+/* Admin — booking capacity, command palette, heatmap (overview/ops in sibling files) */
+
+.booking-capacity-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.booking-capacity-day {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  font-size: 0.82rem;
+}
+
+.booking-capacity-bar {
+  width: 100%;
+  height: 4.5rem;
+  border-radius: 10px;
+  background: var(--color-muted);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.booking-capacity-fill {
+  width: 100%;
+  background: var(--color-primary);
+  border-radius: 10px 10px 0 0;
+}
+
+.booking-audit-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.booking-audit-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+}
+
+.booking-audit-list ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+}
+
+.client-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.client-timeline li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.client-timeline time {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.command-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgb(15 23 42 / 0.45);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: start center;
+  padding: 12vh 1rem 1rem;
+}
+
+.command-palette {
+  width: min(100%, 36rem);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: 0 24px 60px rgb(15 23 42 / 0.2);
+  overflow: hidden;
+}
+
+.command-palette-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.command-palette-input-row input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: inherit;
+}
+
+.command-palette-input-row kbd,
+.dashboard-command-trigger kbd {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-muted);
+  color: var(--color-text-secondary);
+}
+
+.command-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.command-palette-list button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.command-palette-list button:hover {
+  background: var(--color-muted);
+}
+
+.command-palette-list em {
+  font-style: normal;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.command-palette-empty {
+  padding: 1rem;
+  color: var(--color-text-secondary);
+}
+
+.dashboard-command-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dashboard-command-trigger:hover {
+  border-color: var(--color-primary);
+  color: inherit;
+}
+
+.eval-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--color-muted);
+}
+
+.eval-badge.is-ok {
+  background: color-mix(in srgb, #16a34a 15%, var(--color-surface));
+  color: #15803d;
+}
+
+.eval-badge.is-bad {
+  background: color-mix(in srgb, #dc2626 15%, var(--color-surface));
+  color: #b91c1c;
+}
+
+.activity-heatmap {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+  gap: 0.25rem;
+  align-items: end;
+  height: 5rem;
+  margin-top: 0.75rem;
+}
+
+.activity-heatmap-cell {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  height: 100%;
+  font-size: 0.65rem;
+  color: var(--color-text-secondary);
+}
+
+.activity-heatmap-bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--color-primary);
+  align-self: end;
+}
+
+.activity-feed-rich li {
+  display: grid;
+  grid-template-columns: 11rem 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+:root[data-theme='dark'] .admin-zone .card,
+:root[data-theme='dark'] .admin-zone .dashboard-topbar {
+  background: color-mix(in srgb, var(--color-surface) 92%, #0f172a);
+}
+
+:root[data-theme='dark'] .admin-zone .command-palette {
+  background: #111827;
+  border-color: #334155;
+}
+
+@media (max-width: 900px) {
+  .admin-scenario-layout {
+    grid-template-columns: 1fr;
+  }
+}
+

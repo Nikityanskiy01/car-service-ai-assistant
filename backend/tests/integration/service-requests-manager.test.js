@@ -61,4 +61,117 @@ describe('service requests manager', () => {
     expect(patch.status).toBe(200);
     expect(patch.body.version).toBe(2);
   });
+
+  it('lists registered and guest clients without overflowing pageSize', async () => {
+    const { token: clientTok } = await registerClient({
+      email: 'cl-list@t.test',
+      fullName: 'Анна Ковалева',
+      phone: '+79991110001',
+    });
+    const me = await request(app).get('/api/users/me').set('Authorization', `Bearer ${clientTok}`);
+    const clientId = me.body.id;
+
+    const clientSession = await prisma.consultationSession.create({
+      data: { clientId, status: 'COMPLETED', progressPercent: 100 },
+    });
+    await prisma.serviceRequest.create({
+      data: {
+        clientId,
+        consultationSessionId: clientSession.id,
+        snapshotMake: 'Kia',
+        snapshotModel: 'Rio',
+        status: 'NEW',
+      },
+    });
+
+    const guestSession = await prisma.consultationSession.create({
+      data: { guestName: 'Игорь Петров', guestPhone: '79992220002', status: 'COMPLETED', progressPercent: 100 },
+    });
+    await prisma.serviceRequest.create({
+      data: {
+        guestName: 'Игорь Петров',
+        guestPhone: '79992220002',
+        consultationSessionId: guestSession.id,
+        snapshotMake: 'Ford',
+        snapshotModel: 'Focus',
+        status: 'IN_PROGRESS',
+      },
+    });
+
+    await seedManager();
+    const mgrLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'mgr2@test.local', password: 'Password123!ab' });
+    const mt = mgrLogin.body.accessToken;
+
+    const tooBig = await request(app)
+      .get('/api/service-requests?pageSize=200')
+      .set('Authorization', `Bearer ${mt}`);
+    expect(tooBig.status).toBe(400);
+
+    const list = await request(app)
+      .get('/api/service-requests/clients?pageSize=20&sort=name')
+      .set('Authorization', `Bearer ${mt}`);
+    expect(list.status).toBe(200);
+    expect(list.body.items.some((row) => row.clientId === clientId && row.name === 'Анна Ковалева')).toBe(true);
+    expect(list.body.items.some((row) => row.isGuest && row.phone === '79992220002')).toBe(true);
+
+    const guests = await request(app)
+      .get('/api/service-requests/clients?filter=guests')
+      .set('Authorization', `Bearer ${mt}`);
+    expect(guests.status).toBe(200);
+    expect(guests.body.items.every((row) => row.isGuest)).toBe(true);
+  });
+
+  it('returns kanban board columns with per-status totals beyond pageSize', async () => {
+    await seedManager();
+    const mgrLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'mgr2@test.local', password: 'Password123!ab' });
+    const mt = mgrLogin.body.accessToken;
+
+    for (let i = 0; i < 3; i++) {
+      const session = await prisma.consultationSession.create({
+        data: { guestName: `Гость ${i}`, guestPhone: `7999000000${i}`, status: 'COMPLETED', progressPercent: 100 },
+      });
+      await prisma.serviceRequest.create({
+        data: {
+          guestName: `Гость ${i}`,
+          guestPhone: `7999000000${i}`,
+          consultationSessionId: session.id,
+          snapshotMake: 'Kia',
+          snapshotModel: 'Rio',
+          status: 'NEW',
+        },
+      });
+    }
+    const progressSession = await prisma.consultationSession.create({
+      data: { guestName: 'В работе', guestPhone: '79991112233', status: 'COMPLETED', progressPercent: 100 },
+    });
+    await prisma.serviceRequest.create({
+      data: {
+        guestName: 'В работе',
+        guestPhone: '79991112233',
+        consultationSessionId: progressSession.id,
+        snapshotMake: 'Ford',
+        snapshotModel: 'Focus',
+        status: 'IN_PROGRESS',
+      },
+    });
+
+    const tooBig = await request(app)
+      .get('/api/service-requests/board?pageSize=80')
+      .set('Authorization', `Bearer ${mt}`);
+    expect(tooBig.status).toBe(400);
+
+    const board = await request(app)
+      .get('/api/service-requests/board?pageSize=2')
+      .set('Authorization', `Bearer ${mt}`);
+    expect(board.status).toBe(200);
+    expect(board.body.columns.NEW.items).toHaveLength(2);
+    expect(board.body.columns.NEW.total).toBe(3);
+    expect(board.body.columns.IN_PROGRESS.total).toBe(1);
+    expect(board.body.columns.IN_PROGRESS.items).toHaveLength(1);
+    expect(board.body.total).toBe(4);
+  });
 });

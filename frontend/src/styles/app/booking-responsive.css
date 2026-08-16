@@ -1,0 +1,57 @@
+/* Booking — wizard/detail breakpoints (split S22) */
+@media (min-width: 720px) {
+  .booking-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .booking-detail-hero-main {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .booking-detail-date {
+    flex-direction: row;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .booking-detail-date-num {
+    font-size: 1.5rem;
+  }
+
+  .booking-detail-date-month {
+    font-size: 0.82rem;
+  }
+
+  .booking-detail-date-relative {
+    margin-top: 0;
+    margin-left: 0.25rem;
+  }
+
+  .booking-detail-toolbar-row .booking-toolbar-btn.is-danger {
+    margin-left: 0;
+  }
+
+  .booking-detail-quick {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .booking-detail-quick {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .booking-wizard-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

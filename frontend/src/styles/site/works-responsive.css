@@ -1,0 +1,146 @@
+/* Public works — breakpoints (must stay last, split S28) */
+@media (max-width: 980px) {
+  .fm-works-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .fm-works-hero__visual {
+    min-height: 200px;
+  }
+
+  .fm-works-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fm-works-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fm-works-modal-media {
+    min-height: 220px;
+  }
+
+  .fm-works-modal-media img {
+    min-height: 220px;
+    max-height: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .fm-main {
+    width: min(var(--fm-max), calc(100% - 1.25rem));
+    padding: 1rem 0 2.75rem;
+  }
+
+  .fm-header-inner {
+    width: min(var(--fm-max), calc(100% - 1.25rem));
+    min-height: 60px;
+  }
+
+  .fm-grid-4,
+  .fm-grid-3,
+  .fm-stats,
+  .fm-about-contact-cards,
+  .fm-works-grid,
+  .fm-footer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fm-works-toolbar__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fm-works-sort {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .fm-works-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: none;
+  }
+
+  .fm-works-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .fm-works-filter {
+    flex-shrink: 0;
+  }
+
+  .fm-about-hero h1 {
+    max-width: none;
+  }
+
+  .fm-header-actions .fm-header-cta {
+    display: none;
+  }
+
+  .fm-hero h1 {
+    max-width: none;
+  }
+
+  .fm-btn,
+  .fm-nav a {
+    cursor: pointer;
+  }
+
+  .fm-svc-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .fm-svc-hero__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fm-svc-showcase__head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fm-svc-showcase__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fm-svc-card--featured {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+  }
+
+  .fm-svc-card--featured .fm-svc-card__media img {
+    aspect-ratio: 16 / 9;
+    height: auto;
+    min-height: 0;
+  }
+
+  .fm-svc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fm-svc-toolbar__top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fm-svc-sort {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .fm-svc-cta-banner {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .fm-svc-cta-banner__aside {
+    width: 100%;
+  }
+
+  .fm-svc-process__steps {
+    grid-template-columns: 1fr;
+  }
+}
+

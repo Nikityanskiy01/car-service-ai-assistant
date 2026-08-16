@@ -1,0 +1,6 @@
+pre-commit:
+  commands:
+    lint:
+      run: npm run lint
+    openapi:
+      run: npm run openapi:check

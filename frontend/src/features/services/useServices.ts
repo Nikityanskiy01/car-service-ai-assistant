@@ -6,7 +6,9 @@ import type { ServiceItem } from './types';
 
 export function useServices() {
   const state = useAsyncState<ServiceItem[]>(() =>
-    cachedPublicFetch('site-items:service', () => api('/content/site-items?kind=service')),
+    cachedPublicFetch('site-items:service', () => api<ServiceItem[]>('/content/site-items?kind=service')).catch(
+      (): ServiceItem[] => fallbackServices,
+    ),
   );
   const services = state.data?.length ? state.data : fallbackServices;
 

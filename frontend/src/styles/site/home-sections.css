@@ -1,0 +1,233 @@
+/* Public home — stats, cards, works, map (split S27) */
+/* Stats */
+.fm-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  padding: 0.35rem;
+  border: 1px solid var(--fm-border);
+  border-radius: var(--fm-radius);
+  background: var(--color-surface-stats);
+}
+
+.fm-stats > div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.95rem 1rem;
+  text-align: center;
+}
+
+.fm-stats strong {
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fm-orange-hot);
+}
+
+.fm-stats span {
+  color: var(--fm-muted);
+  font-size: 0.82rem;
+}
+
+/* Sections */
+.fm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.fm-section h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  letter-spacing: -0.03em;
+}
+
+.fm-section-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.fm-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.fm-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.fm-card {
+  background: var(--fm-surface);
+  border: 1px solid var(--fm-border);
+  border-radius: var(--fm-radius);
+  padding: 1.15rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.fm-card:hover {
+  border-color: rgb(251 146 60 / 0.28);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px var(--color-card-hover-shadow);
+}
+
+.fm-card-accent {
+  background:
+    linear-gradient(160deg, rgb(234 88 12 / 0.16), transparent 55%),
+    var(--fm-surface);
+  border-color: rgb(251 146 60 / 0.28);
+}
+
+.fm-card h2,
+.fm-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.fm-card p {
+  margin: 0;
+  color: var(--fm-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.fm-icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--fm-orange-hot);
+  background: rgb(234 88 12 / 0.12);
+  border: 1px solid rgb(251 146 60 / 0.22);
+}
+
+.fm-step-badge {
+  width: fit-content;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fm-orange-hot);
+}
+
+.fm-service-card .fm-btn {
+  margin-top: auto;
+  width: fit-content;
+}
+
+.fm-work-card {
+  background: var(--fm-surface);
+  border: 1px solid var(--fm-border);
+  border-radius: var(--fm-radius);
+  overflow: hidden;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+
+.fm-work-card:hover {
+  border-color: rgb(251 146 60 / 0.28);
+  transform: translateY(-2px);
+}
+
+.fm-work-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--color-image-placeholder);
+}
+
+.fm-work-body {
+  padding: 0.9rem 1rem 1.05rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.fm-work-body p,
+.fm-work-card > p {
+  margin: 0;
+  padding: 0;
+  font-weight: 650;
+  font-size: 0.95rem;
+}
+
+.fm-work-body span {
+  color: var(--fm-muted);
+  font-size: 0.82rem;
+}
+
+.fm-work-body .muted {
+  color: var(--fm-muted);
+}
+
+.fm-tag {
+  width: fit-content;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgb(251 146 60 / 0.3);
+  background: rgb(234 88 12 / 0.12);
+  color: var(--fm-orange-hot);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.fm-price {
+  color: var(--fm-text) !important;
+  font-weight: 700;
+  font-size: 0.95rem !important;
+}
+
+.fm-service-media .fm-btn {
+  width: fit-content;
+  margin-top: 0.35rem;
+}
+
+.fm-work-body strong {
+  color: var(--color-text-emphasis);
+  font-weight: 650;
+}
+
+.fm-location {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.fm-map {
+  position: relative;
+  min-height: 220px;
+  border-radius: var(--fm-radius);
+  overflow: hidden;
+}
+
+.fm-map-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.fm-map .fm-map-frame {
+  position: relative;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, var(--color-scrim-light), var(--color-scrim-fade)),
+    color-mix(in oklab, var(--fm-surface) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+

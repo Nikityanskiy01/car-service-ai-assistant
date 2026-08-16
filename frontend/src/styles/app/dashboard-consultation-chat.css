@@ -1,0 +1,157 @@
+/* Dashboard consultation — bubbles, typing, quick replies (page/composer in sibling files) */
+
+.chat-bubble {
+  max-width: min(88%, 520px);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 0.7rem 0.85rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  animation: fade-up 0.28s var(--ease-out) both;
+}
+
+.chat-bubble header {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: 0.35rem;
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+}
+
+.chat-bubble header time {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-family: var(--font-body, inherit);
+  letter-spacing: 0;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.chat-bubble-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  font-size: var(--text-sm);
+}
+
+.chat-bubble-assistant {
+  align-self: flex-start;
+  border-color: color-mix(in oklab, var(--color-border) 90%, transparent);
+  background: color-mix(in oklab, var(--color-surface-secondary) 45%, var(--color-surface));
+}
+
+.chat-bubble-user {
+  align-self: flex-end;
+  border-color: color-mix(in oklab, var(--color-primary) 35%, var(--color-border));
+  background: color-mix(in oklab, var(--color-primary) 12%, var(--color-surface));
+}
+
+.typing-indicator {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: fit-content;
+  background: var(--color-surface);
+}
+
+.typing-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: blink 1s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.quick-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-surface-secondary) 30%, transparent);
+}
+
+.quick-replies-label {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.quick-replies-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.quick-replies button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  min-height: 2.5rem;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background var(--motion-fast) ease, border-color var(--motion-fast) ease;
+  text-align: left;
+}
+
+.quick-replies button:hover:not(:disabled) {
+  background: var(--color-surface-secondary);
+  border-color: color-mix(in oklab, var(--color-primary) 35%, var(--color-border));
+}
+
+.quick-replies button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.consultation-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  margin-top: 0;
+  padding: 1rem 1.15rem 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.consultation-input.consultation-input-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+}
+
+.consultation-input.consultation-input-stack .textarea {
+  width: 100%;
+  min-height: 5.5rem;
+}
+
+.consultation-input.consultation-input-stack .consult-send-row {
+  width: 100%;
+}
+
+.consultation-input.consultation-input-stack .consult-send-row .btn {
+  width: 100%;
+  border-radius: var(--radius-md);
+  min-height: 44px;
+}
+

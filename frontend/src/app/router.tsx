@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate, Outlet, useOutletContext, useParams } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useLocation, useOutletContext, useParams } from 'react-router-dom';
 import { PageSuspenseFallback } from '../components/ui/PageSuspenseFallback';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
@@ -7,6 +7,7 @@ import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { RoleRoute } from '../auth/RoleRoute';
 import { useAuth } from '../auth/AuthProvider';
 import { dashboardHomeFor, dashboardProfileFor } from '../config/dashboardPaths';
+import { adminPathForManagerPath } from '../config/managerPaths';
 import type { UserRole } from '../types/auth';
 
 const HomePage = lazy(() => import('../pages/public/HomePage').then((m) => ({ default: m.HomePage })));
@@ -288,7 +289,7 @@ export const router = createBrowserRouter([
       {
         path: 'manager',
         errorElement: withSuspense(<DashboardErrorPage />),
-        element: <RoleSection roles={['MANAGER', 'ADMINISTRATOR']} />,
+        element: <ManagerZoneSection />,
         children: managerRoutes,
       },
       {
@@ -333,6 +334,20 @@ function ClientZoneSection() {
   }
   return (
     <RoleRoute roles={['CLIENT']}>
+      <Outlet context={outletContext} />
+    </RoleRoute>
+  );
+}
+
+function ManagerZoneSection() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const outletContext = useOutletContext();
+  if (user?.role === 'ADMINISTRATOR') {
+    return <Navigate to={adminPathForManagerPath(location.pathname + location.search + location.hash)} replace />;
+  }
+  return (
+    <RoleRoute roles={['MANAGER']}>
       <Outlet context={outletContext} />
     </RoleRoute>
   );

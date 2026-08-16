@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bookmark, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Select } from '../ui/Select';
-import { Tabs } from '../ui/Tabs';
 import { SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
+import { SLA_OVERDUE_LABEL } from '../../lib/requestSla';
 import { QUEUE_STATUSES } from '../../lib/queueStatuses';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import type { SavedQueueFilter } from '../../lib/savedQueueFilters';
@@ -89,7 +88,6 @@ export function ManagerQueueFilters({
   const [presetFormOpen, setPresetFormOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const presetInputRef = useRef<HTMLInputElement>(null);
-
   const debouncedSearch = useDebouncedValue(searchInput, 350);
 
   useEffect(() => {
@@ -100,7 +98,6 @@ export function ManagerQueueFilters({
     const next = debouncedSearch.trim();
     if (next === state.q) return;
     onPatch({ q: next || undefined, page: '1' });
-    // onPatch стабилен (useCallback в странице), state.q сравнивается выше.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
@@ -121,9 +118,8 @@ export function ManagerQueueFilters({
 
   const advancedCount = useMemo(
     () =>
-      [state.urgency, state.feedback, state.sla, state.source, state.period, state.hasDiagnosis].filter(
-        Boolean,
-      ).length,
+      [state.urgency, state.feedback, state.sla, state.source, state.period, state.hasDiagnosis].filter(Boolean)
+        .length,
     [state],
   );
 
@@ -156,7 +152,7 @@ export function ManagerQueueFilters({
     if (state.sla) {
       list.push({
         key: 'sla',
-        label: 'Просрочен SLA',
+        label: SLA_OVERDUE_LABEL,
         onRemove: () => onPatch({ sla: undefined, page: '1' }),
       });
     }
@@ -204,34 +200,50 @@ export function ManagerQueueFilters({
         >
           <input
             ref={searchRef}
+            className="input"
             type="search"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder="Клиент, телефон или автомобиль"
             aria-label="Поиск заявок"
           />
-          <kbd aria-hidden>/</kbd>
+          <kbd>/</kbd>
         </form>
 
-        <Tabs
-          value={state.scope}
-          onChange={(value) => onPatch({ scope: value === 'all' ? undefined : value, page: '1' })}
-          items={[
-            { id: 'all', label: 'Все' },
-            { id: 'mine', label: 'Мои' },
-          ]}
-        />
+        <button
+          type="button"
+          className={`queue-status-pill${state.scope === 'all' ? ' is-active' : ''}`}
+          aria-pressed={state.scope === 'all'}
+          onClick={() => onPatch({ scope: undefined, page: '1' })}
+        >
+          Все
+        </button>
+        <button
+          type="button"
+          className={`queue-status-pill${state.scope === 'mine' ? ' is-active' : ''}`}
+          aria-pressed={state.scope === 'mine'}
+          onClick={() => onPatch({ scope: 'mine', page: '1' })}
+        >
+          Мои
+        </button>
+        <button
+          type="button"
+          className={`queue-status-pill${state.view === 'list' ? ' is-active' : ''}`}
+          aria-pressed={state.view === 'list'}
+          onClick={() => onPatch({ view: undefined })}
+        >
+          Список
+        </button>
+        <button
+          type="button"
+          className={`queue-status-pill${state.view === 'kanban' ? ' is-active' : ''}`}
+          aria-pressed={state.view === 'kanban'}
+          onClick={() => onPatch({ view: 'kanban' })}
+        >
+          Канбан
+        </button>
 
-        <Tabs
-          value={state.view}
-          onChange={(value) => onPatch({ view: value === 'list' ? undefined : value })}
-          items={[
-            { id: 'list', label: 'Список' },
-            { id: 'kanban', label: 'Канбан' },
-          ]}
-        />
-
-        <div className="queue-filters-spacer" />
+        <span className="queue-filters-spacer" />
 
         <Button
           type="button"
@@ -239,13 +251,12 @@ export function ManagerQueueFilters({
           aria-expanded={advancedOpen}
           onClick={() => setAdvancedOpen((value) => !value)}
         >
-          <SlidersHorizontal size={16} aria-hidden />
+          <SlidersHorizontal size={16} />
           Фильтры
-          {advancedCount ? <span className="queue-filter-count tnum">{advancedCount}</span> : null}
+          {advancedCount ? <span className="queue-filter-count">{advancedCount}</span> : null}
         </Button>
-
         <Button type="button" variant="ghost" onClick={onRefresh} disabled={refreshing}>
-          <RefreshCw size={16} aria-hidden className={refreshing ? 'is-spinning' : undefined} />
+          <RefreshCw size={16} className={refreshing ? 'is-spinning' : undefined} />
           Обновить
         </Button>
       </div>
@@ -269,86 +280,45 @@ export function ManagerQueueFilters({
 
       {advancedOpen ? (
         <div className="queue-filters-advanced">
-          <label>
-            <span>Срочность ИИ</span>
-            <Select
-              value={state.urgency}
-              onChange={(event) => onPatch({ urgency: event.target.value || undefined, page: '1' })}
-            >
-              <option value="">Любая</option>
-              {Object.entries(URGENCY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label>
-            <span>Оценка диагноза</span>
-            <Select
-              value={state.feedback}
-              onChange={(event) => onPatch({ feedback: event.target.value || undefined, page: '1' })}
-            >
-              <option value="">Любая</option>
-              {Object.entries(FEEDBACK_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label>
-            <span>SLA</span>
-            <Select
-              value={state.sla}
-              onChange={(event) => onPatch({ sla: event.target.value || undefined, page: '1' })}
-            >
-              <option value="">Все заявки</option>
-              <option value="breached">Только просроченные</option>
-            </Select>
-          </label>
-          <label>
-            <span>Источник</span>
-            <Select
-              value={state.source}
-              onChange={(event) => onPatch({ source: event.target.value || undefined, page: '1' })}
-            >
-              <option value="">Любой</option>
-              {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label>
-            <span>Период</span>
-            <Select
-              value={state.period}
-              onChange={(event) => onPatch({ period: event.target.value || undefined, page: '1' })}
-            >
-              <option value="">Весь период</option>
-              {Object.entries(PERIOD_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-          <label>
-            <span>Диагноз ИИ</span>
-            <Select
-              value={state.hasDiagnosis}
-              onChange={(event) => onPatch({ hasDiagnosis: event.target.value || undefined, page: '1' })}
-            >
-              <option value="">Любой</option>
-              {Object.entries(DIAGNOSIS_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
+          <FilterSelect
+            label="Срочность ИИ"
+            value={state.urgency || 'any'}
+            onChange={(value) => onPatch({ urgency: value === 'any' ? undefined : value, page: '1' })}
+            options={[['any', 'Любая'], ...Object.entries(URGENCY_LABELS)]}
+          />
+          <FilterSelect
+            label="Оценка диагноза"
+            value={state.feedback || 'any'}
+            onChange={(value) => onPatch({ feedback: value === 'any' ? undefined : value, page: '1' })}
+            options={[['any', 'Любая'], ...Object.entries(FEEDBACK_LABELS)]}
+          />
+          <FilterSelect
+            label="Ответ клиенту"
+            value={state.sla || 'any'}
+            onChange={(value) => onPatch({ sla: value === 'any' ? undefined : value, page: '1' })}
+            options={[
+              ['any', 'Все заявки'],
+              ['breached', SLA_OVERDUE_LABEL],
+            ]}
+          />
+          <FilterSelect
+            label="Источник"
+            value={state.source || 'any'}
+            onChange={(value) => onPatch({ source: value === 'any' ? undefined : value, page: '1' })}
+            options={[['any', 'Любой'], ...Object.entries(SOURCE_LABELS)]}
+          />
+          <FilterSelect
+            label="Период"
+            value={state.period || 'any'}
+            onChange={(value) => onPatch({ period: value === 'any' ? undefined : value, page: '1' })}
+            options={[['any', 'Весь период'], ...Object.entries(PERIOD_LABELS)]}
+          />
+          <FilterSelect
+            label="Диагноз ИИ"
+            value={state.hasDiagnosis || 'any'}
+            onChange={(value) => onPatch({ hasDiagnosis: value === 'any' ? undefined : value, page: '1' })}
+            options={[['any', 'Любой'], ...Object.entries(DIAGNOSIS_LABELS)]}
+          />
         </div>
       ) : null}
 
@@ -365,7 +335,7 @@ export function ManagerQueueFilters({
                 aria-label={`Удалить пресет «${preset.label}»`}
                 onClick={() => onRemovePreset(preset.id)}
               >
-                <X size={12} aria-hidden />
+                <X size={14} />
               </button>
             )}
           </span>
@@ -382,6 +352,7 @@ export function ManagerQueueFilters({
           >
             <input
               ref={presetInputRef}
+              className="input"
               value={presetName}
               onChange={(event) => setPresetName(event.target.value)}
               placeholder="Название пресета"
@@ -398,12 +369,12 @@ export function ManagerQueueFilters({
         ) : (
           <button
             type="button"
-            className="queue-preset queue-preset-add"
+            className="queue-preset-add"
             onClick={() => setPresetFormOpen(true)}
             disabled={!chips.length}
             title={chips.length ? 'Сохранить текущий набор фильтров' : 'Сначала выберите фильтры'}
           >
-            <Bookmark size={13} aria-hidden />
+            <Bookmark size={14} />
             Сохранить фильтр
           </button>
         )}
@@ -431,6 +402,31 @@ export function ManagerQueueFilters({
         ) : null}
       </div>
     </section>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<[string, string]>;
+}) {
+  return (
+    <label>
+      {label}
+      <select className="select" value={value} aria-label={label} onChange={(event) => onChange(event.target.value)}>
+        {options.map(([optionValue, optionLabel]) => (
+          <option key={optionValue} value={optionValue}>
+            {optionLabel}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

@@ -1509,6 +1509,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingList' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1522,10 +1525,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/BookingCreate' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1540,10 +1546,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/BookingCreate' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1618,6 +1627,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Consultation' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1631,10 +1643,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ConsultationCreate' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Consultation' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1677,6 +1692,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CursorPage' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2264,6 +2282,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CursorPage' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3454,4 +3475,51 @@ components:
         instance: { type: string }
         error: { type: string }
         code: { type: string }
+    ConsultationCreate:
+      type: object
+      additionalProperties: true
+      properties:
+        serviceCategoryId: { type: string, format: uuid }
+    Consultation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        guestToken: { type: string, nullable: true }
+        status: { type: string }
+    BookingCreate:
+      type: object
+      required: [preferredAt]
+      properties:
+        preferredAt: { type: string, format: date-time }
+        notes: { type: string }
+    Booking:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string }
+        preferredAt: { type: string, format: date-time }
+    BookingList:
+      oneOf:
+        - type: array
+          items: { $ref: '#/components/schemas/Booking' }
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Booking' }
+            nextCursor: { type: string, nullable: true }
+    ServiceRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string }
+        number: { type: string }
+    CursorPage:
+      type: object
+      properties:
+        items: { type: array, items: { type: object } }
+        nextCursor: { type: string, nullable: true }
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
 

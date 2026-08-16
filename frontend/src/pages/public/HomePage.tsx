@@ -126,7 +126,9 @@ export function HomePage() {
   });
 
   const worksState = useAsyncState<CmsWork[]>(() =>
-    cachedPublicFetch('site-items:work', () => api('/content/site-items?kind=work')),
+    cachedPublicFetch('site-items:work', () => api<CmsWork[]>('/content/site-items?kind=work')).catch(
+      (): CmsWork[] => fallbackWorks,
+    ),
   );
   const { services, count: servicesCount } = useServices();
 

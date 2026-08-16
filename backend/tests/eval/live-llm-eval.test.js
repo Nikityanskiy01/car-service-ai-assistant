@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   parseLlmJson,
   resolveLiveEvalMode,
+  scoreLiveDiagnosis,
   scoreLiveExtraction,
   summarizeLiveEval,
 } from '../../src/modules/eval/liveLlmEval.js';
@@ -63,6 +64,35 @@ describe('live LLM eval scoring', () => {
     expect(report.ok).toBe(false);
     expect(report.passed).toBe(2);
     expect(summarizeLiveEval(report.cases, 0.6).ok).toBe(true);
+  });
+
+  it('принимает диагноз в допустимой полосе urgency', () => {
+    const scored = scoreLiveDiagnosis(
+      {
+        probable_causes: ['Диск', 'Колодки', 'Ступица'],
+        recommended_checks: ['Толщина дисков', 'Люфт ступицы'],
+        urgency: 'high',
+        confidence: 0.8,
+        summary: 'Проверить тормозные диски на биение.',
+      },
+      { minCauses: 3, minChecks: 2, minUrgency: 'medium', textIncludes: ['тормоз'], minConfidence: 0.4 },
+    );
+    expect(scored.ok).toBe(true);
+  });
+
+  it('режет слишком мягкий urgency для перегрева', () => {
+    const scored = scoreLiveDiagnosis(
+      {
+        probable_causes: ['Помпа', 'Термостат', 'Радиатор'],
+        recommended_checks: ['Уровень ОЖ', 'Крышка бачка'],
+        urgency: 'low',
+        confidence: 0.9,
+        summary: 'Перегрев двигателя.',
+      },
+      { minUrgency: 'high', minCauses: 3, minChecks: 2 },
+    );
+    expect(scored.ok).toBe(false);
+    expect(scored.issues.some((i) => i.startsWith('urgency expected >='))).toBe(true);
   });
 
   it('skips when LLM is off unless required', () => {

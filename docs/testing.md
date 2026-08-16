@@ -77,7 +77,17 @@ k6 run tests/perf/k6-consultation.js
 # BASE_URL=http://127.0.0.1:3000 JWT=<token> k6 run ...
 ```
 
-Живой eval бьёт extraction-промпт по 6 golden-кейсам (`backend/tests/eval/live-golden.json`), порог 80%. В PR не входит. Nightly: [`.github/workflows/llm-eval-nightly.yml`](../.github/workflows/llm-eval-nightly.yml) — нужен secret `LLM_API_KEY` (и опционально vars `LLM_MODEL` / `LLM_CLOUD_BASE_URL`). Без секрета job зелёный skip.
+Живой eval бьёт **extraction + diagnosis** по golden-сету (`backend/tests/eval/live-golden.json`, сейчас 10 кейсов), порог 80%. В PR не входит.
+
+Nightly: [`.github/workflows/llm-eval-nightly.yml`](../.github/workflows/llm-eval-nightly.yml) — cron 02:20 UTC и `workflow_dispatch`. **Обязателен** secret `LLM_API_KEY` (Settings → Secrets → Actions). Без секрета job **падает**, а не skip. Опциональные vars: `LLM_MODEL`, `LLM_EXTRACTION_MODEL`, `LLM_DIAGNOSIS_MODEL`, `LLM_CLOUD_BASE_URL`.
+
+Локально с ключом из `backend/.env`:
+
+```bash
+LIVE_LLM_EVAL_REQUIRED=true npm --prefix backend run test:eval:live
+```
+
+Отчёт: `backend/eval-live-report.json` (в gitignore). В Actions — job summary и artifact `live-llm-eval-log`.
 
 Порог в k6-скрипте: p95 ответа консультации. Для отчёта фиксируйте VU, длительность и факт прохождения.
 
@@ -103,7 +113,7 @@ GitHub Actions [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 | `test-backend` | Postgres 16 service + migrate + Jest |
 | `e2e` | Playwright + Chromium, LLM выключен |
 
-Отдельный workflow [`.github/workflows/llm-eval-nightly.yml`](../.github/workflows/llm-eval-nightly.yml) (cron 02:20 UTC + `workflow_dispatch`): живой extraction golden set. Нужен secret `LLM_API_KEY`.
+Отдельный workflow [`.github/workflows/llm-eval-nightly.yml`](../.github/workflows/llm-eval-nightly.yml) (cron 02:20 UTC + `workflow_dispatch`): живой extraction+diagnosis golden set. Secret `LLM_API_KEY` обязателен — без него job красный.
 
 ## Критический путь приёмки
 

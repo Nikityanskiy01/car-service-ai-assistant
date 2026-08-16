@@ -17,9 +17,15 @@ type Props = {
   request: ServiceRequestDetail;
   integrations: RequestIntegrationStatus | null;
   onFeedbackSaved: (feedback: NonNullable<ServiceRequestDetail['consultationSession']>['feedback']) => void;
+  calendarPath?: string;
 };
 
-export function RequestSummaryPanel({ request, integrations, onFeedbackSaved }: Props) {
+export function RequestSummaryPanel({
+  request,
+  integrations,
+  onFeedbackSaved,
+  calendarPath = '/dashboard/manager/calendar',
+}: Props) {
   const session = request.consultationSession;
   const diagnosis = getSessionDiagnosis(session);
   const confidence = getRequestConfidence(session);
@@ -116,7 +122,7 @@ export function RequestSummaryPanel({ request, integrations, onFeedbackSaved }: 
                 <li key={booking.id}>
                   <StatusBadge status={booking.status} />
                   <span>{new Date(booking.preferredAt).toLocaleString('ru-RU')}</span>
-                  <Link to="/dashboard/manager/calendar" className="muted">
+                  <Link to={calendarPath} className="muted">
                     Календарь →
                   </Link>
                 </li>

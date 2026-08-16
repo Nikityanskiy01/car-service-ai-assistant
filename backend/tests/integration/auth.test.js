@@ -221,4 +221,22 @@ describe('auth', () => {
       .send({ email, password: 'Password123!ab' });
     expect(loginAfter.status).toBe(200);
   });
+
+  it('повторный refresh тем же токеном сразу после ротации не выкидывает из сессии', async () => {
+    const { email } = await registerClient({ email: 'refresh-grace@t.test' });
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ identifier: email, password: 'Password123!ab' });
+    expect(login.status).toBe(200);
+    const rt = login.body.refreshToken;
+    expect(rt).toBeTruthy();
+
+    const first = await request(app).post('/api/auth/refresh').set('Cookie', `car_service_rt=${rt}`);
+    expect(first.status).toBe(200);
+    expect(first.body.accessToken).toBeTruthy();
+
+    const second = await request(app).post('/api/auth/refresh').set('Cookie', `car_service_rt=${rt}`);
+    expect(second.status).toBe(200);
+    expect(second.body.accessToken).toBeTruthy();
+  });
 });

@@ -46,9 +46,9 @@ describe('isDashboardPathAllowedFor', () => {
     expect(isDashboardPathAllowedFor('/dashboard/client', 'ADMINISTRATOR')).toBe(false);
   });
 
-  it('opens the manager zone to staff and the admin zone to administrators', () => {
+  it('keeps each role inside its own workspace', () => {
     expect(isDashboardPathAllowedFor('/dashboard/manager/requests', 'MANAGER')).toBe(true);
-    expect(isDashboardPathAllowedFor('/dashboard/manager/requests', 'ADMINISTRATOR')).toBe(true);
+    expect(isDashboardPathAllowedFor('/dashboard/manager/requests', 'ADMINISTRATOR')).toBe(false);
     expect(isDashboardPathAllowedFor('/dashboard/manager', 'CLIENT')).toBe(false);
     expect(isDashboardPathAllowedFor('/dashboard/admin', 'MANAGER')).toBe(false);
   });
@@ -70,6 +70,18 @@ describe('resolveRedirectFor', () => {
       '/dashboard/manager/requests?status=NEW',
     );
     expect(resolveRedirectFor('/booking', 'MANAGER')).toBe('/booking');
+  });
+
+  it('rewrites a manager next-link into the admin operations zone', () => {
+    expect(resolveRedirectFor('/dashboard/manager/requests?status=NEW', 'ADMINISTRATOR')).toBe(
+      '/dashboard/admin/operations/requests?status=NEW',
+    );
+    expect(resolveRedirectFor('/dashboard/manager/ai-quality', 'ADMINISTRATOR')).toBe(
+      '/dashboard/admin/ai/feedback',
+    );
+    expect(resolveRedirectFor('/dashboard/manager/requests/abc', 'ADMINISTRATOR')).toBe(
+      '/dashboard/admin/operations/requests/abc',
+    );
   });
 
   it('falls back to the role home without a target', () => {

@@ -6,6 +6,7 @@ import { resolveAdminRouteTitle } from '../../../config/adminRoutes';
 import { adminNavGroups, clientNavItems, managerNavItems } from '../../../config/dashboardNav';
 import { dashboardZoneFor } from '../../../config/dashboardPaths';
 import { useCommandPalette } from '../../../hooks/useCommandPalette';
+import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { useTheme } from '../../../theme/ThemeProvider';
 import { AdminBreadcrumbs } from '../../admin/AdminBreadcrumbs';
 import { CommandPalette } from '../../dashboard/CommandPalette';
@@ -15,6 +16,12 @@ import { STORAGE_KEYS } from '../../../lib/storageKeys';
 import { bindDashboardChrome, DashboardContext, type DashboardContextValue } from './dashboardContext';
 import { DashboardSidebar } from './DashboardSidebar';
 import { DashboardTopbar } from './DashboardTopbar';
+import { ManagerBottomNav } from '../../console/ManagerBottomNav';
+import { ManagerSidebar } from '../../console/ManagerSidebar';
+import { ManagerTopbar } from '../../console/ManagerTopbar';
+import { Toaster } from '../../console/ui/sonner';
+import { TooltipProvider } from '../../console/ui/tooltip';
+import { useManagerNavBadges } from '../../../hooks/useManagerNavBadges';
 
 export type { DashboardContextValue as DashboardOutletContext } from './dashboardContext';
 
@@ -57,6 +64,7 @@ export function DashboardShell() {
   const isManager = location.pathname.startsWith('/dashboard/manager');
   const isClient = location.pathname.startsWith('/dashboard/client');
   const isClientUser = user?.role === 'CLIENT';
+  const compactManagerNav = useMediaQuery('(max-width: 920px)');
 
   useEffect(() => {
     if (!isAdmin || user?.role !== 'ADMINISTRATOR') return;
@@ -110,12 +118,17 @@ export function DashboardShell() {
   // even if they received a different context copy than this shell.
   bindDashboardChrome(dashboardContext);
   useLayoutEffect(() => bindDashboardChrome(dashboardContext), [dashboardContext]);
+  useManagerNavBadges(isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR'), setBadges);
   const roleLabel =
     user?.role === 'ADMINISTRATOR' ? 'Администратор' : user?.role === 'MANAGER' ? 'Менеджер' : 'Клиент';
   const profilePath = `${dashboardZoneFor(location.pathname)}/profile`;
 
   return (
-    <div className={`dashboard-shell${mobileOpen ? ' mobile-nav-open' : ''}${isAdmin ? ' admin-zone' : ''}${isClient && isClientUser ? ' has-client-bottom-nav' : ''}`}>
+    <TooltipProvider>
+    <div
+      className={`dashboard-shell${mobileOpen ? ' mobile-nav-open' : ''}${isAdmin ? ' admin-zone' : ''}${isClient && isClientUser ? ' has-client-bottom-nav' : ''}${isManager ? ' has-manager-bottom-nav' : ''}`}
+      data-console={isManager ? 'manager' : isAdmin ? 'admin' : undefined}
+    >
       <a href="#dashboard-main" className="skip-link">
         К основному содержимому
       </a>
@@ -128,13 +141,12 @@ export function DashboardShell() {
           allowCollapse={false}
         />
       ) : null}
-      {isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
-        <DashboardSidebar
+      {isManager && !compactManagerNav && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
+        <ManagerSidebar
           items={managerNavItems}
           badges={badges}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
-          allowCollapse={false}
         />
       ) : null}
       {isAdmin && user?.role === 'ADMINISTRATOR' ? (
@@ -149,15 +161,25 @@ export function DashboardShell() {
       ) : null}
 
       <div className="dashboard-shell-main">
-        <DashboardTopbar
-          title={title}
-          roleLabel={roleLabel}
-          profilePath={profilePath}
-          onMenuClick={() => setMobileOpen(true)}
-          integrationIssues={user?.role === 'ADMINISTRATOR' ? badges.integrationIssues : undefined}
-          adminZone={isAdmin}
-          onCommandPalette={isAdmin || isManager ? () => commandPalette.setOpen(true) : undefined}
-        />
+        {isManager ? (
+          <ManagerTopbar
+            title={title}
+            roleLabel={roleLabel}
+            profilePath={profilePath}
+            onMenuClick={() => setMobileOpen(true)}
+            onCommandPalette={() => commandPalette.setOpen(true)}
+          />
+        ) : (
+          <DashboardTopbar
+            title={title}
+            roleLabel={roleLabel}
+            profilePath={profilePath}
+            onMenuClick={() => setMobileOpen(true)}
+            integrationIssues={user?.role === 'ADMINISTRATOR' ? badges.integrationIssues : undefined}
+            adminZone={isAdmin}
+            onCommandPalette={isAdmin ? () => commandPalette.setOpen(true) : undefined}
+          />
+        )}
         <main className="dashboard-shell-content" id="dashboard-main">
           {isAdmin ? <AdminBreadcrumbs /> : null}
           <DashboardContext.Provider value={dashboardContext}>
@@ -182,6 +204,14 @@ export function DashboardShell() {
           <ClientOnboarding open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
         </>
       ) : null}
+      {isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
+        <ManagerBottomNav
+          badges={badges}
+          onCommandPalette={() => commandPalette.setOpen(true)}
+        />
+      ) : null}
+      {isManager ? <Toaster /> : null}
     </div>
+    </TooltipProvider>
   );
 }

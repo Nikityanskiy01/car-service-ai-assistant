@@ -1,0 +1,129 @@
+/* Tailwind for manager console only: theme + utilities, no preflight. */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
+
+/* Map shadcn utilities to existing tokens. `@theme inline` inlines into
+   utilities and does not emit --color-* / --radius-* on :root, so tokens.css
+   stays the source of truth. Point background/border at --console-* to avoid
+   a cycle if a future non-inline theme rewrite lands. */
+@theme inline {
+  --color-background: var(--console-background);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text-primary);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-primary: var(--brand-primary);
+  --color-primary-foreground: var(--color-on-primary);
+  --color-secondary: var(--color-surface-secondary);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-muted: var(--color-surface-secondary);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-accent: var(--color-surface-secondary);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-destructive: var(--color-danger);
+  --color-border: var(--console-border);
+  --color-input: var(--console-input);
+  --color-ring: var(--brand-primary);
+  --font-sans: var(--font-body);
+}
+
+:root {
+  --console-background: var(--color-background);
+  --console-foreground: var(--color-text-primary);
+  --console-card: var(--color-surface);
+  --console-card-foreground: var(--color-text-primary);
+  --console-popover: var(--color-surface);
+  --console-popover-foreground: var(--color-text-primary);
+  --console-primary: var(--brand-primary);
+  --console-primary-foreground: var(--color-on-primary);
+  --console-secondary: var(--color-surface-secondary);
+  --console-secondary-foreground: var(--color-text-primary);
+  --console-muted: var(--color-surface-secondary);
+  --console-muted-foreground: var(--color-text-secondary);
+  --console-accent: var(--color-surface-secondary);
+  --console-accent-foreground: var(--color-text-primary);
+  --console-destructive: var(--color-danger);
+  --console-border: var(--color-border);
+  --console-input: var(--color-border);
+  --console-ring: var(--brand-primary);
+}
+
+[data-console] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tailwind is loaded without preflight. Reset UA chrome only inside the
+   manager/admin consoles so public pages and `.btn` (unlayered) stay intact. */
+@layer components {
+  [data-console] button {
+    appearance: none;
+    background-color: transparent;
+    border-width: 0;
+    color: inherit;
+  }
+
+  [data-console] ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  [data-console] .profile-2fa-warn-list {
+    list-style: disc;
+  }
+
+  [data-console] table {
+    border-collapse: collapse;
+  }
+
+  [data-console] input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  [data-console] textarea,
+  [data-console] select {
+    appearance: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-console] *,
+  [data-console] *::before,
+  [data-console] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 920px) {
+  [data-console='manager'].has-manager-bottom-nav .dashboard-shell-content {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  [data-console='manager'].has-manager-bottom-nav .dashboard-topbar-menu {
+    display: none;
+  }
+
+  [data-console='manager'] [data-sonner-toaster] {
+    --offset-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+    --mobile-offset-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  [data-console='manager'] [data-manager-tabbar] {
+    background: var(--console-card);
+    backdrop-filter: none;
+  }
+}
+
+[data-console='manager'] .manager-profile-security .card {
+  border: 1px solid var(--console-border);
+  box-shadow: none;
+  background: var(--console-card);
+}
+
+[data-console='manager'] .profile-avatar-lg.user-avatar-initials,
+[data-console='manager'] .profile-avatar-lg.user-avatar-image {
+  box-shadow: 0 0 0 2px var(--console-card), 0 0 0 3px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminNavGroups, managerNavItems } from '../config/dashboardNav';
 import { permissionForPath } from '../config/adminPermissions';
+import { SLA_OVERDUE_LABEL } from '../lib/requestSla';
 import { useAdminPermission } from './useAdminPermission';
 
 export type CommandItem = {
@@ -101,7 +102,7 @@ function buildManagerItems(): CommandItem[] {
     },
     {
       id: 'cmd-sla',
-      label: 'Просроченные по SLA',
+      label: SLA_OVERDUE_LABEL,
       group: 'Очередь',
       to: '/dashboard/manager/requests?sla=breached',
       keywords: 'sla просрочка breached горит',

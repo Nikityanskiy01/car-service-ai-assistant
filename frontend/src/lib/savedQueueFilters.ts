@@ -1,3 +1,5 @@
+import { SLA_OVERDUE_LABEL } from './requestSla';
+
 export type SavedQueueFilter = {
   id: string;
   label: string;
@@ -18,7 +20,7 @@ export const PRESET_QUEUE_FILTERS: SavedQueueFilter[] = [
   },
   {
     id: 'no-response',
-    label: 'Просрочен SLA',
+    label: SLA_OVERDUE_LABEL,
     params: { sla: 'breached' },
     builtIn: true,
   },

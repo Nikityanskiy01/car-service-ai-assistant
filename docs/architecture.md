@@ -38,12 +38,12 @@ flowchart TB
 | Слой | Технологии |
 |------|------------|
 | UI | React 19, Vite 7, TypeScript, React Router 7 |
-| API | Node.js 22, Express 4, Prisma 6 |
+| API | Node.js 22, Express 4, TypeScript (tsx), Prisma 6 |
 | Данные | PostgreSQL 16 + pgvector (HNSW cosine на case memory) |
-| Очередь диагноза | BullMQ + Redis 7 (AOF); worker-контейнер (`src/worker.js`), API с `RUN_BACKGROUND_JOBS=false` |
+| Очередь диагноза | BullMQ + Redis 7 (AOF); worker-контейнер (`src/worker.ts` через tsx), API с `RUN_BACKGROUND_JOBS=false` |
 | Наблюдаемость | Pino + `trace_id`, Prometheus `/api/metrics`, OpenTelemetry SDK (OTLP если задан `OTEL_EXPORTER_OTLP_ENDPOINT`) |
 | Auth | JWT в httpOnly-cookie + CSRF double-submit |
-| ИИ | `ollamaService.js` → Ollama native или OpenAI-compatible |
+| ИИ | `ollamaService.ts` → Ollama native или OpenAI-compatible |
 
 ## Репозиторий
 
@@ -54,11 +54,11 @@ flowchart TB
 | `frontend/src/pages/manager/` | Кабинет менеджера (админ переиспользует с `adminZone`) |
 | `frontend/src/pages/admin/` | Пульт, ИИ-студия, CMS, интеграции |
 | `frontend/src/config/dashboardNav.ts` | Навигация ролей |
-| `backend/src/app.js` | Express, helmet, CORS, CSRF, статика |
-| `backend/src/routes/api.js` | Монтирование `/api/*` |
+| `backend/src/app.ts` | Express, helmet, CORS, CSRF, статика |
+| `backend/src/routes/api.ts` | Монтирование `/api/*` |
 | `backend/src/modules/` | auth, consultations, serviceRequests, bookings, admin, analytics, integrations, … |
 | `backend/src/services/` | LLM, consultation flow, case memory, vision, очередь диагноза |
-| `backend/src/worker.js` | Отдельный процесс: диагноз BullMQ, outbox drain, SLA, reminders, guest TTL |
+| `backend/src/worker.ts` | Отдельный процесс: диагноз BullMQ, outbox drain, SLA, reminders, guest TTL |
 | `frontend/src/styles/` | CSS: `app/tokens.css` + `app/base.css` + feature-файлы кабинета; лендинг — `site/*.css` |
 | `backend/src/prompts/` | Промпты и JSON-схемы консультации |
 | `backend/prisma/` | schema, migrations, seed |

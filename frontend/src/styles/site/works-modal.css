@@ -1,0 +1,150 @@
+/* Public works — case modal (split S28) */
+/* Works modal */
+.fm-works-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: var(--color-modal-backdrop);
+  backdrop-filter: blur(6px);
+  animation: fm-rise 0.2s ease both;
+}
+
+.fm-works-modal {
+  position: relative;
+  width: min(920px, 100%);
+  max-height: min(90vh, 720px);
+  overflow: auto;
+  border-radius: calc(var(--fm-radius) + 4px);
+  border: 1px solid var(--fm-border);
+  background: var(--fm-surface);
+  box-shadow: var(--color-shadow-modal);
+}
+
+.fm-works-modal-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+  width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--fm-border);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--fm-bg) 65%, transparent);
+  color: var(--fm-text);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.fm-works-modal-close:hover {
+  border-color: rgb(251 146 60 / 0.4);
+  color: var(--fm-orange-hot);
+}
+
+.fm-works-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+}
+
+.fm-works-modal-media {
+  position: relative;
+  min-height: 280px;
+}
+
+.fm-works-modal-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  object-fit: cover;
+  background: var(--color-image-placeholder);
+}
+
+.fm-works-modal-badges {
+  position: absolute;
+  bottom: 0.85rem;
+  left: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.fm-works-modal-content {
+  padding: 1.35rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.fm-works-modal-content h2 {
+  margin: 0;
+  padding-right: 2rem;
+  font-size: 1.35rem;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.fm-works-modal-symptom {
+  margin: -0.35rem 0 0;
+  color: var(--fm-orange-hot);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.fm-works-modal-blocks {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.fm-works-modal-block {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--fm-border);
+  background: var(--fm-elev);
+}
+
+.fm-works-modal-block strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--fm-muted);
+}
+
+.fm-works-modal-block p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--fm-text);
+}
+
+.fm-works-modal-block-problem svg {
+  color: #f87171;
+  flex-shrink: 0;
+}
+
+.fm-works-modal-block-result svg {
+  color: var(--fm-orange-hot);
+  flex-shrink: 0;
+}
+
+.fm-works-modal-block-outcome svg {
+  color: #4ade80;
+  flex-shrink: 0;
+}
+
+.fm-works-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+

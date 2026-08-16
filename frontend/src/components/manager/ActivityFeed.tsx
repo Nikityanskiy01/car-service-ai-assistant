@@ -6,6 +6,7 @@ import { EmptyState } from '../ui/EmptyState';
 type Props = {
   items: ActivityItem[];
   requestBasePath?: string;
+  compact?: boolean;
 };
 
 const TYPE_LABELS: Record<ActivityItem['type'], string> = {
@@ -17,13 +18,22 @@ const TYPE_LABELS: Record<ActivityItem['type'], string> = {
   CRM_FAILED: 'CRM ошибка',
 };
 
-export function ActivityFeed({ items, requestBasePath = '/dashboard/manager/requests' }: Props) {
+export function ActivityFeed({
+  items,
+  requestBasePath = '/dashboard/manager/requests',
+  compact = false,
+}: Props) {
   if (!items.length) {
-    return <EmptyState title="Пока нет событий" description="Активность появится по мере работы." />;
+    return (
+      <EmptyState
+        title="Пока нет событий"
+        description={compact ? undefined : 'Активность появится по мере работы.'}
+      />
+    );
   }
 
   return (
-    <ul className="activity-feed">
+    <ul className={`activity-feed${compact ? ' is-compact' : ''}`}>
       {items.map((item) => (
         <li key={item.id} className={`activity-feed-item activity-${item.type.toLowerCase()}`}>
           <time dateTime={item.at} title={new Date(item.at).toLocaleString('ru-RU')} className="tnum">

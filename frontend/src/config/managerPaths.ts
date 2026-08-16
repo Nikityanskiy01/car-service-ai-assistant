@@ -36,3 +36,31 @@ const ADMIN_ZONE: ManagerZonePaths = {
 export function managerZonePaths(adminZone?: boolean): ManagerZonePaths {
   return adminZone ? ADMIN_ZONE : MANAGER_ZONE;
 }
+
+const MANAGER_TO_ADMIN: Array<[string, string]> = [
+  ['/dashboard/manager/requests', ADMIN_ZONE.requests],
+  ['/dashboard/manager/calendar', ADMIN_ZONE.calendar],
+  ['/dashboard/manager/clients', ADMIN_ZONE.clients],
+  ['/dashboard/manager/contacts', ADMIN_ZONE.contacts],
+  ['/dashboard/manager/ai-quality', ADMIN_ZONE.aiQuality],
+  ['/dashboard/manager/profile', '/dashboard/admin/profile'],
+  ['/dashboard/manager', ADMIN_ZONE.root],
+];
+
+/** Админ, попавший на URL менеджера, должен остаться в пульте. */
+export function adminPathForManagerPath(target: string): string {
+  const hashAt = target.indexOf('#');
+  const queryAt = target.indexOf('?');
+  const cutCandidates = [hashAt, queryAt].filter((index) => index >= 0);
+  const cut = cutCandidates.length ? Math.min(...cutCandidates) : -1;
+  const pathname = cut >= 0 ? target.slice(0, cut) : target;
+  const rest = cut >= 0 ? target.slice(cut) : '';
+  if (!pathname.startsWith('/dashboard/manager')) return target;
+
+  for (const [from, to] of MANAGER_TO_ADMIN) {
+    if (pathname === from || pathname.startsWith(`${from}/`)) {
+      return `${to}${pathname.slice(from.length)}${rest}`;
+    }
+  }
+  return `${ADMIN_ZONE.root}${rest}`;
+}

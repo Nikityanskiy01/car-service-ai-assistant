@@ -45,10 +45,8 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    ...(process.env.PW_MOBILE === '1'
-      ? [{ name: 'mobile-chrome', use: { ...devices['Pixel 7'] } }]
-      : []),
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /public-mobile-smoke/ },
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] }, testMatch: /public-mobile-smoke/ },
   ],
   webServer: [
     {

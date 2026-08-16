@@ -1,0 +1,183 @@
+/* Dashboard consultation — composer, photos, status banners (page/chat in sibling files) */
+
+.chat-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem 0.85rem;
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-surface-secondary) 22%, var(--color-surface));
+}
+
+.chat-composer-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.35rem;
+  padding: 0.3rem 0.35rem 0.3rem 0.3rem;
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 88%, transparent);
+  background: var(--color-surface);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, #000 6%, transparent),
+    inset 0 1px 0 color-mix(in oklab, #fff 6%, transparent);
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+.chat-composer-bar:focus-within {
+  border-color: color-mix(in oklab, var(--brand-primary) 45%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--brand-primary) 14%, transparent),
+    0 1px 2px color-mix(in oklab, #000 6%, transparent);
+}
+
+.chat-composer-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.35rem;
+  max-height: 8rem;
+  margin: 0;
+  padding: 0.5rem 0.2rem;
+  border: none;
+  background: transparent;
+  resize: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.chat-composer-input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.85;
+}
+
+.chat-composer-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chat-composer-attach {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  margin-bottom: 0.05rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.chat-composer-attach:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-surface-secondary) 70%, transparent);
+  color: var(--color-text-primary);
+}
+
+.chat-composer-attach:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chat-composer-send {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 0;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--brand-accent) 92%, #fff),
+    color-mix(in oklab, var(--brand-accent) 78%, #000)
+  );
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--brand-accent) 35%, transparent);
+  transition:
+    transform var(--motion-fast) ease,
+    opacity var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.chat-composer-send:not(:disabled):hover {
+  transform: scale(1.06);
+  box-shadow: 0 3px 12px color-mix(in oklab, var(--brand-accent) 45%, transparent);
+}
+
+.chat-composer-send:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.chat-composer-send:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.chat-composer-hint {
+  margin: 0;
+  padding: 0 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.photo-attachment--icon {
+  display: contents;
+}
+
+.photo-attachment--icon .chat-composer-attach .spin {
+  animation: spin 0.85s linear infinite;
+}
+
+.chat-composer .consult-disclaimer-inline {
+  margin: 0.15rem 0 0;
+  padding: 0.7rem 0.85rem;
+}
+
+
+.consult-mobile-tabs {
+  display: none;
+  margin-bottom: 0.85rem;
+}
+
+.consult-error-wrap {
+  margin-bottom: 0.85rem;
+}
+
+.consult-offline-banner {
+  border: 1px solid color-mix(in oklab, var(--color-warning) 45%, var(--color-border));
+  background: color-mix(in oklab, var(--color-warning) 14%, var(--color-surface));
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  margin-bottom: 0.75rem;
+}
+
+.consult-success-hint {
+  margin-top: 0.35rem;
+}
+
+.consult-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.consult-success-actions .btn {
+  text-decoration: none;
+}

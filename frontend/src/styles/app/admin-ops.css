@@ -1,0 +1,316 @@
+/* Admin — scenarios, CMS, analytics, jobs (overview/tools in sibling files) */
+
+.admin-scenario-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.admin-scenario-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-scenario-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  cursor: pointer;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.admin-scenario-item.active {
+  border-color: color-mix(in oklab, var(--brand-primary) 45%, var(--color-border));
+  background: color-mix(in oklab, var(--brand-primary) 8%, var(--color-surface));
+}
+
+.admin-scenario-item strong {
+  font-size: 0.9rem;
+}
+
+.admin-scenario-item span {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.admin-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.admin-inline-form input,
+.admin-inline-form textarea {
+  flex: 1;
+  min-width: 160px;
+}
+
+.admin-editable-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.admin-material-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.checkbox-row input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-primary);
+}
+
+.admin-color-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-color-row label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.admin-color-row input[type='color'] {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.analytics-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.analytics-bullets-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.analytics-bullet-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.analytics-bullet-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-muted);
+  overflow: hidden;
+}
+
+.analytics-bullet-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 70%, #fff));
+}
+
+.analytics-funnel {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.analytics-funnel-row {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.analytics-funnel-drop {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  text-align: right;
+}
+
+.analytics-funnel-drop.is-empty {
+  visibility: hidden;
+}
+
+.analytics-funnel-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.analytics-funnel-bar:hover,
+.analytics-funnel-bar.is-active {
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 18px rgb(15 23 42 / 0.08);
+}
+
+.analytics-dropoff-note {
+  margin-top: 1rem;
+  color: var(--color-text-secondary);
+}
+
+.analytics-verdict-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.analytics-verdict {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  background: var(--color-muted);
+}
+
+.analytics-verdict.correct {
+  background: color-mix(in srgb, #16a34a 15%, var(--color-surface));
+}
+
+.analytics-verdict.partial {
+  background: color-mix(in srgb, #ca8a04 15%, var(--color-surface));
+}
+
+.analytics-verdict.incorrect {
+  background: color-mix(in srgb, #dc2626 15%, var(--color-surface));
+}
+
+.analytics-bar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.analytics-bar-list li {
+  display: grid;
+  grid-template-columns: 8rem 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.analytics-bar-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--color-muted);
+  overflow: hidden;
+}
+
+.analytics-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+}
+
+.analytics-bar-fill.is-warn {
+  background: #ca8a04;
+}
+
+.analytics-export-actions {
+  margin: 0.75rem 0 1rem;
+}
+
+.analytics-export-preset {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.conflicts-inbox {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.conflict-inbox-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.conflict-inbox-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.conflict-status {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-muted);
+}
+
+.conflict-status.is-open {
+  background: color-mix(in srgb, #dc2626 12%, var(--color-surface));
+  color: #b91c1c;
+}
+
+.conflict-inbox-actions {
+  flex-wrap: wrap;
+}
+
+.job-list-bulk li {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.job-list-head {
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.5rem;
+}
+
+@media (max-width: 900px) {
+  .job-list-bulk li {
+    grid-template-columns: auto 1fr;
+    align-items: start;
+  }
+
+  .job-list-head {
+    display: none;
+  }
+}

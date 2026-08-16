@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { authAttemptKey, isOperationalApiPath } from '../../src/middleware/rateLimitConfig.js';
+import { authAttemptKey, isOperationalApiPath, skipGlobalRateLimit } from '../../src/middleware/rateLimitConfig.js';
 
 describe('rateLimitConfig', () => {
   it('ключ входа включает IP и логин', () => {
@@ -15,5 +15,11 @@ describe('rateLimitConfig', () => {
   it('не считает health/live в общий лимит', () => {
     expect(isOperationalApiPath({ originalUrl: '/api/live' })).toBe(true);
     expect(isOperationalApiPath({ originalUrl: '/api/auth/login' })).toBe(false);
+  });
+
+  it('не лимитирует чтение каталога и кабинета', () => {
+    expect(skipGlobalRateLimit({ method: 'GET', originalUrl: '/api/content/site-items' })).toBe(true);
+    expect(skipGlobalRateLimit({ method: 'HEAD', originalUrl: '/api/users/me' })).toBe(true);
+    expect(skipGlobalRateLimit({ method: 'POST', originalUrl: '/api/auth/login' })).toBe(false);
   });
 });

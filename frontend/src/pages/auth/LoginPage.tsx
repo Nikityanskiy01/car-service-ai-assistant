@@ -105,6 +105,7 @@ export function LoginPage() {
 
   function handleOtpSuccess(data: LoginResponse) {
     if ('requires2fa' in data && data.requires2fa) {
+      setUser(null);
       setChallengeToken(data.challengeToken);
       setTotpCode('');
       setUseBackupCode(false);
@@ -182,14 +183,15 @@ export function LoginPage() {
     }
   }
 
-  async function submitOtp() {
-    if (!otpToken || otpCode.length !== 6) return;
+  async function submitOtp(codeValue = otpCode) {
+    const code = String(codeValue || '').replace(/\D/g, '');
+    if (!otpToken || code.length !== 6 || loading) return;
     setLoading(true);
     setError(null);
     try {
       const data = await api<LoginResponse>('/auth/otp/verify', {
         method: 'POST',
-        body: { challengeToken: otpToken, code: otpCode },
+        body: { challengeToken: otpToken, code },
         skipCsrf: true,
         skipAuthRefresh: true,
       });
@@ -201,16 +203,17 @@ export function LoginPage() {
     }
   }
 
-  async function submitTotp() {
-    if (!challengeToken) return;
-    if (!useBackupCode && totpCode.replace(/\D/g, '').length !== 6) return;
-    if (useBackupCode && totpCode.trim().length < 8) return;
+  async function submitTotp(codeValue = totpCode) {
+    if (!challengeToken || loading) return;
+    const code = String(codeValue || '').trim();
+    if (!useBackupCode && code.replace(/\D/g, '').length !== 6) return;
+    if (useBackupCode && code.length < 8) return;
     setLoading(true);
     setError(null);
     try {
       const data = await api<{ user: AuthUser }>('/auth/login/2fa', {
         method: 'POST',
-        body: { challengeToken, code: totpCode.trim() },
+        body: { challengeToken, code },
         skipCsrf: true,
         skipAuthRefresh: true,
       });
@@ -339,7 +342,7 @@ export function LoginPage() {
                       setOtpCode(next);
                       if (error) setError(null);
                     }}
-                    onComplete={() => totpFormRef.current?.requestSubmit()}
+                    onComplete={(code) => void submitOtp(code)}
                   />
                 </FormField>
                 <button
@@ -388,7 +391,7 @@ export function LoginPage() {
                         setTotpCode(next);
                         if (error) setError(null);
                       }}
-                      onComplete={() => totpFormRef.current?.requestSubmit()}
+                      onComplete={(code) => void submitTotp(code)}
                     />
                   </FormField>
                 )}

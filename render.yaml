@@ -1,3 +1,9 @@
+# DEPRECATED — не использовать для деплоя.
+
+Канонический runtime: Docker Compose (`docker-compose.yml` + `.env.proxmox`).
+Этот файл оставлен как исторический черновик Render и не отражает worker, Redis AOF, pgvector и OTel.
+
+# yaml-language-server: $schema=https://render.com/schema/render.yaml.json
 services:
   - type: web
     name: car-service-ai-assistant-api
@@ -5,7 +11,7 @@ services:
     rootDir: backend
     buildCommand: npm ci && npm run prisma:generate
     startCommand: npm run prisma:migrate && npm run start
-    autoDeploy: true
+    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production

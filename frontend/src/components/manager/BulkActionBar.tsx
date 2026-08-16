@@ -43,34 +43,21 @@ export function BulkActionBar({
   return (
     <>
       <div className="bulk-action-bar" role="region" aria-label="Массовые действия">
-        <span className="bulk-action-count tnum">
-          Выбрано: {selectedCount}
-        </span>
+        <span className="bulk-action-count">Выбрано: {selectedCount}</span>
 
         <div className="bulk-action-group">
           <Button type="button" variant="secondary" disabled={busy} onClick={() => onAssign()}>
             Взять на себя
           </Button>
           <ManagerPicker value={managerId} onChange={setManagerId} allowEmpty placeholder="Другой менеджер" />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busy || !managerId}
-            onClick={() => onAssign(managerId)}
-          >
+          <Button type="button" variant="secondary" disabled={busy || !managerId} onClick={() => onAssign(managerId)}>
             Назначить
           </Button>
         </div>
 
         <div className="bulk-action-group">
           {STATUS_OPTIONS.map((status) => (
-            <Button
-              key={status}
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => onStatusChange(status)}
-            >
+            <Button key={status} type="button" variant="ghost" disabled={busy} onClick={() => onStatusChange(status)}>
               {SERVICE_REQUEST_STATUS_LABELS[status]}
             </Button>
           ))}
@@ -93,7 +80,7 @@ export function BulkActionBar({
           aria-label="Снять выбор (Esc)"
           title="Снять выбор (Esc)"
         >
-          <X size={16} aria-hidden />
+          <X size={16} />
         </button>
       </div>
 

@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { ServiceCard } from '../../components/services/ServiceCard';
 import { ServicesToolbar } from '../../components/services/ServicesToolbar';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { ErrorState } from '../../components/ui/ErrorState';
 import { Loader } from '../../components/ui/Loader';
 import { Reveal } from '../../components/ui/Reveal';
 import { SiteImage } from '../../components/ui/SiteImage';
@@ -26,7 +25,7 @@ export function ServicesPage() {
     preloadImage: siteImages.hero.services,
   });
 
-  const { services, loading, error } = useServices();
+  const { services, loading } = useServices();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<ServiceSort>('default');
@@ -75,9 +74,8 @@ export function ServicesPage() {
       </Reveal>
 
       {loading ? <Loader /> : null}
-      {error ? <ErrorState message={error} /> : null}
 
-      {!loading && !error ? (
+      {!loading ? (
         <>
           <Reveal delay={120}>
             <ServicesToolbar

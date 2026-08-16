@@ -11,7 +11,8 @@ export function CopyPhoneButton({ phone, label = 'Скопировать' }: { p
       type="button"
       variant="ghost"
       className="copy-phone-btn"
-      title={label}
+      title={label || 'Скопировать номер'}
+      aria-label={label || 'Скопировать номер'}
       onClick={() => {
         void copyText(phone).then((ok) => {
           if (ok) {
@@ -22,7 +23,7 @@ export function CopyPhoneButton({ phone, label = 'Скопировать' }: { p
       }}
     >
       <Copy size={14} aria-hidden />
-      {copied ? 'Скопировано' : label}
+      {copied ? (label ? 'Скопировано' : null) : label}
     </Button>
   );
 }

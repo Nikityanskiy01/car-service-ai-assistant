@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { ApiError } from '../api/errors';
 import { api, clearLocalAuthState, getCachedUser, getCsrfToken, setCachedUser } from '../api/client';
 import type { AuthContextValue } from './auth.types';
 import type { AuthUser, UserRole } from '../types/auth';
@@ -28,8 +29,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const me = await api<AuthUser>('/users/me');
       setUser(me);
-    } catch {
-      setUser(null);
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        setUser(null);
+      }
     }
   }, [setUser]);
 

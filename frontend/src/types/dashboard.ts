@@ -137,6 +137,7 @@ export type ClientDossier = {
     fullName: string;
     email: string;
     phone: string | null;
+    telegram?: string | null;
     createdAt: string;
   };
   vehicles: Array<{ make?: string; model?: string; year?: number }>;

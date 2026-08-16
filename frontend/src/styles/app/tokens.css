@@ -49,6 +49,67 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-fast: 160ms;
   --motion-base: 220ms;
+
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  --primary: var(--brand-primary);
+  --text: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
+  --border: var(--color-border);
+  --danger: var(--color-danger);
+  --fm-accent: var(--brand-primary);
+  --color-bg: var(--color-background);
+  --color-text: var(--color-text-primary);
+  --color-text-muted: var(--color-text-secondary);
+  --color-text-emphasis: var(--color-text-primary);
+  --color-brand-hero-start: var(--color-text-primary);
+  --color-legal-notice-text: var(--color-text-secondary);
+  --color-chip-text: var(--color-text-secondary);
+  --color-chip-count-text: var(--color-text-secondary);
+
+  --color-shell-glow-1: color-mix(in oklab, var(--brand-primary) 18%, transparent);
+  --color-shell-glow-2: color-mix(in oklab, var(--brand-primary) 8%, transparent);
+  --color-surface-glass: color-mix(in oklab, var(--color-background) 78%, transparent);
+  --color-surface-glass-strong: color-mix(in oklab, var(--color-background) 94%, transparent);
+  --color-surface-footer: color-mix(in oklab, var(--color-background) 88%, #000 12%);
+  --color-surface-panel: color-mix(in oklab, var(--color-surface) 92%, transparent);
+  --color-surface-stats: var(--color-surface);
+  --color-surface-gradient-top: var(--color-surface);
+  --color-surface-inset: rgb(0 0 0 / 0.22);
+  --color-surface-inset-hover: rgb(0 0 0 / 0.12);
+  --color-surface-sort: color-mix(in oklab, var(--color-text-primary) 4%, var(--color-surface));
+  --color-surface-sort-hover: color-mix(in oklab, var(--color-text-primary) 8%, var(--color-surface));
+  --color-panel-start: color-mix(in oklab, var(--color-surface) 86%, var(--brand-primary) 14%);
+  --color-panel-end: var(--color-surface);
+  --color-toolbar-start: color-mix(in oklab, var(--color-text-primary) 4%, var(--color-surface));
+  --color-toolbar-end: var(--color-surface);
+  --color-toolbar-footer-bg: color-mix(in oklab, var(--color-background) 40%, var(--color-surface));
+  --color-fade-edge: var(--color-surface);
+  --color-image-placeholder: var(--color-surface-secondary);
+  --color-chip-bg: color-mix(in oklab, var(--color-text-primary) 5%, transparent);
+  --color-btn-subtle-bg: color-mix(in oklab, var(--color-text-primary) 6%, transparent);
+  --color-btn-subtle-hover: color-mix(in oklab, var(--color-text-primary) 10%, transparent);
+  --color-control-bg: color-mix(in oklab, var(--color-text-primary) 7%, transparent);
+  --color-control-bg-hover: color-mix(in oklab, var(--color-text-primary) 12%, transparent);
+  --color-border-panel: var(--color-border);
+  --color-border-panel-faint: color-mix(in oklab, var(--color-border) 55%, transparent);
+  --color-border-panel-strong: color-mix(in oklab, var(--color-text-primary) 16%, transparent);
+  --color-grid-line: color-mix(in oklab, var(--color-border) 80%, transparent);
+  --color-shadow-panel: var(--shadow-md);
+  --color-shadow-card: var(--shadow-md);
+  --color-shadow-modal: var(--shadow-lg);
+  --color-card-hover-shadow: var(--shadow-md);
+  --color-not-found-panel-start: color-mix(in oklab, var(--brand-primary) 12%, var(--color-surface));
+  --color-not-found-panel-end: var(--color-surface);
+  --color-watermark-start: color-mix(in oklab, var(--brand-primary) 16%, transparent);
+
+  --color-scrim-light: rgb(11 13 18 / 0.2);
+  --color-scrim-fade: rgb(11 13 18 / 0.58);
+  --color-scrim-medium: rgb(11 13 18 / 0.42);
+  --color-scrim-heavy: rgb(11 13 18 / 0.82);
+  --color-text-on-media: #f4f4f5;
+  --color-text-on-media-muted: rgb(244 244 245 / 0.82);
+  --color-text-on-media-faint: rgb(244 244 245 / 0.62);
+  --color-modal-backdrop: rgb(0 0 0 / 0.72);
 }
 
 :root[data-theme='dark'] {
@@ -72,4 +133,20 @@
   --shadow-sm: 0 2px 8px rgb(0 0 0 / 0.08);
   --shadow-md: 0 8px 24px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.12);
+
+  --color-shell-glow-1: color-mix(in oklab, var(--brand-primary) 12%, transparent);
+  --color-shell-glow-2: color-mix(in oklab, var(--brand-primary) 6%, transparent);
+  --color-surface-glass: rgb(244 244 245 / 0.86);
+  --color-surface-glass-strong: rgb(244 244 245 / 0.96);
+  --color-surface-footer: #ffffff;
+  --color-surface-panel: rgb(255 255 255 / 0.92);
+  --color-surface-inset: #f4f4f5;
+  --color-surface-inset-hover: #ffffff;
+  --color-btn-subtle-bg: #ffffff;
+  --color-btn-subtle-hover: #f4f4f5;
+  --color-chip-bg: #ffffff;
+  --color-control-bg: #f4f4f5;
+  --color-control-bg-hover: #e4e4e7;
+  --color-border-panel-strong: rgb(24 24 27 / 0.12);
+  --color-toolbar-footer-bg: #f4f4f5;
 }

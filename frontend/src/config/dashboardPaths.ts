@@ -1,4 +1,5 @@
 import type { UserRole } from '../types/auth';
+import { adminPathForManagerPath } from './managerPaths';
 
 /** Стартовый экран кабинета для каждой роли. */
 export const DASHBOARD_HOME: Record<UserRole, string> = {
@@ -37,7 +38,7 @@ export function isDashboardPathAllowedFor(pathname: string, role: UserRole | nul
   if (!pathname.startsWith('/dashboard')) return true;
   if (!role) return false;
   if (pathname.startsWith('/dashboard/admin')) return role === 'ADMINISTRATOR';
-  if (pathname.startsWith('/dashboard/manager')) return role === 'MANAGER' || role === 'ADMINISTRATOR';
+  if (pathname.startsWith('/dashboard/manager')) return role === 'MANAGER';
   if (pathname.startsWith('/dashboard/client')) return role === 'CLIENT';
   return true;
 }
@@ -52,5 +53,8 @@ export function resolveRedirectFor(
 ): string {
   if (!target) return dashboardHomeFor(role);
   const pathname = target.split('?')[0].split('#')[0];
+  if (role === 'ADMINISTRATOR' && pathname.startsWith('/dashboard/manager')) {
+    return adminPathForManagerPath(target);
+  }
   return isDashboardPathAllowedFor(pathname, role) ? target : dashboardHomeFor(role);
 }

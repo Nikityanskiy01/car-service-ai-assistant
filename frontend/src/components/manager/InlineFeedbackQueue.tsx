@@ -6,9 +6,14 @@ import type { ConsultationFeedback, ServiceRequest } from '../../types/serviceRe
 type Props = {
   items: ServiceRequest[];
   onSaved?: () => void;
+  requestBasePath?: string;
 };
 
-export function InlineFeedbackQueue({ items, onSaved }: Props) {
+export function InlineFeedbackQueue({
+  items,
+  onSaved,
+  requestBasePath = '/dashboard/manager/requests',
+}: Props) {
   if (!items.length) return null;
 
   return (
@@ -16,7 +21,7 @@ export function InlineFeedbackQueue({ items, onSaved }: Props) {
       {items.map((item) => (
         <li key={item.id} className="inline-feedback-item">
           <div>
-            <Link to={`/dashboard/manager/requests/${item.id}`}>
+            <Link to={`${requestBasePath}/${item.id}`}>
               №{formatRequestNumber(item.id)}
             </Link>
             <span className="muted">

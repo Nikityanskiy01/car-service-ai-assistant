@@ -1,0 +1,12 @@
+frontend/src/styles/**
+frontend/dist
+backend/coverage
+backend/node_modules
+frontend/node_modules
+node_modules
+*.min.css
+docs/exports
+specs
+backend/prisma/migrations
+playwright-report
+test-results

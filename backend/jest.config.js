@@ -4,6 +4,7 @@ export default {
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.js'],
   transform: {},
+  extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
@@ -12,8 +13,9 @@ export default {
   testTimeout: 30000,
   collectCoverage: !!process.env.CI,
   collectCoverageFrom: [
-    'src/**/*.js',
-    '!src/server.js',
+    'src/**/*.ts',
+    '!src/server.ts',
+    '!src/types/**',
   ],
   coverageDirectory: 'coverage',
   coverageThreshold: {

@@ -1,52 +1,38 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CalendarPlus, Phone, RefreshCw, Send } from 'lucide-react';
-import { getClientDossier, getGuestDossier, listServiceRequests } from '../../api/dashboard';
-import { prefillBookingFromConsultation } from '../../features/services/prefill';
+import { CalendarPlus, Copy, Mail, Phone, RefreshCw, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  getClientDossier,
+  getGuestDossier,
+  listClients,
+  type ManagerClientFilter,
+  type ManagerClientRow,
+  type ManagerClientSort,
+} from '../../api/dashboard';
 import { managerZonePaths } from '../../config/managerPaths';
-import { PageHeader } from '../../components/layout/dashboard/PageHeader';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { CopyPhoneButton } from '../../components/ui/CopyPhoneButton';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { ErrorState } from '../../components/ui/ErrorState';
-import { Loader } from '../../components/ui/Loader';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import { Tabs } from '../../components/ui/Tabs';
+import { prefillBookingFromConsultation } from '../../features/services/prefill';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import { formatRequestNumber } from '../../lib/labels';
+import { copyText } from '../../lib/clipboard';
+import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
+import { Alert, AlertDescription, AlertTitle } from '../../components/console/ui/alert';
+import { Badge } from '../../components/console/ui/badge';
+import { Button } from '../../components/console/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/console/ui/card';
+import { Input } from '../../components/console/ui/input';
+import { ScrollArea } from '../../components/console/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/console/ui/select';
+import { Separator } from '../../components/console/ui/separator';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../../components/console/ui/sheet';
+import { Skeleton } from '../../components/console/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/console/ui/tabs';
 import type { ClientDossier, GuestDossier } from '../../types/dashboard';
 
-type ClientFilter = 'all' | 'active' | 'guests';
-type ClientSort = 'activity' | 'recent' | 'name';
 type ClientTab = 'history' | 'bookings' | 'consultations' | 'timeline';
 
-type ClientRow = {
-  key: string;
-  name: string;
-  phone: string;
-  email?: string;
-  clientId?: string;
-  guestPhone?: string;
-  activeRequests: number;
-  totalRequests: number;
-  lastActivityAt: string;
-  isGuest: boolean;
-};
-
-type TimelineEntry = {
-  at: string;
-  type: string;
-  title: string;
-  meta?: string;
-};
-
-type ManagerClientsPageProps = {
-  adminZone?: boolean;
-};
-
+const PAGE_SIZE = 20;
 const ACTIVE_STATUSES = ['NEW', 'IN_PROGRESS', 'SCHEDULED'];
 
 const currency = new Intl.NumberFormat('ru-RU', {
@@ -55,25 +41,50 @@ const currency = new Intl.NumberFormat('ru-RU', {
   maximumFractionDigits: 0,
 });
 
-export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProps) {
+function statusLabel(status: string) {
+  return SERVICE_REQUEST_STATUS_LABELS[status as keyof typeof SERVICE_REQUEST_STATUS_LABELS] || status;
+}
+
+function statusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'success' | 'warning' {
+  if (status === 'COMPLETED' || status === 'CONFIRMED') return 'success';
+  if (status === 'CANCELLED' || status === 'NO_SHOW') return 'destructive';
+  if (ACTIVE_STATUSES.includes(status) || status === 'PENDING') return 'warning';
+  return 'secondary';
+}
+
+function telegramHref(value: string) {
+  const handle = value.replace(/^@/, '').replace(/^https?:\/\/t\.me\//i, '');
+  return `https://t.me/${handle}`;
+}
+
+function formatActivity(iso: string | null) {
+  if (!iso) return 'Нет обращений';
+  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+export function ManagerClientsPage({ adminZone = false }: { adminZone?: boolean }) {
   usePageMeta({
     title: adminZone ? 'Клиенты — операции' : 'Клиенты',
     description: 'Карточки клиентов и история обращений.',
   });
   const paths = managerZonePaths(adminZone);
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [clients, setClients] = useState<ManagerClientRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<ManagerClientFilter>('all');
+  const [sort, setSort] = useState<ManagerClientSort>('activity');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [dossier, setDossier] = useState<ClientDossier | null>(null);
   const [guestDossier, setGuestDossier] = useState<GuestDossier | null>(null);
   const [dossierLoading, setDossierLoading] = useState(false);
   const [dossierError, setDossierError] = useState<string | null>(null);
-  const [clientFilter, setClientFilter] = useState<ClientFilter>('all');
-  const [clientSort, setClientSort] = useState<ClientSort>('activity');
   const [clientTab, setClientTab] = useState<ClientTab>('history');
 
   const debouncedSearch = useDebouncedValue(search, 200);
@@ -82,424 +93,467 @@ export function ManagerClientsPage({ adminZone = false }: ManagerClientsPageProp
     setLoading(true);
     setError(null);
     try {
-      const data = await listServiceRequests({ pageSize: 200, sort: 'createdAt', dir: 'desc' });
-      const map = new Map<string, ClientRow>();
-      for (const request of data.items) {
-        const phone = request.client?.phone || request.guestPhone || '';
-        const key = request.clientId || `guest:${phone || request.guestName || request.id}`;
-        const isActive = ACTIVE_STATUSES.includes(request.status);
-        const existing = map.get(key);
-        if (existing) {
-          existing.activeRequests += isActive ? 1 : 0;
-          existing.totalRequests += 1;
-          if (request.createdAt > existing.lastActivityAt) existing.lastActivityAt = request.createdAt;
-          continue;
-        }
-        map.set(key, {
-          key,
-          name: request.client?.fullName || request.guestName || 'Гость',
-          phone: phone || '',
-          email: request.client?.email || undefined,
-          clientId: request.clientId || undefined,
-          guestPhone: !request.clientId && phone ? phone : undefined,
-          activeRequests: isActive ? 1 : 0,
-          totalRequests: 1,
-          lastActivityAt: request.createdAt,
-          isGuest: !request.clientId,
-        });
-      }
-      setClients(Array.from(map.values()));
+      const data = await listClients({
+        q: debouncedSearch,
+        filter,
+        sort,
+        page,
+        pageSize: PAGE_SIZE,
+      });
+      setClients(data.items);
+      setTotal(data.total);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось загрузить клиентов');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch, filter, sort, page]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const filteredClients = useMemo(() => {
-    const query = debouncedSearch.trim().toLowerCase();
-    let list = clients;
-    if (clientFilter === 'active') list = list.filter((item) => item.activeRequests > 0);
-    if (clientFilter === 'guests') list = list.filter((item) => item.isGuest);
-    if (query) {
-      list = list.filter(
-        (item) =>
-          item.name.toLowerCase().includes(query) ||
-          item.phone.toLowerCase().includes(query) ||
-          (item.email || '').toLowerCase().includes(query),
-      );
-    }
-    return [...list].sort((a, b) => {
-      if (clientSort === 'name') return a.name.localeCompare(b.name, 'ru');
-      if (clientSort === 'recent') return b.lastActivityAt.localeCompare(a.lastActivityAt);
-      return b.activeRequests - a.activeRequests || a.name.localeCompare(b.name, 'ru');
-    });
-  }, [clients, debouncedSearch, clientFilter, clientSort]);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filter, sort]);
 
+  const selected = clients.find((item) => item.key === selectedKey) || null;
   const profile = dossier?.profile || guestDossier?.profile;
-  const requests = useMemo(
-    () => dossier?.requests || guestDossier?.requests || [],
-    [dossier, guestDossier],
-  );
-  const bookings = useMemo(
-    () => dossier?.bookings || guestDossier?.bookings || [],
-    [dossier, guestDossier],
-  );
+  const requests = useMemo(() => dossier?.requests || guestDossier?.requests || [], [dossier, guestDossier]);
+  const bookings = useMemo(() => dossier?.bookings || guestDossier?.bookings || [], [dossier, guestDossier]);
   const metrics = dossier?.metrics || guestDossier?.metrics;
+  const telegram = dossier?.profile?.telegram || '';
 
-  const timeline = useMemo<TimelineEntry[]>(() => {
+  const timeline = useMemo(() => {
     if (!profile) return [];
-    const items: TimelineEntry[] = [];
-    for (const item of requests) {
-      items.push({ at: item.createdAt, type: 'request', title: 'Заявка', meta: item.status });
-    }
-    for (const item of bookings) {
-      items.push({ at: item.preferredAt, type: 'booking', title: 'Запись', meta: item.status });
-    }
-    for (const item of dossier?.consultations || []) {
-      items.push({ at: item.createdAt, type: 'consultation', title: 'Консультация ИИ', meta: item.status });
-    }
-    for (const item of guestDossier?.contacts || []) {
-      items.push({ at: item.createdAt, type: 'contact', title: 'Обращение с сайта', meta: item.status });
-    }
+    const items = [
+      ...requests.map((item) => ({ at: item.createdAt, type: 'request', title: 'Заявка', meta: item.status })),
+      ...bookings.map((item) => ({ at: item.preferredAt, type: 'booking', title: 'Запись', meta: item.status })),
+      ...(dossier?.consultations || []).map((item) => ({
+        at: item.createdAt,
+        type: 'consultation',
+        title: 'Консультация ИИ',
+        meta: item.status,
+      })),
+      ...(guestDossier?.contacts || []).map((item) => ({
+        at: item.createdAt,
+        type: 'contact',
+        title: 'Обращение с сайта',
+        meta: item.status,
+      })),
+    ];
     return items.sort((a, b) => b.at.localeCompare(a.at));
   }, [profile, requests, bookings, dossier, guestDossier]);
 
-  const openClient = useCallback(async (client: ClientRow) => {
-    setSelectedKey(client.key);
-    setDossierLoading(true);
-    setDossierError(null);
-    setDossier(null);
-    setGuestDossier(null);
-    try {
-      if (client.clientId) {
-        setDossier(await getClientDossier(client.clientId));
-      } else if (client.guestPhone) {
-        setGuestDossier(await getGuestDossier(client.guestPhone));
-      } else {
-        setDossierError('У гостя нет телефона, историю подтянуть не из чего.');
+  const openClient = useCallback(
+    async (client: ManagerClientRow) => {
+      setSelectedKey(client.key);
+      if (!isDesktop) setSheetOpen(true);
+      setDossierLoading(true);
+      setDossierError(null);
+      setDossier(null);
+      setGuestDossier(null);
+      setClientTab('history');
+      try {
+        if (client.clientId) {
+          setDossier(await getClientDossier(client.clientId));
+        } else if (client.guestPhone) {
+          setGuestDossier(await getGuestDossier(client.guestPhone));
+        } else {
+          setDossierError('У гостя нет телефона, историю подтянуть не из чего.');
+        }
+      } catch (e) {
+        setDossierError(e instanceof Error ? e.message : 'Не удалось загрузить карточку клиента');
+      } finally {
+        setDossierLoading(false);
       }
-    } catch (e) {
-      setDossierError(e instanceof Error ? e.message : 'Не удалось загрузить карточку клиента');
-    } finally {
-      setDossierLoading(false);
-    }
-  }, []);
+    },
+    [isDesktop],
+  );
 
-  if (loading) {
-    return (
-      <div className="stack dashboard-page">
-        <PageHeader title="Клиенты" description="Контакты, автомобили и активные заявки." />
-        <div className="grid two">
-          <Card>
-            <Skeleton className="skeleton-line skeleton-line-lg" />
-            <Skeleton className="skeleton-line" />
-            <Skeleton className="skeleton-line" />
-            <Skeleton className="skeleton-line" />
-          </Card>
-          <Card>
-            <Skeleton className="skeleton-line skeleton-line-lg" />
-            <Skeleton className="skeleton-block" />
-          </Card>
-        </div>
-      </div>
-    );
+  async function copyPhone(phone: string) {
+    const ok = await copyText(phone);
+    if (ok) toast.success('Телефон скопирован');
+    else toast.error('Не удалось скопировать номер');
   }
 
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  return (
-    <div className="stack dashboard-page manager-clients-page">
-      <PageHeader
-        title="Клиенты"
-        description="Контакты, автомобили и активные заявки."
-        breadcrumbs={adminZone ? undefined : [
-                { label: 'Рабочий стол', to: paths.root },
-                { label: 'Клиенты' },
-              ]
-        }
-        actions={
-          <Button variant="ghost" onClick={() => void load()}>
-            <RefreshCw size={16} aria-hidden />
-            Обновить
-          </Button>
-        }
-      />
-
-      <div className="grid two manager-clients-grid">
-        <Card className="client-list-card">
-          <header className="card-section-header">
-            <h2>Список клиентов</h2>
-            <span className="muted tnum">{filteredClients.length} из {clients.length}</span>
-          </header>
-          <div className="filter-bar-row client-filters">
-            <Tabs
-              value={clientFilter}
-              onChange={(value) => setClientFilter(value as ClientFilter)}
-              items={[
-                { id: 'all', label: 'Все' },
-                { id: 'active', label: 'Активные' },
-                { id: 'guests', label: 'Гости' },
-              ]}
-            />
-            <select
-              className="select"
-              value={clientSort}
-              onChange={(e) => setClientSort(e.target.value as ClientSort)}
-              aria-label="Сортировка клиентов"
-            >
-              <option value="activity">По активности</option>
-              <option value="recent">По дате обращения</option>
-              <option value="name">По имени</option>
-            </select>
+  const dossierBody = (
+    <>
+      {dossierLoading ? (
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      ) : null}
+      {!dossierLoading && dossierError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Не удалось открыть карточку</AlertTitle>
+          <AlertDescription>{dossierError}</AlertDescription>
+        </Alert>
+      ) : null}
+      {!dossierLoading && !dossierError && !profile ? (
+        <p className="text-sm text-muted-foreground">Выберите клиента в списке слева.</p>
+      ) : null}
+      {!dossierLoading && profile ? (
+        <div className="flex flex-col gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-semibold tracking-tight">{profile.fullName}</h3>
+              {'isGuest' in profile && profile.isGuest ? <Badge variant="secondary">гость</Badge> : null}
+            </div>
+            <div className="mt-2 flex flex-col gap-1 text-sm">
+              {profile.phone ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <a href={`tel:${profile.phone}`} className="tabular-nums text-foreground no-underline hover:underline">
+                    {profile.phone}
+                  </a>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => void copyPhone(profile.phone as string)}>
+                    <Copy />
+                    Копировать
+                  </Button>
+                </span>
+              ) : (
+                <span className="text-muted-foreground">Телефон не указан</span>
+              )}
+              {'email' in profile && profile.email ? (
+                <a href={`mailto:${profile.email}`} className="text-muted-foreground no-underline hover:underline">
+                  {profile.email}
+                </a>
+              ) : null}
+              {'createdAt' in profile && profile.createdAt ? (
+                <span className="text-muted-foreground">
+                  Клиент с {new Date(profile.createdAt).toLocaleDateString('ru-RU')}
+                </span>
+              ) : null}
+            </div>
           </div>
-          <input
+
+          {metrics ? (
+            <div className="flex gap-3">
+              {[
+                { label: 'Заявки', value: String(metrics.requestsTotal ?? 0) },
+                { label: 'Завершено', value: String(metrics.completedRequests ?? 0) },
+                { label: 'LTV', value: currency.format((metrics.ltvMinor ?? 0) / 100) },
+              ].map((item) => (
+                <div key={item.label} className="min-w-0 flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2">
+                  <div className="text-xs text-muted-foreground">{item.label}</div>
+                  <div className="text-base font-semibold tabular-nums">{item.value}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {(dossier?.vehicles || []).length ? (
+            <div>
+              <h4 className="mb-2 text-sm font-medium">Автомобили</h4>
+              <ul className="flex flex-col gap-1 text-sm">
+                {dossier!.vehicles.map((vehicle, index) => (
+                  <li key={`${vehicle.make}-${vehicle.model}-${index}`}>
+                    {[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ')}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <Tabs value={clientTab} onValueChange={(value) => setClientTab(value as ClientTab)}>
+            <TabsList>
+              <TabsTrigger value="history">Заявки ({requests.length})</TabsTrigger>
+              <TabsTrigger value="bookings">Записи ({bookings.length})</TabsTrigger>
+              <TabsTrigger value="consultations">Консультации</TabsTrigger>
+              <TabsTrigger value="timeline">Таймлайн</TabsTrigger>
+            </TabsList>
+            <TabsContent value="history">
+              {requests.length ? (
+                <ul className="flex flex-col gap-1">
+                  {requests.map((request) => (
+                    <li key={request.id}>
+                      <Link
+                        to={`${paths.requests}/${request.id}`}
+                        className="flex flex-wrap items-center gap-2 rounded-md px-2 py-2 text-sm no-underline hover:bg-accent"
+                      >
+                        <span className="font-medium tabular-nums">№{formatRequestNumber(request.id)}</span>
+                        <Badge variant={statusVariant(request.status)}>{statusLabel(request.status)}</Badge>
+                        <span className="text-muted-foreground tabular-nums">
+                          {new Date(request.createdAt).toLocaleDateString('ru-RU')}
+                        </span>
+                        {'snapshotMake' in request && (request.snapshotMake || request.snapshotModel) ? (
+                          <span className="text-muted-foreground">
+                            {[request.snapshotMake, request.snapshotModel].filter(Boolean).join(' ')}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Заявок пока нет.</p>
+              )}
+            </TabsContent>
+            <TabsContent value="bookings">
+              {bookings.length ? (
+                <ul className="flex flex-col gap-2 text-sm">
+                  {bookings.map((booking) => (
+                    <li key={booking.id} className="flex flex-wrap items-center gap-2">
+                      <span className="tabular-nums">{new Date(booking.preferredAt).toLocaleString('ru-RU')}</span>
+                      <Badge variant={statusVariant(booking.status)}>{statusLabel(booking.status)}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Записей нет.</p>
+              )}
+            </TabsContent>
+            <TabsContent value="consultations">
+              {dossier?.consultations?.length ? (
+                <ul className="flex flex-col gap-2 text-sm">
+                  {dossier.consultations.map((consultation) => (
+                    <li key={consultation.id} className="flex flex-wrap items-center gap-2">
+                      <span className="tabular-nums">{new Date(consultation.createdAt).toLocaleString('ru-RU')}</span>
+                      <Badge variant={statusVariant(consultation.status)}>{statusLabel(consultation.status)}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Консультаций нет. У гостей история собрана в заявках.</p>
+              )}
+            </TabsContent>
+            <TabsContent value="timeline">
+              {timeline.length ? (
+                <ul className="flex flex-col gap-2 text-sm">
+                  {timeline.map((item, index) => (
+                    <li key={`${item.type}-${item.at}-${index}`} className="flex flex-wrap items-center gap-2">
+                      <time className="text-muted-foreground tabular-nums">
+                        {new Date(item.at).toLocaleString('ru-RU')}
+                      </time>
+                      <strong className="font-medium">{item.title}</strong>
+                      {item.meta ? <Badge variant={statusVariant(item.meta)}>{statusLabel(item.meta)}</Badge> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Событий пока нет.</p>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          {guestDossier?.contacts?.length ? (
+            <div>
+              <h4 className="mb-2 text-sm font-medium">Обращения с сайта</h4>
+              <ul className="flex flex-col gap-2 text-sm">
+                {guestDossier.contacts.map((contact) => (
+                  <li key={contact.id}>
+                    <span>{contact.fullName}</span>
+                    <span className="ml-2 text-muted-foreground">{contact.message?.slice(0, 60) || 'Без текста'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <Separator />
+          <div className="flex flex-wrap gap-2">
+            {profile.phone ? (
+              <Button asChild size="sm">
+                <a href={`tel:${profile.phone}`}>
+                  <Phone />
+                  Позвонить
+                </a>
+              </Button>
+            ) : null}
+            {telegram ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={telegramHref(telegram)} target="_blank" rel="noreferrer">
+                  <Send />
+                  Telegram
+                </a>
+              </Button>
+            ) : null}
+            {'email' in profile && profile.email ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={`mailto:${profile.email}`}>
+                  <Mail />
+                  Почта
+                </a>
+              </Button>
+            ) : profile.phone ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={`sms:${profile.phone}`}>
+                  <Send />
+                  SMS
+                </a>
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                prefillBookingFromConsultation({
+                  detail: null,
+                  fullName: profile.fullName,
+                  phone: profile.phone || undefined,
+                });
+                void navigate('/booking');
+              }}
+            >
+              <CalendarPlus />
+              Создать запись
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+
+  const listCard = (
+    <Card className="min-w-0 flex-1 xl:max-w-md">
+      <CardHeader>
+        <CardTitle>Список клиентов</CardTitle>
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {clients.length} из {total}
+        </span>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <Tabs
+          value={filter}
+          onValueChange={(value) => setFilter(value as ManagerClientFilter)}
+        >
+          <TabsList>
+            <TabsTrigger value="all">Все</TabsTrigger>
+            <TabsTrigger value="active">Активные</TabsTrigger>
+            <TabsTrigger value="guests">Гости</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="flex gap-2">
+          <Input
             type="search"
-            className="client-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Имя, телефон или email"
             aria-label="Поиск клиентов"
           />
-          {!filteredClients.length ? (
-            <EmptyState
-              title="Клиентов не найдено"
-              description={
-                search
-                  ? 'Уточните запрос или сбросьте фильтр.'
-                  : 'Клиенты появятся здесь после первых обращений.'
-              }
-            />
-          ) : (
-            <ul className="client-list">
-              {filteredClients.map((client) => (
-                <li key={client.key}>
-                  <button
-                    type="button"
-                    className={selectedKey === client.key ? 'active' : ''}
-                    aria-current={selectedKey === client.key ? 'true' : undefined}
-                    onClick={() => void openClient(client)}
-                  >
-                    <strong>{client.name}</strong>
-                    <span className="tnum">{client.phone || 'Телефон не указан'}</span>
-                    {client.isGuest ? <em className="guest-tag">гость</em> : null}
-                    {client.activeRequests ? (
-                      <em className="client-active-tag tnum">{client.activeRequests} в работе</em>
-                    ) : null}
-                  </button>
-                </li>
-              ))}
+          <Select value={sort} onValueChange={(value) => setSort(value as ManagerClientSort)}>
+            <SelectTrigger className="w-44 shrink-0" aria-label="Сортировка клиентов">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="activity">По активности</SelectItem>
+              <SelectItem value="recent">По дате обращения</SelectItem>
+              <SelectItem value="name">По имени</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {loading ? (
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+        ) : !clients.length ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {search ? 'Уточните запрос или сбросьте фильтр.' : 'Клиенты появятся здесь после первых обращений.'}
+          </p>
+        ) : (
+          <ScrollArea className="h-[min(28rem,55vh)]">
+            <ul className="flex list-none flex-col">
+              {clients.map((client) => {
+                const active = selectedKey === client.key;
+                return (
+                  <li key={client.key}>
+                    <button
+                      type="button"
+                      className={`flex w-full cursor-pointer flex-col items-start gap-1 rounded-lg px-3 py-2.5 text-left transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-accent active:scale-[0.99] ${active ? 'bg-primary/10' : ''}`}
+                      aria-current={active ? 'true' : undefined}
+                      onClick={() => void openClient(client)}
+                    >
+                      <span className="flex w-full items-center gap-2">
+                        <strong className="min-w-0 flex-1 truncate text-sm font-medium">{client.name}</strong>
+                        {client.isGuest ? <Badge variant="secondary">гость</Badge> : null}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {client.phone || 'Телефон не указан'} · {formatActivity(client.lastActivityAt)}
+                      </span>
+                      {client.activeRequests ? (
+                        <Badge variant="default">{client.activeRequests} в работе</Badge>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
-          )}
-        </Card>
+          </ScrollArea>
+        )}
+        {pageCount > 1 ? (
+          <div className="flex items-center justify-between text-sm">
+            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Назад
+            </Button>
+            <span className="tabular-nums text-muted-foreground">
+              {page} / {pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= pageCount}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Дальше
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
 
-        <Card className="client-detail-card">
-          <h2>Карточка клиента</h2>
-          {dossierLoading ? <Loader label="Загружаем историю…" /> : null}
-          {!dossierLoading && dossierError ? <div className="alert alert-error">{dossierError}</div> : null}
-          {!dossierLoading && !dossierError && (!selectedKey || !profile) ? (
-            <EmptyState title="Выберите клиента" description="Нажмите на строку в списке слева." />
-          ) : null}
-          {!dossierLoading && profile ? (
-            <div className="stack">
-              <div className="client-identity">
-                <div>
-                  <strong className="client-identity-name">{profile.fullName}</strong>
-                  {'isGuest' in profile && profile.isGuest ? <span className="guest-tag">гость</span> : null}
-                </div>
-                <div className="client-identity-contacts">
-                  {profile.phone ? (
-                    <span className="client-contact-line">
-                      <a href={`tel:${profile.phone}`} className="contact-link tnum">
-                        {profile.phone}
-                      </a>
-                      <CopyPhoneButton phone={profile.phone} label="" />
-                    </span>
-                  ) : (
-                    <span className="muted">Телефон не указан</span>
-                  )}
-                  {'email' in profile && profile.email ? (
-                    <a href={`mailto:${profile.email}`} className="contact-link">
-                      {profile.email}
-                    </a>
-                  ) : null}
-                  {'createdAt' in profile && profile.createdAt ? (
-                    <span className="muted">
-                      Клиент с {new Date(profile.createdAt).toLocaleDateString('ru-RU')}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {metrics ? (
-                <div className="client-metrics-row">
-                  <div>
-                    <span className="muted">Заявок</span>
-                    <strong className="tnum">{metrics.requestsTotal ?? 0}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">Завершено</span>
-                    <strong className="tnum">{metrics.completedRequests ?? 0}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">LTV</span>
-                    <strong className="tnum">{currency.format((metrics.ltvMinor ?? 0) / 100)}</strong>
-                  </div>
-                </div>
-              ) : null}
-
-              {(dossier?.vehicles || []).length ? (
-                <section>
-                  <h3>Автомобили</h3>
-                  <ul className="client-vehicle-list">
-                    {dossier!.vehicles.map((vehicle, index) => (
-                      <li key={`${vehicle.make}-${vehicle.model}-${index}`}>
-                        {[vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ')}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <Tabs
-                value={clientTab}
-                onChange={(value) => setClientTab(value as ClientTab)}
-                items={[
-                  { id: 'history', label: `Заявки (${requests.length})` },
-                  { id: 'bookings', label: `Записи (${bookings.length})` },
-                  { id: 'consultations', label: 'Консультации' },
-                  { id: 'timeline', label: 'Таймлайн' },
-                ]}
-              />
-
-              {clientTab === 'history' ? (
-                requests.length ? (
-                  <ul className="client-record-list">
-                    {requests.map((request) => (
-                      <li key={request.id}>
-                        <Link to={`${paths.requests}/${request.id}`}>
-                          <span className="tnum">№{formatRequestNumber(request.id)}</span>
-                          <StatusBadge status={request.status} />
-                          <span className="muted tnum">
-                            {new Date(request.createdAt).toLocaleDateString('ru-RU')}
-                          </span>
-                          {'snapshotMake' in request && (request.snapshotMake || request.snapshotModel) ? (
-                            <span className="muted">
-                              {[request.snapshotMake, request.snapshotModel].filter(Boolean).join(' ')}
-                            </span>
-                          ) : null}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="muted">Заявок пока нет.</p>
-                )
-              ) : null}
-
-              {clientTab === 'bookings' ? (
-                bookings.length ? (
-                  <ul className="client-record-list">
-                    {bookings.map((booking) => (
-                      <li key={booking.id}>
-                        <span className="tnum">{new Date(booking.preferredAt).toLocaleString('ru-RU')}</span>
-                        <StatusBadge status={booking.status} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="muted">Записей нет.</p>
-                )
-              ) : null}
-
-              {clientTab === 'consultations' ? (
-                dossier?.consultations?.length ? (
-                  <ul className="client-record-list">
-                    {dossier.consultations.map((consultation) => (
-                      <li key={consultation.id}>
-                        <span className="tnum">
-                          {new Date(consultation.createdAt).toLocaleString('ru-RU')}
-                        </span>
-                        <StatusBadge status={consultation.status} />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="muted">Консультаций нет. У гостей история собрана в заявках.</p>
-                )
-              ) : null}
-
-              {clientTab === 'timeline' ? (
-                timeline.length ? (
-                  <ul className="client-timeline">
-                    {timeline.map((item, index) => (
-                      <li key={`${item.type}-${item.at}-${index}`}>
-                        <time className="tnum">{new Date(item.at).toLocaleString('ru-RU')}</time>
-                        <strong>{item.title}</strong>
-                        {item.meta ? <StatusBadge status={item.meta} /> : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="muted">Событий пока нет.</p>
-                )
-              ) : null}
-
-              {guestDossier?.contacts?.length ? (
-                <section>
-                  <h3>Обращения с сайта</h3>
-                  <ul className="client-record-list">
-                    {guestDossier.contacts.map((contact) => (
-                      <li key={contact.id}>
-                        <span>{contact.fullName}</span>
-                        <span className="muted">{contact.message?.slice(0, 60) || 'Без текста'}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <div className="client-action-row">
-                {profile.phone ? (
-                  <a href={`tel:${profile.phone}`} className="btn btn-secondary">
-                    <Phone size={16} aria-hidden />
-                    Позвонить
-                  </a>
-                ) : null}
-                {'email' in profile && profile.email ? (
-                  <a href={`mailto:${profile.email}`} className="btn btn-ghost">
-                    <Send size={16} aria-hidden />
-                    Написать на почту
-                  </a>
-                ) : profile.phone ? (
-                  <a href={`sms:${profile.phone}`} className="btn btn-ghost">
-                    <Send size={16} aria-hidden />
-                    Написать SMS
-                  </a>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    prefillBookingFromConsultation({
-                      detail: null,
-                      fullName: profile.fullName,
-                      phone: profile.phone || undefined,
-                    });
-                    void navigate('/booking');
-                  }}
-                >
-                  <CalendarPlus size={16} aria-hidden />
-                  Создать запись
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </Card>
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Контакты, автомобили и активные заявки.</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
+          <RefreshCw />
+          Обновить
+        </Button>
       </div>
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Не удалось загрузить клиентов</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2">
+            <span>Проверьте соединение и повторите попытку.</span>
+            <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => void load()}>
+              Повторить
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+          {listCard}
+          {isDesktop ? (
+            <Card className="min-w-0 flex-1">
+              <CardHeader>
+                <CardTitle>Карточка клиента</CardTitle>
+              </CardHeader>
+              <CardContent>{dossierBody}</CardContent>
+            </Card>
+          ) : (
+            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+              <SheetContent className="overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>{profile?.fullName || selected?.name || 'Клиент'}</SheetTitle>
+                  <SheetDescription>История обращений, записи и контакты.</SheetDescription>
+                </SheetHeader>
+                <div className="px-4 pb-6">{dossierBody}</div>
+              </SheetContent>
+            </Sheet>
+          )}
+        </div>
+      )}
     </div>
   );
 }

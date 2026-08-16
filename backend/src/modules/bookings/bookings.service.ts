@@ -1,0 +1,387 @@
+import { decodeCursor, nextCursorFromPage } from '../../lib/cursorPage.js';
+import prisma from '../../lib/prisma.js';
+import { AppError } from '../../lib/errors.js';
+import { assertPreferredAtInBookingWindow } from '../../lib/bookingHours.js';
+import { isValidPhoneDigits, normalizePhone } from '../contact/contact.service.js';
+import {
+  notifyBookingCancelled,
+  notifyBookingConfirmed,
+  notifyBookingCreated,
+  notifyBookingRescheduled,
+} from '../notifications/clientNotify.service.js';
+
+const VEHICLE_SELECT = { id: true, make: true, model: true, year: true, licensePlate: true };
+
+const SERVICE_REQUEST_SELECT = {
+  id: true,
+  status: true,
+  assignedManagerId: true,
+  snapshotMake: true,
+  snapshotModel: true,
+  snapshotSymptoms: true,
+};
+
+const CLIENT_SELECT = { id: true, fullName: true, phone: true, email: true };
+
+const BOOKING_INCLUDE = {
+  client: { select: CLIENT_SELECT },
+  vehicle: { select: VEHICLE_SELECT },
+  serviceRequest: { select: SERVICE_REQUEST_SELECT },
+};
+
+const CLIENT_BOOKING_INCLUDE = {
+  vehicle: { select: VEHICLE_SELECT },
+  serviceRequest: {
+    select: {
+      id: true,
+      status: true,
+      snapshotMake: true,
+      snapshotModel: true,
+      snapshotSymptoms: true,
+    },
+  },
+};
+
+function buildGuestBookingNotes({ serviceTitle, categoryLabel, userNotes }: any) {
+  const parts = [];
+  if (serviceTitle) parts.push(`Услуга: ${String(serviceTitle).trim()}`);
+  if (categoryLabel) parts.push(`Раздел: ${String(categoryLabel).trim()}`);
+  const u = userNotes != null ? String(userNotes).trim() : '';
+  if (u) parts.push(u);
+  const text = parts.join('\n\n');
+  return text.length ? text.slice(0, 2000) : null;
+}
+
+export async function createGuestBooking({
+  preferredAt,
+  fullName,
+  phone,
+  email,
+  notes,
+  serviceTitle,
+  categoryLabel,
+}: any) {
+  const at = new Date(preferredAt);
+  if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
+  const slot = assertPreferredAtInBookingWindow(at);
+  if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
+
+  const name = String(fullName || '').trim();
+  if (!name) throw new AppError(400, 'Имя обязательно', 'BAD_REQUEST');
+
+  const digits = normalizePhone(phone);
+  if (!isValidPhoneDigits(digits)) {
+    throw new AppError(400, 'Укажите корректный номер телефона', 'BAD_REQUEST');
+  }
+
+  let guestEmail = email != null ? String(email).trim() : '';
+  guestEmail = guestEmail.length ? guestEmail.slice(0, 120) : null;
+  if (guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+    throw new AppError(400, 'Некорректный email', 'BAD_REQUEST');
+  }
+
+  const composedNotes = buildGuestBookingNotes({ serviceTitle, categoryLabel, userNotes: notes });
+
+  const booking = await prisma.serviceBooking.create({
+    data: {
+      clientId: null,
+      guestName: name.slice(0, 120),
+      guestPhone: digits,
+      guestEmail,
+      preferredAt: at,
+      notes: composedNotes,
+    },
+  });
+  await notifyBookingCreated(booking);
+  return booking;
+}
+
+export async function createBooking(user, { preferredAt, serviceRequestId, notes, vehicleId }: any) {
+  const at = new Date(preferredAt);
+  if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
+  const slot = assertPreferredAtInBookingWindow(at);
+  if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
+  if (serviceRequestId) {
+    const sr = await prisma.serviceRequest.findUnique({ where: { id: serviceRequestId } });
+    if (!sr || sr.clientId !== user.id) throw new AppError(400, 'Заявка не найдена или недоступна', 'BAD_REQUEST');
+  }
+  const resolvedVehicleId = vehicleId || null;
+  if (resolvedVehicleId) {
+    const vehicle = await prisma.clientVehicle.findFirst({
+      where: { id: resolvedVehicleId, clientId: user.id },
+      select: { id: true },
+    });
+    if (!vehicle) throw new AppError(400, 'Автомобиль не найден в гараже', 'BAD_REQUEST');
+  }
+  const booking = await prisma.serviceBooking.create({
+    data: {
+      clientId: user.id,
+      preferredAt: at,
+      serviceRequestId: serviceRequestId || null,
+      vehicleId: resolvedVehicleId,
+      notes: notes ? String(notes).slice(0, 2000) : null,
+    },
+    include: CLIENT_BOOKING_INCLUDE,
+  });
+  await notifyBookingCreated(booking);
+  return booking;
+}
+
+export async function getBooking(bookingId, user) {
+  const row = await prisma.serviceBooking.findUnique({
+    where: { id: bookingId },
+    include: BOOKING_INCLUDE,
+  });
+  if (!row) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
+  if (user.role === 'CLIENT') {
+    if (row.clientId !== user.id) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
+    return row;
+  }
+  if (user.role === 'MANAGER' || user.role === 'ADMINISTRATOR') return row;
+  throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
+}
+
+export async function listBookings(user, { limit = 50, offset = 0, cursor }: any = {}) {
+  const take = Math.min(limit, 100);
+  const decoded = decodeCursor(cursor);
+  const skip = cursor ? 0 : offset;
+  const staff = user.role === 'MANAGER' || user.role === 'ADMINISTRATOR';
+  if (!staff && user.role !== 'CLIENT') {
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
+  }
+  const where: any = staff ? {} : { clientId: user.id };
+  if (decoded) {
+    const t = new Date(decoded.t);
+    if (staff) {
+      where.OR = [
+        { preferredAt: { gt: t } },
+        { preferredAt: t, id: { gt: decoded.id } },
+      ];
+    } else {
+      where.AND = [
+        { clientId: user.id },
+        {
+          OR: [
+            { preferredAt: { lt: t } },
+            { preferredAt: t, id: { lt: decoded.id } },
+          ],
+        },
+      ];
+      delete where.clientId;
+    }
+  }
+  const items = await prisma.serviceBooking.findMany({
+    where,
+    orderBy: staff
+      ? [{ preferredAt: 'asc' }, { id: 'asc' }]
+      : [{ preferredAt: 'desc' }, { id: 'desc' }],
+    take,
+    skip,
+    include: staff ? BOOKING_INCLUDE : CLIENT_BOOKING_INCLUDE,
+  });
+  return {
+    items,
+    nextCursor: nextCursorFromPage(items, {
+      limit: take,
+      getCursor: (row) => ({ id: row.id, t: row.preferredAt.toISOString() }),
+    }),
+  };
+}
+
+export async function listBookingAudit(bookingId, user) {
+  if (user.role !== 'ADMINISTRATOR') {
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
+  }
+  const exists = await prisma.serviceBooking.findUnique({ where: { id: bookingId }, select: { id: true } });
+  if (!exists) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
+  const rows = await prisma.serviceBookingAuditLog.findMany({
+    where: { bookingId },
+    orderBy: { createdAt: 'desc' },
+    include: { actor: { select: { id: true, fullName: true, email: true } } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt.toISOString(),
+    actor: r.actor,
+    changes: r.changes,
+  }));
+}
+
+const bookingDetailInclude = BOOKING_INCLUDE;
+
+/**
+ * @param user
+ * @param body
+ */
+export async function patchClientBooking(bookingId, user, body) {
+  if (user.role !== 'CLIENT') throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
+
+  const prev = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
+  if (!prev) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
+  if (prev.clientId !== user.id) throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
+
+  if (body.status === 'CANCELLED') {
+    if (prev.status === 'CANCELLED') {
+      return prisma.serviceBooking.findUnique({
+        where: { id: bookingId },
+        include: bookingDetailInclude,
+      });
+    }
+    const cancelled = await prisma.serviceBooking.update({
+      where: { id: bookingId },
+      data: { status: 'CANCELLED' },
+      include: bookingDetailInclude,
+    });
+    await notifyBookingCancelled(cancelled);
+    return cancelled;
+  }
+
+  if (body.preferredAt) {
+    if (prev.status === 'CANCELLED' || prev.status === 'NO_SHOW' || prev.status === 'ARRIVED') {
+      throw new AppError(400, 'Эту запись нельзя перенести', 'BAD_REQUEST');
+    }
+
+    const at = new Date(body.preferredAt);
+    if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
+    const slot = assertPreferredAtInBookingWindow(at);
+    if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
+    if (at.getTime() <= Date.now()) {
+      throw new AppError(400, 'Выберите дату и время в будущем', 'BAD_REQUEST');
+    }
+    if (at.getTime() === prev.preferredAt.getTime()) {
+      return prisma.serviceBooking.findUnique({
+        where: { id: bookingId },
+        include: bookingDetailInclude,
+      });
+    }
+
+    /** @type */
+    const changes: any = {
+      preferredAt: { from: prev.preferredAt.toISOString(), to: at.toISOString() },
+    };
+    const data: any = { preferredAt: at };
+    if (prev.status === 'CONFIRMED') {
+      data.status = 'PENDING';
+      changes.status = { from: prev.status, to: 'PENDING' };
+    }
+
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.serviceBooking.update({
+        where: { id: bookingId },
+        data,
+        include: bookingDetailInclude,
+      });
+      await tx.serviceBookingAuditLog.create({
+        data: { bookingId, actorId: user.id, changes },
+      });
+      return updated;
+    });
+    await notifyBookingRescheduled(row);
+    return row;
+  }
+
+  throw new AppError(400, 'Клиент может отменить или перенести запись', 'BAD_REQUEST');
+}
+
+export async function patchBooking(bookingId, user, body) {
+  if (user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {
+    throw new AppError(403, 'Недостаточно прав для выполнения действия.', 'FORBIDDEN');
+  }
+
+  const prev = await prisma.serviceBooking.findUnique({ where: { id: bookingId } });
+  if (!prev) throw new AppError(404, 'Запрошенные данные не найдены.', 'NOT_FOUND');
+
+  /** @type */
+  const changes: any = {};
+  const data: any = {};
+
+  if (body.status !== undefined && body.status !== prev.status) {
+    data.status = body.status;
+    changes.status = { from: prev.status, to: body.status };
+  }
+
+  if (body.preferredAt !== undefined) {
+    const at = new Date(body.preferredAt);
+    if (Number.isNaN(at.getTime())) throw new AppError(400, 'Укажите корректную дату и время.', 'BAD_REQUEST');
+    const slot = assertPreferredAtInBookingWindow(at);
+    if (!slot.ok) throw new AppError(400, slot.message, 'BAD_REQUEST');
+    if (at.getTime() !== prev.preferredAt.getTime()) {
+      data.preferredAt = at;
+      changes.preferredAt = { from: prev.preferredAt.toISOString(), to: at.toISOString() };
+    }
+  }
+
+  if (body.notes !== undefined) {
+    const next =
+      body.notes == null || String(body.notes).trim() === '' ? null : String(body.notes).slice(0, 2000);
+    const prevNotes = prev.notes ?? null;
+    if (next !== prevNotes) {
+      data.notes = next;
+      changes.notes = { from: prevNotes, to: next };
+    }
+  }
+
+  if (!prev.clientId) {
+    if (body.guestName !== undefined) {
+      const n = String(body.guestName || '').trim().slice(0, 120);
+      if (!n) throw new AppError(400, 'Имя не может быть пустым', 'BAD_REQUEST');
+      if (n !== prev.guestName) {
+        data.guestName = n;
+        changes.guestName = { from: prev.guestName, to: n };
+      }
+    }
+    if (body.guestPhone !== undefined) {
+      const digits = normalizePhone(body.guestPhone);
+      if (!isValidPhoneDigits(digits)) {
+        throw new AppError(400, 'Некорректный телефон', 'BAD_REQUEST');
+      }
+      if (digits !== prev.guestPhone) {
+        data.guestPhone = digits;
+        changes.guestPhone = { from: prev.guestPhone, to: digits };
+      }
+    }
+    if (body.guestEmail !== undefined) {
+      let em = body.guestEmail == null ? '' : String(body.guestEmail).trim();
+      em = em.length ? em.slice(0, 120) : null;
+      if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+        throw new AppError(400, 'Некорректный email', 'BAD_REQUEST');
+      }
+      const prevEm = prev.guestEmail ?? null;
+      if (em !== prevEm) {
+        data.guestEmail = em;
+        changes.guestEmail = { from: prevEm, to: em };
+      }
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return prisma.serviceBooking.findUnique({
+      where: { id: bookingId },
+      include: BOOKING_INCLUDE,
+    });
+  }
+
+  const row = await prisma.$transaction(async (tx) => {
+    const updated = await tx.serviceBooking.update({
+      where: { id: bookingId },
+      data,
+      include: BOOKING_INCLUDE,
+    });
+    await tx.serviceBookingAuditLog.create({
+      data: {
+        bookingId,
+        actorId: user.id,
+        changes,
+      },
+    });
+    return updated;
+  });
+  if (changes.status?.to === 'CONFIRMED') {
+    await notifyBookingConfirmed(row);
+  } else if (changes.status?.to === 'CANCELLED') {
+    await notifyBookingCancelled(row);
+  } else if (changes.preferredAt) {
+    await notifyBookingRescheduled(row);
+  }
+  return row;
+}

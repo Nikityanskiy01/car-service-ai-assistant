@@ -77,6 +77,10 @@ export function localizeApiError(
 
   const retrySec = Number(retryAfter);
   if (status === 429 && Number.isFinite(retrySec) && retrySec > 0) {
+    if (retrySec < 90) {
+      const seconds = Math.max(1, Math.round(retrySec));
+      return `Слишком много попыток. Подождите ${seconds} сек. и попробуйте снова.`;
+    }
     const minutes = Math.max(1, Math.ceil(retrySec / 60));
     return `Слишком много попыток. Подождите ${minutes} мин. и попробуйте снова.`;
   }

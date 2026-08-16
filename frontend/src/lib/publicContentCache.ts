@@ -14,9 +14,14 @@ export async function cachedPublicFetch<T>(
   if (hit && Date.now() < hit.expiresAt) {
     return hit.value as T;
   }
-  const value = await loader();
-  store.set(key, { value, expiresAt: Date.now() + ttlMs });
-  return value;
+  try {
+    const value = await loader();
+    store.set(key, { value, expiresAt: Date.now() + ttlMs });
+    return value;
+  } catch (error) {
+    if (hit) return hit.value as T;
+    throw error;
+  }
 }
 
 export function clearPublicContentCache(): void {

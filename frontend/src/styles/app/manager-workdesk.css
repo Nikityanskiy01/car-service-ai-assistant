@@ -1,0 +1,641 @@
+/* Рабочий стол менеджера: консоль смены, не приветственный дашборд. */
+
+.workdesk {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.workdesk.is-refreshing {
+  opacity: 0.8;
+}
+
+.workdesk-skel-shift {
+  height: 88px;
+}
+
+.workdesk-skel-queue {
+  min-height: 22rem;
+}
+
+.workdesk-shift {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.workdesk-shift-copy h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.1vw, 1.7rem);
+  letter-spacing: -0.03em;
+  font-weight: 650;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.workdesk-shift-meta,
+.workdesk-shift-status {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.workdesk-shift-status {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.workdesk-shift-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.workdesk-signals {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.workdesk-signals-row {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.workdesk-signals-row.is-action {
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+}
+
+.workdesk-signals-row.is-shift {
+  grid-template-columns: repeat(auto-fit, minmax(8.4rem, 1fr));
+}
+
+.workdesk-signal {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 4.5rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  transition:
+    border-color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.workdesk-signal strong {
+  display: flex;
+  align-items: baseline;
+  gap: 0.12rem;
+  font-size: 1.55rem;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.workdesk-signal strong small {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  color: var(--color-text-secondary);
+}
+
+.workdesk-signal-copy {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.workdesk-signal-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: color-mix(in oklab, var(--color-text-primary) 82%, var(--color-text-secondary));
+}
+
+.workdesk-signal-hint {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.workdesk-signals-row.is-shift .workdesk-signal {
+  min-height: 3.55rem;
+  padding: 0.55rem 0.7rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.workdesk-signals-row.is-shift .workdesk-signal strong {
+  font-size: 1.2rem;
+}
+
+.workdesk-signal.is-warn {
+  border-color: color-mix(in oklab, var(--color-warning) 38%, var(--color-border));
+  background: color-mix(in oklab, var(--color-warning) 8%, var(--color-surface));
+}
+
+.workdesk-signal.is-warn strong {
+  color: var(--color-warning);
+}
+
+.workdesk-signal.is-accent {
+  border-color: color-mix(in oklab, var(--brand-primary) 40%, var(--color-border));
+  background: color-mix(in oklab, var(--brand-primary) 8%, var(--color-surface));
+}
+
+.workdesk-signal.is-accent strong {
+  color: var(--brand-accent);
+}
+
+.workdesk-signal.is-hot {
+  border-color: color-mix(in oklab, var(--color-danger) 42%, var(--color-border));
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-surface));
+}
+
+.workdesk-signal.is-hot strong {
+  color: var(--color-danger);
+}
+
+.workdesk-signal.is-ok strong {
+  color: var(--color-success);
+}
+
+.workdesk-signal:focus-visible,
+.workdesk-filter:focus-visible,
+.workdesk-next-btn:focus-visible,
+.workdesk-timeline button:focus-visible,
+.workdesk-week summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.workdesk-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.88fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.workdesk-queue,
+.workdesk-panel {
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 0.95rem;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+.workdesk-queue-head {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem 0.7rem;
+  margin-bottom: 0.55rem;
+}
+
+.workdesk-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.7rem;
+  margin-bottom: 0.55rem;
+}
+
+.workdesk-queue-title,
+.workdesk-panel-head h2,
+.workdesk-queue-head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.workdesk-panel-head a,
+.workdesk-queue-all {
+  color: var(--brand-accent);
+  text-decoration: none;
+  font-weight: 650;
+  font-size: 0.86rem;
+}
+
+.workdesk-panel-head a {
+  margin-left: auto;
+}
+
+.workdesk-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.workdesk-count.is-danger {
+  color: var(--color-danger);
+  border-color: color-mix(in oklab, var(--color-danger) 40%, var(--color-border));
+  background: color-mix(in oklab, var(--color-danger) 10%, var(--color-surface));
+}
+
+.workdesk-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+
+.workdesk-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 36px;
+  padding: 0.3rem 0.55rem;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+
+.workdesk-filter span {
+  font-size: 0.72rem;
+  opacity: 0.8;
+}
+
+.workdesk-filter[aria-pressed='true'] {
+  color: var(--color-text-primary);
+  background: var(--color-surface-secondary);
+}
+
+.workdesk .priority-queue-list {
+  gap: 0;
+}
+
+.workdesk .priority-queue-item {
+  position: relative;
+  align-items: center;
+  padding: 0.75rem 0.1rem 0.75rem 0.85rem;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.workdesk .priority-queue-item:last-child {
+  border-bottom: none;
+}
+
+.workdesk .priority-queue-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.8rem;
+  bottom: 0.8rem;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.workdesk .priority-queue-item.kind-sla::before,
+.workdesk .priority-queue-item.kind-stale::before {
+  background: var(--color-danger);
+}
+
+.workdesk .priority-queue-item.kind-request::before {
+  background: var(--brand-accent);
+}
+
+.workdesk .priority-queue-item.kind-feedback::before {
+  background: var(--color-text-secondary);
+}
+
+.workdesk .priority-queue-item.kind-contact::before {
+  background: color-mix(in oklab, var(--brand-accent) 55%, var(--color-text-secondary));
+}
+
+.workdesk .priority-queue-reason {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.workdesk .priority-queue-title-row strong {
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.workdesk .priority-queue-meta {
+  font-size: 0.8rem;
+}
+
+.workdesk .priority-queue-actions {
+  gap: 0.3rem;
+}
+
+.workdesk .priority-queue-actions .btn {
+  min-height: 40px;
+}
+
+.workdesk .priority-queue-actions .btn-icon,
+.workdesk .priority-queue-actions .copy-phone-btn {
+  width: 40px;
+  min-width: 40px;
+  padding-inline: 0;
+}
+
+.workdesk .state-card {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 1.25rem 0.25rem;
+}
+
+.workdesk-rail {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.workdesk-next.has-visit {
+  border-color: color-mix(in oklab, var(--brand-accent) 32%, var(--color-border));
+}
+
+.workdesk-next-btn,
+.workdesk-timeline button {
+  display: grid;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workdesk-next-btn {
+  gap: 0.55rem;
+}
+
+.workdesk-next-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55rem 0.75rem;
+}
+
+.workdesk-next-time {
+  font-size: 2rem;
+  font-weight: 650;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.workdesk-next-eta {
+  color: var(--brand-accent);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.workdesk-next-who {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.workdesk-next-name {
+  font-weight: 650;
+}
+
+.workdesk-rail-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.86rem;
+}
+
+.workdesk-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.workdesk-timeline li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.workdesk-timeline button {
+  grid-template-columns: 3.4rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0;
+  min-height: 44px;
+}
+
+.workdesk-timeline time {
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+}
+
+.workdesk-timeline-who {
+  display: grid;
+  min-width: 0;
+}
+
+.workdesk-timeline-who strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workdesk-timeline-who .muted {
+  font-size: 0.78rem;
+}
+
+.workdesk .activity-feed.is-compact {
+  gap: 0;
+}
+
+.workdesk .activity-feed.is-compact .activity-feed-item {
+  grid-template-columns: 5.4rem minmax(0, 1fr);
+  gap: 0.4rem;
+  padding: 0.42rem 0;
+  font-size: 0.82rem;
+}
+
+.workdesk .activity-feed-item.activity-crm_failed .activity-type {
+  color: var(--color-danger);
+}
+
+.workdesk-week-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 0.7rem;
+}
+
+.workdesk-week-stats div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.workdesk-week-stats dt {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.workdesk-week-stats dd {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.workdesk-week summary {
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  list-style: none;
+}
+
+.workdesk-week summary::-webkit-details-marker {
+  display: none;
+}
+
+.workdesk-week[open] summary {
+  margin-bottom: 0.65rem;
+  color: var(--color-text-primary);
+}
+
+.workdesk-week .funnel-header {
+  display: none;
+}
+
+.workdesk-week .funnel-bar-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.workdesk-week .funnel-bar-track {
+  grid-column: 1 / -1;
+}
+
+.workdesk-week .funnel-conv-row {
+  font-size: 0.78rem;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .workdesk-signal:hover {
+    border-color: color-mix(in oklab, var(--brand-accent) 45%, var(--color-border));
+  }
+
+  .workdesk-filter:hover {
+    color: var(--color-text-primary);
+  }
+
+  .workdesk-next-btn:hover .workdesk-next-time,
+  .workdesk-timeline button:hover strong {
+    color: var(--brand-accent);
+  }
+
+  .workdesk .priority-queue-item:hover {
+    background: color-mix(in oklab, var(--color-surface-secondary) 70%, transparent);
+  }
+}
+
+.workdesk-signal:active,
+.workdesk-filter:active,
+.workdesk-next-btn:active,
+.workdesk-timeline button:active,
+.workdesk .priority-queue-actions .btn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 1080px) {
+  .workdesk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .workdesk-shift {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workdesk-shift-tools {
+    justify-content: flex-end;
+  }
+
+  .workdesk-signals-row.is-action,
+  .workdesk-signals-row.is-shift {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workdesk-queue-head {
+    grid-template-columns: 1fr auto;
+  }
+
+  .workdesk-filters {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .workdesk .priority-queue-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .workdesk .priority-queue-actions {
+    flex-wrap: wrap;
+  }
+
+  .workdesk-timeline button {
+    grid-template-columns: 3.2rem minmax(0, 1fr);
+  }
+
+  .workdesk-timeline .status-badge {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workdesk-signal,
+  .workdesk-filter,
+  .workdesk-next-btn,
+  .workdesk-timeline button,
+  .workdesk .priority-queue-actions .btn {
+    transition: none;
+  }
+
+  .workdesk-signal:active,
+  .workdesk-filter:active,
+  .workdesk-next-btn:active,
+  .workdesk-timeline button:active,
+  .workdesk .priority-queue-actions .btn:active {
+    transform: none;
+  }
+}

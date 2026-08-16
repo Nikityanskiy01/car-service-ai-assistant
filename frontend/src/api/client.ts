@@ -73,15 +73,15 @@ async function refreshAccessToken(): Promise<boolean> {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
-      if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
         clearLocalAuthState();
         return false;
       }
+      if (!response.ok) return false;
       const data = (await response.json()) as { user?: AuthUser };
       if (data.user) setCachedUser(data.user);
       return true;
     } catch {
-      clearLocalAuthState();
       return false;
     } finally {
       refreshPromise = null;

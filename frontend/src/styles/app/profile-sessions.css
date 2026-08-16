@@ -1,0 +1,379 @@
+/* Profile — login history, sessions, revoke (split S18) */
+.profile-login-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.profile-login-history li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-secondary) 55%, transparent);
+}
+
+.profile-login-history li:last-child {
+  border-bottom: 0;
+}
+
+.profile-login-history-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  margin-top: 0.05rem;
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
+  color: var(--color-success);
+}
+
+.profile-login-history li.is-fail .profile-login-history-icon {
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+}
+
+.profile-login-history-body {
+  min-width: 0;
+}
+
+.profile-login-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.profile-login-history-head strong {
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+}
+
+.profile-login-history-method {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.profile-login-history-meta {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.profile-login-history-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.profile-login-history-device {
+  color: var(--color-text-primary);
+}
+
+.profile-login-history-reason {
+  color: color-mix(in srgb, var(--color-danger) 82%, white);
+}
+
+.profile-login-history-time {
+  flex-shrink: 0;
+  display: grid;
+  justify-items: end;
+  gap: 0.12rem;
+  text-align: right;
+}
+
+.profile-login-history-time time {
+  color: var(--color-text-primary);
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.profile-login-history-time span {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.profile-login-history li.is-fail strong {
+  color: color-mix(in srgb, var(--color-danger) 80%, white);
+}
+
+.profile-sessions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.profile-session-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-secondary) 55%, transparent);
+}
+
+.profile-session-row:last-child {
+  border-bottom: 0;
+}
+
+.profile-session-row.is-current {
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface-secondary));
+}
+
+.profile-session-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  margin-top: 0.05rem;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.profile-session-body {
+  min-width: 0;
+}
+
+.profile-session-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.profile-session-title strong {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.profile-session-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+
+.profile-session-meta {
+  display: grid;
+  gap: 0.18rem;
+  margin-top: 0.35rem;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.profile-session-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.profile-session-side {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+}
+
+.profile-session-current-note {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.profile-sessions-revoke-all {
+  flex-shrink: 0;
+}
+
+.modal-session-revoke {
+  width: min(31rem, 94vw);
+}
+
+.session-revoke {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.session-revoke-intro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.85rem;
+  border-radius: 0.8rem;
+  background: color-mix(in oklab, var(--color-danger) 8%, var(--color-surface-secondary));
+}
+
+.session-revoke-intro > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+  background: color-mix(in oklab, var(--color-danger) 14%, transparent);
+  color: var(--color-danger);
+}
+
+.session-revoke-intro p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.session-revoke-devices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.session-revoke-devices li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-secondary) 55%, transparent);
+}
+
+.session-revoke-devices li:last-child {
+  border-bottom: 0;
+}
+
+.session-revoke-device-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 9px;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.session-revoke-devices strong {
+  display: block;
+  font-size: 0.86rem;
+  color: var(--color-text-primary);
+}
+
+.session-revoke-devices span {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+}
+
+.session-revoke-devices-more {
+  grid-template-columns: 1fr;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+}
+
+.session-revoke-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: -0.3rem;
+}
+
+.session-revoke-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.session-revoke-status svg {
+  flex: 0 0 auto;
+}
+
+.session-revoke-status .spin {
+  animation: spin 0.85s linear infinite;
+}
+
+.session-revoke-resend {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--motion-fast) ease, opacity var(--motion-fast) ease;
+}
+
+.session-revoke-resend:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.session-revoke-resend:disabled {
+  color: var(--color-text-secondary);
+  cursor: default;
+  opacity: 0.75;
+}
+
+@media (max-width: 720px) {
+  .profile-login-history li,
+  .profile-session-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .profile-login-history-time,
+  .profile-session-side {
+    grid-column: 2;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .profile-sessions-revoke-all {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}

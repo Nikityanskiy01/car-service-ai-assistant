@@ -218,9 +218,15 @@
     grid-template-columns: 1fr;
   }
 
-  .booking-day li {
-    grid-template-columns: 1fr;
-    gap: 0.2rem;
+  .booking-click-list .booking-list-btn,
+  .booking-day .booking-list-static {
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .booking-click-list .status-badge {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .page-header-main {

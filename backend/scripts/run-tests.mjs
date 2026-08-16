@@ -20,7 +20,7 @@ run(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['prisma', 'generate']);
 
 const args = process.argv.slice(2);
 if (args.length === 0) args.push('--runInBand');
-run(process.execPath, ['--experimental-vm-modules', 'node_modules/jest/bin/jest.js', ...args]);
+run(process.execPath, ['--import', 'tsx', '--experimental-vm-modules', 'node_modules/jest/bin/jest.js', ...args]);
 
 function run(command, args) {
   const result = spawnSync(command, args, {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CalendarClock, ClipboardList, Inbox, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import {
   getManagerKpi,
   getProfile,
@@ -11,22 +11,19 @@ import {
   type ActivityItem,
   type ManagerKpi,
 } from '../../api/dashboard';
-import { AnalyticsBulletChart } from '../../components/analytics/AnalyticsBulletChart';
-import { DashboardRecordCard } from '../../components/dashboard/DashboardRecordCard';
-import { DashboardWelcomeHero } from '../../components/dashboard/DashboardWelcomeHero';
-import { ActivityFeed } from '../../components/manager/ActivityFeed';
-import { ManagerKpiFunnel } from '../../components/manager/ManagerKpiFunnel';
+import { WorkdeskRail } from '../../components/manager/workdesk/WorkdeskRail';
 import { BookingDrawer } from '../../components/requests/BookingDrawer';
 import { useDashboardContext } from '../../components/layout/dashboard/useDashboardContext';
 import { PriorityQueueList } from '../../components/requests/PriorityQueueList';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { ErrorState } from '../../components/ui/ErrorState';
-import { Skeleton } from '../../components/ui/Skeleton';
 import { managerZonePaths } from '../../config/managerPaths';
 import { useDashboardPolling } from '../../hooks/useDashboardPolling';
-import { buildAttentionItems, requestNeedsFeedback } from '../../lib/managerRequestHelpers';
+import {
+  buildAttentionItems,
+  requestNeedsFeedback,
+  type AttentionKind,
+} from '../../lib/managerRequestHelpers';
+import { SLA_OVERDUE_HINT, SLA_OVERDUE_SHORT } from '../../lib/requestSla';
 import { formatMinutesUntil } from '../../lib/timeFormat';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { ServiceRequest } from '../../types/serviceRequest';
@@ -34,21 +31,26 @@ import type { ServiceBooking } from '../../types/dashboard';
 
 const paths = managerZonePaths(false);
 
+type QueueFilter = 'all' | 'requests' | 'site' | 'ai';
+
+const QUEUE_FILTERS: { id: QueueFilter; label: string; kinds: AttentionKind[] }[] = [
+  { id: 'all', label: 'Все', kinds: ['sla', 'request', 'stale', 'feedback', 'contact'] },
+  { id: 'requests', label: 'Заявки', kinds: ['sla', 'request', 'stale'] },
+  { id: 'site', label: 'Сайт', kinds: ['contact'] },
+  { id: 'ai', label: 'ИИ', kinds: ['feedback'] },
+];
+
 function isToday(dateIso: string) {
   return new Date(dateIso).toDateString() === new Date().toDateString();
 }
 
-function formatTime(value: string) {
-  return new Date(value).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function shiftDateLabel() {
+  const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  return date.charAt(0).toUpperCase() + date.slice(1);
 }
 
 export function ManagerWorkDeskPage() {
-  usePageMeta({ title: 'Рабочий стол менеджера', description: 'Сводка дня и приоритетные обращения.' });
+  usePageMeta({ title: 'Рабочий стол менеджера', description: 'Очередь смены и ближайшие записи.' });
   const { setBadges } = useDashboardContext();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,10 +59,12 @@ export function ManagerWorkDeskPage() {
   const [bookings, setBookings] = useState<ServiceBooking[]>([]);
   const [contacts, setContacts] = useState<Awaited<ReturnType<typeof listContacts>>>([]);
   const [managerName, setManagerName] = useState('');
+  const [managerId, setManagerId] = useState('');
   const [managerKpi, setManagerKpi] = useState<ManagerKpi | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<ServiceBooking | null>(null);
+  const [queueFilter, setQueueFilter] = useState<QueueFilter>('all');
 
   const load = useCallback(
     async (silent = false) => {
@@ -79,6 +83,7 @@ export function ManagerWorkDeskPage() {
         setBookings(bookingsData);
         setContacts(contactsData);
         setManagerName(profile?.fullName?.split(' ')[0] || '');
+        setManagerId(profile?.id || '');
         setManagerKpi(kpiData);
         setActivity(activityData.items);
         setLastRefresh(new Date());
@@ -109,194 +114,273 @@ export function ManagerWorkDeskPage() {
   const metrics = useMemo(() => {
     const newCount = requests.filter((r) => r.status === 'NEW').length;
     const staleCount = requests.filter((r) => r.slaBreached).length;
-    const todayBookings = bookings.filter((b) => isToday(b.preferredAt)).length;
+    const inProgress = requests.filter((r) => r.status === 'IN_PROGRESS').length;
+    const scheduled = requests.filter((r) => r.status === 'SCHEDULED').length;
+    const mine = managerId
+      ? requests.filter(
+          (r) =>
+            r.assignedManagerId === managerId &&
+            (r.status === 'NEW' || r.status === 'IN_PROGRESS' || r.status === 'SCHEDULED'),
+        ).length
+      : 0;
+    const todayBookings = bookings.filter((b) => isToday(b.preferredAt) && b.status !== 'CANCELLED');
+    const todayWaiting = todayBookings.filter((b) => b.status === 'PENDING').length;
     const pendingFeedback = requests.filter((item) => requestNeedsFeedback(item)).length;
-    return { newCount, staleCount, todayBookings, pendingFeedback, contacts: contacts.length };
-  }, [requests, bookings, contacts]);
+    return {
+      newCount,
+      staleCount,
+      inProgress,
+      scheduled,
+      mine,
+      todayBookings,
+      todayWaiting,
+      pendingFeedback,
+      contacts: contacts.length,
+    };
+  }, [requests, bookings, contacts, managerId]);
 
   const attentionItems = useMemo(
     () => buildAttentionItems(requests, bookings, contacts, paths),
     [requests, bookings, contacts],
   );
 
-  const upcomingBookings = useMemo(
-    () =>
-      [...bookings]
-        .filter((b) => new Date(b.preferredAt).getTime() >= Date.now() - 3600000)
-        .filter((b) => b.status !== 'CANCELLED')
-        .sort((a, b) => new Date(a.preferredAt).getTime() - new Date(b.preferredAt).getTime())
-        .slice(0, 6),
-    [bookings],
+  const deskItems = useMemo(
+    () => attentionItems.filter((item) => item.kind !== 'booking'),
+    [attentionItems],
   );
 
-  const crmFailures = useMemo(() => activity.filter((a) => a.type === 'CRM_FAILED').length, [activity]);
+  const visibleItems = useMemo(() => {
+    const kinds = QUEUE_FILTERS.find((filter) => filter.id === queueFilter)?.kinds;
+    if (!kinds) return deskItems;
+    return deskItems.filter((item) => kinds.includes(item.kind));
+  }, [deskItems, queueFilter]);
 
-  const greeting = useMemo(() => {
-    const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
-    return date.charAt(0).toUpperCase() + date.slice(1);
-  }, []);
+  const filterCounts = useMemo(() => {
+    const counts: Record<QueueFilter, number> = { all: deskItems.length, requests: 0, site: 0, ai: 0 };
+    for (const item of deskItems) {
+      if (item.kind === 'sla' || item.kind === 'request' || item.kind === 'stale') counts.requests += 1;
+      if (item.kind === 'contact') counts.site += 1;
+      if (item.kind === 'feedback') counts.ai += 1;
+    }
+    return counts;
+  }, [deskItems]);
+
+  const todayBookings = useMemo(
+    () =>
+      [...metrics.todayBookings].sort(
+        (a, b) => new Date(a.preferredAt).getTime() - new Date(b.preferredAt).getTime(),
+      ),
+    [metrics.todayBookings],
+  );
+
+  const nextBooking = useMemo(() => {
+    const now = Date.now() - 20 * 60_000;
+    return todayBookings.find((booking) => new Date(booking.preferredAt).getTime() >= now) || null;
+  }, [todayBookings]);
+
+  const crmFailures = useMemo(() => activity.filter((a) => a.type === 'CRM_FAILED').length, [activity]);
+  const greeting = useMemo(() => shiftDateLabel(), []);
+
+  const shiftStatus = useMemo(() => {
+    const parts: string[] = [];
+    if (deskItems.length) parts.push(`${deskItems.length} к действию`);
+    else parts.push('Очередь спокойная');
+    if (nextBooking) parts.push(`следующая запись ${formatMinutesUntil(nextBooking.preferredAt)}`);
+    else if (todayBookings.length) parts.push(`${todayBookings.length} записей сегодня`);
+    return parts.join(', ');
+  }, [deskItems.length, nextBooking, todayBookings.length]);
+
+  const queueDanger = visibleItems.some((item) => item.kind === 'sla' || item.kind === 'stale');
 
   if (loading) {
     return (
-      <div className="stack dashboard-page">
-        <Skeleton className="skeleton-hero" />
-        <div className="metrics-grid metrics-grid-4">
-          <Skeleton className="skeleton-card" />
-          <Skeleton className="skeleton-card" />
-          <Skeleton className="skeleton-card" />
-          <Skeleton className="skeleton-card" />
+      <div className="workdesk" aria-busy="true">
+        <div className="skeleton workdesk-skel-shift" />
+        <div className="workdesk-signals">
+          <div className="workdesk-signals-row is-action">
+            <div className="skeleton workdesk-signal" />
+            <div className="skeleton workdesk-signal" />
+            <div className="skeleton workdesk-signal" />
+            <div className="skeleton workdesk-signal" />
+          </div>
+          <div className="workdesk-signals-row is-shift">
+            <div className="skeleton workdesk-signal" />
+            <div className="skeleton workdesk-signal" />
+            <div className="skeleton workdesk-signal" />
+            <div className="skeleton workdesk-signal" />
+          </div>
         </div>
-        <Skeleton className="skeleton-block" />
-        <Skeleton className="skeleton-block" />
+        <div className="skeleton workdesk-skel-queue" />
       </div>
     );
   }
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
 
   return (
-    <div className="stack dashboard-page manager-desk-page">
-      <DashboardWelcomeHero
-        icon={ClipboardList}
-        greeting="Рабочий стол"
-        title={managerName ? `Добро пожаловать, ${managerName}` : 'Сводка дня'}
-        description={`${greeting}. ${
-          attentionItems.length
-            ? `${attentionItems.length} задач требуют внимания.`
-            : 'Срочных действий сейчас нет.'
-        }`}
-        actions={
-          <div className="desk-hero-actions">
-            {lastRefresh ? (
-              <span className="muted desk-refresh-hint tnum">
-                Обновлено {lastRefresh.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            ) : null}
-            <Button variant="ghost" onClick={() => void load(true)} disabled={refreshing}>
-              <RefreshCw size={16} aria-hidden className={refreshing ? 'is-spinning' : undefined} />
-              Обновить
-            </Button>
-          </div>
-        }
-      />
+    <div className={`workdesk${refreshing ? ' is-refreshing' : ''}`}>
+      <header className="workdesk-shift">
+        <div className="workdesk-shift-copy">
+          <h1>Смена{managerName ? `, ${managerName}` : ''}</h1>
+          <p className="workdesk-shift-meta">{greeting}</p>
+          <p className="workdesk-shift-status">{shiftStatus}</p>
+        </div>
+        <div className="workdesk-shift-tools">
+          {lastRefresh ? (
+            <span className="muted">
+              {lastRefresh.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          ) : null}
+          <Button type="button" variant="ghost" onClick={() => void load(true)} disabled={refreshing}>
+            <RefreshCw size={16} className={refreshing ? 'animate-spin' : undefined} />
+            Обновить
+          </Button>
+        </div>
+      </header>
 
-      {metrics.contacts > 0 || crmFailures > 0 ? (
-        <div className="desk-alert-row">
-          {metrics.contacts > 0 ? (
-            <Link to={paths.contacts} className="desk-alert desk-alert-info">
-              <Inbox size={18} aria-hidden />
-              <span>
-                <strong className="tnum">{metrics.contacts}</strong> новых обращений с сайта
-              </span>
-            </Link>
-          ) : null}
-          {crmFailures > 0 ? (
-            <button
-              type="button"
-              className="desk-alert desk-alert-danger"
-              onClick={() =>
-                document.getElementById('activity-feed')?.scrollIntoView({ block: 'center' })
-              }
-            >
-              <AlertTriangle size={18} aria-hidden />
-              <span>
-                Ошибки передачи в CRM: <strong className="tnum">{crmFailures}</strong> — показать в ленте
-              </span>
-            </button>
-          ) : null}
+      {error ? (
+        <div className="error-text" role="alert">
+          <p>Не удалось загрузить рабочий стол. {error}</p>
+          <Button type="button" variant="secondary" onClick={() => void load()}>
+            Повторить
+          </Button>
         </div>
       ) : null}
 
-      <div className="metrics-grid metrics-grid-4">
-        <Link to={`${paths.requests}?status=NEW`} className="kpi-bullet-link">
-          <AnalyticsBulletChart label="Новые" value={metrics.newCount} max={10} hint="Цель ≤ 10" />
-        </Link>
-        <Link to={`${paths.requests}?sla=breached`} className="kpi-bullet-link">
-          <AnalyticsBulletChart label="Просрочка SLA" value={metrics.staleCount} max={5} hint="Цель 0" />
-        </Link>
-        <Link to={paths.calendar} className="kpi-bullet-link">
-          <AnalyticsBulletChart
-            label="Сегодня в календаре"
-            value={metrics.todayBookings}
-            max={12}
-            hint="Вместимость дня"
+      <nav className="workdesk-signals" aria-label="Показатели смены">
+        <div className="workdesk-signals-row is-action" aria-label="Требуют действия">
+          <Signal
+            to={`${paths.requests}?sla=breached`}
+            value={metrics.staleCount}
+            label={SLA_OVERDUE_SHORT}
+            hint={SLA_OVERDUE_HINT}
+            tone={metrics.staleCount > 0 ? 'hot' : 'quiet'}
           />
-        </Link>
-        <Link to={paths.aiQuality} className="kpi-bullet-link">
-          <AnalyticsBulletChart label="Ждут оценки ИИ" value={metrics.pendingFeedback} max={10} hint="Цель 0" />
-        </Link>
-      </div>
+          <Signal
+            to={`${paths.requests}?status=NEW`}
+            value={metrics.newCount}
+            label="Новые"
+            hint="ещё не взяли"
+            tone={metrics.newCount > 0 ? 'accent' : 'quiet'}
+          />
+          <Signal
+            to={paths.contacts}
+            value={metrics.contacts}
+            label="Сайт"
+            hint="обращения"
+            tone={metrics.contacts > 0 ? 'accent' : 'quiet'}
+          />
+          <Signal
+            to={paths.aiQuality}
+            value={metrics.pendingFeedback}
+            label="Оценка ИИ"
+            hint="ждут оценки"
+            tone={metrics.pendingFeedback > 0 ? 'warn' : 'quiet'}
+          />
+          {crmFailures > 0 ? (
+            <Signal to={paths.requests} value={crmFailures} label="CRM" hint="сбой выгрузки" tone="hot" />
+          ) : null}
+        </div>
+        <div className="workdesk-signals-row is-shift" aria-label="Снимок смены">
+          <Signal
+            to={`${paths.requests}?status=IN_PROGRESS`}
+            value={metrics.inProgress}
+            label="В работе"
+            hint="заявки"
+          />
+          <Signal
+            to={`${paths.requests}?status=SCHEDULED`}
+            value={metrics.scheduled}
+            label="Записи"
+            hint="назначены"
+          />
+          <Signal
+            to={`${paths.requests}?scope=mine`}
+            value={metrics.mine || managerKpi?.personal.activeRequests || 0}
+            label="Мои"
+            hint="на мне"
+          />
+          <Signal
+            to={paths.calendar}
+            value={todayBookings.length}
+            label="Сегодня"
+            hint={metrics.todayWaiting ? `${metrics.todayWaiting} ждут` : 'в календаре'}
+          />
+          {managerKpi ? (
+            <>
+              <Signal
+                to={`${paths.requests}?status=COMPLETED`}
+                value={managerKpi.funnel.completedRequests}
+                label="Готово"
+                hint={`за ${managerKpi.periodDays} дн.`}
+                tone={managerKpi.funnel.completedRequests > 0 ? 'ok' : 'quiet'}
+              />
+              <Signal
+                to={paths.requests}
+                value={managerKpi.funnel.conversionCompleted}
+                suffix="%"
+                label="Доля закрытых"
+                hint="заявка → готово"
+              />
+            </>
+          ) : null}
+        </div>
+      </nav>
 
-      <Card className="desk-priority-card">
-        <header className="card-section-header">
-          <h2>Сделать сейчас</h2>
-          <Link to={paths.requests}>Вся очередь</Link>
-        </header>
-        <PriorityQueueList
-          items={attentionItems}
-          onOpenBooking={(bookingId) => {
-            setSelectedBooking(bookings.find((x) => x.id === bookingId) || null);
-          }}
-          onStatusChanged={() => void load(true)}
-        />
-      </Card>
-
-      <div className="grid two">
-        <Card>
-          <header className="card-section-header">
-            <h2>Ближайшие записи</h2>
-            <Link to={paths.calendar}>Календарь</Link>
-          </header>
-          {upcomingBookings.length ? (
-            <div className="desk-record-list">
-              {upcomingBookings.map((b) => (
+      <div className="workdesk-grid">
+        <section className="workdesk-queue" aria-labelledby="workdesk-queue-title">
+          <div className="workdesk-queue-head">
+            <h2 id="workdesk-queue-title" className="workdesk-queue-title">
+              Очередь смены
+              <span className={`workdesk-count${queueDanger ? ' is-danger' : ''}`}>{visibleItems.length}</span>
+            </h2>
+            <div className="workdesk-filters" role="toolbar" aria-label="Фильтр очереди">
+              {QUEUE_FILTERS.map((filter) => (
                 <button
-                  key={b.id}
+                  key={filter.id}
                   type="button"
-                  className="desk-booking-btn"
-                  onClick={() => setSelectedBooking(b)}
+                  className="workdesk-filter"
+                  aria-pressed={queueFilter === filter.id}
+                  onClick={() => setQueueFilter(filter.id)}
                 >
-                  <DashboardRecordCard
-                    title={formatTime(b.preferredAt)}
-                    subtitle={`${b.client?.fullName || b.guestName || 'Клиент'} · ${formatMinutesUntil(b.preferredAt)}`}
-                    status={b.status}
-                    icon={CalendarClock}
-                  />
+                  {filter.label}
+                  <span>{filterCounts[filter.id]}</span>
                 </button>
               ))}
             </div>
-          ) : (
-            <EmptyState title="Нет записей" description="Запланированные записи появятся здесь." />
-          )}
-        </Card>
-
-        <Card id="activity-feed">
-          <header className="card-section-header">
-            <h2>Лента активности</h2>
-            <Link to={paths.requests}>Вся история</Link>
-          </header>
-          <ActivityFeed items={activity} requestBasePath={paths.requests} />
-        </Card>
-      </div>
-
-      {managerKpi ? (
-        <Card>
-          <header className="card-section-header">
-            <h2>Показатели за 7 дней</h2>
-          </header>
-          <ManagerKpiFunnel kpi={managerKpi} />
-          <div className="manager-personal-kpi muted">
-            <span>
-              Мои активные: <strong className="tnum">{managerKpi.personal.activeRequests}</strong>
-            </span>
-            <span>
-              Сообщений за период: <strong className="tnum">{managerKpi.personal.messagesSent}</strong>
-            </span>
-            <span>
-              Конверсий входящих: <strong className="tnum">{managerKpi.personal.contactsConverted}</strong>
-            </span>
+            <Link className="workdesk-queue-all" to={paths.requests}>
+              Вся очередь
+            </Link>
           </div>
-        </Card>
-      ) : null}
+          <PriorityQueueList
+            items={visibleItems}
+            emptyTitle={queueFilter === 'all' ? 'Очередь пуста' : 'В этом срезе пусто'}
+            emptyDescription={
+              queueFilter === 'all'
+                ? 'Можно разобрать календарь или оценки ИИ.'
+                : 'Переключите фильтр или откройте полный список заявок.'
+            }
+            emptyAction={
+              <Link className="btn btn-secondary" to={queueFilter === 'ai' ? paths.aiQuality : paths.requests}>
+                {queueFilter === 'ai' ? 'К оценкам ИИ' : 'К заявкам'}
+              </Link>
+            }
+            onOpenBooking={(bookingId) => {
+              setSelectedBooking(bookings.find((x) => x.id === bookingId) || null);
+            }}
+            onStatusChanged={() => void load(true)}
+          />
+        </section>
+
+        <WorkdeskRail
+          nextBooking={nextBooking}
+          todayBookings={todayBookings}
+          activity={activity}
+          crmFailures={crmFailures}
+          managerKpi={managerKpi}
+          calendarPath={paths.calendar}
+          requestsPath={paths.requests}
+          onOpenBooking={setSelectedBooking}
+        />
+      </div>
 
       <BookingDrawer
         booking={selectedBooking}
@@ -308,5 +392,34 @@ export function ManagerWorkDeskPage() {
         requestBasePath={paths.requests}
       />
     </div>
+  );
+}
+
+function Signal({
+  to,
+  value,
+  label,
+  hint,
+  tone = 'quiet',
+  suffix,
+}: {
+  to: string;
+  value: number;
+  label: string;
+  hint: string;
+  tone?: 'quiet' | 'hot' | 'accent' | 'warn' | 'ok';
+  suffix?: string;
+}) {
+  return (
+    <Link to={to} className={`workdesk-signal is-${tone}`}>
+      <strong>
+        {value}
+        {suffix ? <small>{suffix}</small> : null}
+      </strong>
+      <span className="workdesk-signal-copy">
+        <span className="workdesk-signal-label">{label}</span>
+        <span className="workdesk-signal-hint">{hint}</span>
+      </span>
+    </Link>
   );
 }

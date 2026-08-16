@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   createIntegration,
   disableIntegration,
@@ -18,61 +19,52 @@ import { Loader } from '../../components/ui/Loader';
 import { Modal } from '../../components/ui/Modal';
 import { INTEGRATION_PROVIDER_LABELS } from '../../lib/labels';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import type { IntegrationConnection, IntegrationProvider } from '../../types/integration';
+import type { IntegrationProvider } from '../../types/integration';
 
 const PROVIDER_CARDS: Array<{ provider: IntegrationProvider; description: string; supported: boolean }> = [
-  { provider: 'ONE_C', description: 'HTTP-сервис, OData, EnterpriseData, файловый обмен', supported: false },
+  { provider: 'ONE_C', description: 'HTTP-сервис 1С: baseUrl + bearer/basic', supported: true },
   { provider: 'AUTODEALER_DESKTOP', description: 'Локальный модуль или согласованный файл', supported: false },
   { provider: 'AUTODEALER_WEB', description: 'Ограниченный обмен через web-интерфейс', supported: false },
   { provider: 'AUTODEALER_ONLINE', description: 'Требуется официальный API и тестовый аккаунт', supported: false },
-  { provider: 'BITRIX24', description: 'REST API Bitrix24', supported: false },
+  { provider: 'BITRIX24', description: 'Входящий вебхук REST: crm.lead.add', supported: true },
   { provider: 'AMOCRM', description: 'REST API amoCRM', supported: false },
   { provider: 'YCLIENTS', description: 'API YCLIENTS', supported: false },
+  { provider: 'MOYSKLAD', description: 'JSON API remap 1.2: заказы покупателей', supported: true },
   { provider: 'GENERIC_REST', description: 'Универсальный REST-коннектор с проверкой соединения', supported: true },
-  { provider: 'GENERIC_WEBHOOK', description: 'Исходящие webhook-события', supported: false },
+  { provider: 'GENERIC_WEBHOOK', description: 'Исходящий POST заявки на ваш HTTPS URL', supported: true },
   { provider: 'FILE_EXCHANGE', description: 'CSV, XLSX, XML, JSON', supported: false },
 ];
 
 export function AdminIntegrationsPage() {
   usePageMeta({ title: 'Интеграции', description: 'Подключение CRM и учётных систем.' });
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const integrationsQuery = useQuery({ queryKey: ['admin-integrations'], queryFn: () => listIntegrations() });
   const [actionError, setActionError] = useState<string | null>(null);
-  const [connections, setConnections] = useState<IntegrationConnection[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedProvider, setSelectedProvider] = useState<IntegrationProvider | null>(null);
   const [form, setForm] = useState({ name: '', baseUrl: '', healthPath: '/health', token: '' });
   const [testResult, setTestResult] = useState<string | null>(null);
 
-  useEffect(() => {
-    void load();
-  }, []);
+  const connections = integrationsQuery.data ?? [];
+  const loading = integrationsQuery.isPending;
+  const loadError = integrationsQuery.error instanceof Error ? integrationsQuery.error.message : null;
 
   async function load() {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      setConnections(await listIntegrations());
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Ошибка загрузки');
-    } finally {
-      setLoading(false);
-    }
+    await integrationsQuery.refetch();
   }
 
   async function createConnection() {
     if (!selectedProvider) return;
     setActionError(null);
     try {
-      const row = await createIntegration({
+      await createIntegration({
         name: form.name || INTEGRATION_PROVIDER_LABELS[selectedProvider],
         provider: selectedProvider,
         mode: 'api',
         config: { baseUrl: form.baseUrl, healthPath: form.healthPath },
         credentials: form.token ? { token: form.token } : undefined,
       });
-      setConnections((prev) => [row, ...prev]);
+      await integrationsQuery.refetch();
       setWizardOpen(false);
       setWizardStep(1);
       setSelectedProvider(null);
@@ -137,7 +129,7 @@ export function AdminIntegrationsPage() {
       ) : (
         <EmptyState
           title="Нет подключённых систем"
-          description="Подключите Generic REST или другую CRM через мастер настройки."
+          description="Подключите Bitrix24, МойСклад, 1С, Generic REST или исходящий webhook."
         />
       )}
 

@@ -1,5 +1,6 @@
 import { managerZonePaths, type ManagerZonePaths } from '../config/managerPaths';
 import { formatRequestNumber } from './labels';
+import { SLA_OVERDUE_LABEL } from './requestSla';
 import type { ContactSubmission, ServiceBooking } from '../types/dashboard';
 import type { ConsultationDiagnosis, ServiceRequest, ServiceRequestDetail } from '../types/serviceRequest';
 
@@ -87,6 +88,8 @@ export function urgencyScore(urgency?: string | null) {
   return 10;
 }
 
+export type AttentionKind = 'sla' | 'request' | 'stale' | 'feedback' | 'booking' | 'contact';
+
 export type AttentionItem = {
   id: string;
   title: string;
@@ -96,12 +99,15 @@ export type AttentionItem = {
   phone?: string;
   urgency?: string | null;
   priority: number;
+  kind: AttentionKind;
   isGuest?: boolean;
   requestId?: string;
   bookingId?: string;
   version?: number;
   status?: ServiceRequest['status'];
 };
+
+const CLOSED_STATUSES = new Set(['COMPLETED', 'CANCELLED']);
 
 export function buildAttentionItems(
   requests: ServiceRequest[],
@@ -121,47 +127,50 @@ export function buildAttentionItems(
     const client = request.client?.fullName || request.guestName || 'Гость';
     const phone = request.client?.phone || request.guestPhone || undefined;
     const symptoms = request.snapshotSymptoms?.slice(0, 48) || 'без описания';
-    const base = {
-      title: `№${formatRequestNumber(request.id)} · ${car}`,
-      meta: `${client} · ${symptoms}`,
-      to: `${paths.requests}/${request.id}`,
-      phone,
-      urgency,
-      isGuest: !request.clientId,
-      requestId: request.id,
-      version: request.version,
-      status: request.status,
-    };
+    const reasons: { kind: AttentionKind; reason: string; priority: number }[] = [];
 
-    if (request.status === 'NEW') {
-      items.push({
-        ...base,
-        id: request.id,
-        reason: 'Новое обращение без ответа',
-        priority: 80 + urgencyScore(urgency),
-      });
+    if (request.slaBreached && !CLOSED_STATUSES.has(request.status)) {
+      reasons.push({ kind: 'sla', reason: SLA_OVERDUE_LABEL, priority: 95 + urgencyScore(urgency) });
     }
-
+    if (request.status === 'NEW') {
+      reasons.push({ kind: 'request', reason: 'Новое без ответа', priority: 80 + urgencyScore(urgency) });
+    }
     if (request.status === 'IN_PROGRESS') {
       const hours = (now - new Date(request.createdAt).getTime()) / 3600000;
       if (hours > 4) {
-        items.push({
-          ...base,
-          id: `${request.id}-stale`,
-          reason: `Без изменения статуса ${Math.floor(hours)} ч`,
+        reasons.push({
+          kind: 'stale',
+          reason: `Без движения ${Math.floor(hours)} ч`,
           priority: 60 + urgencyScore(urgency),
         });
       }
     }
-
     if (requestNeedsFeedback(request)) {
-      items.push({
-        ...base,
-        id: `${request.id}-feedback`,
-        reason: 'Нужна оценка диагноза ИИ',
+      reasons.push({
+        kind: 'feedback',
+        reason: 'Нужна оценка ИИ',
         priority: 50 + urgencyScore(urgency),
       });
     }
+
+    if (!reasons.length) continue;
+    reasons.sort((a, b) => b.priority - a.priority);
+    const top = reasons[0];
+    items.push({
+      id: request.id,
+      title: `№${formatRequestNumber(request.id)}, ${car}`,
+      reason: reasons.map((entry) => entry.reason).join(', '),
+      meta: `${client}, ${symptoms}`,
+      to: `${paths.requests}/${request.id}`,
+      phone,
+      urgency,
+      priority: top.priority,
+      kind: top.kind,
+      isGuest: !request.clientId,
+      requestId: request.id,
+      version: request.version,
+      status: request.status,
+    });
   }
 
   for (const booking of bookings) {
@@ -174,6 +183,7 @@ export function buildAttentionItems(
         to: paths.calendar,
         phone: booking.client?.phone || booking.guestPhone || undefined,
         priority: 90 - Math.round(diffMin),
+        kind: 'booking',
         bookingId: booking.id,
       });
     }
@@ -184,15 +194,16 @@ export function buildAttentionItems(
     items.push({
       id: `contact-${contact.id}`,
       title: contact.fullName,
-      reason: 'Новое обращение с сайта',
+      reason: 'Обращение с сайта',
       meta: contact.message?.slice(0, 60) || contact.phone,
       to: paths.contacts,
       phone: contact.phone,
       priority: 55 - Math.min(ageMin, 30),
+      kind: 'contact',
     });
   }
 
-  return items.sort((a, b) => b.priority - a.priority).slice(0, 10);
+  return items.sort((a, b) => b.priority - a.priority).slice(0, 12);
 }
 
 export function buildDiagnosisRecommendations(request: ServiceRequestDetail) {

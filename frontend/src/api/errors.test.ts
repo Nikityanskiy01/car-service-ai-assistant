@@ -27,6 +27,9 @@ describe('localizeApiError', () => {
     expect(
       localizeApiError(429, { error: 'Too many attempts, please try again later' }, 'Too Many Requests', '372'),
     ).toBe('Слишком много попыток. Подождите 7 мин. и попробуйте снова.');
+    expect(
+      localizeApiError(429, { error: 'Too many attempts, please try again later' }, 'Too Many Requests', '45'),
+    ).toBe('Слишком много попыток. Подождите 45 сек. и попробуйте снова.');
   });
 
   it('не затирает уже русское сообщение с общим кодом', () => {

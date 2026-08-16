@@ -95,7 +95,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    command: ["node", "src/worker.js"]
+    command: ["node", "--import", "tsx", "src/worker.ts"]
     env_file:
       - ./backend/.env
     environment:
@@ -189,6 +189,22 @@ services:
     ports:
       - "${MAILPIT_SMTP_BIND:-127.0.0.1:1025}:1025"
       - "${MAILPIT_UI_BIND:-127.0.0.1:8025}:8025"
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - app_net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.109.0
+    profiles: ["observability"]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./deploy/otel/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4318:4318"
     restart: unless-stopped
     cap_drop:
       - ALL

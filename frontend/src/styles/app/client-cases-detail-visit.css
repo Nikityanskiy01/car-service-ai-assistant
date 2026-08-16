@@ -1,0 +1,316 @@
+/* Case detail — visit, messages, sticky actions */
+.case-detail-visit-teaser {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 1rem 1.05rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, #60a5fa 38%, var(--color-border));
+  background:
+    linear-gradient(135deg, rgb(96 165 250 / 0.12), transparent 60%),
+    color-mix(in srgb, var(--color-surface) 96%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.case-detail-visit-teaser[data-visit='confirmed'] {
+  border-color: color-mix(in srgb, #2dd4bf 40%, var(--color-border));
+  background:
+    linear-gradient(135deg, rgb(45 212 191 / 0.14), transparent 60%),
+    color-mix(in srgb, var(--color-surface) 96%, transparent);
+}
+
+.case-detail-visit-teaser:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgb(2 6 23 / 0.14);
+}
+
+.case-detail-visit-teaser > span {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.case-detail-visit-teaser svg {
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+.case-detail-visit-teaser[data-visit='confirmed'] svg {
+  color: #2dd4bf;
+}
+
+.case-visit-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, #2dd4bf 30%, var(--color-border));
+  background:
+    radial-gradient(ellipse 80% 70% at 0% 0%, rgb(45 212 191 / 0.12), transparent 55%),
+    var(--color-surface);
+}
+
+.case-visit-date {
+  display: grid;
+  justify-items: start;
+  gap: 0.1rem;
+  min-width: 4.5rem;
+}
+
+.case-visit-date-num {
+  font-size: 2.4rem;
+  font-weight: 780;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--color-text-primary, var(--color-text));
+}
+
+.case-visit-date-month {
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-transform: capitalize;
+  color: var(--color-text-secondary);
+}
+
+.case-visit-date-relative {
+  margin-top: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #2dd4bf 18%, transparent);
+  color: #5eead4;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.case-visit-copy {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.case-visit-copy h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+  text-transform: capitalize;
+}
+
+.case-visit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  color: #5eead4;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.case-visit-link:hover {
+  text-decoration: underline;
+}
+
+.case-visit-empty {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: start;
+  padding: 0.25rem 0;
+}
+
+.case-visit-empty-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.case-visit-empty h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.case-visit-empty .btn {
+  gap: 0.4rem;
+}
+
+@media (min-width: 640px) {
+  .case-visit-card {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
+}
+
+.message-thread-bubbles {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.message-bubble {
+  max-width: min(100%, 36rem);
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.message-bubble.is-client {
+  margin-left: auto;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.message-bubble.is-staff {
+  margin-right: auto;
+}
+
+.case-messages {
+  gap: 1rem;
+}
+
+.case-messages-thread {
+  min-height: 8rem;
+}
+
+.case-messages .message-bubble {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  max-width: min(100%, 40rem);
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+}
+
+.case-messages .message-bubble.is-staff {
+  background: color-mix(in srgb, #94a3b8 10%, var(--color-surface));
+  border-color: color-mix(in srgb, #94a3b8 28%, var(--color-border));
+}
+
+.case-messages .message-bubble.is-client {
+  background: color-mix(in srgb, var(--color-primary) 16%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+}
+
+.message-bubble-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 750;
+  background: color-mix(in srgb, #94a3b8 22%, transparent);
+  color: #e2e8f0;
+}
+
+.case-messages .message-bubble.is-client .message-bubble-avatar {
+  background: color-mix(in srgb, var(--color-primary) 28%, transparent);
+  color: #ffedd5;
+}
+
+.message-bubble-body {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.message-bubble-body p {
+  margin: 0;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.case-messages .message-thread-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.case-messages-compose {
+  margin-top: 0.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.case-messages-compose-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.case-messages-compose-row .message-attachment-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.case-messages-compose-row .btn-primary {
+  margin-left: auto;
+}
+
+.case-messages .message-template-chip {
+  min-height: 36px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  background: color-mix(in srgb, var(--color-surface-secondary, var(--color-surface)) 80%, transparent);
+}
+
+.case-messages textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.case-detail-sticky-actions {
+  position: sticky;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--case-tone, var(--color-primary)) 32%, var(--color-border));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.05) inset,
+    0 14px 36px rgb(2 6 23 / 0.28);
+}
+
+.case-detail-sticky-actions.case-next-step-actions {
+  grid-column: auto;
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .case-detail-sticky-actions {
+    display: none;
+  }
+}
+
+.case-card-rail {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.case-card-rail .case-card {
+  min-width: min(100%, 20rem);
+  flex: 0 0 min(100%, 20rem);
+  scroll-snap-align: start;
+}
+
+.client-newcomer-card .empty-state {
+  margin: 0;
+}
+

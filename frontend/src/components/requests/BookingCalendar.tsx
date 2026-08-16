@@ -30,6 +30,10 @@ function dayLabel(date: Date) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+export function BookingStatusBadge({ status }: { status: string }) {
+  return <StatusBadge status={status} />;
+}
+
 export function BookingCalendar({
   bookings,
   onSelect,
@@ -48,63 +52,62 @@ export function BookingCalendar({
     (a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime(),
   );
 
+  if (!days.length) {
+    return <p className="muted">Пока нет назначенных записей.</p>;
+  }
+
   return (
-    <section className="booking-calendar" aria-label="Календарь записей">
-      {!days.length ? (
-        <p className="muted">Пока нет назначенных записей.</p>
-      ) : (
-        <div className="booking-days">
-          {days.map(([day, items]) => {
-            const date = new Date(day);
-            const isToday = date.toDateString() === new Date().toDateString();
-            return (
-              <article key={day} className={`booking-day${isToday ? ' is-today' : ''}`}>
-                <header className="booking-day-header">
-                  <h4>{dayLabel(date)}</h4>
-                  <span className="tnum">{items.length}</span>
-                </header>
-                <ul>
-                  {items
-                    .slice()
-                    .sort((a, b) => a.preferredAt.localeCompare(b.preferredAt))
-                    .map((item) => {
-                      const content = (
-                        <>
-                          <strong className="tnum">
-                            {new Date(item.preferredAt).toLocaleTimeString('ru-RU', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </strong>
-                          <span>{item.client?.fullName || item.guestName || 'Клиент'}</span>
-                          <span className="muted booking-day-car">
-                            {getBookingVehicleLabel(item as ServiceBooking) || ''}
-                          </span>
-                          <StatusBadge status={item.status} />
-                        </>
-                      );
-                      return (
-                        <li key={item.id}>
-                          {onSelect ? (
-                            <button
-                              type="button"
-                              className="booking-list-btn"
-                              onClick={() => onSelect(item as ServiceBooking)}
-                            >
-                              {content}
-                            </button>
-                          ) : (
-                            <span className="booking-list-static">{content}</span>
-                          )}
-                        </li>
-                      );
-                    })}
-                </ul>
-              </article>
-            );
-          })}
-        </div>
-      )}
+    <section className="booking-days" aria-label="Календарь записей">
+      {days.map(([day, items]) => {
+        const date = new Date(day);
+        const isToday = date.toDateString() === new Date().toDateString();
+        return (
+          <article key={day} className={`booking-day${isToday ? ' is-today' : ''}`}>
+            <header className="booking-day-header">
+              <h4>{dayLabel(date)}</h4>
+              <span className="muted tnum">{items.length}</span>
+            </header>
+            <ul className="booking-click-list">
+              {items
+                .slice()
+                .sort((a, b) => a.preferredAt.localeCompare(b.preferredAt))
+                .map((item) => {
+                  const name = item.client?.fullName || item.guestName || 'Клиент';
+                  const car = getBookingVehicleLabel(item as ServiceBooking);
+                  const time = new Date(item.preferredAt).toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  const inner = (
+                    <>
+                      <strong className="tnum">{time}</strong>
+                      <span>
+                        {name}
+                        {car ? <span className="booking-day-car muted">{car}</span> : null}
+                      </span>
+                      <BookingStatusBadge status={item.status} />
+                    </>
+                  );
+                  return (
+                    <li key={item.id}>
+                      {onSelect ? (
+                        <button
+                          type="button"
+                          className="booking-list-btn"
+                          onClick={() => onSelect(item as ServiceBooking)}
+                        >
+                          {inner}
+                        </button>
+                      ) : (
+                        <div className="booking-list-static">{inner}</div>
+                      )}
+                    </li>
+                  );
+                })}
+            </ul>
+          </article>
+        );
+      })}
     </section>
   );
 }

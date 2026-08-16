@@ -9,6 +9,7 @@ export function PhoneInput({
   value,
   onChange,
   placeholder = '+7 (999) 000-00-00',
+  className,
   ...props
 }: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> & {
   value: string;
@@ -37,7 +38,7 @@ export function PhoneInput({
     <input
       {...props}
       ref={inputRef}
-      className="input"
+      className={className ?? 'input'}
       value={displayValue}
       placeholder={placeholder}
       onChange={handleChange}

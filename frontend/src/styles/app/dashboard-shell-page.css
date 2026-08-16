@@ -1,0 +1,209 @@
+/* Dashboard shell — page chrome, desk widgets */
+.dashboard-integration-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-danger);
+  text-decoration: none;
+  border: 1px solid color-mix(in oklab, var(--color-danger) 35%, var(--color-border));
+  background: color-mix(in oklab, var(--color-danger) 12%, transparent);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.dashboard-shell-content {
+  padding: 1.15rem 1.25rem 2rem;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.dashboard-page {
+  gap: 1rem;
+}
+
+.dashboard-page .page-header h1 {
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.page-header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.page-header-desc {
+  color: var(--color-text-secondary);
+  margin-top: 0.35rem;
+  max-width: 62ch;
+}
+
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+}
+
+.breadcrumbs a {
+  color: var(--color-text-secondary);
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quick-action-card {
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 0.65rem 0.9rem;
+  font-weight: 650;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.quick-action-card:hover {
+  border-color: color-mix(in oklab, var(--brand-primary) 40%, var(--color-border));
+  transform: translateY(-1px);
+}
+
+.desk-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.desk-action-card {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(160deg, color-mix(in oklab, var(--brand-primary) 10%, transparent), transparent 55%),
+    var(--color-surface);
+  border-radius: 14px;
+  padding: 0.95rem 1rem;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.desk-action-card:hover {
+  border-color: color-mix(in oklab, var(--brand-primary) 40%, var(--color-border));
+  transform: translateY(-1px);
+}
+
+.desk-action-card strong {
+  display: block;
+  letter-spacing: -0.02em;
+}
+
+.desk-action-card span,
+.desk-action-card small {
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+}
+
+.desk-action-card svg {
+  color: var(--brand-accent);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.desk-list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.desk-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-secondary);
+}
+
+.desk-list strong {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.desk-list .muted,
+.desk-list span.muted {
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+}
+
+.desk-spotlight {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  padding: 0.35rem 0;
+}
+
+.desk-spotlight svg {
+  color: var(--brand-accent);
+  margin-top: 0.2rem;
+}
+
+.desk-spotlight p {
+  margin: 0.35rem 0 0;
+}
+
+.desk-profile-dl {
+  margin-top: 0.75rem;
+}
+
+.desk-profile-dl > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.desk-checklist {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.desk-checklist li {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  color: var(--color-text-secondary);
+}
+
+.desk-checklist svg {
+  color: var(--brand-accent);
+}
+

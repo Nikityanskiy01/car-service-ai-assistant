@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Phone } from 'lucide-react';
+import { ArrowDown, ArrowUp, Copy, Phone } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   bulkAssignRequests,
   bulkExportRequestsToCrm,
   bulkPatchRequestStatuses,
+  listServiceRequestBoard,
   listServiceRequests,
   patchServiceRequestStatus,
+  type RequestBoardColumn,
   type RequestListParams,
 } from '../../api/dashboard';
-import { CopyPhoneButton } from '../../components/ui/CopyPhoneButton';
+import { copyText } from '../../lib/clipboard';
 import {
   loadSavedQueueFilters,
   removeQueueFilter,
@@ -20,36 +23,53 @@ import { BulkActionBar } from '../../components/manager/BulkActionBar';
 import { ManagerQueueFilters, type QueueFilterState } from '../../components/manager/ManagerQueueFilters';
 import { QUEUE_STATUSES } from '../../lib/queueStatuses';
 import { ManagerKanban } from '../../components/requests/ManagerKanban';
-import { SlaBadge } from '../../components/requests/SlaBadge';
-import { UrgencyBadge } from '../../components/consultation/UrgencyBadge';
-import { PageHeader } from '../../components/layout/dashboard/PageHeader';
-import { Button } from '../../components/ui/Button';
-import { DataTable } from '../../components/ui/DataTable';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { ErrorState } from '../../components/ui/ErrorState';
-import { Pagination } from '../../components/ui/Pagination';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import { useToast } from '../../components/ui/toastContext';
+import { Alert, AlertDescription, AlertTitle } from '../../components/console/ui/alert';
+import { Badge } from '../../components/console/ui/badge';
+import { Button } from '../../components/console/ui/button';
+import { Skeleton } from '../../components/console/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/console/ui/table';
 import { managerZonePaths } from '../../config/managerPaths';
 import {
   formatRelativeTime,
   getRequestConfidence,
   getRequestUrgency,
 } from '../../lib/managerRequestHelpers';
-import { formatRequestNumber } from '../../lib/labels';
+import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
+import { slaLabel } from '../../lib/requestSla';
 import { useDashboardPolling } from '../../hooks/useDashboardPolling';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { ServiceRequest, ServiceRequestStatus } from '../../types/serviceRequest';
 
 const PAGE_SIZE = 20;
+const KANBAN_PAGE_SIZE = 20;
 
 type SortKey = NonNullable<RequestListParams['sort']>;
 
 type ManagerRequestsPageProps = {
   adminZone?: boolean;
 };
+
+function statusVariant(status: ServiceRequestStatus): 'default' | 'secondary' | 'destructive' | 'success' | 'warning' {
+  if (status === 'COMPLETED') return 'success';
+  if (status === 'CANCELLED') return 'destructive';
+  if (status === 'NEW') return 'warning';
+  if (status === 'IN_PROGRESS') return 'default';
+  return 'secondary';
+}
+
+function urgencyVariant(urgency: string | null): 'secondary' | 'warning' | 'destructive' {
+  if (urgency === 'critical' || urgency === 'high') return 'destructive';
+  if (urgency === 'medium') return 'warning';
+  return 'secondary';
+}
+
+function urgencyLabel(urgency: string) {
+  if (urgency === 'critical') return 'Критическая';
+  if (urgency === 'high') return 'Высокая';
+  if (urgency === 'medium') return 'Средняя';
+  return 'Низкая';
+}
 
 export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPageProps) {
   usePageMeta({
@@ -58,7 +78,6 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
   });
 
   const paths = managerZonePaths(adminZone);
-  const { success, error: toastError } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const scope = searchParams.get('scope') === 'mine' ? 'mine' : 'all';
@@ -87,9 +106,11 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
+  const [board, setBoard] = useState<Partial<Record<ServiceRequestStatus, RequestBoardColumn>>>({});
   const [total, setTotal] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [loadingMore, setLoadingMore] = useState<Partial<Record<ServiceRequestStatus, boolean>>>({});
   const [savedFilters, setSavedFilters] = useState<SavedQueueFilter[]>(() => loadSavedQueueFilters());
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const firstLoadRef = useRef(true);
@@ -111,33 +132,57 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
   ].join('|');
   const debouncedQueryKey = useDebouncedValue(queryKey, 120);
 
+  const sharedParams = useMemo<Omit<RequestListParams, 'page' | 'pageSize'>>(
+    () => ({
+      status: statuses.length === 1 ? statuses[0] : undefined,
+      statuses: statuses.length > 1 ? statuses.join(',') : undefined,
+      q: q || undefined,
+      sort,
+      dir,
+      mine: scope === 'mine',
+      urgency: urgencyFilter ? (urgencyFilter as 'low' | 'medium' | 'high' | 'critical') : undefined,
+      feedback: feedbackFilter
+        ? (feedbackFilter as 'none' | 'CORRECT' | 'PARTIAL' | 'INCORRECT')
+        : undefined,
+      sla: slaFilter === 'breached' ? 'breached' : undefined,
+      source: sourceFilter ? (sourceFilter as 'guest' | 'registered' | 'contact') : undefined,
+      period: periodFilter ? (periodFilter as 'today' | '7d' | 'all') : undefined,
+      hasDiagnosis: hasDiagnosisFilter || undefined,
+    }),
+    [
+      statuses,
+      q,
+      sort,
+      dir,
+      scope,
+      urgencyFilter,
+      feedbackFilter,
+      slaFilter,
+      sourceFilter,
+      periodFilter,
+      hasDiagnosisFilter,
+    ],
+  );
+
   const load = useCallback(async () => {
     setRefreshing(true);
     setError(null);
     try {
-      const data = await listServiceRequests({
-        status: statuses.length === 1 ? statuses[0] : undefined,
-        statuses: statuses.length > 1 ? statuses.join(',') : undefined,
-        q: q || undefined,
-        page,
-        pageSize: view === 'kanban' ? 100 : PAGE_SIZE,
-        sort,
-        dir,
-        mine: scope === 'mine',
-        urgency: urgencyFilter ? (urgencyFilter as 'low' | 'medium' | 'high' | 'critical') : undefined,
-        feedback: feedbackFilter
-          ? (feedbackFilter as 'none' | 'CORRECT' | 'PARTIAL' | 'INCORRECT')
-          : undefined,
-        sla: slaFilter === 'breached' ? 'breached' : undefined,
-        source: sourceFilter ? (sourceFilter as 'guest' | 'registered' | 'contact') : undefined,
-        period: periodFilter ? (periodFilter as 'today' | '7d' | 'all') : undefined,
-        hasDiagnosis: hasDiagnosisFilter || undefined,
-      });
-      setRequests(data.items);
-      setTotal(data.total);
+      if (view === 'kanban') {
+        const data = await listServiceRequestBoard({ ...sharedParams, pageSize: KANBAN_PAGE_SIZE });
+        setBoard(data.columns);
+        setRequests([]);
+        setTotal(data.total);
+        setSelectedIds([]);
+      } else {
+        const data = await listServiceRequests({ ...sharedParams, page, pageSize: PAGE_SIZE });
+        setRequests(data.items);
+        setBoard({});
+        setTotal(data.total);
+        const visible = new Set(data.items.map((item) => item.id));
+        setSelectedIds((prev) => prev.filter((id) => visible.has(id)));
+      }
       setLastUpdatedAt(new Date());
-      const visible = new Set(data.items.map((item) => item.id));
-      setSelectedIds((prev) => prev.filter((id) => visible.has(id)));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось загрузить заявки');
     } finally {
@@ -147,25 +192,10 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
         setFirstLoad(false);
       }
     }
-  }, [
-    statuses,
-    q,
-    page,
-    view,
-    scope,
-    urgencyFilter,
-    feedbackFilter,
-    slaFilter,
-    sourceFilter,
-    periodFilter,
-    hasDiagnosisFilter,
-    sort,
-    dir,
-  ]);
+  }, [sharedParams, page, view]);
 
   useEffect(() => {
     void load();
-    // Ключ запроса дебаунсится, чтобы быстрые клики по фильтрам не рождали гонку запросов.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQueryKey]);
 
@@ -203,8 +233,8 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
     setSearchParams(
       (current) => {
         const next = new URLSearchParams();
-        const view = current.get('view');
-        if (view) next.set('view', view);
+        const currentView = current.get('view');
+        if (currentView) next.set('view', currentView);
         return next;
       },
       { replace: true },
@@ -242,25 +272,68 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
       await action();
       setSelectedIds([]);
       await load();
-      success(successMessage, { description: `Затронуто заявок: ${count}` });
+      toast.success(successMessage, { description: `Затронуто заявок: ${count}` });
     } catch (e) {
-      toastError(e instanceof Error ? e.message : errorMessage);
+      toast.error(e instanceof Error ? e.message : errorMessage);
     } finally {
       setBulkBusy(false);
     }
   }
 
   async function onStatusChange(item: ServiceRequest, status: ServiceRequestStatus) {
-    const previous = requests;
+    const previousRequests = requests;
+    const previousBoard = board;
     setRequests((prev) => prev.map((row) => (row.id === item.id ? { ...row, status } : row)));
+    setBoard((prev) => moveBoardItem(prev, item, status));
     try {
       await patchServiceRequestStatus(item.id, status, item.version);
       await load();
-      success('Статус обновлён', { description: `№${formatRequestNumber(item.id)}` });
+      toast.success('Статус обновлён', { description: `№${formatRequestNumber(item.id)}` });
     } catch (e) {
-      setRequests(previous);
-      toastError(e instanceof Error ? e.message : 'Не удалось изменить статус');
+      setRequests(previousRequests);
+      setBoard(previousBoard);
+      toast.error(e instanceof Error ? e.message : 'Не удалось изменить статус');
     }
+  }
+
+  async function onLoadMore(status: ServiceRequestStatus) {
+    const column = board[status];
+    if (!column || column.items.length >= column.total || loadingMore[status]) return;
+    const nextPage = Math.floor(column.items.length / KANBAN_PAGE_SIZE) + 1;
+    setLoadingMore((prev) => ({ ...prev, [status]: true }));
+    try {
+      const data = await listServiceRequests({
+        ...sharedParams,
+        status,
+        statuses: undefined,
+        page: nextPage,
+        pageSize: KANBAN_PAGE_SIZE,
+      });
+      setBoard((prev) => {
+        const current = prev[status];
+        if (!current) return prev;
+        const seen = new Set(current.items.map((item) => item.id));
+        return {
+          ...prev,
+          [status]: {
+            ...current,
+            items: [...current.items, ...data.items.filter((item) => !seen.has(item.id))],
+            total: data.total,
+            page: nextPage,
+          },
+        };
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Не удалось подгрузить колонку');
+    } finally {
+      setLoadingMore((prev) => ({ ...prev, [status]: false }));
+    }
+  }
+
+  async function copyPhone(phone: string) {
+    const ok = await copyText(phone);
+    if (ok) toast.success('Телефон скопирован');
+    else toast.error('Не удалось скопировать номер');
   }
 
   const filterState: QueueFilterState = {
@@ -277,144 +350,16 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
   };
 
   const allSelected = requests.length > 0 && selectedIds.length === requests.length;
-
-  const tableRows = useMemo(
-    () =>
-      requests.map((item) => {
-        const urgency = getRequestUrgency(item.consultationSession);
-        const confidence = getRequestConfidence(item.consultationSession);
-        const phone = item.client?.phone || item.guestPhone;
-        const detailPath = `${paths.requests}/${item.id}`;
-        return {
-          select: (
-            <input
-              type="checkbox"
-              aria-label={`Выбрать заявку №${formatRequestNumber(item.id)}`}
-              checked={selectedIds.includes(item.id)}
-              onChange={() => toggleSelected(item.id)}
-            />
-          ),
-          number: (
-            <span className="queue-number-cell">
-              <Link to={detailPath} className="tnum">
-                №{formatRequestNumber(item.id)}
-              </Link>
-              {item.status === 'NEW' ? <StatusBadge status="NEW" /> : null}
-            </span>
-          ),
-          client: (
-            <span className="queue-client-cell">
-              <span>{item.client?.fullName || item.guestName || 'Гость'}</span>
-              {phone ? (
-                <small className="muted queue-phone-row">
-                  <a href={`tel:${phone}`} className="tnum">
-                    {phone}
-                  </a>
-                  <CopyPhoneButton phone={phone} label="" />
-                </small>
-              ) : null}
-            </span>
-          ),
-          car: `${item.snapshotMake || ''} ${item.snapshotModel || ''}`.trim() || 'Не указан',
-          problem: (
-            <span className="queue-problem-cell" title={item.snapshotSymptoms || undefined}>
-              {item.snapshotSymptoms?.slice(0, 70) || 'Без описания'}
-            </span>
-          ),
-          ai: (
-            <span className="queue-ai-cell">
-              {urgency ? <UrgencyBadge urgency={urgency} /> : <span className="muted">нет</span>}
-              {confidence != null ? <small className="tnum">{confidence}%</small> : null}
-            </span>
-          ),
-          sla: <SlaBadge request={item} />,
-          status: <StatusBadge status={item.status} />,
-          manager: item.assignedManager?.fullName || <span className="muted">не назначен</span>,
-          date: (
-            <span className="queue-date-cell">
-              <span className="tnum">{formatRelativeTime(item.createdAt)}</span>
-              <small className="muted block tnum">
-                {new Date(item.createdAt).toLocaleDateString('ru-RU')}
-              </small>
-            </span>
-          ),
-          actions: (
-            <span className="queue-actions-cell">
-              {phone ? (
-                <a href={`tel:${phone}`} className="btn btn-ghost btn-icon" aria-label="Позвонить">
-                  <Phone size={15} aria-hidden />
-                </a>
-              ) : null}
-              <Link to={detailPath} className="btn btn-ghost">
-                Открыть
-              </Link>
-            </span>
-          ),
-        };
-      }),
-    [requests, selectedIds, paths.requests],
-  );
-
-  function sortableHeader(key: SortKey, label: string) {
-    const active = sort === key;
-    return (
-      <button
-        type="button"
-        className={`queue-sort-btn${active ? ' is-active' : ''}`}
-        onClick={() => toggleSort(key)}
-        aria-label={`Сортировать по «${label}»`}
-      >
-        {label}
-        {active ? (
-          dir === 'asc' ? (
-            <ArrowUp size={13} aria-hidden />
-          ) : (
-            <ArrowDown size={13} aria-hidden />
-          )
-        ) : null}
-      </button>
-    );
-  }
-
-  const columns = [
-    {
-      key: 'select',
-      label: (
-        <input
-          type="checkbox"
-          aria-label="Выбрать все заявки на странице"
-          checked={allSelected}
-          onChange={toggleSelectAll}
-        />
-      ),
-    },
-    { key: 'number', label: 'Номер' },
-    { key: 'client', label: sortableHeader('client', 'Клиент') },
-    { key: 'car', label: sortableHeader('car', 'Автомобиль') },
-    { key: 'problem', label: 'Проблема' },
-    { key: 'ai', label: 'ИИ' },
-    { key: 'sla', label: 'SLA' },
-    { key: 'status', label: sortableHeader('status', 'Статус') },
-    { key: 'manager', label: 'Менеджер' },
-    { key: 'date', label: sortableHeader('createdAt', 'Дата') },
-    { key: 'actions', label: '' },
-  ];
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const filtersActive = Boolean(statuses.length || q || scope === 'mine');
 
   return (
-    <div className="stack dashboard-page manager-queue-page">
-      <PageHeader
-        title={adminZone ? 'Заявки' : 'Очередь'}
-        description={
-          adminZone
-            ? 'Административный обзор заявок: поиск, фильтры и статусы.'
-            : 'Поиск, фильтры и работа со статусами обращений.'
-        }
-        breadcrumbs={adminZone ? undefined : [
-                { label: 'Рабочий стол', to: paths.root },
-                { label: 'Очередь' },
-              ]
-        }
-      />
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        {adminZone
+          ? 'Административный обзор заявок: поиск, фильтры и статусы.'
+          : 'Поиск, фильтры и работа со статусами обращений.'}
+      </p>
 
       <ManagerQueueFilters
         state={filterState}
@@ -436,7 +381,7 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
             if (key !== 'page' && key !== 'view') params[key] = value;
           });
           setSavedFilters(saveQueueFilter(label, params));
-          success('Пресет сохранён', { description: label });
+          toast.success('Пресет сохранён', { description: label });
         }}
         onRemovePreset={(id) => setSavedFilters(removeQueueFilter(id))}
       />
@@ -468,75 +413,280 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
         onClear={() => setSelectedIds([])}
       />
 
-      {error ? <ErrorState message={error} onRetry={() => void load()} /> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Не удалось загрузить очередь</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2">
+            <span>Проверьте соединение и повторите попытку.</span>
+            <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => void load()}>
+              Повторить
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {firstLoad ? (
-        <div className="queue-skeleton" aria-hidden>
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="skeleton-row" />
-          ))}
+        <div className="flex flex-col gap-2" aria-hidden>
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
         </div>
       ) : null}
 
-      {!firstLoad && !error && !requests.length ? (
-        <EmptyState
-          title="Заявок не найдено"
-          description={
-            statuses.length || q || scope === 'mine'
+      {!firstLoad && !error && total === 0 ? (
+        <div className="rounded-xl border border-border bg-card px-4 py-10 text-center">
+          <p className="text-sm font-medium">Заявок не найдено</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {filtersActive
               ? 'Ни одна заявка не подходит под текущие фильтры.'
-              : 'Новые обращения появятся после консультаций и заявок с сайта.'
-          }
-          action={
-            statuses.length || q || scope === 'mine' ? (
-              <Button variant="secondary" onClick={resetFilters}>
-                Сбросить фильтры
-              </Button>
-            ) : null
-          }
+              : 'Новые обращения появятся после консультаций и заявок с сайта.'}
+          </p>
+          {filtersActive ? (
+            <Button type="button" variant="secondary" size="sm" className="mt-4" onClick={resetFilters}>
+              Сбросить фильтры
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!firstLoad && !error && total > 0 && view === 'kanban' ? (
+        <ManagerKanban
+          columns={board}
+          requestBasePath={paths.requests}
+          loadingMore={loadingMore}
+          onStatusChange={(item, status) => void onStatusChange(item, status)}
+          onLoadMore={(status) => void onLoadMore(status)}
         />
       ) : null}
 
-      {!firstLoad && !error && requests.length > 0 ? (
-        view === 'kanban' ? (
-          <ManagerKanban
-            requests={requests}
-            requestBasePath={paths.requests}
-            onStatusChange={(item, status) => void onStatusChange(item, status)}
-          />
-        ) : (
-          <>
-            <div className={`desktop-only queue-table${refreshing ? ' is-refreshing' : ''}`}>
-              <DataTable columns={columns} rows={tableRows} />
-            </div>
-            <div className="mobile-only responsive-card-list">
-              {requests.map((item) => (
+      {!firstLoad && !error && requests.length > 0 && view === 'list' ? (
+        <>
+          <div className={`hidden rounded-xl border border-border bg-card lg:block ${refreshing ? 'opacity-80' : ''}`}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-[var(--brand-primary)]"
+                      aria-label="Выбрать все заявки на странице"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead>Номер</TableHead>
+                  <TableHead>{sortableHeader(sort, dir, 'client', 'Клиент', toggleSort)}</TableHead>
+                  <TableHead>{sortableHeader(sort, dir, 'car', 'Автомобиль', toggleSort)}</TableHead>
+                  <TableHead>Проблема</TableHead>
+                  <TableHead>ИИ</TableHead>
+                  <TableHead>Ответ</TableHead>
+                  <TableHead>{sortableHeader(sort, dir, 'status', 'Статус', toggleSort)}</TableHead>
+                  <TableHead>Менеджер</TableHead>
+                  <TableHead>{sortableHeader(sort, dir, 'createdAt', 'Дата', toggleSort)}</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {requests.map((item) => {
+                  const urgency = getRequestUrgency(item.consultationSession);
+                  const confidence = getRequestConfidence(item.consultationSession);
+                  const phone = item.client?.phone || item.guestPhone;
+                  const detailPath = `${paths.requests}/${item.id}`;
+                  const sla = slaLabel(item);
+                  const car = `${item.snapshotMake || ''} ${item.snapshotModel || ''}`.trim();
+                  return (
+                    <TableRow key={item.id} data-state={selectedIds.includes(item.id) ? 'selected' : undefined}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          className="size-4 accent-[var(--brand-primary)]"
+                          aria-label={`Выбрать заявку №${formatRequestNumber(item.id)}`}
+                          checked={selectedIds.includes(item.id)}
+                          onChange={() => toggleSelected(item.id)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-2">
+                          <Link to={detailPath} className="font-medium tabular-nums text-foreground">
+                            №{formatRequestNumber(item.id)}
+                          </Link>
+                          {item.status === 'NEW' ? <Badge variant="warning">Новая</Badge> : null}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex flex-col gap-0.5">
+                          <span>{item.client?.fullName || item.guestName || 'Гость'}</span>
+                          {phone ? (
+                            <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                              <a href={`tel:${phone}`} className="min-w-0 truncate">
+                                {phone}
+                              </a>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-6 shrink-0"
+                                aria-label="Скопировать номер"
+                                onClick={() => void copyPhone(phone)}
+                              >
+                                <Copy />
+                              </Button>
+                            </span>
+                          ) : null}
+                        </span>
+                      </TableCell>
+                      <TableCell>{car || 'Не указан'}</TableCell>
+                      <TableCell className="max-w-56">
+                        <span className="line-clamp-2" title={item.snapshotSymptoms || undefined}>
+                          {item.snapshotSymptoms?.slice(0, 70) || 'Без описания'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-1.5">
+                          {urgency ? <Badge variant={urgencyVariant(urgency)}>{urgencyLabel(urgency)}</Badge> : (
+                            <span className="text-muted-foreground">нет</span>
+                          )}
+                          {confidence != null ? (
+                            <span className="text-xs text-muted-foreground tabular-nums">{confidence}%</span>
+                          ) : null}
+                        </span>
+                      </TableCell>
+                      <TableCell>{sla ? <Badge variant="destructive">{sla}</Badge> : null}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant(item.status)}>{SERVICE_REQUEST_STATUS_LABELS[item.status]}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {item.assignedManager?.fullName || <span className="text-muted-foreground">не назначен</span>}
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex flex-col">
+                          <span className="tabular-nums">{formatRelativeTime(item.createdAt)}</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {new Date(item.createdAt).toLocaleDateString('ru-RU')}
+                          </span>
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex items-center justify-end gap-1">
+                          {phone ? (
+                            <Button asChild variant="ghost" size="icon" className="size-8">
+                              <a href={`tel:${phone}`} aria-label="Позвонить">
+                                <Phone />
+                              </a>
+                            </Button>
+                          ) : null}
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to={detailPath}>Открыть</Link>
+                          </Button>
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex flex-col gap-2 lg:hidden">
+            {requests.map((item) => {
+              const phone = item.client?.phone || item.guestPhone;
+              const sla = slaLabel(item);
+              return (
                 <Link
                   key={item.id}
                   to={`${paths.requests}/${item.id}`}
-                  className="responsive-data-card"
+                  className="flex flex-col gap-1 rounded-xl border border-border bg-card px-3 py-3 text-inherit no-underline transition-[transform,background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-accent/40 active:scale-[0.99]"
                 >
-                  <header>
-                    <strong className="tnum">№{formatRequestNumber(item.id)}</strong>
-                    <StatusBadge status={item.status} />
-                  </header>
-                  <p>{item.client?.fullName || item.guestName || 'Гость'}</p>
-                  <p className="muted">
+                  <span className="flex items-center justify-between gap-2">
+                    <strong className="tabular-nums">№{formatRequestNumber(item.id)}</strong>
+                    <Badge variant={statusVariant(item.status)}>{SERVICE_REQUEST_STATUS_LABELS[item.status]}</Badge>
+                  </span>
+                  <span>{item.client?.fullName || item.guestName || 'Гость'}</span>
+                  <span className="text-sm text-muted-foreground">
                     {`${item.snapshotMake || ''} ${item.snapshotModel || ''}`.trim() || 'Авто не указано'}
-                  </p>
-                  <SlaBadge request={item} />
-                  <small className="tnum">{formatRelativeTime(item.createdAt)}</small>
+                  </span>
+                  {phone ? <span className="text-xs text-muted-foreground tabular-nums">{phone}</span> : null}
+                  {sla ? <Badge variant="destructive" className="w-fit">{sla}</Badge> : null}
+                  <span className="text-xs text-muted-foreground tabular-nums">{formatRelativeTime(item.createdAt)}</span>
                 </Link>
-              ))}
+              );
+            })}
+          </div>
+
+          {pageCount > 1 ? (
+            <div className="flex items-center justify-between text-sm">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => updateParams({ page: String(page - 1) })}
+              >
+                Назад
+              </Button>
+              <span className="tabular-nums text-muted-foreground">
+                {page} / {pageCount}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page >= pageCount}
+                onClick={() => updateParams({ page: String(page + 1) })}
+              >
+                Дальше
+              </Button>
             </div>
-            <Pagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              total={total}
-              onChange={(next) => updateParams({ page: String(next) })}
-            />
-          </>
-        )
+          ) : null}
+        </>
       ) : null}
     </div>
   );
+}
+
+function sortableHeader(
+  sort: SortKey,
+  dir: 'asc' | 'desc',
+  key: SortKey,
+  label: string,
+  onToggle: (key: SortKey) => void,
+) {
+  const active = sort === key;
+  return (
+    <button
+      type="button"
+      className={`inline-flex appearance-none border-0 bg-transparent p-0 font-medium cursor-pointer items-center gap-1 transition-colors duration-150 hover:text-foreground ${active ? 'text-foreground' : 'text-muted-foreground'}`}
+      onClick={() => onToggle(key)}
+      aria-label={`Сортировать по «${label}»`}
+    >
+      {label}
+      {active ? dir === 'asc' ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" /> : null}
+    </button>
+  );
+}
+
+function moveBoardItem(
+  board: Partial<Record<ServiceRequestStatus, RequestBoardColumn>>,
+  item: ServiceRequest,
+  nextStatus: ServiceRequestStatus,
+) {
+  const next = { ...board };
+  const from = next[item.status];
+  if (from) {
+    next[item.status] = {
+      ...from,
+      items: from.items.filter((row) => row.id !== item.id),
+      total: Math.max(0, from.total - 1),
+    };
+  }
+  const to = next[nextStatus];
+  const moved = { ...item, status: nextStatus };
+  if (to) {
+    next[nextStatus] = {
+      ...to,
+      items: [moved, ...to.items.filter((row) => row.id !== item.id)],
+      total: to.total + (to.items.some((row) => row.id === item.id) ? 0 : 1),
+    };
+  }
+  return next;
 }

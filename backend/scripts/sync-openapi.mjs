@@ -59,6 +59,30 @@ const HINTS = {
   'POST /consultations/{sessionId}/messages': 'Сообщение в консультацию',
 };
 
+function requestSchemaFor(method, openPath) {
+  const key = `${method} ${openPath}`;
+  const map = {
+    'POST /consultations': 'ConsultationCreate',
+    'POST /bookings': 'BookingCreate',
+    'POST /bookings/guest': 'BookingCreate',
+  };
+  return map[key] || null;
+}
+
+function responseSchemaFor(method, openPath) {
+  const key = `${method} ${openPath}`;
+  const map = {
+    'POST /consultations': 'Consultation',
+    'GET /consultations': 'Consultation',
+    'GET /consultations/staff': 'CursorPage',
+    'GET /bookings': 'BookingList',
+    'POST /bookings': 'Booking',
+    'POST /bookings/guest': 'Booking',
+    'GET /service-requests': 'CursorPage',
+  };
+  return map[key] || null;
+}
+
 function yamlQuote(value) {
   if (value == null) return '""';
   const s = String(value);
@@ -144,14 +168,21 @@ function buildYaml(routes) {
         }
       }
       if (['post', 'patch', 'put'].includes(op.method)) {
+        const reqRef = requestSchemaFor(op.method.toUpperCase(), openPath);
         lines.push('      requestBody:');
         lines.push('        content:');
         lines.push('          application/json:');
-        lines.push('            schema: { type: object }');
+        lines.push(reqRef ? `            schema: { $ref: '#/components/schemas/${reqRef}' }` : '            schema: { type: object }');
       }
       lines.push('      responses:');
       lines.push("        '200':");
       lines.push('          description: OK');
+      const resRef = responseSchemaFor(op.method.toUpperCase(), openPath);
+      if (resRef) {
+        lines.push('          content:');
+        lines.push('            application/json:');
+        lines.push(`              schema: { $ref: '#/components/schemas/${resRef}' }`);
+      }
       lines.push("        '4XX':");
       lines.push('          description: Problem Details (RFC 9457)');
       lines.push('          content:');
@@ -173,6 +204,53 @@ function buildYaml(routes) {
   lines.push('        instance: { type: string }');
   lines.push('        error: { type: string }');
   lines.push('        code: { type: string }');
+  lines.push('    ConsultationCreate:');
+  lines.push('      type: object');
+  lines.push('      additionalProperties: true');
+  lines.push('      properties:');
+  lines.push('        serviceCategoryId: { type: string, format: uuid }');
+  lines.push('    Consultation:');
+  lines.push('      type: object');
+  lines.push('      properties:');
+  lines.push('        id: { type: string, format: uuid }');
+  lines.push('        guestToken: { type: string, nullable: true }');
+  lines.push('        status: { type: string }');
+  lines.push('    BookingCreate:');
+  lines.push('      type: object');
+  lines.push('      required: [preferredAt]');
+  lines.push('      properties:');
+  lines.push('        preferredAt: { type: string, format: date-time }');
+  lines.push('        notes: { type: string }');
+  lines.push('    Booking:');
+  lines.push('      type: object');
+  lines.push('      properties:');
+  lines.push('        id: { type: string, format: uuid }');
+  lines.push('        status: { type: string }');
+  lines.push('        preferredAt: { type: string, format: date-time }');
+  lines.push('    BookingList:');
+  lines.push('      oneOf:');
+  lines.push('        - type: array');
+  lines.push('          items: { $ref: \'#/components/schemas/Booking\' }');
+  lines.push('        - type: object');
+  lines.push('          properties:');
+  lines.push('            items:');
+  lines.push('              type: array');
+  lines.push('              items: { $ref: \'#/components/schemas/Booking\' }');
+  lines.push('            nextCursor: { type: string, nullable: true }');
+  lines.push('    ServiceRequest:');
+  lines.push('      type: object');
+  lines.push('      properties:');
+  lines.push('        id: { type: string, format: uuid }');
+  lines.push('        status: { type: string }');
+  lines.push('        number: { type: string }');
+  lines.push('    CursorPage:');
+  lines.push('      type: object');
+  lines.push('      properties:');
+  lines.push('        items: { type: array, items: { type: object } }');
+  lines.push('        nextCursor: { type: string, nullable: true }');
+  lines.push('        total: { type: integer }');
+  lines.push('        limit: { type: integer }');
+  lines.push('        offset: { type: integer }');
   lines.push('');
   return `${lines.join('\n')}\n`;
 }

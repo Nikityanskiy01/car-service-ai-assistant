@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Полный аудит проекта — после S13</title>
+  <title>Полный аудит проекта — пересъёмка 16.08</title>
   <style>
     :root {
       --bg: #1c1c1c;
@@ -106,59 +106,71 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Полный аудит проекта — после S13</h1>
-    <p class="muted">Все составляющие кроме информационной безопасности. Повторная оценка 15 августа 2026; спринты 12–13 — 16 августа. Эталон: ISO 25010, OpenAPI 3.x, OpenTelemetry, WCAG 2.2, Testing Trophy, LLMOps 2026.</p>
+    <h1>Полный аудит проекта — пересъёмка 16.08</h1>
+    <p class="muted">Все составляющие кроме информационной безопасности. Независимая съёмка диска после S30 и hotfix «без ответа 15 мин». Эталон: ISO 25010, OpenAPI 3.x, OpenTelemetry, WCAG 2.2, Testing Trophy, LLMOps 2026.</p>
     <div class="pills">
-      <span class="pill warn">Итог 7.5 / 10</span>
+      <span class="pill ok">Итог 8.0 / 10</span>
+      <span class="pill warn">S30 заявлял 9.4</span>
       <span class="pill ok">P0 закрыты</span>
       <span class="pill">Без security-трека</span>
-      <span class="pill">docs/FULL-AUDIT-2026-08-15.md</span>
     </div>
 
     <div class="stats">
-      <div class="stat warn"><b>7.5</b><span>Зрелость / 10 (было 5.9)</span></div>
+      <div class="stat ok"><b>8.0</b><span>Зрелость / 10 (было 5.9)</span></div>
       <div class="stat ok"><b>0</b><span>Открытых P0</span></div>
-      <div class="stat warn"><b>2</b><span>P1 полностью открыты</span></div>
+      <div class="stat ok"><b>0</b><span>P1 полностью открыты</span></div>
       <div class="stat ok"><b>188</b><span>Маршрутов = OpenAPI ops</span></div>
     </div>
 
     <div class="callout">
       <strong>Как читать оценку</strong>
-      6 — можно демонстрировать и пилотировать с долгом. 8+ — рост команды и нагрузки без переписывания платформы. Проект силён доменом и надёжностью контура; разрыв — богатый контракт, DX и остаток god-файлов (`consultations.service`, service-book CSS).
+      6 — пилот с долгом. 8+ — рост команды без переписывания платформы. Итог 8.0 — не среднее доменов (7.1) и не арифметика спринтов (9.4). Демо и пилот — да. Стандарт 2026 без оговорок — нет: 8 богатых схем из 188 ops, noImplicitAny выключен, i18n только шапка.
     </div>
 
     <h2>Траектория зрелости</h2>
-    <p class="dim">Ось X — веха оценки. Ось Y — зрелость, баллы из 10. Линия «6» — порог пилота, «8» — порог роста команды. S5 — самооценка, не подтверждена пересъёмкой.</p>
+    <p class="dim">Ось X — веха оценки. Ось Y — зрелость, баллы из 10. Линия «6» — порог пилота, «8» — порог роста команды. Точка «16.08» — эта пересъёмка; S5 и S30 — заявленные самооценки.</p>
     <svg class="chart" viewBox="0 0 880 260" role="img" aria-label="Зрелость по спринтам">
       <rect width="880" height="260" fill="#242424" />
       <g stroke="#333" stroke-width="1">
         <line x1="70" y1="30" x2="70" y2="210" />
         <line x1="70" y1="210" x2="850" y2="210" />
       </g>
-      <!-- y: 5→210, 8.5→30 ; scale 180/3.5 -->
-      <line x1="70" y1="158.6" x2="850" y2="158.6" stroke="#c9a227" stroke-dasharray="4 4" />
-      <text x="856" y="162" fill="#c9a227" font-size="11">пилот 6</text>
-      <line x1="70" y1="55.7" x2="850" y2="55.7" stroke="#3d9a5f" stroke-dasharray="4 4" />
-      <text x="856" y="59" fill="#3d9a5f" font-size="11">рост 8</text>
+      <!-- y: 5→210, 10→30 ; scale 36 per point -->
+      <line x1="70" y1="174" x2="850" y2="174" stroke="#c9a227" stroke-dasharray="4 4" />
+      <text x="856" y="178" fill="#c9a227" font-size="11">пилот 6</text>
+      <line x1="70" y1="102" x2="850" y2="102" stroke="#3d9a5f" stroke-dasharray="4 4" />
+      <text x="856" y="106" fill="#3d9a5f" font-size="11">рост 8</text>
       <polyline fill="none" stroke="#5b8def" stroke-width="2"
-        points="70,163.7 140.9,132.9 211.8,117.4 282.7,107.1 353.6,127.7 424.5,117.4 495.5,112.3 566.4,107.1 637.3,102 708.2,96.9 779.1,91.7 850,81.4" />
+        points="70.0,177.6 96.9,156.0 123.8,145.2 150.7,138.0 177.6,152.4 204.5,145.2 231.4,141.6 258.3,138.0 285.2,134.4 312.1,130.8 339.0,127.2 365.9,120.0 392.8,116.4 419.7,109.2 446.6,105.6 473.4,102.0 500.3,98.4 527.2,94.8 554.1,91.2 581.0,87.6 607.9,84.0 634.8,80.4 661.7,76.8 688.6,73.2 715.5,69.6 742.4,66.0 769.3,62.4 796.2,58.8 823.1,51.6 850.0,102.0" />
       <g fill="#5b8def">
-        <circle cx="70" cy="163.7" r="3.5" /><circle cx="140.9" cy="132.9" r="3.5" /><circle cx="211.8" cy="117.4" r="3.5" />
-        <circle cx="282.7" cy="107.1" r="3.5" /><circle cx="353.6" cy="127.7" r="3.5" /><circle cx="424.5" cy="117.4" r="3.5" />
-        <circle cx="495.5" cy="112.3" r="3.5" /><circle cx="566.4" cy="107.1" r="3.5" /><circle cx="637.3" cy="102" r="3.5" />
-        <circle cx="708.2" cy="96.9" r="3.5" /><circle cx="779.1" cy="91.7" r="3.5" /><circle cx="850" cy="81.4" r="3.5" />
+        <circle cx="70.0" cy="177.6" r="3.5" /><circle cx="96.9" cy="156.0" r="3.5" /><circle cx="123.8" cy="145.2" r="3.5" />
+        <circle cx="150.7" cy="138.0" r="3.5" /><circle cx="177.6" cy="152.4" r="3.5" /><circle cx="204.5" cy="145.2" r="3.5" />
+        <circle cx="231.4" cy="141.6" r="3.5" /><circle cx="258.3" cy="138.0" r="3.5" /><circle cx="285.2" cy="134.4" r="3.5" />
+        <circle cx="312.1" cy="130.8" r="3.5" /><circle cx="339.0" cy="127.2" r="3.5" /><circle cx="365.9" cy="120.0" r="3.5" />
+        <circle cx="392.8" cy="116.4" r="3.5" /><circle cx="419.7" cy="109.2" r="3.5" /><circle cx="446.6" cy="105.6" r="3.5" />
+        <circle cx="473.4" cy="102.0" r="3.5" /><circle cx="500.3" cy="98.4" r="3.5" /><circle cx="527.2" cy="94.8" r="3.5" />
+        <circle cx="554.1" cy="91.2" r="3.5" /><circle cx="581.0" cy="87.6" r="3.5" /><circle cx="607.9" cy="84.0" r="3.5" />
+        <circle cx="634.8" cy="80.4" r="3.5" /><circle cx="661.7" cy="76.8" r="3.5" /><circle cx="688.6" cy="73.2" r="3.5" />
+        <circle cx="715.5" cy="69.6" r="3.5" /><circle cx="742.4" cy="66.0" r="3.5" /><circle cx="769.3" cy="62.4" r="3.5" />
+        <circle cx="796.2" cy="58.8" r="3.5" /><circle cx="823.1" cy="51.6" r="3.5" /><circle cx="850.0" cy="102.0" r="3.5" />
       </g>
-      <g fill="#ececec" font-size="9" text-anchor="middle">
-        <text x="70" y="228">Исходный</text><text x="140.9" y="228">S1–S3</text><text x="211.8" y="228">S4</text>
-        <text x="282.7" y="228">S5</text><text x="353.6" y="228">Пересъёмка</text><text x="424.5" y="228">S6</text>
-        <text x="495.5" y="228">S7</text><text x="566.4" y="228">S8</text><text x="637.3" y="228">S9–S10</text>
-        <text x="708.2" y="228">S11</text><text x="779.1" y="228">S12</text><text x="850" y="228">S13</text>
+      <g fill="#ececec" font-size="5.5" text-anchor="middle">
+        <text x="70.0" y="228">Исходный</text><text x="96.9" y="228">S1–S3</text><text x="123.8" y="228">S4</text>
+        <text x="150.7" y="228">S5</text><text x="177.6" y="228">Пересъёмка</text><text x="204.5" y="228">S6</text>
+        <text x="231.4" y="228">S7</text><text x="258.3" y="228">S8</text><text x="285.2" y="228">S9–S10</text>
+        <text x="312.1" y="228">S11</text><text x="339.0" y="228">S12</text><text x="365.9" y="228">S13</text>
+        <text x="392.8" y="228">S14</text><text x="419.7" y="228">S15</text><text x="446.6" y="228">S16</text>
+        <text x="473.4" y="228">S17</text><text x="500.3" y="228">S18</text><text x="527.2" y="228">S19</text>
+        <text x="554.1" y="228">S20</text><text x="581.0" y="228">S21</text><text x="607.9" y="228">S22</text>
+        <text x="634.8" y="228">S23</text><text x="661.7" y="228">S24</text><text x="688.6" y="228">S25</text>
+        <text x="715.5" y="228">S26</text><text x="742.4" y="228">S27</text><text x="769.3" y="228">S28</text>
+        <text x="796.2" y="228">S29</text><text x="823.1" y="228">S30</text><text x="850.0" y="228">16.08</text>
       </g>
       <g fill="#9a9a9a" font-size="10" text-anchor="end">
-        <text x="64" y="214">5</text><text x="64" y="163">6</text><text x="64" y="112">7</text><text x="64" y="60">8</text>
+        <text x="64" y="214">5</text><text x="64" y="174">6</text><text x="64" y="138">7</text><text x="64" y="102">8</text><text x="64" y="66">9</text><text x="64" y="34">10</text>
       </g>
     </svg>
-    <p class="dim">Источник: docs/FULL-AUDIT-2026-08-15.md §1, §25 · 15.08.2026 · Зрелость / 10</p>
+    <p class="dim">Источник: docs/FULL-AUDIT-2026-08-15.md §0–§2 · пересъёмка 16.08.2026</p>
 
     <h2>Зрелость по доменам</h2>
     <p class="dim">Шкала 0–10 относительно production-стандарта 2026. Ось Y — домен, ось X — оценка / 10.</p>
@@ -174,12 +186,12 @@
     </svg>
     <script>
       const domains = [
-        ["Надёжность", 8.0], ["UI / UX", 7.7], ["Архитектура", 7.6], ["Данные / Prisma", 7.5],
-        ["Frontend-код", 7.5], ["ИИ / LLM", 7.5], ["DevOps", 7.4], ["Юридическая полнота", 7.0],
-        ["A11y WCAG 2.2", 7.0], ["Тестирование", 6.9], ["CI/CD", 6.8], ["Сопровождаемость", 6.7],
-        ["Документация", 6.7], ["REST API", 6.4], ["Наблюдаемость", 6.4], ["Производительность", 6.3],
-        ["Интеграции", 6.2], ["SEO / PWA", 6.0], ["Качество backend", 5.9],
-        ["Продуктовая аналитика", 5.3], ["DX", 5.1], ["i18n", 3.0]
+        ["Надёжность", 8.0], ["Архитектура", 8.6], ["UI / UX", 8.4], ["Сопровождаемость", 8.3],
+        ["Frontend-код", 7.8], ["ИИ / LLM", 7.7], ["Данные / Prisma", 7.5], ["DevOps", 7.5],
+        ["CI/CD", 7.4], ["Тестирование", 7.2], ["Документация", 7.1], ["Интеграции", 7.1],
+        ["Юридическая полнота", 7.0], ["A11y WCAG 2.2", 7.0], ["Качество backend", 7.0],
+        ["REST API", 6.9], ["Наблюдаемость", 6.7], ["Производительность", 6.5],
+        ["SEO / PWA", 6.4], ["DX", 6.1], ["Продуктовая аналитика", 5.9], ["i18n", 4.4]
       ];
       const svg = document.querySelectorAll(".chart")[1];
       const ns = "http://www.w3.org/2000/svg";
@@ -203,13 +215,13 @@
         svg.appendChild(val);
       });
     </script>
-    <p class="dim">Источник: повторная карта зрелости §2 · 15.08.2026 вечером</p>
+    <p class="dim">Источник: карта зрелости §2 · 16.08.2026 вечером</p>
 
-    <div class="bar-meta"><span>22 домена</span><span>9 сильных · 10 средних · 3 слабых</span></div>
+    <div class="bar-meta"><span>22 домена</span><span>15 сильных · 6 средних · 1 слабый</span></div>
     <div class="bar-track">
-      <span class="seg-ok" style="width:40.9%"></span>
-      <span class="seg-warn" style="width:45.5%"></span>
-      <span class="seg-bad" style="width:13.6%"></span>
+      <span class="seg-ok" style="width:68.2%"></span>
+      <span class="seg-warn" style="width:27.3%"></span>
+      <span class="seg-bad" style="width:4.5%"></span>
     </div>
     <p class="dim">Сильные ≥ 7.0 · средние 5.5–6.9 · слабые &lt; 5.5.</p>
 
@@ -219,28 +231,28 @@
     </table>
     <script>
       const notes = {
-        "Надёжность": "live/ready, AOF, worker, бэкап uploads",
-        "UI / UX": "Слои CSS; MASTER primary #ea580c",
-        "Данные / Prisma": "40 миграций; pgvector HNSW; нет PgBouncer",
-        "Архитектура": "Фасады S7–S12; vehicles/overview слои S13",
-        "Frontend-код": "TS strict, lazy, EB; Booking/гараж распилены",
-        "DevOps": "Compose зрелый; render.yaml устарел",
-        "ИИ / LLM": "Case memory ANN; nightly live extraction eval",
+        "Надёжность": "live/ready 200; AOF; worker; бэкап uploads",
+        "UI / UX": "73 CSS, ни одного >700; MASTER primary #ea580c",
+        "Данные / Prisma": "41 миграция; pgvector HNSW; нет PgBouncer",
+        "Архитектура": "Фасады; CSS-слои; TS; /api/v1 alias",
+        "Frontend-код": "TS strict; QueryClient на 1 странице",
+        "DevOps": "Compose healthy; render.yaml deprecated",
+        "ИИ / LLM": "Case memory ANN; nightly eval; токены в метриках",
         "Юридическая полнота": "Шаблон 152-ФЗ, cookies",
         "A11y WCAG 2.2": "axe e2e 7 страниц; contrast выключен",
-        "Тестирование": "Пирамида + nightly live eval; 5 e2e",
-        "Документация": "README на сгенерированный OpenAPI",
-        "CI/CD": "Nightly LLM eval; coverage upload нет",
-        "REST API": "YAML 188 ops; схемы stub; нет v1/cursor",
-        "Наблюдаемость": "Prom + OTel SDK; collector/SLO нет",
-        "Производительность": "k6 консультация; CSS-бандл ~415 KB",
-        "Интеграции": "Outbox + poller; адаптер один",
-        "Сопровождаемость": "S13 CSS-слои; service-book 975, widgets 855",
-        "SEO / PWA": "JSON-LD + sitemap; SW нет",
-        "Качество backend": "Lint зелёный; JS, не TS",
-        "Продуктовая аналитика": "4 события воронки; нет RUM",
-        "DX": "openapi:check + lint зелёные; нет workspaces/Prettier",
-        "i18n": "Только русский в коде"
+        "Тестирование": "388 кейсов бэк+фронт; 6 e2e; порог 50/40",
+        "Документация": "LICENSE, ADR, CONTRIBUTING, OpenAPI YAML",
+        "CI/CD": "k6 + Lighthouse + coverage artifacts",
+        "REST API": "188=188; 8 богатых схем из 188 ops",
+        "Наблюдаемость": "Prom + OTel SDK; collector не по умолчанию",
+        "Производительность": "k6 1 VU / 15 с в CI; LH warn",
+        "Интеграции": "5 из 12 enum; SMS smsru/http/log",
+        "Сопровождаемость": "S7–S30 закрыты; роутеры 400–590 строк",
+        "SEO / PWA": "JSON-LD + sitemap; иконки 192/512; SW нет",
+        "Качество backend": "183 TS; тесты JS; noImplicitAny off",
+        "Продуктовая аналитика": "воронка + rum_web_vital; дашборда нет",
+        "DX": "Prettier + Lefthook; нет workspaces",
+        "i18n": "22 ключа шапки ru/en; кабинеты RU"
       };
       document.getElementById("domain-table").innerHTML = domains.map(([d, s]) => {
         const cls = s >= 7 ? "ok" : s >= 5.5 ? "warn" : "bad";
@@ -252,28 +264,28 @@
       <div class="card">
         <h3>Что сильно</h3>
         <p>Три роли, 53 lazy-маршрута, гибрид rule-based + LLM.</p>
-        <p>Prisma: 40 миграций, connection_limit=15, pgvector HNSW.</p>
-        <p>Compose: live/ready, Redis AOF, mem_limit, отдельный worker.</p>
-        <p>Гейты S6: корневой lint и openapi:check зелёные, YAML 188 ops.</p>
-        <p>Фасады S7–S13: flow, Consult/гараж, заявки, AI, Booking, CSS-слои vehicles/overview.</p>
+        <p>Prisma: 41 миграция, connection_limit=15, pgvector HNSW.</p>
+        <p>Compose tonight: frontend/backend/worker healthy; Redis AOF; mem_limit.</p>
+        <p>Гейты: lint и openapi:check зелёные, YAML 188 ops.</p>
+        <p>CSS 73 файла, максимум 641 строк. Backend src — 183 TS, 0 JS. «Без ответа» 15 мин.</p>
       </div>
       <div class="card">
         <h3>Главный разрыв сейчас</h3>
-        <p>OpenAPI схемы тел — stub; контрактных тестов нет. Нет /api/v1 и cursor-pagination.</p>
-        <p>JSX гаража и BookingPage распилены в S12. vehicles/overview — слои в S13. Остались service-book.css 975 и widgets.css 855.</p>
-        <p>Nightly live LLM eval есть; в PR модель не бьём. Нет i18n, TanStack Query, workspaces / Prettier.</p>
+        <p>OpenAPI: 8 именованных схем; остальные ops — object stub. /api/v1 — rewrite alias.</p>
+        <p>Backend: noImplicitAny и strictNullChecks выключены; тесты JS; роутеры 500–590 строк.</p>
+        <p>QueryClient только на админ-интеграциях. i18n — 22 ключа шапки. Storybook CLI, PgBouncer, SW — нет.</p>
       </div>
     </div>
 
     <h2>Реестр находок</h2>
     <p class="dim">51 пункт: P0–P3. Закрыто — подтверждено артефактами. Частично — остаток долга после спринта.</p>
-    <div class="bar-meta"><span>51 находка</span><span>23 закрыто · 14 частично · 14 открыто</span></div>
+    <div class="bar-meta"><span>51 находка</span><span>35 закрыто · 11 частично · 5 открыто</span></div>
     <div class="bar-track">
-      <span class="seg-ok" style="width:45.1%"></span>
-      <span class="seg-warn" style="width:27.5%"></span>
-      <span class="seg-bad" style="width:27.5%"></span>
+      <span class="seg-ok" style="width:68.6%"></span>
+      <span class="seg-warn" style="width:21.6%"></span>
+      <span class="seg-bad" style="width:9.8%"></span>
     </div>
-    <p class="dim">Источник: §20 реестр · 16.08.2026 после S13. P0: 4/4 закрыты. P1 открыты полностью: P1-8 CRM-адаптер, P1-13 Playwright mobile.</p>
+    <p class="dim">Источник: §20 реестр · 16.08.2026. P0: 4/4 закрыты. P1 полностью открытых: 0. Открыты P3: noUncheckedIndexedAccess, feature flags, analytics DB, SSE-этапы, runtime-схемы клиента.</p>
 
     <div class="grid2" style="margin-top:16px">
       <div>
@@ -286,9 +298,9 @@
         <script>
           const cats = ["P0","P1","P2","P3"];
           const series = [
-            { d:[4,7,9,3], c:"#3d9a5f" },
-            { d:[0,5,9,0], c:"#c9a227" },
-            { d:[0,2,5,7], c:"#c45454" }
+            { d:[4,9,17,5], c:"#3d9a5f" },
+            { d:[0,5,6,0], c:"#c9a227" },
+            { d:[0,0,0,5], c:"#c45454" }
           ];
           const g = document.getElementById("prio-chart");
           const ns2 = "http://www.w3.org/2000/svg";
@@ -336,20 +348,20 @@
     <table>
       <thead><tr><th>ID</th><th>Находка</th><th>Статус</th></tr></thead>
       <tbody>
-        <tr class="ok"><td>P1-1</td><td>OTel / метрики</td><td>Закрыто: traces + Prometheus; collector нет</td></tr>
+        <tr class="ok"><td>P1-1</td><td>OTel / метрики</td><td>Закрыто: traces + Prom; collector — profile</td></tr>
         <tr class="ok"><td>P1-2</td><td>Один /health вместо live/ready</td><td>Закрыто</td></tr>
         <tr class="ok"><td>P1-3</td><td>Nginx буферизует SSE</td><td>Закрыто S1</td></tr>
-        <tr class="warn"><td>P1-4</td><td>God-файлы JS/TSX и CSS</td><td>Частично: S7–S13; service-book 975, widgets 855</td></tr>
-        <tr class="warn"><td>P1-5</td><td>Backend JS, слабый ESLint</td><td>Частично: lint зелёный; не TS</td></tr>
+        <tr class="warn"><td>P1-4</td><td>God-файлы JS/TSX и CSS</td><td>Частично: CSS >700 закрыт; роутеры 500+</td></tr>
+        <tr class="warn"><td>P1-5</td><td>Backend JS, слабый ESLint</td><td>Частично: src TS; тесты JS; any off</td></tr>
         <tr class="ok"><td>P1-6</td><td>Нет React Error Boundary</td><td>Закрыто</td></tr>
-        <tr class="warn"><td>P1-7</td><td>Eval без живой LLM; k6-заглушка</td><td>Частично: nightly live extraction; k6 не в CI</td></tr>
-        <tr class="bad"><td>P1-8</td><td>Один CRM-адаптер при enum из 12</td><td>Открыто</td></tr>
+        <tr class="ok"><td>P1-7</td><td>Eval без живой LLM; k6-заглушка</td><td>Закрыто: nightly + k6 в CI</td></tr>
+        <tr class="warn"><td>P1-8</td><td>Один CRM-адаптер при enum из 12</td><td>Частично: 5 из 12</td></tr>
         <tr class="ok"><td>P1-9</td><td>Нет jsx-a11y и axe</td><td>Закрыто: axe e2e; contrast off</td></tr>
         <tr class="ok"><td>P1-10</td><td>Embeddings JSON, без pgvector</td><td>Закрыто S8</td></tr>
         <tr class="ok"><td>P1-11</td><td>MASTER navy vs orange</td><td>Закрыто S6</td></tr>
         <tr class="warn"><td>P1-12</td><td>Конституция vs продукт</td><td>Частично: облако ок; белый фон нет</td></tr>
-        <tr class="bad"><td>P1-13</td><td>Playwright: один браузер, нет mobile</td><td>Открыто</td></tr>
-        <tr class="warn"><td>P1-14</td><td>Coverage 40–50%</td><td>Частично: frontend coverage в CI</td></tr>
+        <tr class="ok"><td>P1-13</td><td>Playwright: один браузер, нет mobile</td><td>Закрыто: Pixel 7 smoke</td></tr>
+        <tr class="warn"><td>P1-14</td><td>Coverage 40–50%</td><td>Частично: upload есть; порог 50/40</td></tr>
       </tbody>
     </table>
 
@@ -357,30 +369,30 @@
     <table>
       <thead><tr><th>ID</th><th>Находка</th><th>Приоритет</th></tr></thead>
       <tbody>
-        <tr class="warn"><td>P2-2</td><td>Offset-пагинация до 500</td><td>P2</td></tr>
-        <tr class="warn"><td>P2-4</td><td>Нет TanStack Query / SSR meta</td><td>P2</td></tr>
-        <tr class="warn"><td>P2-5</td><td>Нет i18n</td><td>P2</td></tr>
-        <tr class="warn"><td>P2-10</td><td>Два backend-порта в dev</td><td>P2</td></tr>
-        <tr class="warn"><td>P2-12</td><td>Storybook / визуальная регрессия</td><td>P2</td></tr>
-        <tr><td>P3-3</td><td>Manifest icon 64×64</td><td>P3</td></tr>
-        <tr><td>P3-4</td><td>Нет noUncheckedIndexedAccess</td><td>P3</td></tr>
-        <tr><td>P3-9</td><td>SMS-заглушка</td><td>P3</td></tr>
+        <tr class="warn"><td>P2-2</td><td>Offset-пагинация до 500</td><td>Частично: cursor рядом</td></tr>
+        <tr class="warn"><td>P2-4</td><td>TanStack Query / SSR meta</td><td>Частично: 1 страница Query</td></tr>
+        <tr class="warn"><td>P2-5</td><td>i18n кабинетов</td><td>Частично: шапка ru/en</td></tr>
+        <tr class="warn"><td>P2-6</td><td>SEO / PWA SW</td><td>Частично: иконки есть, SW нет</td></tr>
+        <tr class="warn"><td>P2-12</td><td>Storybook CLI</td><td>Частично: CSF без CLI</td></tr>
+        <tr class="warn"><td>P2-13</td><td>PgBouncer</td><td>Открыто как долг</td></tr>
+        <tr><td>P3-4</td><td>noUncheckedIndexedAccess</td><td>P3</td></tr>
+        <tr><td>P3-5</td><td>Feature flags только env</td><td>P3</td></tr>
         <tr><td>P3-10</td><td>Клиентский API без runtime-схемы</td><td>P3</td></tr>
       </tbody>
     </table>
-    <p class="dim">Частичные P2 не в таблице: v1/cursor, SEO/PWA, CI coverage upload, render.yaml, RUM, PgBouncer, ADR/LICENSE, учёт токенов, env vs Zod. P3-8 (SSE = этапы, не token stream) оставлен осознанно.</p>
+    <p class="dim">P3-8 (SSE = этапы, не token stream) оставлен осознанно. P3-3 иконки 192/512 и P3-9 SMS закрыты.</p>
 
     <hr />
     <h2>Объём кодовой базы</h2>
     <div class="stats">
-      <div class="stat"><b>20.9k</b><span>Строк backend JS</span></div>
-      <div class="stat"><b>38.5k</b><span>Строк frontend TS/TSX</span></div>
-      <div class="stat"><b>23.6k</b><span>Строк CSS</span></div>
-      <div class="stat"><b>346</b><span>Кейсов unit+int (бэк+фронт)</span></div>
+      <div class="stat"><b>22.5k</b><span>Строк backend TS</span></div>
+      <div class="stat"><b>41.5k</b><span>Строк frontend TS/TSX</span></div>
+      <div class="stat"><b>24.5k</b><span>Строк CSS (73 файла)</span></div>
+      <div class="stat"><b>388</b><span>Кейсов unit+int (бэк+фронт)</span></div>
     </div>
-    <p class="dim">Паспорт §0: backend 137 файлов · frontend 354 · CSS 22 · миграции 40 · e2e 5 spec · eval 38 · k6 1. Источник: пересъёмка 15.08.2026.</p>
+    <p class="dim">Паспорт §0: backend 183 TS · frontend 414 (369 без тестов) · CSS 73, max 641 · миграции 41 · e2e 6 spec · eval 38 · k6 1. Источник: диск 16.08.2026. HTTP / 200, /api/live live.</p>
 
-    <h2>Спринты 1–13 — верификация</h2>
+    <h2>Спринты — верификация tonight</h2>
     <table>
       <thead><tr><th>Спринт</th><th>Фокус</th><th>Статус</th></tr></thead>
       <tbody>
@@ -397,6 +409,24 @@
         <tr class="ok"><td>S11</td><td>Фасад consultationAi</td><td>Закрыт</td></tr>
         <tr class="ok"><td>S12</td><td>BookingPage, JSX гаража, widgets.css, orphans</td><td>Закрыт</td></tr>
         <tr class="ok"><td>S13</td><td>vehicles/overview CSS-слои; nightly live LLM eval</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S14</td><td>consultations + ManagerRequest; live eval gate</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S15</td><td>integrations.service + dashboard.ts слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S16</td><td>service-book CSS + остаток widgets.css</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S17</td><td>useConsultPage / ConsultPage слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S18</td><td>profile.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S19</td><td>client-cases.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S20</td><td>extract.js фасад</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S21</td><td>dashboard-shell.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S22</td><td>booking-app.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S23</td><td>manager-console.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S24</td><td>base.css / admin.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S25</td><td>inner-pages.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S26</td><td>consultation/alerts CSS слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S27</td><td>home.css / gallery.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S28</td><td>booking.css / works.css слои</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S29</td><td>Backend src на TypeScript</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>S30</td><td>CRM×5, SMS, v1, k6/LH, i18n шапки</td><td>Закрыт</td></tr>
+        <tr class="ok"><td>Hotfix</td><td>Без ответа 15 мин; стили консоли</td><td>На диске</td></tr>
       </tbody>
     </table>
 
@@ -407,23 +437,22 @@
         <p>OpenAPI YAML 188 ops, корневой lint зелёный, README на контракт, MASTER primary #ea580c. Сделано.</p>
       </div>
       <div class="card">
-        <h3>Дни 8–45 <span class="pill warn">S7–S13 + остаток</span></h3>
-        <p>Фасады, pgvector, Booking/гараж/CSS-слои и nightly eval закрыты. Остались богатые схемы OpenAPI, coverage 70%, OTel collector.</p>
+        <h3>Дни 8–45 <span class="pill ok">S7–S30</span></h3>
+        <p>Фасады, pgvector, CSS-слои, TypeScript backend, CRM×5, k6/LH в CI. Остались богатые схемы на хвосте ops и coverage 70%.</p>
       </div>
       <div class="card">
-        <h3>Дни 45–90 <span class="pill">Сопровождаемость</span></h3>
-        <p>Второй CRM, /api/v1 + cursor, workspaces, i18n/TanStack, RUM, k6 в CI.</p>
+        <h3>Дни 45–90 <span class="pill warn">остаток</span></h3>
+        <p>noImplicitAny, i18n кабинетов, Storybook CLI, PgBouncer, service worker, остальные 7 CRM из enum.</p>
       </div>
     </div>
 
-    <h3 style="margin-top:24px">Бэклог S14+</h3>
+    <h3 style="margin-top:24px">Бэклог после пересъёмки</h3>
     <ul class="todo">
-      <li><i style="background:#3d9a5f;border-color:#3d9a5f"></i> P1 — распил vehicles.css / client-overview.css</li>
-      <li><i style="background:#3d9a5f;border-color:#3d9a5f"></i> P1 — живой LLM eval nightly (golden set)</li>
-      <li><i></i> P1 — распил consultations.service.js / ManagerRequestDetailPage</li>
-      <li><i></i> P1 — TypeScript backend или жёсткий ESLint + Prettier + workspaces</li>
-      <li><i></i> P1 — второй CRM-адаптер, если демо обещает Bitrix/1C</li>
-      <li><i></i> P2 — богатые OpenAPI-схемы + контрактные тесты</li>
+      <li><i style="background:#3d9a5f;border-color:#3d9a5f"></i> S30 — CRM×5, SMS, v1/cursor, k6/LH, Prettier</li>
+      <li><i></i> P1 — noImplicitAny / strictNullChecks на backend</li>
+      <li><i></i> P2 — богатые схемы на остальных OpenAPI ops</li>
+      <li><i></i> P2 — i18n кабинетов; Storybook CLI; PgBouncer; SW</li>
+      <li><i></i> P1 — остальные 7 провайдеров enum CRM</li>
     </ul>
 
     <div class="callout neutral">

@@ -1,10 +1,11 @@
 {
-  "version": 1,
-  "description": "Golden set for live LLM extraction. Not run on every PR — nightly / manual.",
+  "version": 2,
+  "description": "Golden set for live LLM extraction + diagnosis. Nightly / manual, not every PR.",
   "minPassRatio": 0.8,
   "cases": [
     {
       "id": "toyota-camry-brakes",
+      "kind": "extraction",
       "message": "У меня Toyota Camry 2018, биение руля при торможении на трассе, пробег 120 тысяч",
       "expect": {
         "makeIncludes": "toyota",
@@ -16,6 +17,7 @@
     },
     {
       "id": "kia-rio-misfire",
+      "kind": "extraction",
       "message": "Kia Rio, двигатель троит на холостых, иногда загорается чек",
       "expect": {
         "makeIncludes": "kia",
@@ -25,6 +27,7 @@
     },
     {
       "id": "bmw-x5-suspension",
+      "kind": "extraction",
       "message": "BMW X5 2015 стук спереди на кочках",
       "expect": {
         "makeIncludes": "bmw",
@@ -35,6 +38,7 @@
     },
     {
       "id": "oil-service-intent",
+      "kind": "extraction",
       "message": "Нужно заменить масло на Skoda Octavia, пробег 45000",
       "expect": {
         "makeIncludes": "skoda",
@@ -44,6 +48,7 @@
     },
     {
       "id": "obd-p0420",
+      "kind": "extraction",
       "message": "Hyundai Solaris, ошибка P0420 на диагностике",
       "expect": {
         "makeIncludes": "hyundai",
@@ -53,10 +58,82 @@
     },
     {
       "id": "vaz-overheat",
+      "kind": "extraction",
       "message": "Лада Гранта кипит в пробке, стрелка температуры в красной зоне",
       "expect": {
         "makeIncludes": ["lada", "ваз", "лада"],
         "symptomsIncludes": ["кип"]
+      }
+    },
+    {
+      "id": "diag-brake-pulsation",
+      "kind": "diagnosis",
+      "payload": {
+        "car_make": "Toyota",
+        "car_model": "Camry",
+        "year": 2018,
+        "mileage": 120000,
+        "symptoms": "биение руля при торможении",
+        "conditions": "на трассе, при торможении"
+      },
+      "expect": {
+        "minCauses": 3,
+        "minChecks": 2,
+        "minUrgency": "medium",
+        "textIncludes": ["тормоз"],
+        "minConfidence": 0.4
+      }
+    },
+    {
+      "id": "diag-overheat",
+      "kind": "diagnosis",
+      "payload": {
+        "car_make": "Lada",
+        "car_model": "Granta",
+        "symptoms": "кипит в пробке, стрелка температуры в красной зоне",
+        "conditions": "пробка, жара",
+        "urgency_signs": "перегрев"
+      },
+      "expect": {
+        "minCauses": 3,
+        "minChecks": 2,
+        "minUrgency": "high",
+        "textIncludes": ["перегрев"],
+        "minConfidence": 0.4
+      }
+    },
+    {
+      "id": "diag-oil-service",
+      "kind": "diagnosis",
+      "payload": {
+        "car_make": "Skoda",
+        "car_model": "Octavia",
+        "mileage": 45000,
+        "symptoms": "плановая замена масла"
+      },
+      "expect": {
+        "minCauses": 3,
+        "minChecks": 2,
+        "maxUrgency": "medium",
+        "textIncludes": ["масл"],
+        "minConfidence": 0.4
+      }
+    },
+    {
+      "id": "diag-p0420",
+      "kind": "diagnosis",
+      "payload": {
+        "car_make": "Hyundai",
+        "car_model": "Solaris",
+        "symptoms": "ошибка P0420 на диагностике",
+        "obd_codes": "P0420"
+      },
+      "expect": {
+        "minCauses": 2,
+        "minChecks": 2,
+        "urgencyIn": ["medium", "high", "critical"],
+        "textIncludes": ["0420"],
+        "minConfidence": 0.4
       }
     }
   ]

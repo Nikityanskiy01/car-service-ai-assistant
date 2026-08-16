@@ -1,0 +1,253 @@
+/* Service book — history / records (split S16) */
+.service-book-history {
+  display: grid;
+  gap: 0.95rem;
+  padding: 1.1rem 1.2rem 1.25rem;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  animation: service-oil-in 320ms var(--ease-out) both;
+}
+
+.service-book-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.service-book-history-header h2 {
+  margin: 0;
+  font-size: 1.12rem;
+  letter-spacing: -0.015em;
+}
+
+.service-book-history-header .muted {
+  margin: 0.2rem 0 0;
+  font-size: 0.86rem;
+}
+
+.service-book-records {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.service-book-record {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr);
+  gap: 0.75rem;
+  position: relative;
+}
+
+.service-book-record:not(:last-child) .service-book-record-rail::after {
+  content: '';
+  position: absolute;
+  top: 1.35rem;
+  bottom: -0.35rem;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand-primary) 35%, var(--color-border)),
+    color-mix(in srgb, var(--color-border) 80%, transparent)
+  );
+}
+
+.service-book-record-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-top: 1.15rem;
+}
+
+.service-book-record-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-primary) 55%, var(--color-surface));
+  border: 2px solid color-mix(in srgb, var(--brand-primary) 45%, var(--color-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-primary) 10%, transparent);
+  z-index: 1;
+}
+
+.service-book-record.is-latest .service-book-record-dot {
+  background: var(--brand-primary);
+  border-color: color-mix(in srgb, var(--brand-accent) 50%, var(--brand-primary));
+}
+
+.service-book-record-card {
+  position: relative;
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface-secondary) 55%, transparent);
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.service-book-record-card:hover,
+.service-book-record-card:focus-within {
+  border-color: color-mix(in srgb, var(--brand-primary) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--brand-primary) 6%, var(--color-surface-secondary));
+}
+
+.service-book-record-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+}
+
+.service-book-record-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+}
+
+.service-book-record-when time {
+  color: var(--color-text-primary);
+  font-weight: 650;
+}
+
+.service-book-record-cat {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+}
+
+.service-book-record-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.service-book-record-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  color: var(--brand-accent);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, var(--color-border));
+}
+
+.service-book-record-titles {
+  min-width: 0;
+}
+
+.service-book-record-titles strong {
+  display: block;
+  font-size: 1rem;
+  letter-spacing: -0.015em;
+}
+
+.service-book-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+  margin-top: 0.25rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.service-book-record-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.86rem;
+  color: var(--color-text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.service-book-record-more {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.service-book-record-more > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.service-book-record-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.service-book-record-more > summary:hover,
+.service-book-record-more[open] > summary {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  border-color: var(--color-border);
+}
+
+.service-book-record-more-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  display: grid;
+  min-width: 8.5rem;
+  padding: 0.35rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  animation: service-oil-in 160ms var(--ease-out) both;
+}
+
+.service-book-record-more-menu a,
+.service-book-record-more-menu button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.86rem;
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.service-book-record-more-menu a:hover,
+.service-book-record-more-menu button:hover {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
+.service-book-record-more-menu button {
+  color: color-mix(in srgb, var(--color-danger) 80%, white);
+}

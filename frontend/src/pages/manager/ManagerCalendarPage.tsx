@@ -3,16 +3,9 @@ import { Link } from 'react-router-dom';
 import { CalendarPlus, RefreshCw } from 'lucide-react';
 import { getCachedUser } from '../../api/client';
 import { listBookings } from '../../api/dashboard';
-import { BookingCalendar } from '../../components/requests/BookingCalendar';
+import { BookingCalendar, BookingStatusBadge } from '../../components/requests/BookingCalendar';
 import { BookingDrawer } from '../../components/requests/BookingDrawer';
-import { PageHeader } from '../../components/layout/dashboard/PageHeader';
 import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { ErrorState } from '../../components/ui/ErrorState';
-import { Loader } from '../../components/ui/Loader';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import { Tabs } from '../../components/ui/Tabs';
 import { managerZonePaths } from '../../config/managerPaths';
 import { useDashboardPolling } from '../../hooks/useDashboardPolling';
 import { usePageMeta } from '../../hooks/usePageMeta';
@@ -28,6 +21,20 @@ type CalendarFilter = 'all' | 'today' | 'mine' | 'with-request' | 'unconfirmed';
 type CalendarView = 'day' | 'week' | 'list';
 
 const OPEN_STATUSES = ['PENDING', 'CONFIRMED'];
+
+const FILTERS: { id: CalendarFilter; label: string }[] = [
+  { id: 'all', label: 'Все' },
+  { id: 'today', label: 'Сегодня' },
+  { id: 'mine', label: 'Мои' },
+  { id: 'unconfirmed', label: 'Без подтверждения' },
+  { id: 'with-request', label: 'С заявкой' },
+];
+
+const VIEWS: { id: CalendarView; label: string }[] = [
+  { id: 'day', label: 'День' },
+  { id: 'week', label: 'Неделя' },
+  { id: 'list', label: 'Список' },
+];
 
 export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPageProps) {
   usePageMeta({
@@ -114,158 +121,146 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
     setSelected(updated);
   }
 
-  if (loading) return <Loader label="Загружаем записи…" />;
-  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
-
   return (
-    <div className="stack dashboard-page manager-calendar-page">
-      <PageHeader
-        title={adminZone ? 'Записи' : 'Календарь'}
-        description="Запланированные визиты и загрузка постов."
-        breadcrumbs={adminZone ? undefined : [
-                { label: 'Рабочий стол', to: paths.root },
-                { label: 'Календарь' },
-              ]
-        }
-        actions={
-          <div className="row gap-sm">
-            <Button variant="ghost" onClick={() => void load()}>
-              <RefreshCw size={16} aria-hidden />
-              Обновить
-            </Button>
-            <Link to="/booking" className="btn btn-secondary">
-              <CalendarPlus size={16} aria-hidden />
-              Создать запись
-            </Link>
-          </div>
-        }
-      />
-
-      <div className="calendar-stat-row">
-        <div>
-          <span className="muted">Сегодня</span>
-          <strong className="tnum">{stats.today}</strong>
-        </div>
-        <div>
-          <span className="muted">Ждут подтверждения</span>
-          <strong className="tnum">{stats.pending}</strong>
-        </div>
-        <div>
-          <span className="muted">Впереди</span>
-          <strong className="tnum">{stats.upcoming}</strong>
-        </div>
-      </div>
-
+    <div className="calendar-page">
       <div className="calendar-toolbar">
-        <Tabs
-          value={calendarFilter}
-          onChange={(value) => setCalendarFilter(value as CalendarFilter)}
-          items={[
-            { id: 'all', label: 'Все' },
-            { id: 'today', label: 'Сегодня' },
-            { id: 'mine', label: 'Мои' },
-            { id: 'unconfirmed', label: 'Без подтверждения' },
-            { id: 'with-request', label: 'С заявкой' },
-          ]}
-        />
-        <Tabs
-          value={view}
-          onChange={(value) => setView(value as CalendarView)}
-          items={[
-            { id: 'day', label: 'День' },
-            { id: 'week', label: 'Неделя' },
-            { id: 'list', label: 'Список' },
-          ]}
-        />
+        <p className="muted">Запланированные визиты и загрузка постов.</p>
+        <div className="row gap-sm">
+          <Button type="button" variant="ghost" onClick={() => void load()}>
+            <RefreshCw size={16} />
+            Обновить
+          </Button>
+          <Link className="btn btn-primary" to="/booking">
+            <CalendarPlus size={16} />
+            Создать запись
+          </Link>
+        </div>
       </div>
 
-      {view === 'day' && (
-        <Card>
-          <header className="card-section-header">
-            <h2>Сегодня</h2>
-            <span className="muted tnum">{todayBookings.length} записей</span>
-          </header>
-          {todayBookings.length ? (
-            <ul className="booking-click-list">
-              {todayBookings.map((booking) => (
-                <li key={booking.id}>
-                  <button type="button" className="booking-list-btn" onClick={() => setSelected(booking)}>
-                    <strong className="tnum">
-                      {new Date(booking.preferredAt).toLocaleTimeString('ru-RU', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </strong>
-                    <span>{booking.client?.fullName || booking.guestName || 'Клиент'}</span>
-                    <span className="muted">{getBookingVehicleLabel(booking) || 'Авто не указано'}</span>
-                    <span className="muted tnum">{formatMinutesUntil(booking.preferredAt)}</span>
-                    <StatusBadge status={booking.status} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="На сегодня записей нет" description="Свободный день или другой фильтр." />
-          )}
-        </Card>
-      )}
+      {error ? (
+        <div className="error-text" role="alert">
+          <p>Не удалось загрузить записи. {error}</p>
+          <Button type="button" variant="secondary" onClick={() => void load()}>
+            Повторить
+          </Button>
+        </div>
+      ) : null}
 
-      {view === 'week' && (
+      {loading ? (
+        <div aria-busy="true">
+          <div className="skeleton calendar-stat-row" />
+          <div className="skeleton" style={{ minHeight: '16rem', marginTop: '0.75rem' }} />
+        </div>
+      ) : null}
+
+      {!loading && !error ? (
         <>
-          <Card>
-            <header className="card-section-header">
-              <h2>Загрузка на 7 дней</h2>
-              <span className="muted tnum">пик: {capacityMax}</span>
-            </header>
-            <div className="booking-capacity-row">
-              {Array.from({ length: 7 }).map((_, index) => {
-                const day = new Date();
-                day.setDate(day.getDate() + index);
-                const key = day.toDateString();
-                const count = capacityByDay.get(key) || 0;
-                const pct = Math.round((count / capacityMax) * 100);
-                return (
-                  <div key={key} className={`booking-capacity-day${index === 0 ? ' is-today' : ''}`}>
-                    <span>{day.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric' })}</span>
-                    <div className="booking-capacity-bar" aria-hidden>
-                      <div className="booking-capacity-fill" style={{ height: `${Math.max(6, pct)}%` }} />
-                    </div>
-                    <em className="tnum">{count}</em>
-                  </div>
-                );
-              })}
+          <div className="calendar-stat-row">
+            <div>
+              <span className="muted">Сегодня</span>
+              <strong className="tnum">{stats.today}</strong>
             </div>
-          </Card>
-          <BookingCalendar bookings={filteredBookings} onSelect={(booking) => setSelected(booking)} />
-        </>
-      )}
+            <div>
+              <span className="muted">Ждут подтверждения</span>
+              <strong className="tnum">{stats.pending}</strong>
+            </div>
+            <div>
+              <span className="muted">Впереди</span>
+              <strong className="tnum">{stats.upcoming}</strong>
+            </div>
+          </div>
 
-      {view === 'list' && (
-        <Card>
-          <header className="card-section-header">
-            <h2>Все записи</h2>
-            <span className="muted tnum">{filteredBookings.length}</span>
-          </header>
-          {filteredBookings.length ? (
-            <ul className="booking-click-list">
-              {filteredBookings.map((booking) => (
-                <li key={booking.id}>
-                  <button type="button" className="booking-list-btn" onClick={() => setSelected(booking)}>
-                    <strong className="tnum">
-                      {new Date(booking.preferredAt).toLocaleString('ru-RU')}
-                    </strong>
-                    <span>{booking.client?.fullName || booking.guestName || 'Клиент'}</span>
-                    <span className="muted">{getBookingVehicleLabel(booking) || 'Авто не указано'}</span>
-                    <StatusBadge status={booking.status} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyState title="Записей нет" description="Попробуйте другой фильтр." />
-          )}
-        </Card>
-      )}
+          <div className="queue-status-pills" role="toolbar" aria-label="Фильтр записей">
+            {FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`queue-status-pill${calendarFilter === item.id ? ' is-active' : ''}`}
+                aria-pressed={calendarFilter === item.id}
+                onClick={() => setCalendarFilter(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div className="queue-status-pills" role="toolbar" aria-label="Вид календаря">
+            {VIEWS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`queue-status-pill${view === item.id ? ' is-active' : ''}`}
+                aria-pressed={view === item.id}
+                onClick={() => setView(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {view === 'day' ? (
+            <section>
+              <header className="booking-day-header">
+                <h4>Сегодня</h4>
+                <span className="muted tnum">{todayBookings.length} записей</span>
+              </header>
+              {todayBookings.length ? (
+                <BookingList bookings={todayBookings} onSelect={setSelected} timeOnly />
+              ) : (
+                <p className="muted">Свободный день или другой фильтр.</p>
+              )}
+            </section>
+          ) : null}
+
+          {view === 'week' ? (
+            <>
+              <section aria-label="Загрузка на 7 дней">
+                <header className="booking-day-header">
+                  <h4>Загрузка на 7 дней</h4>
+                  <span className="muted tnum">пик: {capacityMax}</span>
+                </header>
+                <div className="booking-capacity-row">
+                  {Array.from({ length: 7 }).map((_, index) => {
+                    const day = new Date();
+                    day.setDate(day.getDate() + index);
+                    const key = day.toDateString();
+                    const count = capacityByDay.get(key) || 0;
+                    const pct = Math.round((count / capacityMax) * 100);
+                    return (
+                      <div key={key} className="booking-capacity-day">
+                        <em className="tnum">{count}</em>
+                        <div className="booking-capacity-bar">
+                          <div
+                            className="booking-capacity-fill"
+                            style={{ height: `${Math.max(8, pct)}%`, opacity: index === 0 ? 1 : 0.55 }}
+                          />
+                        </div>
+                        <span className="muted">
+                          {day.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+              <BookingCalendar bookings={filteredBookings} onSelect={setSelected} />
+            </>
+          ) : null}
+
+          {view === 'list' ? (
+            <section>
+              <header className="booking-day-header">
+                <h4>Все записи</h4>
+                <span className="muted tnum">{filteredBookings.length}</span>
+              </header>
+              {filteredBookings.length ? (
+                <BookingList bookings={filteredBookings} onSelect={setSelected} />
+              ) : (
+                <p className="muted">Попробуйте другой фильтр.</p>
+              )}
+            </section>
+          ) : null}
+        </>
+      ) : null}
 
       <BookingDrawer
         booking={selected}
@@ -275,5 +270,39 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
         requestBasePath={paths.requests}
       />
     </div>
+  );
+}
+
+function BookingList({
+  bookings,
+  onSelect,
+  timeOnly,
+}: {
+  bookings: ServiceBooking[];
+  onSelect: (booking: ServiceBooking) => void;
+  timeOnly?: boolean;
+}) {
+  return (
+    <ul className="booking-click-list">
+      {bookings.map((booking) => (
+        <li key={booking.id}>
+          <button type="button" className="booking-list-btn" onClick={() => onSelect(booking)}>
+            <strong className="tnum">
+              {timeOnly
+                ? new Date(booking.preferredAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                : new Date(booking.preferredAt).toLocaleString('ru-RU')}
+            </strong>
+            <span>
+              {booking.client?.fullName || booking.guestName || 'Клиент'}
+              <span className="booking-day-car muted">
+                {getBookingVehicleLabel(booking) || 'Авто не указано'}
+                {timeOnly ? ` · ${formatMinutesUntil(booking.preferredAt)}` : ''}
+              </span>
+            </span>
+            <BookingStatusBadge status={booking.status} />
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

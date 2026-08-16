@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessagesSquare, Phone, RefreshCw } from 'lucide-react';
+import { Copy, MessagesSquare, Phone, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { prefillConsultationGuest } from '../../features/services/prefill';
 import { convertContactToRequest, listContacts, patchContactStatus } from '../../api/dashboard';
-import { PageHeader } from '../../components/layout/dashboard/PageHeader';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { CopyPhoneButton } from '../../components/ui/CopyPhoneButton';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { ErrorState } from '../../components/ui/ErrorState';
-import { Skeleton } from '../../components/ui/Skeleton';
-import { Tabs } from '../../components/ui/Tabs';
-import { useToast } from '../../components/ui/toastContext';
+import { copyText } from '../../lib/clipboard';
+import { Alert, AlertDescription, AlertTitle } from '../../components/console/ui/alert';
+import { Badge } from '../../components/console/ui/badge';
+import { Button } from '../../components/console/ui/button';
+import { Card, CardContent } from '../../components/console/ui/card';
+import { Skeleton } from '../../components/console/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '../../components/console/ui/tabs';
 import { managerZonePaths } from '../../config/managerPaths';
 import { CONTACT_STATUS_LABELS, CONTACT_SOURCE_LABELS } from '../../lib/labels';
 import { formatRelativeTime } from '../../lib/managerRequestHelpers';
@@ -23,13 +22,12 @@ type ManagerContactsPageProps = {
   adminZone?: boolean;
 };
 
-const STATUS_TABS = [
-  { id: 'NEW', label: 'Новые' },
-  { id: 'IN_PROGRESS', label: 'В работе' },
-  { id: 'CONVERTED', label: 'Конвертированы' },
-  { id: 'CLOSED', label: 'Закрыты' },
-  { id: 'all', label: 'Все' },
-];
+function contactStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'success' | 'warning' {
+  if (status === 'CONVERTED') return 'success';
+  if (status === 'CLOSED') return 'secondary';
+  if (status === 'NEW') return 'warning';
+  return 'default';
+}
 
 export function ManagerContactsPage({ adminZone = false }: ManagerContactsPageProps) {
   usePageMeta({
@@ -39,8 +37,6 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
 
   const paths = managerZonePaths(adminZone);
   const navigate = useNavigate();
-  const { success, error: toastError } = useToast();
-
   const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contacts, setContacts] = useState<ContactSubmission[]>([]);
@@ -74,11 +70,11 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
     try {
       await patchContactStatus(contact.id, { status });
       await load(true);
-      success(status === 'CLOSED' ? 'Обращение закрыто' : 'Обращение взято в работу', {
+      toast.success(status === 'CLOSED' ? 'Обращение закрыто' : 'Обращение взято в работу', {
         description: contact.fullName,
       });
     } catch (e) {
-      toastError(e instanceof Error ? e.message : 'Не удалось обновить статус');
+      toast.error(e instanceof Error ? e.message : 'Не удалось обновить статус');
     } finally {
       setActionLoading(null);
     }
@@ -88,127 +84,149 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
     setActionLoading(contact.id);
     try {
       const out = await convertContactToRequest(contact.id);
-      success('Заявка создана', { description: contact.fullName });
+      toast.success('Заявка создана', { description: contact.fullName });
       void navigate(`${paths.requests}/${out.requestId}`);
     } catch (e) {
-      toastError(e instanceof Error ? e.message : 'Не удалось создать заявку');
+      toast.error(e instanceof Error ? e.message : 'Не удалось создать заявку');
       setActionLoading(null);
     }
   }
 
+  async function copyPhone(phone: string) {
+    const ok = await copyText(phone);
+    if (ok) toast.success('Телефон скопирован');
+    else toast.error('Не удалось скопировать номер');
+  }
+
   return (
-    <div className="stack dashboard-page manager-contacts-page">
-      <PageHeader
-        title={adminZone ? 'Обращения' : 'Входящие'}
-        description="Контакты и вопросы с публичных страниц сайта."
-        breadcrumbs={adminZone ? undefined : [
-                { label: 'Рабочий стол', to: paths.root },
-                { label: 'Входящие' },
-              ]
-        }
-        actions={
-          <Button variant="ghost" onClick={() => void load()}>
-            <RefreshCw size={16} aria-hidden />
-            Обновить
-          </Button>
-        }
-      />
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Контакты и вопросы с публичных страниц сайта.</p>
+        <Button type="button" variant="ghost" size="sm" onClick={() => void load()}>
+          <RefreshCw />
+          Обновить
+        </Button>
+      </div>
 
-      <Tabs value={statusTab} onChange={setStatusTab} items={STATUS_TABS} />
+      <Tabs value={statusTab} onValueChange={setStatusTab} className="gap-0">
+        <TabsList>
+          <TabsTrigger value="NEW">Новые</TabsTrigger>
+          <TabsTrigger value="IN_PROGRESS">В работе</TabsTrigger>
+          <TabsTrigger value="CONVERTED">Конвертированы</TabsTrigger>
+          <TabsTrigger value="CLOSED">Закрыты</TabsTrigger>
+          <TabsTrigger value="all">Все</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      {error ? <ErrorState message={error} onRetry={() => void load()} /> : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Не удалось загрузить входящие</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2">
+            <span>Проверьте соединение и повторите попытку.</span>
+            <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => void load()}>
+              Повторить
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {firstLoad ? (
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : null}
+
+      {!firstLoad && !error && !contacts.length ? (
         <Card>
-          <Skeleton className="skeleton-row" />
-          <Skeleton className="skeleton-row" />
-          <Skeleton className="skeleton-row" />
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {statusTab === 'NEW' ? 'Все новые сообщения разобраны.' : 'В этом статусе пока пусто.'}
+          </CardContent>
         </Card>
       ) : null}
 
-      {!firstLoad && !error ? (
-        <Card>
-          {!contacts.length ? (
-            <EmptyState
-              title="Обращений нет"
-              description={
-                statusTab === 'NEW'
-                  ? 'Все новые сообщения разобраны. Хорошая работа.'
-                  : 'В этом статусе пока пусто.'
-              }
-            />
-          ) : (
-            <ul className="contact-workflow-list">
-              {contacts.map((item) => {
-                const busy = actionLoading === item.id;
-                const status = item.status || 'NEW';
-                const open = status !== 'CONVERTED' && status !== 'CLOSED';
-                return (
-                  <li key={item.id} className={`contact-workflow-item${busy ? ' is-busy' : ''}`}>
-                    <div className="contact-workflow-body">
-                      <header>
-                        <strong>{item.fullName}</strong>
-                        <span className={`contact-status contact-status-${status.toLowerCase()}`}>
-                          {CONTACT_STATUS_LABELS[status]}
+      {!firstLoad && !error && contacts.length ? (
+        <ul className="flex list-none flex-col gap-2">
+          {contacts.map((item) => {
+            const busy = actionLoading === item.id;
+            const status = item.status || 'NEW';
+            const open = status !== 'CONVERTED' && status !== 'CLOSED';
+            return (
+              <li key={item.id}>
+                <Card className={busy ? 'opacity-70' : undefined}>
+                  <CardContent className="flex flex-col gap-3 py-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="text-sm">{item.fullName}</strong>
+                      <Badge variant={contactStatusVariant(status)}>{CONTACT_STATUS_LABELS[status]}</Badge>
+                      {item.createdAt ? (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {formatRelativeTime(item.createdAt)}
                         </span>
-                        {item.createdAt ? (
-                          <small className="muted tnum" title={new Date(item.createdAt).toLocaleString('ru-RU')}>
-                            {formatRelativeTime(item.createdAt)}
-                          </small>
-                        ) : null}
-                      </header>
-                      <div className="contact-phone-row">
-                        <a href={`tel:${item.phone}`} className="contact-link tnum">
-                          {item.phone}
-                        </a>
-                        <CopyPhoneButton phone={item.phone} label="" />
-                      </div>
-                      <p>{item.message || 'Без текста'}</p>
-                      <div className="contact-meta-row">
-                        {item.source ? (
-                          <span className="contact-source-tag">
-                            {CONTACT_SOURCE_LABELS[item.source] || item.source}
-                          </span>
-                        ) : null}
-                        {item.convertedRequestId ? (
-                          <Link to={`${paths.requests}/${item.convertedRequestId}`}>
-                            Открыть созданную заявку
-                          </Link>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </div>
-                    <div className="contact-workflow-actions">
-                      <a href={`tel:${item.phone}`} className="btn btn-ghost btn-icon" aria-label="Позвонить">
-                        <Phone size={16} aria-hidden />
+                    <div className="flex min-w-0 items-center gap-2 text-sm tabular-nums">
+                      <a href={`tel:${item.phone}`} className="min-w-0 truncate text-foreground">
+                        {item.phone}
                       </a>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 shrink-0"
+                        aria-label="Скопировать номер"
+                        onClick={() => void copyPhone(item.phone)}
+                      >
+                        <Copy />
+                      </Button>
+                    </div>
+                    <p className="text-sm">{item.message || 'Без текста'}</p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {item.source ? <Badge variant="outline">{CONTACT_SOURCE_LABELS[item.source] || item.source}</Badge> : null}
+                      {item.convertedRequestId ? (
+                        <Link to={`${paths.requests}/${item.convertedRequestId}`} className="text-primary">
+                          Открыть созданную заявку
+                        </Link>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button asChild variant="ghost" size="icon" className="size-8">
+                        <a href={`tel:${item.phone}`} aria-label="Позвонить">
+                          <Phone />
+                        </a>
+                      </Button>
                       {open ? (
                         <>
                           {status === 'NEW' ? (
                             <Button
+                              type="button"
                               variant="secondary"
+                              size="sm"
                               disabled={busy}
                               onClick={() => void handleStatus(item, 'IN_PROGRESS')}
                             >
                               В работу
                             </Button>
                           ) : null}
-                          <Button disabled={busy} onClick={() => void handleConvert(item)}>
+                          <Button type="button" size="sm" disabled={busy} onClick={() => void handleConvert(item)}>
                             Создать заявку
                           </Button>
                           <Button
+                            type="button"
                             variant="ghost"
+                            size="sm"
                             disabled={busy}
                             onClick={() => {
                               prefillConsultationGuest({ fullName: item.fullName, phone: item.phone });
                               void navigate('/consult');
                             }}
-                            title="Открыть ИИ-консультацию с данными клиента"
                           >
-                            <MessagesSquare size={16} aria-hidden />
+                            <MessagesSquare />
                             Консультация
                           </Button>
                           <Button
+                            type="button"
                             variant="ghost"
+                            size="sm"
                             disabled={busy}
                             onClick={() => void handleStatus(item, 'CLOSED')}
                           >
@@ -217,12 +235,12 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
                         </>
                       ) : null}
                     </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+                  </CardContent>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
       ) : null}
     </div>
   );

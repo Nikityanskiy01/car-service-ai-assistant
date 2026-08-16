@@ -44,6 +44,29 @@ describe('api client', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/auth/refresh');
   });
 
+  it('не сбрасывает сессию, если refresh временно недоступен', async () => {
+    setCachedUser({
+      id: 'u1',
+      role: 'CLIENT',
+      email: 'client@example.local',
+      fullName: 'U',
+      phone: '+7',
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'rate limited', code: 'RATE_LIMITED' }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '30' },
+        }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(api('/users/me')).rejects.toMatchObject({ status: 401 });
+    expect(getCachedUser()?.id).toBe('u1');
+  });
+
   it('keeps only id and role in sessionStorage and clears localStorage', () => {
     localStorage.setItem('car_service_user', JSON.stringify({ id: 'legacy', email: 'pwn@t.test', role: 'CLIENT' }));
     setCachedUser({

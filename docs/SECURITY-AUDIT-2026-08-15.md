@@ -47,9 +47,9 @@
 | Guest | HMAC в БД, plaintext только в ответе create | `guestToken.js` |
 | Lockout | 5 неудач / 15 мин | `accountLockout.js` |
 | RBAC / IDOR | Клиент видит только своё; staff не пишет в чат консультации | роутеры, `consultationAccess.js` |
-| Валидация | Zod, JSON 1 МБ | `validate.js`, `app.js` |
+| Валидация | Zod, JSON 1 МБ | `validate.ts`, `app.ts` |
 | Инъекции | Prisma; `$queryRaw` — tagged template с `userId` | `requestMessages.service.js` |
-| Заголовки | Helmet CSP, nginx HSTS / nosniff / CSP `style-src 'self'` / `img-src 'self' data:` | `app.js`, `frontend/docker/default.conf` |
+| Заголовки | Helmet CSP, nginx HSTS / nosniff / CSP `style-src 'self'` / `img-src 'self' data:` | `app.ts`, `frontend/docker/default.conf` |
 | Rate limit | 300/15 мин на `/api` через Redis store; LLM 8 / vision 2 | `rateLimitConfig.js` |
 | LLM abuse | PoW на create session, квота 20 USER-сообщений гостя | `guestPow.js`, `llmQuota.js` |
 | Вебхуки | HMAC-SHA256, timing-safe | `webhookHmac.js` |
