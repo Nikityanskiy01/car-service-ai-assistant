@@ -1,7 +1,7 @@
 # Полный аудит проекта (без безопасности) — повторная оценка
 
 **Проект:** Интеллектуальный ассистент автосервиса (`car-service-ai-assistant`)  
-**Дата повторной оценки:** 16 августа 2026 (вечер, после S30 и hotfix «без ответа 15 мин»)  
+**Дата повторной оценки:** 16 августа 2026 (вечер, после S41)  
 **Объект:** рабочая копия на диске — код, Compose, CI, тесты, документация, продуктовая полнота  
 **Исключено по запросу:** информационная безопасность (auth/JWT/RBAC/XSS/CSRF/секреты/threat model). Смежные темы надёжности и эксплуатации (health-пробы, персистентность очередей, наблюдаемость) включены как operational quality.
 
@@ -17,11 +17,11 @@
 | Форма | Modular monolith, SPA + REST, Docker Compose: `frontend`, `backend`, `worker`, `db`, `redis`, `mailpit` (profile `mail`), `otel-collector` (profile `observability`) |
 | Backend | **206** файлов TS в `backend/src`, **0** JS, **23 564** строк; **ни одного файла >400** |
 | Frontend | **419** файлов TS/TSX в `frontend/src` |
-| CSS | **79** файлов, **28 302** строк; barrel `main.css` / `site.css`; **ни одного файла >700** (макс. `manager-console-queue.css` 691) |
-| Тесты | Backend **63** `*.test.js`, **227** кейсов · Frontend **44** файла, **161** кейс · E2E **6** spec (в т.ч. Pixel 7) · k6 **1** · eval **38** сценариев |
+| CSS | **80** файлов; barrel `main.css` / `site.css`; **ни одного файла >700** (макс. `manager-console-queue.css`) |
+| Тесты | Backend **65** файлов (62 `*.test.js` + 3 `*.test.ts` auth/OTP/sessions), **227** кейсов · Frontend **44** файла, **161** кейс · E2E **6** spec (в т.ч. Pixel 7) · k6 **1** · eval **38** сценариев |
 | Миграции Prisma | **41** |
 | HTTP | Инвентарь **188** маршрутов (`docs/api-route-inventory.json`, `generatedAt: 2026-08-15`); `openapi:check` = 188=188. Живой `/` **200**, `/api/live` **live** |
-| OpenAPI | **0.5.0**, 188 ops. Именованные схемы **60** (запись, заявки, консультации, кабинет/гараж). Хвост admin/integrations — `object` stub |
+| OpenAPI | **0.5.0**, 188 ops. Именованные схемы **89** (кабинет + admin CMS + integrations + OTP). `openapi:check` 188=188 |
 | Runtime tonight | `backend` / `frontend` / `worker` / `db` / `redis` — healthy. `/api/v1` — rewrite-alias тех же маршрутов |
 
 ### Методология
@@ -86,7 +86,14 @@
 | **S31** | Enum CRM 12/12, типизация Express-обёрток, распил роутеров <400, OpenAPI +8 схем, `/api/v1/live` в operational skip | На диске 16.08; `noImplicitAny` ещё off |
 | **S32** | Распил security/auth/vehicles/admin CMS <400; Storybook 9.1 CLI; OpenAPI 25 схем; worker без второй сборки образа, Prisma error-events | На диске 16.08; worker healthy; `noImplicitAny` off (~1200 TS7006) |
 | **S33** | Точечная типизация auth/security/vehicles (P1-5) | На диске 16.08; `noImplicitAny` off |
-| **S34** | OpenAPI живого кабинета: 60 именованных схем | На диске 16.08; 188=188; хвост admin/integrations — stub |
+| **S34** | OpenAPI живого кабинета: 60 именованных схем | На диске 16.08; 188=188; хвост тогда stub |
+| **S35** | OTP-логин + `validatedBody`/`validatedQuery` без `any` | На диске 16.08; `LoginResult` / `TotpChallenge` |
+| **S36** | OpenAPI admin/integrations — именованные схемы | На диске 16.08; **89** схем, 188=188 |
+| **S37** | `useQuery` на живых кабинетах менеджера и профиле | Contacts / Clients / Requests / notification prefs |
+| **S38** | Cursor-пагинация списка заявок | keyset `createdAt`+`id`; ответ `nextCursor` |
+| **S39** | Живые `{ error, code }` → `sendProblem` | RFC 9457; поля `error`/`code` внутри problem JSON |
+| **S40** | Schemathesis nightly по OpenAPI | `.github/workflows/openapi-schemathesis-nightly.yml` |
+| **S41** | Тесты auth/OTP/sessions: JS → TS | `*.test.ts` + `testMatch` Jest |
 | **Hotfix** | «Без ответа» 15 мин (`SLA_MINUTES`); стили консоли; 2FA 1 мин; GET вне общего rate limit | На диске `requestSla.ts`, `skipGlobalRateLimit` |
 
 Корневой `openapi:check` — **зелёный** (188=188). Frontend lint в прошлой съёмке: 0 errors / 28 warnings (в этой сессии lint целиком не гонялся).
@@ -97,13 +104,13 @@
 
 Проект — **зрелый доменный продукт**: три роли, гибрид rule-based + LLM, заявки, запись, гараж, CMS, outbox, PDF, админка. Стек фронтенда актуален. Backend сильнее среднего Express: Zod на границах, Pino, graceful shutdown, circuit breaker, async-диагноз, отдельный worker, `src/` на TypeScript.
 
-Главный разрыв **платформенный**: `noImplicitAny` / `strictNullChecks`, полный i18n кабинетов, PgBouncer, хвост OpenAPI admin/integrations. P0 закрыты. Enum CRM 12/12. God-файлы backend `src` закрыты в S32. Живой кабинет в OpenAPI — S34.
+Главный разрыв **платформенный**: `noImplicitAny` / `strictNullChecks`, полный i18n кабинетов, PgBouncer. P0 закрыты. Enum CRM 12/12. God-файлы backend `src` закрыты в S32. OpenAPI admin/integrations — S36 (89 схем). S35–S41 на диске.
 
-**Итоговая оценка зрелости: 8.3 / 10**
+**Итоговая оценка зрелости: 8.4 / 10**
 
-Итог — не среднее 22 доменов (**7.2**) и не заявленная траектория S30 (**9.4**). Это экспертная оценка готовности: пилот и рост команды без переписывания платформы — да; стандарт 2026 без оговорок — нет.
+Итог — не среднее 22 доменов (**7.3**) и не заявленная траектория S30 (**9.4**). Это экспертная оценка готовности: пилот и рост команды без переписывания платформы — да; стандарт 2026 без оговорок — нет.
 
-История заявленных баллов: 5.9 → 6.5 (S1–S3) → 6.8 (S4) → 7.0 (самооценка S5) → 6.6 (первая пересъёмка) → … → 9.2 (S29) → 9.4 (S30, заявлено) → 8.0 (пересъёмка 16.08) → 8.1 (S31) → 8.2 (S32–S33) → **8.3 (S34)**.
+История заявленных баллов: 5.9 → 6.5 (S1–S3) → 6.8 (S4) → 7.0 (самооценка S5) → 6.6 (первая пересъёмка) → … → 9.2 (S29) → 9.4 (S30, заявлено) → 8.0 (пересъёмка 16.08) → 8.1 (S31) → 8.2 (S32–S33) → 8.3 (S34) → **8.4 (S35–S41)**.
 
 ### Что сильно
 
@@ -118,12 +125,11 @@
 
 ### Что ломает уверенность прямо сейчас
 
-1. OpenAPI: 60 именованных схем на живых маршрутах кабинета; хвост admin/integrations — stub `{ type: object }`. `/api/v1` — alias.
-2. Backend: `noImplicitAny` / `strictNullChecks` выключены (~1200 TS7006); тесты и seed — JS.
-3. QueryClient только на `AdminIntegrationsPage`. i18n — 22 ключа шапки ru/en.
-4. Coverage-порог Jest 50/40, не 70%. Lighthouse CI — warn. OTel collector — profile, по умолчанию не поднят.
-5. PgBouncer, service worker, npm workspaces — нет. Storybook CLI есть, визуальной регрессии в CI нет.
-6. Живой LLM eval: nightly fail-closed; в PR `LLM_ENABLED=false`.
+1. Backend: `noImplicitAny` / `strictNullChecks` выключены (~1200 TS7006); seed и большинство тестов — JS (auth/OTP/sessions — TS).
+2. i18n — 22 ключа шапки ru/en; кабинеты RU. QueryClient на интеграциях, контактах, клиентах, заявках, prefs профиля — не на всех экранах.
+3. Coverage-порог Jest 50/40, не 70%. Lighthouse CI — warn. OTel collector — profile, по умолчанию не поднят.
+4. PgBouncer, service worker, npm workspaces — нет. Storybook CLI есть, визуальной регрессии в CI нет.
+5. Живой LLM eval: nightly fail-closed; в PR `LLM_ENABLED=false`. Schemathesis nightly бьёт только `/live|/ready|/health`.
 
 ---
 
@@ -132,29 +138,29 @@
 | Домен | Было (исходный аудит) | Самооценка после S5 | **Сейчас** | Комментарий |
 |------|------:|------:|------:|-------------|
 | Архитектура | 6.5 | 7.1 | **8.6** | Фасады + CSS-слои + TS; `/api/v1` — alias |
-| REST API | 4.5 | 6.6 | **7.6** | 188=188; 60 именованных схем; cursor на 2 ресурсах |
+| REST API | 4.5 | 6.6 | **8.0** | 188=188; 89 именованных схем; cursor на заявках/записи/консультациях |
 | Данные и Prisma | 7.0 | 7.2 | **7.5** | 41 миграция; pgvector HNSW; нет PgBouncer |
-| Качество backend | 6.0 | 6.0 | **7.3** | S33 типы auth/security/vehicles; `noImplicitAny` off |
-| Качество frontend | 7.0 | 7.3 | **7.8** | TS strict; QueryClient на 1 странице |
+| Качество backend | 6.0 | 6.0 | **7.5** | S35 OTP/`validatedBody`; `noImplicitAny` off |
+| Качество frontend | 7.0 | 7.3 | **8.0** | TS strict; QueryClient на живых кабинетах менеджера |
 | UI / UX | 7.5 | 7.7 | **8.4** | 76 CSS, max 641; MASTER primary `#ea580c` |
 | Доступность | 6.0 | 7.0 | **7.0** | axe e2e 7 страниц; jsx-a11y warn; contrast off |
 | Производительность | 6.0 | 6.3 | **6.5** | k6 в CI: 1 VU / 15 с; Lighthouse warn |
 | Надёжность | 6.5 | 8.0 | **8.0** | live/ready 200 tonight; AOF; worker |
 | Наблюдаемость | 4.0 | 6.4 | **6.7** | Prom + OTel SDK; collector — profile |
-| Тестирование | 6.0 | 6.8 | **7.2** | 388 кейсов; 6 e2e; порог coverage 50/40 |
-| CI/CD | 5.0 | 6.8 | **7.4** | k6 + Lighthouse + coverage upload |
+| Тестирование | 6.0 | 6.8 | **7.4** | 388 кейсов; auth/OTP/sessions на TS; порог 50/40 |
+| CI/CD | 5.0 | 6.8 | **7.6** | k6 + Lighthouse + coverage + Schemathesis nightly |
 | DevOps | 7.0 | 7.5 | **7.5** | Compose healthy; `render.yaml` deprecated |
 | ИИ / LLM | 7.0 | 7.1 | **7.7** | Case memory ANN; prompt/completion в метриках |
 | Интеграции | 5.5 | 6.2 | **7.8** | 12/12 enum; AUTODEALER_WEB/ONLINE = GenericRest; SMS smsru/http/log |
-| Документация | 6.0 | 6.9 | **7.1** | LICENSE, ADR, CONTRIBUTING |
-| DX | 4.5 | 5.1 | **6.4** | Prettier + Lefthook + Storybook 9.1 CLI; нет workspaces |
+| Документация | 6.0 | 6.9 | **7.2** | LICENSE, ADR, CONTRIBUTING |
+| DX | 4.5 | 5.1 | **6.5** | Prettier + Lefthook + Storybook 9.1 CLI; нет workspaces |
 | i18n | 3.0 | 3.0 | **4.4** | 22 ключа шапки; кабинеты RU |
 | SEO / PWA | 4.5 | 6.0 | **6.4** | иконки 192/512; SW нет |
 | Юридическая полнота | 7.0 | 7.0 | **7.0** | шаблон 152-ФЗ, cookies |
 | Продуктовая аналитика | 3.0 | 5.3 | **5.9** | воронка + rum_web_vital; дашборда нет |
 | Сопровождаемость | 5.5 | 5.9 | **8.5** | Фасады + слои + TS; backend src все файлы <400 |
 
-Среднее доменов **7.2**. Сильные ≥7: **16**. Средние 5.5–6.9: **5**. Слабые: **1** (i18n).
+Среднее доменов **7.3**. Сильные ≥7: **16**. Средние 5.5–6.9: **5**. Слабые: **1** (i18n).
 
 ---
 
@@ -213,17 +219,17 @@ Compose (проверено tonight): `frontend` (read_only, 512m, healthy) · `
 ### 4.1 Сильное
 
 - Ресурсные пути, Zod на многих роутерах.
-- RFC 9457: `sendProblem`, `application/problem+json` (errorHandler, validate, idempotency). Поля `{ error, code }` ещё встречаются в части роутеров — двойной конверт.
+- RFC 9457: `sendProblem`, `application/problem+json` (errorHandler, validate, idempotency, auth JWT/CSRF, consultations/bookings/integrations, rate-limit 429). Поля `{ error, code }` остаются внутри problem JSON для клиентов.
 - Инвентарь 188 + `npm run routes:check` в CI.
 - `Idempotency-Key` (опциональный): POST contact, bookings (клиент/гость), создание консультации, guest service-request. Есть integration-тест.
-- Пагинация заявок: `page` / `pageSize` (max 100) плюс cursor на bookings и `GET /consultations/staff`. `/api/v1` — rewrite-alias тех же маршрутов (не отдельный контракт).
+- Пагинация заявок: `page` / `pageSize` (max 100) плюс keyset-cursor (`createdAt`+`id`, `nextCursor`) когда нет поиска и sort=`createdAt`. Cursor также на bookings и `GET /consultations/staff`. `/api/v1` — rewrite-alias тех же маршрутов (не отдельный контракт).
 - Пробы: `GET /api/live` (процесс), `/api/ready` (БД + Redis), `/api/health` = ready, `/api/metrics` Prometheus. Tonight `/api/live` — live. `isOperationalApiPath` нормализует `/api/v1` → `/api`, поэтому `/api/v1/live|ready|health|metrics` тоже operational. GET в общем лимитере пропускается (`skipGlobalRateLimit`).
 
 ### 4.2 Контракт (S6)
 
-Генератор `sync-openapi.mjs` пишет `specs/001-ai-consultation-platform/contracts/openapi.yaml`. **188** operations, `openapi:check` зелёный. Именованные схемы **60**: запись (guest/patch), заявки (assign/feedback/bulk), консультации (detail/claim/photo), кабинет (password/2FA/inbox/sessions), гараж. Хвост admin/integrations — stub `{ type: object }`. Не OpenAPI 3.1 как источник истины для codegen.
+Генератор `sync-openapi.mjs` пишет `specs/001-ai-consultation-platform/contracts/openapi.yaml`. **188** operations, `openapi:check` зелёный. Именованные схемы **89**: кабинет (S34) + admin CMS + integrations + OTP (S36). Не OpenAPI 3.1 как источник истины для codegen.
 
-**API-1 (P0) path-coverage** закрыт в S6. Кабинет закрыт в S34. Остаток — admin/integrations (P2). Контрактный тест `backend/tests/contract/openapi-schemas.test.js` есть.
+**API-1 (P0) path-coverage** закрыт в S6. Кабинет закрыт в S34. Admin/integrations закрыты в S36. Контрактный тест `backend/tests/contract/openapi-schemas.test.js` есть.
 
 ---
 
@@ -244,10 +250,9 @@ Compose (проверено tonight): `frontend` (read_only, 512m, healthy) · `
 
 Минусы:
 
-- Тесты и prisma seed ещё JavaScript; `noImplicitAny` / `strictNullChecks` выключены.
+- Тесты в основном JavaScript (auth/OTP/sessions — TypeScript); prisma seed — JS; `noImplicitAny` / `strictNullChecks` выключены.
 - ESLint без unicorn/n/cycles; **S6: 0 errors**. Frontend — 28 warnings (прошлый прогон).
 - Prettier + Lefthook есть (S30); npm workspaces нет.
-- Часть ответов всё ещё `res.status().json({ error })` в обход `sendProblem`.
 
 ---
 
@@ -257,17 +262,17 @@ Compose (проверено tonight): `frontend` (read_only, 512m, healthy) · `
 
 Плюсы: TS `strict`, lazy router (53 `lazy(`), Error Boundary + unit-тест, Vitest coverage в CI (`CI=true`).
 
-Минусы: клиентский API `as T` без runtime-схемы; TanStack Query только на `AdminIntegrationsPage` (остальное — ручной fetch/поллинг). 2FA не отдельный маршрут: challenge в `LoginPage`, настройка в `ProfileSecurityPanel`. `usePageMeta` ставит title/description на страницах; OG-теги в `index.html` глобальные, не по маршруту.
+Минусы: клиентский API `as T` без runtime-схемы; TanStack Query на интеграциях, контактах, клиентах, заявках и prefs профиля — не на всех экранах. 2FA не отдельный маршрут: challenge в `LoginPage`, настройка в `ProfileSecurityPanel`. `usePageMeta` ставит title/description на страницах; OG-теги в `index.html` глобальные, не по маршруту.
 
 Frontend lint: **0 errors, 28 warnings** (в т.ч. jsx-a11y и exhaustive-deps). Для CI при `max warnings` это зелёный, в отличие от backend.
 
 ### 7.2 UI / UX
 
-Плюсы: тёмная/светлая тема, токены, skip-link, command palette, cookie banner, legal pages, ProductConfig.
+Плюсы: тёмная/светлая тема, токены, skip-link, command palette, cookie banner, legal pages, ProductConfig. Кабинет менеджера: справка в шапке (`ManagerHelpDrawer` + `/dashboard/manager/help`), первый тур смены, рабочие подписи вместо CRM/LTV/канбан/CSV. Пояснения статусов, вкладок и фильтров — Radix-тултипы на самих элементах (skip-delay), легенды остаются в справке, не баннерами на рабочих экранах.
 
-CSS: механический распил без смены визуала плюс слой `manager-calendar.css` (недельная сетка записей), `request-detail.css` / `request-detail-tabs.css` (карточка заявки как рабочий стол) и `manager-console-clients.css` + `manager-console-clients-dossier.css` (CRM-кабинет: ростер и досье, без классов `contacts-inbox-*`). Бандл сборки **~415 KB** CSS до gzip — главный вес, импорт всё равно целиком из `main.tsx`.
+CSS: механический распил без смены визуала плюс слой `manager-help.css` (справка, тултипы на элементах, онбординг менеджера), `manager-calendar.css` (недельная сетка записей; статусы через `--status-tone-*` в `tokens.css`: жёлтый ожидает, синий подтверждена, бирюзовый приехал, зелёный завершена, розовый неявка, красный отмена; оранжевый бренд только у «сегодня» и CTA), `request-detail.css` / `request-detail-tabs.css` (карточка заявки: сводка как операционный бриф, диалог ИИ с диагнозом и оценкой, переписка с клиентом, работы с чек-листом «В сервис», история и учёт как лента событий; у селекторов статуса и менеджера в шапке есть видимые подписи, выровненные с полями; «Назначить запись» открывает внутренний drawer слота, не публичный `/booking`; PENDING-запись клиент видит с варнингом «сначала согласовать») и `manager-console-clients.css` + `manager-console-clients-dossier.css` (CRM-кабинет: ростер и досье, без классов `contacts-inbox-*`). Бандл сборки **~415 KB** CSS до gzip — главный вес, импорт всё равно целиком из `main.tsx`.
 
-Страница `/dashboard/manager/clients`: двухпанельный кабинет без автооткрытия. Шапка как у сообщений (сколько в работе, вкладки со счётчиками). Строка — инициалы, авто, LTV, запись; досье — липкий звонок, KPI, гараж чипами. `GET /service-requests/clients` отдаёт `vehicles`, `ltvMinor`, `nextBookingAt`, `counts`; dossier — VIN, пробег, симптомы, книжка.
+Страница `/dashboard/manager/clients`: двухпанельный кабинет без автооткрытия. Шапка как у сообщений (сколько в работе, вкладки со счётчиками). Строка - инициалы, авто, выручка, запись; досье - справа ближайший визит, снизу звонок/написать/записать, лента со статусом под датой, гараж одной колонкой. `GET /service-requests/clients` отдаёт `vehicles`, `ltvMinor`, `nextBookingAt`, `counts`; dossier - VIN, пробег, симптомы, книжка.
 
 `design-system/autoservice-ai/MASTER.md`: текст «orange CTA, navy не бренд», но spec кнопки `.btn-primary { background: #0369A1 }`. Документ системы **частично** источник правды.
 
@@ -275,7 +280,7 @@ Storybook 9.1 CLI в `frontend` (`npm run storybook`, `@storybook/react-vite`). 
 
 ### 7.3 Состояние и realtime
 
-Поллинг кабинетов. SSE консультации есть; nginx `proxy_buffering off` для `/api/` подтверждён спринтом 1 (файлы `frontend/docker/default.conf`, `deploy/nginx/*` не перечитывались побайтово в этой сессии — считаем закрытым, пока не опровергнуто). LLM `stream: false` — SSE это этапы пайплайна, не token stream.
+Поллинг кабинетов через `useQuery` refetchInterval на контактах и заявках (60 с). SSE консультации есть; nginx `proxy_buffering off` для `/api/` подтверждён спринтом 1 (файлы `frontend/docker/default.conf`, `deploy/nginx/*` не перечитывались побайтово в этой сессии — считаем закрытым, пока не опровергнуто). LLM `stream: false` — SSE это этапы пайплайна, не token stream.
 
 ### 7.4 i18n, SEO, PWA
 
@@ -355,7 +360,7 @@ Coverage backend: lines/statements 50, branches/functions 40 — в CI. Upload �
 
 Слабо: остальные CRM-адаптеры, serviceRecords, jobs, vision, embeddings indexer, менеджерский/админ UI как страницы, гараж, 2FA-страница.
 
-Контрактный тест схем OpenAPI есть; живой кабинет — именованные схемы; admin/integrations — stub.
+Контрактный тест схем OpenAPI есть; кабинет + admin/integrations — именованные схемы (89).
 
 Backend lint errors в `tests/integration/service-request-pdf.test.js` — **сняты в S6** (не тащить в текущий реестр).
 
@@ -372,6 +377,7 @@ Backend lint errors в `tests/integration/service-request-pdf.test.js` — **с�
 - Coverage upload есть; **порог 70% не поднят**.
 - k6 в CI — smoke 1 VU / 15 с, не нагрузочный прогон.
 - Lighthouse CI — warn, не fail.
+- Schemathesis nightly (S40) бьёт `/live|/ready|/health`, не весь контракт.
 - Три `npm ci` без workspaces.
 
 ---
@@ -461,7 +467,7 @@ CMS достаточна для white-label сайта.
 |----|---------|-------|--------|
 | P0-1 | CI e2e без backend | Тесты | ✅ S1, e2e поднимает API |
 | P0-2 | Redis без AOF при async-диагнозе | Надёжность | ✅ S1 |
-| P0-3 | OpenAPI не покрывает маршруты | API | ✅ S6 YAML 188 ops + `openapi:check`; S34: 60 именованных схем кабинета |
+| P0-3 | OpenAPI не покрывает маршруты | API | ✅ S6 YAML 188 ops + `openapi:check`; S34 кабинет; S36: 89 именованных схем |
 | P0-4 | Корневой lint / `openapi:check` красные | CI / DX | ✅ S6 |
 
 ### P1
@@ -472,7 +478,7 @@ CMS достаточна для white-label сайта.
 | P1-2 | Mixed health | ✅ live/ready |
 | P1-3 | Nginx буфер SSE | ✅ (S1) |
 | P1-4 | God-файлы JS/TSX и CSS | ✅ S32: backend src все <400; CSS >700 нет |
-| P1-5 | Backend JS, слабый ESLint | ◐ S29 TS + Express-обёртки; S33 типы auth/security/vehicles; `noImplicitAny` ещё выключен |
+| P1-5 | Backend JS, слабый ESLint | ◐ S29 TS + Express-обёртки; S33 типы auth/security/vehicles; S35 OTP/`validatedBody`; `noImplicitAny` ещё выключен |
 | P1-6 | Error Boundary | ✅ |
 | P1-7 | Eval без живой LLM; k6 | ✅ S14 nightly + S30 k6 в CI |
 | P1-8 | Один CRM-адаптер при enum из 12 | ✅ S31: все 12 провайдеров зарегистрированы |
@@ -487,10 +493,10 @@ CMS достаточна для white-label сайта.
 
 | ID | Находка | Статус |
 |----|---------|--------|
-| P2-1 | Нет v1 / cursor / Idempotency | ✅ `/api/v1` alias; cursor на bookings и consultations/staff |
-| P2-2 | Offset-пагинация до 500 | ◐ cursor рядом с offset |
+| P2-1 | Нет v1 / cursor / Idempotency | ✅ `/api/v1` alias; cursor на bookings, consultations/staff и заявках (S38) |
+| P2-2 | Offset-пагинация до 500 | ◐ cursor рядом с offset (заявки — keyset при sort=`createdAt`) |
 | P2-3 | Worker в процессе API | ✅ Compose `worker`; SLA на setInterval внутри worker |
-| P2-4 | Нет TanStack Query / SSR meta | ◐ QueryClient + интеграции; SSR meta нет |
+| P2-4 | Нет TanStack Query / SSR meta | ◐ QueryClient на интеграциях и живых кабинетах менеджера (S37); SSR meta нет |
 | P2-5 | Нет i18n | ◐ ru/en шапка; кабинеты RU |
 | P2-6 | SEO / PWA | ◐ sitemap/robots/JSON-LD; иконки 192/512; SW нет |
 | P2-7 | CI hygiene | ✅ coverage artifacts; k6; Lighthouse |
@@ -541,7 +547,7 @@ CMS достаточна для white-label сайта.
 
 ### Дни 8–45 → **S7–S30, сделано с хвостом**
 
-5. ◐ S34: 60 именованных схем на кабинете (запись/заявки/консультации/профиль). Schemathesis nightly нет. Хвост admin/integrations — stub.
+5. ✅ S36: 89 именованных схем (кабинет + admin/integrations + OTP). Schemathesis nightly (S40) бьёт `/live|/ready|/health`.
 6. ✅ Фасады flow/заявок/AI/consultations/extract; Consult/гараж/Booking/ManagerRequest; CSS-слои; backend `src/` на TypeScript. CSS >700 закрыт.
 7. ✅ pgvector HNSW + `CASE_MEMORY_MAX_SCAN`.
 8. ◐ Coverage upload в CI; порог 70% не поднят (50/40).
@@ -551,9 +557,9 @@ CMS достаточна для white-label сайта.
 
 10. ✅ Live LLM eval nightly (extraction+diagnosis, fail-closed, не в PR).
 11. ✅ CRM: 12/12 адаптеров в реестре (S31). Живой прогон внешних API не делался.
-12. ✅ `/api/v1` alias + cursor на bookings и consultations/staff.
+12. ✅ `/api/v1` alias + cursor на bookings, consultations/staff и заявках (S38).
 13. ◐ Prettier + Lefthook; workspaces нет.
-14. ◐ i18n шапки; TanStack Query на 1 странице.
+14. ◐ i18n шапки; TanStack Query на живых кабинетах менеджера (S37), не на всех экранах.
 15. ◐ RUM + Lighthouse CI warn.
 
 Оценка остатка: **1 сильный full-stack ~ 2–4 недели** на noImplicitAny и i18n кабинетов; не смешивать с фичами кабинетов.
@@ -568,7 +574,7 @@ auth · users · consultations / consultationAi / consultationFlow · serviceReq
 
 **Frontend 44 файла / 161 кейс:** api client, auth, формы, Consult/Booking, SSE, cookieConsent, client-cases, Error Boundary, ошибки, labels. Нет page-тестов `pages/manager/` и `pages/admin/` (кроме e2e smoke/a11y очереди). Гараж и `ProfileSecurityPanel` без page-тестов. Coverage в CI собирается, порогов Vitest нет.
 
-**Backend 63 файла / 227 кейсов:** auth/otp/sessions, consultation (+ stream, AI, access, observability), service-requests (concurrency, pdf, messages, completion), bookings, admin, analytics, contact, telegram, notifications, health, product-events, idempotency, problem details, openapi-schemas.
+**Backend 65 файлов / 227 кейсов:** auth/otp/sessions (TS), consultation (+ stream, AI, access, observability), service-requests (concurrency, pdf, messages, completion), bookings, admin, analytics, contact, telegram, notifications, health, product-events, idempotency, problem details, openapi-schemas.
 
 **E2E 6 spec** (включая Pixel 7 smoke). **Eval 38** rule-based. **k6** консультация, в CI как 1 VU / 15 с.
 
@@ -584,9 +590,9 @@ auth · users · consultations / consultationAi / consultationFlow · serviceReq
 
 ## 25. Заключение
 
-Спринты 1–31 закрыли пробы, Redis, worker, CSS-слои, axe, OTel SDK, события воронки, гейты lint/OpenAPI, фасады, pgvector, TypeScript backend src, CRM×12, SMS, `/api/v1`, cursor, k6/LH в CI, RUM, i18n шапки, Prettier, распил роутеров. Hotfix tonight: порог «без ответа» 15 минут.
+Спринты 1–41 закрыли пробы, Redis, worker, CSS-слои, axe, OTel SDK, события воронки, гейты lint/OpenAPI, фасады, pgvector, TypeScript backend src, CRM×12, SMS, `/api/v1`, cursor заявок, k6/LH/Schemathesis в CI, RUM, i18n шапки, Prettier, распил роутеров, OTP-типы, 89 схем OpenAPI, QueryClient кабинетов, RFC 9457 на живых конвертах. Hotfix tonight: порог «без ответа» 15 минут.
 
-Заявленный **9.4** — арифметика спринтов. Пересъёмка диска: **8.0 / 10**. Среднее доменов 7.1. P0 закрыты. P1 полностью открытых нет.
+Заявленный **9.4** — арифметика спринтов. Пересъёмка диска после S41: **8.4 / 10**. Среднее доменов 7.3. P0 закрыты. P1 полностью открытых нет.
 
 Если цель — демо: **достаточно**.  
 Если цель — стандарт 2026 без security-трека: ещё квартал на §27, не на CSS-распил.
@@ -610,7 +616,7 @@ P0 закрыты. P1 полностью открытых нет. Не смеш�
 | Приоритет | Что осталось |
 |-----------|----------------|
 | P1 | `noImplicitAny` / `strictNullChecks` на backend (~1200 TS7006) |
-| P2 | Полный i18n кабинетов; PgBouncer; service worker; coverage 70%; OpenAPI admin/integrations stubs; Chromatic |
+| P2 | Полный i18n кабинетов; PgBouncer; service worker; coverage 70%; Chromatic |
 | P3 | Feature flags; отдельная analytics DB; runtime-схемы клиентского API; `noUncheckedIndexedAccess` |
 
-Следующее: OTP-логин / `validatedBody` на роутерах (хвост P1-5) — не i18n кабинетов и не пакетный `noImplicitAny`.
+Следующее: пакетный `noImplicitAny` — только по явной просьбе. Не i18n кабинетов, не PgBouncer, не SW.

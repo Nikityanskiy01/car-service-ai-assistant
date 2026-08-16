@@ -1,8 +1,8 @@
 import { managerZonePaths, type ManagerZonePaths } from '../config/managerPaths';
-import { formatRequestNumber } from './labels';
+import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from './labels';
 import { SLA_OVERDUE_LABEL } from './requestSla';
 import type { ContactSubmission, ServiceBooking } from '../types/dashboard';
-import type { ConsultationDiagnosis, ServiceRequest, ServiceRequestDetail } from '../types/serviceRequest';
+import type { ConsultationDiagnosis, ServiceRequest, ServiceRequestDetail, ServiceRequestStatus } from '../types/serviceRequest';
 
 const EXTRACTED_FIELD_LABELS: Record<string, string> = {
   make: 'Марка',
@@ -267,4 +267,101 @@ export function getIntegrationSummary(
     return failed ? 'Ошибка синхронизации' : 'Не передано';
   }
   return 'Синхронизировано';
+}
+
+export type RequestHistoryKind = 'created' | 'status' | 'message' | 'feedback' | 'crm';
+
+export type RequestHistoryEvent = {
+  id: string;
+  at: string;
+  kind: RequestHistoryKind;
+  title: string;
+  detail?: string;
+};
+
+function statusLabel(status: string | null | undefined) {
+  if (!status) return 'нет';
+  return SERVICE_REQUEST_STATUS_LABELS[status as ServiceRequestStatus] || status;
+}
+
+export function formatRuEventCount(count: number) {
+  const n = Math.abs(count) % 100;
+  const mod10 = n % 10;
+  if (n > 10 && n < 20) return `${count} событий`;
+  if (mod10 === 1) return `${count} событие`;
+  if (mod10 >= 2 && mod10 <= 4) return `${count} события`;
+  return `${count} событий`;
+}
+
+export function buildRequestHistoryEvents(input: {
+  createdAt: string;
+  statusHistory: Array<{
+    id: string;
+    fromStatus: string | null;
+    toStatus: string;
+    createdAt: string;
+    actor?: { fullName?: string | null } | null;
+  }>;
+  messages: Array<{
+    id: string;
+    createdAt: string;
+    author?: { fullName?: string; role?: string } | null;
+  }>;
+  feedbackUpdatedAt?: string | null;
+  succeededJobs?: Array<{ id: string; updatedAt: string }>;
+}): RequestHistoryEvent[] {
+  const events: RequestHistoryEvent[] = [
+    { id: 'created', at: input.createdAt, kind: 'created', title: 'Заявка создана' },
+  ];
+
+  for (const row of input.statusHistory) {
+    const from = statusLabel(row.fromStatus);
+    const to = statusLabel(row.toStatus);
+    events.push({
+      id: `status-${row.id}`,
+      at: row.createdAt,
+      kind: 'status',
+      title: `Статус: ${to}`,
+      detail:
+        [row.fromStatus ? `было ${from}` : null, row.actor?.fullName].filter(Boolean).join(' · ') ||
+        undefined,
+    });
+  }
+
+  for (const message of input.messages) {
+    const role = message.author?.role?.toUpperCase();
+    const title =
+      role === 'CLIENT'
+        ? 'Сообщение от клиента'
+        : role === 'MANAGER' || role === 'ADMINISTRATOR'
+          ? 'Сообщение менеджера'
+          : 'Сообщение';
+    events.push({
+      id: `message-${message.id}`,
+      at: message.createdAt,
+      kind: 'message',
+      title,
+      detail: message.author?.fullName || undefined,
+    });
+  }
+
+  if (input.feedbackUpdatedAt) {
+    events.push({
+      id: 'feedback',
+      at: input.feedbackUpdatedAt,
+      kind: 'feedback',
+      title: 'Оценка диагноза ИИ сохранена',
+    });
+  }
+
+  for (const job of input.succeededJobs ?? []) {
+    events.push({
+      id: `crm-${job.id}`,
+      at: job.updatedAt,
+      kind: 'crm',
+      title: 'Заявка передана в учётную систему',
+    });
+  }
+
+  return events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }

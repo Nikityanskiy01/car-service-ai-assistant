@@ -52,11 +52,33 @@ export const INTEGRATION_JOB_STATUS_LABELS: Record<string, string> = {
 };
 
 export const URGENCY_LABELS: Record<string, string> = {
-  low: 'Низкая',
-  medium: 'Средняя',
-  high: 'Высокая',
-  critical: 'Критическая',
+  low: 'Не срочно',
+  medium: 'Средняя срочность',
+  high: 'Высокая срочность',
+  critical: 'Критическая срочность',
 };
+
+export const URGENCY_HINTS: Record<string, string> = {
+  low: 'Можно в обычную очередь: ТО, мелкий шум, расходники',
+  medium: 'Важно, но не авария: диагностика в ближайшие 1–2 дня',
+  high: 'Нужно взять раньше: тормоза, перегрев, машина плохо едет',
+  critical: 'Опасно ехать: разбирать сразу',
+};
+
+export function formatUrgencyLabel(urgency?: string | null): string | null {
+  if (!urgency) return null;
+  return URGENCY_LABELS[urgency.toLowerCase()] ?? null;
+}
+
+export function urgencyHint(urgency?: string | null): string | undefined {
+  if (!urgency) return undefined;
+  return URGENCY_HINTS[urgency.toLowerCase()];
+}
+
+export function isUrgentLevel(urgency?: string | null): boolean {
+  const key = String(urgency || '').toLowerCase();
+  return key === 'high' || key === 'critical';
+}
 
 export const CONTACT_STATUS_LABELS: Record<string, string> = {
   NEW: 'Новое',

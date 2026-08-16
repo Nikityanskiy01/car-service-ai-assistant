@@ -2,7 +2,7 @@
 export default {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
-  testMatch: ['**/*.test.js'],
+  testMatch: ['**/*.test.js', '**/*.test.ts'],
   transform: {
     '^.+\\.ts$': '<rootDir>/tests/ts-jest-transform.cjs',
   },

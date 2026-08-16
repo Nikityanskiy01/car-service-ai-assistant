@@ -1,8 +1,10 @@
+import type { NextFunction, Request, Response } from 'express';
 import prisma from '../lib/prisma.js';
 import { apiMessages } from '../config/apiMessages.js';
 import { guestTokenMatches } from '../lib/guestToken.js';
+import { sendProblem } from '../lib/problem.js';
 
-export async function consultationSessionAccess(req, res, next) {
+export async function consultationSessionAccess(req: Request, res: Response, next: NextFunction) {
   const { sessionId } = req.params;
   if (!sessionId) return next();
 
@@ -11,7 +13,7 @@ export async function consultationSessionAccess(req, res, next) {
     select: { id: true, clientId: true, guestToken: true },
   });
   if (!session) {
-    return res.status(404).json({ error: apiMessages.common.sessionNotFound, code: 'NOT_FOUND' });
+    return sendProblem(res, { status: 404, detail: apiMessages.common.sessionNotFound, code: 'NOT_FOUND' });
   }
 
   const u = req.user;
@@ -25,7 +27,7 @@ export async function consultationSessionAccess(req, res, next) {
       req.consultationActor = { kind: 'owner', user: u };
       return next();
     }
-    return res.status(403).json({ error: apiMessages.common.forbidden, code: 'CONSULTATION_FORBIDDEN' });
+    return sendProblem(res, { status: 403, detail: apiMessages.common.forbidden, code: 'CONSULTATION_FORBIDDEN' });
   }
 
   const hdr = req.headers['x-consultation-guest-token'];
@@ -34,15 +36,16 @@ export async function consultationSessionAccess(req, res, next) {
     return next();
   }
 
-  return res.status(401).json({
-    error: 'Требуется вход или гостевой токен консультации',
+  return sendProblem(res, {
+    status: 401,
+    detail: 'Требуется вход или гостевой токен консультации',
     code: 'GUEST_TOKEN_REQUIRED',
   });
 }
 
-export function blockStaffFromPosting(req, res, next) {
+export function blockStaffFromPosting(req: Request, res: Response, next: NextFunction) {
   if (req.consultationActor?.kind === 'staff') {
-    return res.status(403).json({ error: 'Недоступно для роли менеджера' });
+    return sendProblem(res, { status: 403, detail: 'Недоступно для роли менеджера', code: 'FORBIDDEN' });
   }
   next();
 }

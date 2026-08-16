@@ -104,7 +104,7 @@ export function formatDiagnosisChatMessage(diagnosis) {
     causes.forEach((cause, i) => lines.push(`${i + 1}. ${cause}`));
   }
   if (checks.length) {
-    lines.push('', 'Что проверим на посту:');
+    lines.push('', 'Что проверим в сервисе:');
     checks.forEach((check) => lines.push(`• ${check}`));
   }
   lines.push('', 'Это предварительный ориентир, не окончательный диагноз. Можно сохранить отчёт и оформить заявку.');
@@ -132,8 +132,8 @@ export function buildPlaybookFallbackDiagnosis({ reason, executionMeta, ruleBase
   const vehicle = [payload?.car_make, payload?.car_model].filter(Boolean).join(' ');
   const topic = playbook?.title || 'предварительный разбор по симптомам';
   let summary = vehicle
-    ? `По ${vehicle} предварительный ориентир — ${topic.toLowerCase()}. Наиболее вероятны: ${causes.slice(0, 3).join('; ')}. На посту начнём с указанных проверок, затем подтвердим объём работ.`
-    : `Предварительный ориентир — ${topic.toLowerCase()}. Наиболее вероятны: ${causes.slice(0, 3).join('; ')}. На посту начнём с указанных проверок, затем подтвердим объём работ.`;
+    ? `По ${vehicle} предварительный ориентир — ${topic.toLowerCase()}. Наиболее вероятны: ${causes.slice(0, 3).join('; ')}. В сервисе начнём с указанных проверок, затем подтвердим объём работ.`
+    : `Предварительный ориентир — ${topic.toLowerCase()}. Наиболее вероятны: ${causes.slice(0, 3).join('; ')}. В сервисе начнём с указанных проверок, затем подтвердим объём работ.`;
   if (urgency === 'critical') {
     summary =
       'Возможна критическая неисправность. Рекомендуется прекратить эксплуатацию автомобиля и организовать доставку в сервис эвакуатором. ' +

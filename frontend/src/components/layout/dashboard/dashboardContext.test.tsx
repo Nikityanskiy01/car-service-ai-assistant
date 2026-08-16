@@ -16,6 +16,7 @@ describe('useDashboardContext', () => {
       setBadges: (badges: Record<string, number>) => {
         received.push(badges);
       },
+      openManagerHelp: () => {},
     });
 
     const { result } = renderHook(() => useDashboardContext());
@@ -29,7 +30,7 @@ describe('useDashboardContext', () => {
 
   it('survives a nested Outlet that wipes react-router outlet context', () => {
     const setBadges = vi.fn();
-    const value: DashboardContextValue = { setPageTitle: () => {}, setBadges };
+    const value: DashboardContextValue = { setPageTitle: () => {}, setBadges, openManagerHelp: () => {} };
 
     function Shell() {
       bindDashboardChrome(value);
@@ -68,7 +69,7 @@ describe('useDashboardContext', () => {
 
   it('forwards outlet context through a role-guard Outlet', () => {
     const setBadges = vi.fn();
-    const value: DashboardContextValue = { setPageTitle: () => {}, setBadges };
+    const value: DashboardContextValue = { setPageTitle: () => {}, setBadges, openManagerHelp: () => {} };
 
     function Shell() {
       return (

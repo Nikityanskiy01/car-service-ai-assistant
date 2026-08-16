@@ -1,7 +1,7 @@
 import { test } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { e2eUsers } from './credentials.js';
+import { e2eUsers, skipManagerOnboarding } from './credentials.js';
 
 const outDir = path.resolve('artifacts/ui-review');
 
@@ -32,6 +32,7 @@ async function loginWithFallback(page, role) {
 
 test('capture ui review screenshots', async ({ page }) => {
   await ensureDir();
+  await skipManagerOnboarding(page);
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
@@ -64,7 +65,7 @@ test('capture ui review screenshots', async ({ page }) => {
   await page.goto('/dashboard/manager');
   await page.screenshot({ path: path.join(outDir, 'manager-dashboard.png'), fullPage: true });
   await page.screenshot({ path: path.join(outDir, 'manager-request-detail.png'), fullPage: true });
-  const kanbanTab = page.getByRole('tab', { name: 'Канбан' });
+  const kanbanTab = page.getByRole('button', { name: 'Доска' });
   if (await kanbanTab.count()) {
     await kanbanTab.click();
     await page.waitForTimeout(300);

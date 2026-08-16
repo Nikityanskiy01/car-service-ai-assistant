@@ -106,17 +106,17 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Полный аудит проекта — пересъёмка 16.08 + S34</h1>
-    <p class="muted">Все составляющие кроме информационной безопасности. Съёмка диска после S34: 60 именованных схем кабинета. Эталон: ISO 25010, OpenAPI 3.x, OpenTelemetry, WCAG 2.2, Testing Trophy, LLMOps 2026.</p>
+    <h1>Полный аудит проекта — пересъёмка 16.08 + S41</h1>
+    <p class="muted">Все составляющие кроме информационной безопасности. Съёмка диска после S35–S41: 89 именованных схем OpenAPI, OTP-типы, QueryClient кабинетов. Эталон: ISO 25010, OpenAPI 3.x, OpenTelemetry, WCAG 2.2, Testing Trophy, LLMOps 2026.</p>
     <div class="pills">
-      <span class="pill ok">Итог 8.3 / 10</span>
+      <span class="pill ok">Итог 8.4 / 10</span>
       <span class="pill warn">S30 заявлял 9.4</span>
       <span class="pill ok">P0 закрыты</span>
       <span class="pill">Без security-трека</span>
     </div>
 
     <div class="stats">
-      <div class="stat ok"><b>8.3</b><span>Зрелость / 10 (было 5.9)</span></div>
+      <div class="stat ok"><b>8.4</b><span>Зрелость / 10 (было 5.9)</span></div>
       <div class="stat ok"><b>0</b><span>Открытых P0</span></div>
       <div class="stat ok"><b>0</b><span>P1 полностью открыты</span></div>
       <div class="stat ok"><b>188</b><span>Маршрутов = OpenAPI ops</span></div>
@@ -124,7 +124,7 @@
 
     <div class="callout">
       <strong>Как читать оценку</strong>
-      6 — пилот с долгом. 8+ — рост команды без переписывания платформы. Итог 8.3 — не среднее доменов (7.2) и не арифметика спринтов (9.4). Демо и пилот — да. Стандарт 2026 без оговорок — нет: хвост OpenAPI admin/integrations, noImplicitAny выключен, i18n только шапка.
+      6 — пилот с долгом. 8+ — рост команды без переписывания платформы. Итог 8.4 — не среднее доменов (7.3) и не арифметика спринтов (9.4). Демо и пилот — да. Стандарт 2026 без оговорок — нет: noImplicitAny выключен, i18n только шапка.
     </div>
 
     <h2>Траектория зрелости</h2>
@@ -187,11 +187,11 @@
     <script>
       const domains = [
         ["Надёжность", 8.0], ["Архитектура", 8.6], ["UI / UX", 8.4], ["Сопровождаемость", 8.5],
-        ["Frontend-код", 7.8], ["Интеграции", 7.8], ["ИИ / LLM", 7.7], ["Данные / Prisma", 7.5], ["DevOps", 7.5],
-        ["CI/CD", 7.4], ["REST API", 7.6], ["Тестирование", 7.2], ["Качество backend", 7.3], ["Документация", 7.1],
+        ["Frontend-код", 8.0], ["Интеграции", 7.8], ["ИИ / LLM", 7.7], ["Данные / Prisma", 7.5], ["DevOps", 7.5],
+        ["CI/CD", 7.6], ["REST API", 8.0], ["Тестирование", 7.4], ["Качество backend", 7.5], ["Документация", 7.2],
         ["Юридическая полнота", 7.0], ["A11y WCAG 2.2", 7.0],
         ["Наблюдаемость", 6.7], ["Производительность", 6.5],
-        ["SEO / PWA", 6.4], ["DX", 6.4], ["Продуктовая аналитика", 5.9], ["i18n", 4.4]
+        ["SEO / PWA", 6.4], ["DX", 6.5], ["Продуктовая аналитика", 5.9], ["i18n", 4.4]
       ];
       const svg = document.querySelectorAll(".chart")[1];
       const ns = "http://www.w3.org/2000/svg";
@@ -235,21 +235,21 @@
         "UI / UX": "73 CSS, ни одного >700; MASTER primary #ea580c",
         "Данные / Prisma": "41 миграция; pgvector HNSW; нет PgBouncer",
         "Архитектура": "Фасады; CSS-слои; TS; /api/v1 alias",
-        "Frontend-код": "TS strict; QueryClient на 1 странице",
+        "Frontend-код": "TS strict; QueryClient на живых кабинетах менеджера",
         "DevOps": "Compose healthy; render.yaml deprecated",
         "ИИ / LLM": "Case memory ANN; nightly eval; токены в метриках",
         "Юридическая полнота": "Шаблон 152-ФЗ, cookies",
         "A11y WCAG 2.2": "axe e2e 7 страниц; contrast выключен",
-        "Тестирование": "388 кейсов бэк+фронт; 6 e2e; порог 50/40",
+        "Тестирование": "auth/OTP/sessions на TS; порог 50/40",
         "Документация": "LICENSE, ADR, CONTRIBUTING, OpenAPI YAML",
-        "CI/CD": "k6 + Lighthouse + coverage artifacts",
-        "REST API": "188=188; 60 именованных схем на кабинете",
+        "CI/CD": "k6 + Lighthouse + coverage + Schemathesis nightly",
+        "REST API": "188=188; 89 именованных схем; cursor заявок",
         "Наблюдаемость": "Prom + OTel SDK; collector не по умолчанию",
         "Производительность": "k6 1 VU / 15 с в CI; LH warn",
         "Интеграции": "12/12 enum; AUTODEALER_WEB/ONLINE = GenericRest",
         "Сопровождаемость": "S32: backend src все <400",
         "SEO / PWA": "JSON-LD + sitemap; иконки 192/512; SW нет",
-        "Качество backend": "206 TS; Express-обёртки типизированы; noImplicitAny off",
+        "Качество backend": "S35 OTP/validatedBody; noImplicitAny off",
         "Продуктовая аналитика": "воронка + rum_web_vital; дашборда нет",
         "DX": "Prettier + Lefthook + Storybook 9.1 CLI",
         "i18n": "22 ключа шапки ru/en; кабинеты RU"
@@ -271,9 +271,8 @@
       </div>
       <div class="card">
         <h3>Главный разрыв сейчас</h3>
-        <p>OpenAPI: 60 именованных схем на кабинете; хвост admin/integrations — object stub. /api/v1 — rewrite alias.</p>
-        <p>Backend: noImplicitAny и strictNullChecks выключены; тесты JS.</p>
-        <p>QueryClient только на админ-интеграциях. i18n — 22 ключа шапки. PgBouncer и SW — нет. Storybook CLI есть.</p>
+        <p>Backend: noImplicitAny и strictNullChecks выключены; seed и большинство тестов — JS (auth/OTP/sessions — TS).</p>
+        <p>QueryClient на живых кабинетах менеджера, не на всех экранах. i18n — 22 ключа шапки. PgBouncer и SW — нет.</p>
       </div>
     </div>
 
@@ -438,7 +437,7 @@
       </div>
       <div class="card">
         <h3>Дни 8–45 <span class="pill ok">S7–S30</span></h3>
-        <p>Фасады, pgvector, CSS-слои, TypeScript backend, CRM×12, k6/LH в CI. S34: 60 схем кабинета. Остались admin/integrations stubs и coverage 70%.</p>
+        <p>Фасады, pgvector, CSS-слои, TypeScript backend, CRM×12, k6/LH в CI. S36: 89 схем OpenAPI. Остались coverage 70% и noImplicitAny.</p>
       </div>
       <div class="card">
         <h3>Дни 45–90 <span class="pill warn">остаток</span></h3>
@@ -449,8 +448,8 @@
     <h3 style="margin-top:24px">Бэклог после пересъёмки</h3>
     <ul class="todo">
       <li><i style="background:#3d9a5f;border-color:#3d9a5f"></i> S34 — OpenAPI кабинета, 60 именованных схем</li>
+      <li><i style="background:#3d9a5f;border-color:#3d9a5f"></i> S35–S41 — OTP-типы, 89 схем, QueryClient, cursor, problem+json, Schemathesis, auth TS</li>
       <li><i></i> P1 — noImplicitAny / strictNullChecks на backend</li>
-      <li><i></i> P2 — OpenAPI admin/integrations stubs</li>
       <li><i></i> P2 — i18n кабинетов; PgBouncer; SW; Chromatic</li>
     </ul>
 

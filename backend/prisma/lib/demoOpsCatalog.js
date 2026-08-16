@@ -96,7 +96,7 @@ export function buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles }) {
       progressPercent: 100,
       confidencePercent: 82,
       costFromMinor: 18000,
-      preliminaryNote: 'Срочно: не глушить на ходу, дотянуть до поста на аварийке. Вероятен термостат или помпа.',
+      preliminaryNote: 'Срочно: не глушить на ходу, дотянуть до сервиса на аварийке. Вероятен термостат или помпа.',
       recommendations: recs([
         ['Заклинивший термостат — перегрев в пробке, пар из расширительного', 82],
         ['Помпа / течь патрубка системы охлаждения', 54],
@@ -104,7 +104,7 @@ export function buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles }) {
       ]),
       diagnosis: dx({
         summary:
-          'По Mercedes E-Class 2016 пар и красная зона в пробке — не «просто долить воду». Сначала остывание, уровень и герметичность, затем термостат и помпа. До поста не открывайте крышку на горячую.',
+          'По Mercedes E-Class 2016 пар и красная зона в пробке — не «просто долить воду». Сначала остывание, уровень и герметичность, затем термостат и помпа. До сервиса не открывайте крышку на горячую.',
         urgency: 'high',
         confidence: 0.82,
         cost: 4500,
@@ -152,7 +152,7 @@ export function buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles }) {
       ]),
       diagnosis: dx({
         summary:
-          'По Honda CR-V 2017 утренний свист на холодную почти всегда ремень навесного или ролик. На посту снимем пыльник и оценим глазурь и люфт ролика.',
+          'По Honda CR-V 2017 утренний свист на холодную почти всегда ремень навесного или ролик. В сервисе снимем пыльник и оценим глазурь и люфт ролика.',
         urgency: 'low',
         confidence: 0.74,
         cost: 2800,
@@ -169,7 +169,7 @@ export function buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles }) {
       booking: {
         preferredAt: hoursFromNow(20),
         status: 'PENDING',
-        notes: 'Ремень навесного, пост 3',
+        notes: 'Ремень навесного',
       },
       createdAt: hoursAgo(0.6),
       firstResponseAt: hoursAgo(0.35),
@@ -196,7 +196,7 @@ export function buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles }) {
       ]),
       diagnosis: dx({
         summary:
-          'По Audi A6 2015 рывки DSG в пробке на 189 тыс. без истории масла — сначала сервис коробки и адаптация, не сразу мехатроник. На посту считаем DSG-коды и смотрим ATF.',
+          'По Audi A6 2015 рывки DSG в пробке на 189 тыс. без истории масла — сначала сервис коробки и адаптация, не сразу мехатроник. В сервисе считаем DSG-коды и смотрим ATF.',
         urgency: 'medium',
         confidence: 0.68,
         cost: 8000,
@@ -220,7 +220,7 @@ export function buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles }) {
       booking: {
         preferredAt: hoursFromNow(28),
         status: 'CONFIRMED',
-        notes: 'Диагностика DSG, пост 1',
+        notes: 'Диагностика DSG',
       },
       createdAt: hoursAgo(16),
       firstResponseAt: hoursAgo(15.5),
@@ -246,7 +246,7 @@ export function buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles }) {
       ]),
       diagnosis: dx({
         summary:
-          'По Lexus RX 2018 вибрация после трассы — классика поведённых дисков. На посту промерили биение, заменили диск+колодки.',
+          'По Lexus RX 2018 вибрация после трассы — классика поведённых дисков. В сервисе промерили биение, заменили диск+колодки.',
         urgency: 'medium',
         confidence: 0.8,
         cost: 12000,

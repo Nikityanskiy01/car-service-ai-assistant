@@ -35,7 +35,7 @@ type ContactFieldErrors = {
 const values = [
   {
     icon: Cpu,
-    title: 'ИИ + мастер на посту',
+    title: 'ИИ + мастер в сервисе',
     text: 'Онлайн-диагностика ускоряет первичный разбор, а окончательный вывод и ремонт делает специалист.',
   },
   {
@@ -78,7 +78,7 @@ const guarantees = [
   {
     icon: Users,
     title: 'Опытные мастера',
-    text: 'Каждый пост ведёт профильный специалист с практикой диагностики и ремонта.',
+    text: 'Каждую работу ведёт профильный специалист с практикой диагностики и ремонта.',
   },
   {
     icon: Sparkles,
@@ -183,7 +183,7 @@ export function AboutPage() {
             <li>Онлайн-запись без обязательной регистрации</li>
             <li>ИИ-ассистент «{productConfig.assistantName}» доступен 24/7</li>
             <li>Единая история: чат, заявка и статус ремонта в кабинете</li>
-            <li>Итоговый диагноз подтверждает специалист на посту</li>
+            <li>Итоговый диагноз подтверждает специалист в сервисе</li>
           </ul>
           <div className="fm-actions">
             <Link className="fm-btn fm-btn-primary fm-btn-lg" to="/booking">
@@ -258,8 +258,8 @@ export function AboutPage() {
           <span>лет опыта команды</span>
         </div>
         <div>
-          <strong>6</strong>
-          <span>постов обслуживания</span>
+          <strong>1</strong>
+          <span>сервис полного цикла</span>
         </div>
         <div>
           <strong>24/7</strong>
@@ -323,7 +323,7 @@ export function AboutPage() {
 
       <section className="fm-photo-strip" aria-label="Фото сервиса">
         <SiteImage src={siteImages.gallery.reception} alt="Зона приёма клиентов" />
-        <SiteImage src={siteImages.gallery.bay} alt="Пост на подъёмнике" />
+        <SiteImage src={siteImages.gallery.bay} alt="Подъёмник в сервисе" />
         <SiteImage src={siteImages.gallery.ready} alt="Выдача автомобиля" />
       </section>
 

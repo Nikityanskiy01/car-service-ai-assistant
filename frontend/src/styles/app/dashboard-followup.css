@@ -60,7 +60,7 @@
 }
 
 :root[data-theme='dark'] .follow-up-chat-thread {
-  background: #12151d;
+  background: color-mix(in oklab, var(--color-surface-secondary) 55%, var(--color-background));
 }
 
 .follow-up-chat-item {

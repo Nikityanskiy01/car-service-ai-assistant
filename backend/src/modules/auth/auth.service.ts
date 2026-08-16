@@ -18,7 +18,7 @@ import {
   issueTokens,
   REFRESH_REUSE_GRACE_MS,
 } from './auth.shared.js';
-import type { IssuedSession, LoginCredentials, SessionMeta, TotpLoginInput } from './auth.types.js';
+import type { IssuedSession, LoginCredentials, LoginResult, SessionMeta, TotpLoginInput } from './auth.types.js';
 
 export { PASSWORD_RESET_GENERIC_MESSAGE } from './auth.password.js';
 export { RESEND_VERIFICATION_GENERIC_MESSAGE, REGISTRATION_PENDING_MESSAGE } from './auth.verify.js';
@@ -26,7 +26,7 @@ export { register, verifyEmail, resendVerificationEmail } from './auth.verify.js
 export { requestPasswordReset, resetPassword, changePassword } from './auth.password.js';
 export { issueSession } from './auth.shared.js';
 
-export async function login({ identifier, email, password }: LoginCredentials, meta: SessionMeta = {}) {
+export async function login({ identifier, email, password }: LoginCredentials, meta: SessionMeta = {}): Promise<LoginResult> {
   const rawIdentifier = String(identifier || email || '').trim();
   let user = null;
 
@@ -65,7 +65,7 @@ export async function login({ identifier, email, password }: LoginCredentials, m
   return completeVerifiedLogin(user, 'password', meta);
 }
 
-export async function completeVerifiedLogin(user: User, method: string, meta: SessionMeta = {}) {
+export async function completeVerifiedLogin(user: User, method: string, meta: SessionMeta = {}): Promise<LoginResult> {
   await assertNotLocked(user);
   if (clientRequiresEmailVerification(user)) {
     throw new AppError(401, INVALID_CREDENTIALS_MESSAGE, 'UNAUTHORIZED');

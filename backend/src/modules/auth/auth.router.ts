@@ -1,15 +1,16 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { apiMessages } from '../../config/apiMessages.js';
 import { getEnv } from '../../config/env.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
-import { validateBody } from '../../middleware/validate.js';
+import { validateBody, validatedBody } from '../../middleware/validate.js';
 import { authAttemptKey, createRateLimiter } from '../../middleware/rateLimitConfig.js';
 import { clearAuthCookies, readCookieValue, setAuthCookies } from '../../lib/authCookies.js';
 import { AppError } from '../../lib/errors.js';
 import { registerPasswordSchema } from '../../lib/passwordPolicy.js';
 import * as authService from './auth.service.js';
 import * as otpLoginService from './otpLogin.service.js';
+import { isTotpChallenge, type IssuedSession, type LoginCredentials, type PasswordResetInput, type RegisterInput, type SessionMeta, type StartLoginOtpInput, type TotpLoginInput, type VerifyLoginOtpInput } from './auth.types.js';
 
 const registerSchema = z.object({
   email: z.string().trim().email().transform((v) => v.toLowerCase()),
@@ -68,7 +69,7 @@ const otpVerifySchema = z.object({
   code: z.string().trim().min(4).max(12),
 });
 
-function requestAuthMeta(req) {
+function requestAuthMeta(req: Request): SessionMeta {
   const forwarded = String(req.headers['x-forwarded-for'] || '')
     .split(',')[0]
     .trim();
@@ -152,7 +153,7 @@ const twoFactorLimiter = createRateLimiter({
   message: { error: apiMessages.common.rateLimited, code: 'RATE_LIMITED' },
 });
 
-function authJsonPayload(out) {
+function authJsonPayload(out: IssuedSession) {
   if (env.NODE_ENV === 'test') {
     return {
       user: out.user,
@@ -165,7 +166,7 @@ function authJsonPayload(out) {
 }
 
 /** Drop a leftover session so 2FA is not treated as an authenticated CSRF request. */
-async function respondRequires2fa(req, res, challengeToken) {
+async function respondRequires2fa(req: Request, res: Response, challengeToken: string) {
   const rt = readCookieValue(req, 'refresh');
   if (rt) await authService.logout(rt);
   clearAuthCookies(res);
@@ -184,7 +185,7 @@ authRouter.post(
   authLimiter,
   validateBody(registerSchema),
   asyncHandler(async (req, res) => {
-    const out = await authService.register(req.validatedBody, requestAuthMeta(req));
+    const out = await authService.register(validatedBody<RegisterInput>(req), requestAuthMeta(req));
     res.status(201).json(out);
   }),
 );
@@ -194,7 +195,7 @@ authRouter.post(
   verificationLimiter,
   validateBody(verifyEmailSchema),
   asyncHandler(async (req, res) => {
-    const out = await authService.verifyEmail(req.validatedBody);
+    const out = await authService.verifyEmail(validatedBody<{ email: string; code: string }>(req));
     setAuthCookies(res, out);
     res.json(authJsonPayload(out));
   }),
@@ -205,7 +206,7 @@ authRouter.post(
   verificationLimiter,
   validateBody(resendVerificationSchema),
   asyncHandler(async (req, res) => {
-    const out = await authService.resendVerificationEmail(req.validatedBody.email);
+    const out = await authService.resendVerificationEmail(validatedBody<{ email: string }>(req).email);
     res.json(out);
   }),
 );
@@ -215,8 +216,8 @@ authRouter.post(
   authLimiter,
   validateBody(loginSchema),
   asyncHandler(async (req, res) => {
-    const out: any = await authService.login(req.validatedBody, requestAuthMeta(req));
-    if (out.requires2fa) {
+    const out = await authService.login(validatedBody<LoginCredentials>(req), requestAuthMeta(req));
+    if (isTotpChallenge(out)) {
       await respondRequires2fa(req, res, out.challengeToken);
       return;
     }
@@ -238,7 +239,7 @@ authRouter.post(
   authLimiter,
   validateBody(otpStartSchema),
   asyncHandler(async (req, res) => {
-    const out = await otpLoginService.startLoginOtp(req.validatedBody);
+    const out = await otpLoginService.startLoginOtp(validatedBody<StartLoginOtpInput>(req));
     res.json(out);
   }),
 );
@@ -248,8 +249,11 @@ authRouter.post(
   authLimiter,
   validateBody(otpVerifySchema),
   asyncHandler(async (req, res) => {
-    const out: any = await otpLoginService.verifyLoginOtp(req.validatedBody, requestAuthMeta(req));
-    if (out.requires2fa) {
+    const out = await otpLoginService.verifyLoginOtp(
+      validatedBody<VerifyLoginOtpInput>(req),
+      requestAuthMeta(req),
+    );
+    if (isTotpChallenge(out)) {
       await respondRequires2fa(req, res, out.challengeToken);
       return;
     }
@@ -263,7 +267,7 @@ authRouter.post(
   twoFactorLimiter,
   validateBody(loginTotpSchema),
   asyncHandler(async (req, res) => {
-    const out = await authService.loginWithTotp(req.validatedBody, requestAuthMeta(req));
+    const out = await authService.loginWithTotp(validatedBody<TotpLoginInput>(req), requestAuthMeta(req));
     setAuthCookies(res, out);
     res.json(authJsonPayload(out));
   }),
@@ -297,7 +301,7 @@ authRouter.post(
   forgotPasswordLimiter,
   validateBody(forgotPasswordSchema),
   asyncHandler(async (req, res) => {
-    const out = await authService.requestPasswordReset(req.validatedBody.email);
+    const out = await authService.requestPasswordReset(validatedBody<{ email: string }>(req).email);
     res.json(out);
   }),
 );
@@ -307,7 +311,7 @@ authRouter.post(
   authLimiter,
   validateBody(resetPasswordSchema),
   asyncHandler(async (req, res) => {
-    const out = await authService.resetPassword(req.validatedBody);
+    const out = await authService.resetPassword(validatedBody<PasswordResetInput>(req));
     res.json(out);
   }),
 );

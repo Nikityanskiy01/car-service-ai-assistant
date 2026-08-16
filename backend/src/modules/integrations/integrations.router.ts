@@ -5,6 +5,7 @@ import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
+import { sendProblem } from '../../lib/problem.js';
 import * as integrationsService from './integrations.service.js';
 import { INTEGRATION_CONNECTION_STATUS, INTEGRATION_JOB_STATUS, INTEGRATION_PROVIDERS } from './integration.constants.js';
 
@@ -68,7 +69,7 @@ integrationsAdminRouter.get(
   asyncHandler(async (req, res) => {
     const rows = await integrationsService.listConnections();
     const row = rows.find((x) => x.id === req.params.id);
-    if (!row) return res.status(404).json({ error: 'Подключение не найдено', code: 'NOT_FOUND' });
+    if (!row) return sendProblem(res, { status: 404, detail: 'Подключение не найдено', code: 'NOT_FOUND' });
     res.json(row);
   }),
 );
@@ -245,8 +246,9 @@ integrationsManagerRouter.post(
   asyncHandler(async (req, res) => {
     const connectionId = String(req.body?.connectionId || '');
     if (!connectionId) {
-      return res.status(400).json({
-        error: 'Выберите подключение для передачи заявки',
+      return sendProblem(res, {
+        status: 400,
+        detail: 'Выберите подключение для передачи заявки',
         code: 'BAD_REQUEST',
       });
     }

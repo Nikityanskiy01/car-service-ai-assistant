@@ -26,7 +26,7 @@ const STATUS_LABELS: Record<string, string> = {
 export const CALENDAR_STATUS_LEGEND = [
   { status: 'PENDING', label: STATUS_LABELS.PENDING, hint: 'Ещё не подтвердили' },
   { status: 'CONFIRMED', label: STATUS_LABELS.CONFIRMED, hint: 'Клиент приедет' },
-  { status: 'ARRIVED', label: STATUS_LABELS.ARRIVED, hint: 'Уже на посту' },
+  { status: 'ARRIVED', label: STATUS_LABELS.ARRIVED, hint: 'Уже в сервисе' },
   { status: 'COMPLETED', label: STATUS_LABELS.COMPLETED, hint: 'Работу закрыли' },
   { status: 'NO_SHOW', label: STATUS_LABELS.NO_SHOW, hint: 'Клиент не пришёл' },
   { status: 'CANCELLED', label: STATUS_LABELS.CANCELLED, hint: 'Запись сняли' },
@@ -59,7 +59,7 @@ export function BookingCalendarLegend() {
           <span className="calendar-legend-today tnum" aria-hidden="true">
             {new Date().getDate()}
           </span>
-          Оранжевый кружок с числом отмечает сегодняшний день
+          Оранжевый кружок с числом отмечает сегодня, это не статус записи
         </p>
       </header>
       <ul className="calendar-legend-grid">

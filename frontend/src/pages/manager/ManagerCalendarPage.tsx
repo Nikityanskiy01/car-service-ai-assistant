@@ -11,6 +11,7 @@ import {
 import { BookingDrawer } from '../../components/requests/BookingDrawer';
 import { Button } from '../../components/ui/Button';
 import { managerZonePaths } from '../../config/managerPaths';
+import { HintTooltip } from '../../components/manager/help/HintLabel';
 import { useDashboardPolling } from '../../hooks/useDashboardPolling';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import {
@@ -32,12 +33,12 @@ type CalendarView = 'day' | 'week' | 'list';
 
 const OPEN_STATUSES = ['PENDING', 'CONFIRMED'];
 
-const FILTERS: { id: CalendarFilter; label: string }[] = [
-  { id: 'all', label: 'Все' },
-  { id: 'today', label: 'Сегодня' },
-  { id: 'mine', label: 'Мои' },
-  { id: 'unconfirmed', label: 'Без подтверждения' },
-  { id: 'with-request', label: 'С заявкой' },
+const FILTERS: { id: CalendarFilter; label: string; hint: string }[] = [
+  { id: 'all', label: 'Все', hint: 'Все записи в выбранном диапазоне' },
+  { id: 'today', label: 'Сегодня', hint: 'Только визиты на сегодня' },
+  { id: 'mine', label: 'Мои', hint: 'Записи по заявкам, которые назначены на вас' },
+  { id: 'unconfirmed', label: 'Без подтверждения', hint: 'Клиент ещё не подтвердил, что приедет' },
+  { id: 'with-request', label: 'С заявкой', hint: 'Есть обращение в очереди, не свободный слот' },
 ];
 
 const VIEWS: { id: CalendarView; label: string }[] = [
@@ -152,7 +153,6 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
   return (
     <div className="calendar-page">
       <div className="calendar-toolbar">
-        <p className="muted">Запланированные визиты и загрузка постов.</p>
         <div className="row gap-sm">
           <Button type="button" variant="ghost" onClick={() => void load()}>
             <RefreshCw size={16} />
@@ -201,15 +201,16 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
           <div className="calendar-controls">
             <div className="queue-status-pills" role="toolbar" aria-label="Фильтр записей">
               {FILTERS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`queue-status-pill${calendarFilter === item.id ? ' is-active' : ''}`}
-                  aria-pressed={calendarFilter === item.id}
-                  onClick={() => setCalendarFilter(item.id)}
-                >
-                  {item.label}
-                </button>
+                <HintTooltip key={item.id} hint={item.hint}>
+                  <button
+                    type="button"
+                    className={`queue-status-pill${calendarFilter === item.id ? ' is-active' : ''}`}
+                    aria-pressed={calendarFilter === item.id}
+                    onClick={() => setCalendarFilter(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                </HintTooltip>
               ))}
             </div>
             <div className="queue-status-pills" role="toolbar" aria-label="Вид календаря">
@@ -262,7 +263,9 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
             <>
               <section className="calendar-capacity" aria-label="Загрузка на 7 дней">
                 <header className="booking-day-header">
-                  <h4>Загрузка на 7 дней</h4>
+                  <HintTooltip hint="Высокий столбик — плотный день. Нажмите день, чтобы прокрутить сетку.">
+                    <h4>Загрузка на 7 дней</h4>
+                  </HintTooltip>
                   <span className="muted tnum">пик: {capacityMax}</span>
                 </header>
                 <div className="booking-capacity-row">

@@ -4,6 +4,9 @@ import { csrfProtection } from '../../src/middleware/csrf.js';
 function callCsrf(req) {
   return new Promise((resolve) => {
     const res = {
+      setHeader() {
+        return this;
+      },
       status(code) {
         return {
           json(body) {

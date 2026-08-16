@@ -87,7 +87,7 @@ export function resolveClientAlerts(summary: ClientDashboardSummary): ClientAler
         description:
           summary.nextBooking.status === 'CONFIRMED'
             ? 'Запись подтверждена — ждём вас в сервисе.'
-            : 'Запись ожидает подтверждения менеджером.',
+            : 'Сначала согласуйте время — до подтверждения запись не окончательная.',
         ctaLabel: 'Детали записи',
         ctaTo: `/dashboard/client/bookings/${summary.nextBooking.id}`,
       });

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import { prefillConsultationGuest } from '../../features/services/prefill';
@@ -8,7 +9,7 @@ import { ContactInboxItem } from '../../components/manager/ContactInboxItem';
 import { Alert, AlertDescription, AlertTitle } from '../../components/console/ui/alert';
 import { Button } from '../../components/console/ui/button';
 import { managerZonePaths } from '../../config/managerPaths';
-import { useDashboardPolling } from '../../hooks/useDashboardPolling';
+import { HintTooltip } from '../../components/manager/help/HintLabel';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { ContactSubmission } from '../../types/dashboard';
 
@@ -18,11 +19,11 @@ type ManagerContactsPageProps = {
 
 type StatusTab = 'NEW' | 'IN_PROGRESS' | 'CONVERTED' | 'CLOSED' | 'all';
 
-const STATUS_TABS: { id: StatusTab; label: string }[] = [
-  { id: 'NEW', label: 'Новые' },
-  { id: 'IN_PROGRESS', label: 'В работе' },
-  { id: 'CONVERTED', label: 'Заявки' },
-  { id: 'CLOSED', label: 'Закрыты' },
+const STATUS_TABS: { id: StatusTab; label: string; hint?: string }[] = [
+  { id: 'NEW', label: 'Новые', hint: 'Клиент написал с формы. Позвоните.' },
+  { id: 'IN_PROGRESS', label: 'В работе', hint: 'Вы занялись, коллеги не дублируют звонок.' },
+  { id: 'CONVERTED', label: 'Заявки', hint: 'Уже создали обращение в очереди.' },
+  { id: 'CLOSED', label: 'Закрыты', hint: 'Без заявки: спам, ошибка или клиент передумал.' },
   { id: 'all', label: 'Все' },
 ];
 
@@ -73,32 +74,23 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
 
   const paths = managerZonePaths(adminZone);
   const navigate = useNavigate();
-  const [firstLoad, setFirstLoad] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [contacts, setContacts] = useState<ContactSubmission[]>([]);
   const [statusTab, setStatusTab] = useState<StatusTab>('NEW');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const load = useCallback(async (silent = false) => {
-    if (silent) setRefreshing(true);
-    else setError(null);
-    try {
-      setContacts(await listContacts());
-      if (silent) setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить сообщения с сайта');
-    } finally {
-      setFirstLoad(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const contactsQuery = useQuery({
+    queryKey: ['manager-contacts'],
+    queryFn: () => listContacts(),
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  });
+  const contacts = useMemo(() => contactsQuery.data ?? [], [contactsQuery.data]);
+  const firstLoad = contactsQuery.isPending && !contactsQuery.data;
+  const refreshing = contactsQuery.isFetching && !contactsQuery.isPending;
+  const error = contactsQuery.error instanceof Error ? contactsQuery.error.message : null;
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useDashboardPolling(() => void load(true), 60_000);
+  const load = useCallback(async () => {
+    await contactsQuery.refetch();
+  }, [contactsQuery.refetch]);
 
   const counts = useMemo(() => {
     const next = { NEW: 0, IN_PROGRESS: 0, CONVERTED: 0, CLOSED: 0, all: contacts.length };
@@ -118,7 +110,7 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
     setActionLoading(contact.id);
     try {
       await patchContactStatus(contact.id, { status });
-      await load(true);
+      await contactsQuery.refetch();
       toast.success(status === 'CLOSED' ? 'Закрыто без заявки' : 'В работе', {
         description: contact.fullName,
       });
@@ -162,17 +154,18 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
               const count = counts[tab.id];
               const selected = statusTab === tab.id;
               return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  className="contacts-tab"
-                  onClick={() => setStatusTab(tab.id)}
-                >
-                  {tab.label}
-                  <span className={`tnum${tab.id === 'NEW' && count > 0 ? ' is-hot' : ''}`}>{count}</span>
-                </button>
+                <HintTooltip key={tab.id} hint={tab.hint}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    className="contacts-tab"
+                    onClick={() => setStatusTab(tab.id)}
+                  >
+                    {tab.label}
+                    <span className={`tnum${tab.id === 'NEW' && count > 0 ? ' is-hot' : ''}`}>{count}</span>
+                  </button>
+                </HintTooltip>
               );
             })}
           </div>

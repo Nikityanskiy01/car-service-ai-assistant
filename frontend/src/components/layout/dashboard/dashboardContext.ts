@@ -3,11 +3,13 @@ import { createContext, useContext } from 'react';
 export type DashboardContextValue = {
   setPageTitle: (title: string) => void;
   setBadges: (badges: Record<string, number>) => void;
+  openManagerHelp: () => void;
 };
 
 const noopChrome: DashboardContextValue = {
   setPageTitle: () => {},
   setBadges: () => {},
+  openManagerHelp: () => {},
 };
 
 /**

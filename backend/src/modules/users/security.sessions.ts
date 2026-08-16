@@ -149,7 +149,10 @@ export async function revokeAllUserSessions(userId) {
  * Завершение сессий подтверждается одноразовым кодом с почты: одного пароля мало,
  * если устройство уже угнали вместе с активной сессией.
  */
-export async function startSessionRevokeChallenge(userId, input = {}) {
+export async function startSessionRevokeChallenge(
+  userId: string,
+  input: { scope?: string; sessionId?: string | null } = {},
+) {
   const scope = input.scope || 'others';
   const sessionId = input.sessionId || null;
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -219,7 +222,12 @@ async function consumeSessionRevokeCode(userId, code) {
   await consumeOtpChallenge(pending.token, normalized, { purpose: SESSION_REVOKE_PURPOSE });
 }
 
-export async function revokeSession(userId, sessionId, currentRefreshTokenValue = null, extra = {}) {
+export async function revokeSession(
+  userId: string,
+  sessionId: string,
+  currentRefreshTokenValue: string | null = null,
+  extra: { code?: string; currentSessionId?: string | null } = {},
+) {
   const currentHash = currentRefreshTokenValue ? hashRefreshToken(currentRefreshTokenValue) : null;
   const row = await prisma.refreshToken.findFirst({
     where: { id: sessionId, userId },
@@ -235,7 +243,11 @@ export async function revokeSession(userId, sessionId, currentRefreshTokenValue 
   };
 }
 
-export async function revokeOtherSessions(userId, currentRefreshTokenValue, extra = {}) {
+export async function revokeOtherSessions(
+  userId: string,
+  currentRefreshTokenValue: string | null,
+  extra: { code?: string; currentSessionId?: string | null } = {},
+) {
   const currentHash = currentRefreshTokenValue ? hashRefreshToken(currentRefreshTokenValue) : null;
   const currentSessionId = extra.currentSessionId || null;
   if (!currentHash && !currentSessionId) {

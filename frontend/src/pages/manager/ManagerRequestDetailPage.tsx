@@ -5,11 +5,14 @@ import { Tabs, TabsList, TabsTrigger } from '../../components/console/ui/tabs';
 import { ManagerRequestChrome } from './ManagerRequestChrome';
 import { ManagerRequestExportModal } from './ManagerRequestExportModal';
 import { ManagerRequestPanels } from './ManagerRequestPanels';
+import { AssignBookingDrawer } from '../../components/requests/AssignBookingDrawer';
 import {
   MANAGER_REQUEST_TABS,
   useManagerRequestDetail,
   type LoadedManagerRequest,
 } from './useManagerRequestDetail';
+import { MANAGER_REQUEST_TAB_HINTS } from '../../lib/managerGuide';
+import { HintTooltip } from '../../components/manager/help/HintLabel';
 
 type ManagerRequestDetailPageProps = {
   adminZone?: boolean;
@@ -53,14 +56,22 @@ export function ManagerRequestDetailPage({ adminZone = false }: ManagerRequestDe
       <Tabs value={d.tab} onValueChange={d.setTab} className="request-page-tabs">
         <TabsList className="request-page-tablist">
           {MANAGER_REQUEST_TABS.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id} className="request-tab">
-              {tab.label}
-            </TabsTrigger>
+            <HintTooltip key={tab.id} hint={MANAGER_REQUEST_TAB_HINTS[tab.id]}>
+              <TabsTrigger value={tab.id} className="request-tab">
+                {tab.label}
+              </TabsTrigger>
+            </HintTooltip>
           ))}
         </TabsList>
       </Tabs>
       <ManagerRequestPanels d={loaded} />
       <ManagerRequestExportModal d={loaded} />
+      <AssignBookingDrawer
+        open={loaded.bookingAssignOpen}
+        request={loaded.request}
+        onClose={loaded.closeBookingAssign}
+        onCreated={() => void loaded.handleBookingCreated()}
+      />
     </div>
   );
 }

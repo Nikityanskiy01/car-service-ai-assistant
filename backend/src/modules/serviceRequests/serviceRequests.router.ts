@@ -30,7 +30,7 @@ serviceRequestsRouter.get(
   '/',
   validateQuery(listQuerySchema),
   asyncHandler(async (req, res) => {
-    const { status, q, page, pageSize, sort, dir, mine, sla, feedback, urgency, statuses, source, period, hasDiagnosis } =
+    const { status, q, page, pageSize, sort, dir, mine, sla, feedback, urgency, statuses, source, period, hasDiagnosis, cursor } =
       req.validatedQuery;
     const statusList = statuses
       ? String(statuses)
@@ -53,6 +53,7 @@ serviceRequestsRouter.get(
       source,
       period,
       hasDiagnosis,
+      cursor,
     });
     let items = out.items.map(serializeListItem);
     if (req.user.role === 'CLIENT') {
@@ -68,6 +69,7 @@ serviceRequestsRouter.get(
       total: out.total,
       page: out.page,
       pageSize: out.pageSize,
+      nextCursor: out.nextCursor || null,
     });
   }),
 );

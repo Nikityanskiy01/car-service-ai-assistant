@@ -52,14 +52,14 @@ export const fallbackGalleryItems: FallbackGalleryItem[] = [
   },
   {
     id: 'fg2',
-    title: 'Пост на подъёмнике',
+    title: 'Подъёмник в сервисе',
     description: 'Ремонт и диагностика на профессиональном оборудовании.',
     imageUrl: siteImages.gallery.bay,
   },
   {
     id: 'fg3',
     title: 'Цех обслуживания',
-    description: 'Несколько постов для одновременной работы над разными авто.',
+    description: 'Несколько авто одновременно — ТО и ремонт в одной смене.',
     imageUrl: siteImages.gallery.shopfloor,
   },
   {

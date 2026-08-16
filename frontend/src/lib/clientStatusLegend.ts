@@ -53,8 +53,8 @@ export const CLIENT_REQUEST_STATUS_LEGEND: ClientStatusLegendItem[] = [
 export const CLIENT_BOOKING_STATUS_LEGEND: ClientStatusLegendItem[] = [
   {
     status: 'PENDING',
-    label: 'Ожидает',
-    description: 'Запись запрошена — менеджер подтвердит время.',
+    label: 'Нужно согласовать',
+    description: 'Время ещё не согласовано. До подтверждения запись не считается окончательной.',
     tone: 'waiting',
   },
   {

@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildClientDossierView,
   clientInitials,
+  firstNameOf,
   formatLtv,
   rosterVehicleSummary,
+  statusVariant,
   vehicleLine,
+  visitParts,
 } from './managerClientDossier';
 
 describe('managerClientDossier', () => {
@@ -61,6 +64,27 @@ describe('managerClientDossier', () => {
   it('takes initials from first and last name', () => {
     expect(clientInitials('Анна Ковалева')).toBe('АК');
     expect(clientInitials('Гость Игорь')).toBe('ИГ');
+  });
+
+  it('keeps the first name for the dossier rail', () => {
+    expect(firstNameOf('Марина Орлова')).toBe('Марина');
+    expect(firstNameOf('Гость Игорь Петров')).toBe('Игорь');
+  });
+
+  it('tones statuses so the rail can be scanned', () => {
+    expect(statusVariant('NEW')).toBe('default');
+    expect(statusVariant('IN_PROGRESS')).toBe('warning');
+    expect(statusVariant('SCHEDULED')).toBe('secondary');
+    expect(statusVariant('CONFIRMED')).toBe('success');
+    expect(statusVariant('CANCELLED')).toBe('destructive');
+  });
+
+  it('splits the next visit into day, weekday and time', () => {
+    const parts = visitParts('2026-08-17T10:00:00.000Z');
+    expect(parts?.day).toMatch(/17/);
+    expect(parts?.time).toMatch(/\d{2}:\d{2}/);
+    expect(parts?.weekday).toBeTruthy();
+    expect(visitParts(null)).toBeNull();
   });
 
   it('hides zero LTV', () => {

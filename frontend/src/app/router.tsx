@@ -77,6 +77,9 @@ const ManagerContactsPage = lazy(() =>
 const ManagerAiQualityPage = lazy(() =>
   import('../pages/manager/ManagerAiQualityPage').then((m) => ({ default: m.ManagerAiQualityPage })),
 );
+const ManagerHelpPage = lazy(() =>
+  import('../pages/manager/ManagerHelpPage').then((m) => ({ default: m.ManagerHelpPage })),
+);
 const AdminOverviewPage = lazy(() =>
   import('../pages/admin/AdminOverviewPage').then((m) => ({ default: m.AdminOverviewPage })),
 );
@@ -197,6 +200,7 @@ const managerRoutes = [
   { path: 'clients', element: withSuspense(<ManagerClientsPage />) },
   { path: 'contacts', element: withSuspense(<ManagerContactsPage />) },
   { path: 'ai-quality', element: withSuspense(<ManagerAiQualityPage />) },
+  { path: 'help', element: withSuspense(<ManagerHelpPage />) },
   { path: 'profile', element: withSuspense(<ProfilePage />) },
   { path: '*', element: withSuspense(<DashboardNotFoundPage />) },
 ];

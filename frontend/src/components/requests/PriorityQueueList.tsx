@@ -4,6 +4,7 @@ import { Phone } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import { patchServiceRequestStatus } from '../../api/dashboard';
 import type { AttentionItem } from '../../lib/managerRequestHelpers';
+import { UrgencyBadge } from '../consultation/UrgencyBadge';
 import { CopyPhoneButton } from '../ui/CopyPhoneButton';
 import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
@@ -58,7 +59,7 @@ export function PriorityQueueList({
           >
             <div>
               <div className="priority-queue-title-row">
-                {showUrgency ? <span className="sla-badge">{item.urgency}</span> : null}
+                {showUrgency ? <UrgencyBadge urgency={item.urgency} /> : null}
                 {item.isGuest ? <span className="muted">гость</span> : null}
                 {!item.isGuest && item.requestId ? <span className="muted">клиент</span> : null}
                 <strong>{item.title}</strong>

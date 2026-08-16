@@ -95,7 +95,7 @@ export async function seedDemoInboxNotifications(prisma, { userId, bookings = []
       key: 'booking-confirmed',
       kind: 'BOOKING_CONFIRMED',
       title: 'Запись подтверждена',
-      body: `Ждём вас ${whenConfirmed}. Пост №2, вход с парковки.`,
+      body: `Ждём вас ${whenConfirmed}. Вход с парковки.`,
       href: confirmed ? bookingHref(confirmed.id) : null,
       hoursAgo: 3,
       read: false,

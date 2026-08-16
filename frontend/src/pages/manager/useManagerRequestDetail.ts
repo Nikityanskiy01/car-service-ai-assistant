@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { ApiError } from '../../api/errors';
 import {
   exportRequestToCrm,
   getRequestIntegrations,
@@ -16,8 +17,6 @@ import {
   sendRequestMessage,
   type StatusHistoryItem,
 } from '../../api/dashboard';
-import { ApiError } from '../../api/errors';
-import { prefillBookingFromConsultation } from '../../features/services/prefill';
 import {
   getRequestConfidence,
   getRequestUrgency,
@@ -32,19 +31,17 @@ import type { RequestIntegrationStatus } from '../../types/integration';
 import type { IntegrationConnection } from '../../types/integration';
 import type { ServiceRequestDetail, ServiceRequestStatus } from '../../types/serviceRequest';
 import type { FollowUpMessage } from '../../api/dashboard';
-import type { ConsultationDetail } from '../../types/consultation';
 
 export const MANAGER_REQUEST_TABS = [
   { id: 'summary', label: 'Сводка' },
   { id: 'consultation', label: 'Диалог ИИ' },
   { id: 'messages', label: 'Переписка' },
-  { id: 'works', label: 'Работы и оценка' },
-  { id: 'history', label: 'История и CRM' },
+  { id: 'works', label: 'Работы' },
+  { id: 'history', label: 'История и учёт' },
 ];
 
 export function useManagerRequestDetail(adminZone = false) {
   const { requestId = '' } = useParams();
-  const navigate = useNavigate();
   const paths = managerZonePaths(adminZone);
   const { success, error: toastError } = { success: toast.success, error: toast.error };
   usePageMeta({ title: 'Заявка', description: 'Подробная карточка обращения.' });
@@ -66,6 +63,7 @@ export function useManagerRequestDetail(adminZone = false) {
   const [exportConnectionId, setExportConnectionId] = useState('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [statusHistory, setStatusHistory] = useState<StatusHistoryItem[]>([]);
+  const [bookingAssignOpen, setBookingAssignOpen] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!requestId) return;
@@ -130,16 +128,16 @@ export function useManagerRequestDetail(adminZone = false) {
 
   function openBooking() {
     if (!request) return;
-    prefillBookingFromConsultation({
-      detail: {
-        extracted: session?.extracted,
-        diagnosis: diagnosis || undefined,
-      } as ConsultationDetail,
-      serviceRequestId: request.id,
-      fullName: owner,
-      phone: phone || undefined,
-    });
-    void navigate('/booking');
+    setBookingAssignOpen(true);
+  }
+
+  function closeBookingAssign() {
+    setBookingAssignOpen(false);
+  }
+
+  async function handleBookingCreated() {
+    setBookingAssignOpen(false);
+    await load(true);
   }
 
   async function changeStatus(status: ServiceRequestStatus) {
@@ -304,7 +302,10 @@ export function useManagerRequestDetail(adminZone = false) {
     exportableConnections,
     threadClosed,
     selectedExportConnection,
+    bookingAssignOpen,
     openBooking,
+    closeBookingAssign,
+    handleBookingCreated,
     changeStatus,
     submitReply,
     handleAssignToMe,

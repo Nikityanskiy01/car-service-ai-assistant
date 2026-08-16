@@ -41,6 +41,9 @@ const NAMED = [
   'InboxNotificationList',
   'SecurityStatus',
   'SessionRevokeConfirm',
+  'IntegrationConnection',
+  'AdminRolePatch',
+  'AuthOtpStart',
 ];
 
 describe('OpenAPI rich schemas', () => {
@@ -59,5 +62,8 @@ describe('OpenAPI rich schemas', () => {
     expect(yaml).toContain('#/components/schemas/VehiclePatch');
     expect(yaml).toContain('#/components/schemas/ChangePassword');
     expect(yaml).toContain('#/components/schemas/InboxNotificationList');
+    expect(yaml).toContain('#/components/schemas/IntegrationConnectionCreate');
+    expect(yaml).toContain('#/components/schemas/AdminRolePatch');
+    expect(yaml).toContain('#/components/schemas/AuthOtpStart');
   });
 });

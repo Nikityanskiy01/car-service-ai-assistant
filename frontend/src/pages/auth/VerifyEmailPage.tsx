@@ -5,6 +5,7 @@ import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AuthUser } from '../../types/auth';
 import { FormField } from '../../components/forms/FormField';
+import { OtpCodeInput } from '../../components/forms/OtpCodeInput';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -138,19 +139,16 @@ export function VerifyEmailPage() {
               />
             </FormField>
 
-            <FormField label="Код из письма" htmlFor="verifyCode" hint="6 цифр">
-              <Input
+            <FormField label="Код из письма" htmlFor="verifyCode">
+              <OtpCodeInput
                 id="verifyCode"
                 name="code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
                 required
-                maxLength={6}
-                placeholder="123456"
                 value={code}
                 autoFocus={locationState?.justRegistered}
-                onChange={(e) => {
-                  setCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                aria-invalid={Boolean(error)}
+                onChange={(next) => {
+                  setCode(next);
                   if (error) setError(null);
                 }}
               />

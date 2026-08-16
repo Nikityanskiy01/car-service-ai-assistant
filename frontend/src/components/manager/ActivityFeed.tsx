@@ -14,8 +14,8 @@ const TYPE_LABELS: Record<ActivityItem['type'], string> = {
   MESSAGE_SENT: 'Сообщение',
   FEEDBACK_SAVED: 'Оценка ИИ',
   CONTACT_CONVERTED: 'Входящее',
-  CRM_EXPORTED: 'CRM',
-  CRM_FAILED: 'CRM ошибка',
+  CRM_EXPORTED: 'Учёт',
+  CRM_FAILED: 'Не ушло в учёт',
 };
 
 export function ActivityFeed({

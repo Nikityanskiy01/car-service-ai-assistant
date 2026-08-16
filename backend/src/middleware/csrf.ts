@@ -1,6 +1,8 @@
 import crypto from 'crypto';
+import type { NextFunction, Request, Response } from 'express';
 import { apiMessages } from '../config/apiMessages.js';
 import { readCookieValue } from '../lib/authCookies.js';
+import { sendProblem } from '../lib/problem.js';
 
 /** Pre-auth POSTs: same as login — a leftover session cookie must not block them. */
 export const CSRF_EXEMPT_POST_PATHS = new Set([
@@ -16,7 +18,7 @@ export const CSRF_EXEMPT_POST_PATHS = new Set([
   '/api/auth/otp/verify',
 ]);
 
-function csrfTokensMatch(cookie, header) {
+function csrfTokensMatch(cookie: unknown, header: unknown) {
   const a = String(cookie || '');
   const b = String(header || '');
   if (!a || !b) return false;
@@ -26,20 +28,20 @@ function csrfTokensMatch(cookie, header) {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
-export function requestPath(req) {
+export function requestPath(req: Pick<Request, 'baseUrl' | 'path' | 'originalUrl'>) {
   const fromParts = `${req.baseUrl || ''}${req.path || ''}`.split('?')[0];
   if (fromParts) return fromParts;
   return String(req.originalUrl || '').split('?')[0];
 }
 
-function withApiPrefix(path) {
+function withApiPrefix(path: string) {
   const value = String(path || '');
   if (!value) return value;
   if (value === '/api' || value.startsWith('/api/')) return value;
   return value.startsWith('/') ? `/api${value}` : `/api/${value}`;
 }
 
-function isCsrfExemptPost(req) {
+function isCsrfExemptPost(req: Request) {
   const candidates = [requestPath(req), String(req.originalUrl || '').split('?')[0]];
   return candidates.some((path) => CSRF_EXEMPT_POST_PATHS.has(path) || CSRF_EXEMPT_POST_PATHS.has(withApiPrefix(path)));
 }
@@ -49,7 +51,7 @@ function isCsrfExemptPost(req) {
  * совпадающий с cookie car_service_csrf. Без auth-cookie (гость) — проверка не требуется.
  * В test окружении отключено.
  */
-export function csrfProtection(req, res, next) {
+export function csrfProtection(req: Request, res: Response, next: NextFunction) {
   if (process.env.NODE_ENV === 'test') return next();
 
   const method = req.method;
@@ -67,7 +69,7 @@ export function csrfProtection(req, res, next) {
   const cookie = readCookieValue(req, 'csrf');
   const header = req.headers['x-csrf-token'];
   if (!csrfTokensMatch(cookie, header)) {
-    return res.status(403).json({ error: apiMessages.common.csrf, code: 'CSRF' });
+    return sendProblem(res, { status: 403, detail: apiMessages.common.csrf, code: 'CSRF' });
   }
   next();
 }

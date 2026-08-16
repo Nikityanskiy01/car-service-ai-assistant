@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from '../../lib/toast';
 import {
   bulkAssignRequests,
@@ -28,7 +29,6 @@ import { Button } from '../../components/console/ui/button';
 import { Skeleton } from '../../components/console/ui/skeleton';
 import { managerZonePaths } from '../../config/managerPaths';
 import { formatRequestNumber } from '../../lib/labels';
-import { useDashboardPolling } from '../../hooks/useDashboardPolling';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { ServiceRequest, ServiceRequestStatus } from '../../types/serviceRequest';
@@ -74,8 +74,6 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
   }, [searchParams]);
 
   const [firstLoad, setFirstLoad] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [board, setBoard] = useState<Partial<Record<ServiceRequestStatus, RequestBoardColumn>>>({});
   const [total, setTotal] = useState(0);
@@ -84,7 +82,6 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
   const [loadingMore, setLoadingMore] = useState<Partial<Record<ServiceRequestStatus, boolean>>>({});
   const [savedFilters, setSavedFilters] = useState<SavedQueueFilter[]>(() => loadSavedQueueFilters());
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
-  const firstLoadRef = useRef(true);
 
   const queryKey = [
     q,
@@ -135,42 +132,44 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
     ],
   );
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
-    setError(null);
-    try {
+  const queueQuery = useQuery({
+    queryKey: ['manager-requests', debouncedQueryKey],
+    queryFn: async () => {
       if (view === 'kanban') {
         const data = await listServiceRequestBoard({ ...sharedParams, pageSize: KANBAN_PAGE_SIZE });
-        setBoard(data.columns);
-        setRequests([]);
-        setTotal(data.total);
-        setSelectedIds([]);
-      } else {
-        const data = await listServiceRequests({ ...sharedParams, page, pageSize: PAGE_SIZE });
-        setRequests(data.items);
-        setBoard({});
-        setTotal(data.total);
-        const visible = new Set(data.items.map((item) => item.id));
-        setSelectedIds((prev) => prev.filter((id) => visible.has(id)));
+        return { kind: 'kanban' as const, columns: data.columns, items: [] as ServiceRequest[], total: data.total };
       }
-      setLastUpdatedAt(new Date());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось загрузить заявки');
-    } finally {
-      setRefreshing(false);
-      if (firstLoadRef.current) {
-        firstLoadRef.current = false;
-        setFirstLoad(false);
-      }
-    }
-  }, [sharedParams, page, view]);
+      const data = await listServiceRequests({ ...sharedParams, page, pageSize: PAGE_SIZE });
+      return { kind: 'list' as const, columns: {} as Partial<Record<ServiceRequestStatus, RequestBoardColumn>>, items: data.items, total: data.total };
+    },
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  });
+  const refreshing = queueQuery.isFetching && !queueQuery.isPending;
+  const error = queueQuery.error instanceof Error ? queueQuery.error.message : null;
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQueryKey]);
+    const data = queueQuery.data;
+    if (!data) return;
+    if (data.kind === 'kanban') {
+      setBoard(data.columns);
+      setRequests([]);
+      setTotal(data.total);
+      setSelectedIds([]);
+    } else {
+      setRequests(data.items);
+      setBoard({});
+      setTotal(data.total);
+      const visible = new Set(data.items.map((item) => item.id));
+      setSelectedIds((prev) => prev.filter((id) => visible.has(id)));
+    }
+    setLastUpdatedAt(new Date());
+    setFirstLoad(false);
+  }, [queueQuery.data]);
 
-  useDashboardPolling(() => void load(), 60_000);
+  const load = useCallback(async () => {
+    await queueQuery.refetch();
+  }, [queueQuery]);
 
   const updateParams = useCallback(
     (patch: Record<string, string | undefined>) => {
@@ -335,12 +334,6 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
 
   return (
     <div className="queue-page">
-      <p className="queue-page-lead">
-        {adminZone
-          ? 'Все заявки сервиса. Сначала клиенты без ответа, затем новые без менеджера.'
-          : 'Клиенты после диагностики и заявок с сайта. Сначала те, кто ждёт ответ.'}
-      </p>
-
       <ManagerQueueFilters
         state={filterState}
         total={total}
@@ -387,7 +380,7 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
           void runBulk(
             () => bulkExportRequestsToCrm(selectedIds),
             'Заявки отправлены в учётную систему',
-            'Не удалось экспортировать в CRM',
+            'Не удалось отправить в учётную систему',
           )
         }
         onClear={() => setSelectedIds([])}

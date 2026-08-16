@@ -160,6 +160,13 @@ export function ClientBookingDetailPage() {
           <BookingStatusRail status={booking.status} />
         </header>
 
+        {booking.status === 'PENDING' ? (
+          <div className="booking-detail-note is-agree" role="status">
+            <span className="booking-detail-note-label">Важно</span>
+            <p>Сначала согласуйте время с сервисом. До подтверждения запись не окончательная.</p>
+          </div>
+        ) : null}
+
         {(title || subtitle) && (
           <div className="booking-detail-service">
             <span className="booking-detail-service-icon" aria-hidden>

@@ -40,7 +40,7 @@ type GalleryZone = 'all' | 'reception' | 'posts' | 'floor' | 'equipment' | 'deli
 const ZONE_FILTERS: { id: GalleryZone; label: string; icon: typeof Building2 }[] = [
   { id: 'all', label: 'Все зоны', icon: Sparkles },
   { id: 'reception', label: 'Приём', icon: Building2 },
-  { id: 'posts', label: 'Посты', icon: Car },
+  { id: 'posts', label: 'Сервис', icon: Car },
   { id: 'floor', label: 'Цех', icon: Wrench },
   { id: 'equipment', label: 'Оборудование', icon: Cpu },
   { id: 'delivery', label: 'Выдача', icon: CheckCircle2 },
@@ -206,7 +206,7 @@ export function GalleryPage() {
   const productConfig = useProductConfig();
   usePageMeta({
     title: 'Галерея сервиса',
-    description: 'Фото зоны обслуживания, постов и результатов работ.',
+    description: 'Фото зоны обслуживания, сервиса и результатов работ.',
     preloadImage: siteImages.gallery.reception,
   });
 
@@ -304,12 +304,12 @@ export function GalleryPage() {
           </p>
           <h1>Галерея — как выглядит сервис до записи</h1>
           <p>
-            Зона приёма, посты на подъёмниках, цех, диагностика и выдача авто. Посмотрите, где проходит
+            Зона приёма, подъёмники, цех, диагностика и выдача авто. Посмотрите, где проходит
             обслуживание, и приезжайте с пониманием процесса.
           </p>
           <div className="fm-actions">
             <Link className="fm-btn fm-btn-primary" to="/booking">
-              Записаться на пост
+              Записаться в сервис
             </Link>
             <Link className="fm-btn fm-btn-outline" to="/works">
               Примеры работ
@@ -328,7 +328,7 @@ export function GalleryPage() {
               ? heroItems
               : [
                   { item: { id: 'h1', title: 'Приём' }, zone: 'reception' as const, image: siteImages.gallery.reception },
-                  { item: { id: 'h2', title: 'Пост' }, zone: 'posts' as const, image: siteImages.gallery.bay },
+                  { item: { id: 'h2', title: 'Сервис' }, zone: 'posts' as const, image: siteImages.gallery.bay },
                   { item: { id: 'h3', title: 'Цех' }, zone: 'floor' as const, image: siteImages.gallery.shopfloor },
                 ]
             ).map((row, i) => (
@@ -447,8 +447,8 @@ export function GalleryPage() {
 
           <Reveal as="section" className="fm-section fm-dual-cta fm-gallery-cta" delay={160}>
             <article className="fm-card">
-              <h3>Записаться на пост</h3>
-              <p>Выберите услугу и время — мастер подтвердит запись и подготовит пост.</p>
+              <h3>Записаться в сервис</h3>
+              <p>Выберите услугу и время — мастер подтвердит запись и подготовится к визиту.</p>
               <Link className="fm-btn fm-btn-primary" to="/booking">
                 Записаться в сервис
               </Link>

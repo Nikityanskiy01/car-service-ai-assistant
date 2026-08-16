@@ -24,7 +24,7 @@ async function requestRevokeCode(auth, body = {}) {
   return code;
 }
 
-function authFromLogin(res) {
+function authFromLogin(res: { body: { accessToken?: string }; headers: { ['set-cookie']?: string[] } }) {
   return {
     accessToken: res.body.accessToken,
     cookie: res.headers['set-cookie']?.join('; ') || '',

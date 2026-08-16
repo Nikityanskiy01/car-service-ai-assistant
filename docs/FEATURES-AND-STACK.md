@@ -78,7 +78,7 @@
 |--------|------|
 | Рабочий стол | Очередь, SLA «без ответа» (15 мин), быстрые действия |
 | Очередь | Список и канбан; на широком экране таблица |
-| Карточка заявки | Вкладки: сводка / диалог консультации / переписка / работы и оценка / история·CRM. Экспорт PDF. Чек-лист «На пост» |
+| Карточка заявки | Вкладки: сводка / диалог консультации / переписка / работы и оценка / история·CRM. Экспорт PDF. Чек-лист «В сервис» |
 | Календарь | День / неделя (7 равных колонок), легенда статусов, отметки приехал / не приехал |
 | Клиенты | Лента клиентов, карточка справа, звонок и копирование телефона |
 | Сообщения с сайта | Форма с лендинга: в работу, создать заявку или закрыть без заявки |
@@ -295,9 +295,9 @@ Ollama и/или OpenAI-compatible HTTP. Embeddings: `nomic-embed-text` (768) и
 | E2E | Playwright (Chromium + Pixel 7 smoke), LLM выключен в PR |
 | Нагрузка | k6 (`tests/perf/k6-consultation.js`) в CI job `perf` |
 | Lighthouse | LHCI, warn |
-| Контракт | `routes:check`, `openapi:check` (OpenAPI 0.5.0, 188 ops, 60 именованных схем) |
+| Контракт | `routes:check`, `openapi:check` (OpenAPI 0.5.0, 188 ops, 89 именованных схем) |
 | Security jobs | npm audit (high), SBOM SPDX, Trivy fs CRITICAL, CodeQL, TruffleHog |
-| Nightly | live LLM eval, fail-closed без `LLM_API_KEY` |
+| Nightly | live LLM eval (fail-closed без `LLM_API_KEY`); Schemathesis `/live|/ready|/health` |
 | Coverage | пороги Jest ~50/40, артефакты в CI |
 
 ---
@@ -321,7 +321,7 @@ Ollama и/или OpenAI-compatible HTTP. Embeddings: `nomic-embed-text` (768) и
 `/live` `/ready` `/health` `/metrics` `/product-events`  
 `/auth` `/consultations` `/service-requests` (+ messages, PDF) `/bookings` `/users` `/vehicles` `/contact` `/content` `/admin` `/analytics` `/webhooks`
 
-Cursor-пагинация: записи и staff-консультации (рядом с offset). Публичные POST принимают `Idempotency-Key`.
+Cursor-пагинация: записи, staff-консультации и заявки (рядом с offset). Публичные POST принимают `Idempotency-Key`.
 
 ---
 
@@ -337,10 +337,9 @@ Button, Input, Textarea, Select, Card, Modal, Tabs, Alert, Toast, ConfirmDialog,
 - PgBouncer
 - npm workspaces
 - Полный i18n кабинетов
-- `noImplicitAny` / `strictNullChecks` на backend (флаги выключены). Точечно типизированы `auth` / `security` / `vehicles`.
-- Богатые JSON-схемы на всём хвосте OpenAPI (60 именованных на кабинете; admin/integrations ещё stub)
+- `noImplicitAny` / `strictNullChecks` на backend (флаги выключены). Точечно типизированы `auth` / OTP / `security` / `vehicles`.
 - Chromatic / визуальная регрессия в CI
-- SSR meta, QueryClient на всех кабинетах
+- SSR meta; QueryClient не на всех экранах кабинетов
 - Отдельная analytics-БД, feature flags кроме env
 
 ---

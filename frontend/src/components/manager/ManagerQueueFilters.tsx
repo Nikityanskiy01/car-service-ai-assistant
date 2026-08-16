@@ -6,6 +6,8 @@ import { SLA_OVERDUE_LABEL } from '../../lib/requestSla';
 import { QUEUE_STATUSES } from '../../lib/queueStatuses';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import type { SavedQueueFilter } from '../../lib/savedQueueFilters';
+import { QUEUE_STATUS_HINTS } from '../../lib/managerGuide';
+import { HintTooltip } from './help/HintLabel';
 import type { ServiceRequestStatus } from '../../types/serviceRequest';
 
 const FEEDBACK_LABELS: Record<string, string> = {
@@ -131,7 +133,7 @@ export function ManagerQueueFilters({
     if (state.urgency) {
       list.push({
         key: 'urgency',
-        label: `Срочность: ${URGENCY_LABELS[state.urgency] || state.urgency}`,
+        label: URGENCY_LABELS[state.urgency] || `Срочность: ${state.urgency}`,
         onRemove: () => onPatch({ urgency: undefined, page: '1' }),
       });
     }
@@ -206,40 +208,48 @@ export function ManagerQueueFilters({
 
         <div className="queue-toolbar-end">
           <div className="queue-segment" role="group" aria-label="Чьи заявки">
-            <button
-              type="button"
-              className={`queue-segment-btn${state.scope === 'all' ? ' is-active' : ''}`}
-              aria-pressed={state.scope === 'all'}
-              onClick={() => onPatch({ scope: undefined, page: '1' })}
-            >
-              Все
-            </button>
-            <button
-              type="button"
-              className={`queue-segment-btn${state.scope === 'mine' ? ' is-active' : ''}`}
-              aria-pressed={state.scope === 'mine'}
-              onClick={() => onPatch({ scope: 'mine', page: '1' })}
-            >
-              Мои
-            </button>
+            <HintTooltip hint="Общая очередь смены">
+              <button
+                type="button"
+                className={`queue-segment-btn${state.scope === 'all' ? ' is-active' : ''}`}
+                aria-pressed={state.scope === 'all'}
+                onClick={() => onPatch({ scope: undefined, page: '1' })}
+              >
+                Все
+              </button>
+            </HintTooltip>
+            <HintTooltip hint="Только заявки, назначенные на вас">
+              <button
+                type="button"
+                className={`queue-segment-btn${state.scope === 'mine' ? ' is-active' : ''}`}
+                aria-pressed={state.scope === 'mine'}
+                onClick={() => onPatch({ scope: 'mine', page: '1' })}
+              >
+                Мои
+              </button>
+            </HintTooltip>
           </div>
           <div className="queue-segment" role="group" aria-label="Вид">
-            <button
-              type="button"
-              className={`queue-segment-btn${state.view === 'list' ? ' is-active' : ''}`}
-              aria-pressed={state.view === 'list'}
-              onClick={() => onPatch({ view: undefined })}
-            >
-              Список
-            </button>
-            <button
-              type="button"
-              className={`queue-segment-btn${state.view === 'kanban' ? ' is-active' : ''}`}
-              aria-pressed={state.view === 'kanban'}
-              onClick={() => onPatch({ view: 'kanban' })}
-            >
-              Канбан
-            </button>
+            <HintTooltip hint="Список удобен для звонков">
+              <button
+                type="button"
+                className={`queue-segment-btn${state.view === 'list' ? ' is-active' : ''}`}
+                aria-pressed={state.view === 'list'}
+                onClick={() => onPatch({ view: undefined })}
+              >
+                Список
+              </button>
+            </HintTooltip>
+            <HintTooltip hint="Колонки по статусам: перетащите карточку, чтобы сменить статус">
+              <button
+                type="button"
+                className={`queue-segment-btn${state.view === 'kanban' ? ' is-active' : ''}`}
+                aria-pressed={state.view === 'kanban'}
+                onClick={() => onPatch({ view: 'kanban' })}
+              >
+                Доска
+              </button>
+            </HintTooltip>
           </div>
           <Button
             type="button"
@@ -270,15 +280,16 @@ export function ManagerQueueFilters({
         {QUEUE_STATUSES.map((status) => {
           const active = state.statuses.includes(status);
           return (
-            <button
-              key={status}
-              type="button"
-              className={`queue-status-pill status-${status.toLowerCase().replace(/_/g, '-')}${active ? ' is-active' : ''}`}
-              aria-pressed={active}
-              onClick={() => toggleStatus(status)}
-            >
-              {SERVICE_REQUEST_STATUS_LABELS[status]}
-            </button>
+            <HintTooltip key={status} hint={QUEUE_STATUS_HINTS[status]}>
+              <button
+                type="button"
+                className={`queue-status-pill status-${status.toLowerCase().replace(/_/g, '-')}${active ? ' is-active' : ''}`}
+                aria-pressed={active}
+                onClick={() => toggleStatus(status)}
+              >
+                {SERVICE_REQUEST_STATUS_LABELS[status]}
+              </button>
+            </HintTooltip>
           );
         })}
       </div>

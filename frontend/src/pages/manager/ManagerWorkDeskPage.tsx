@@ -24,6 +24,7 @@ import {
   type AttentionKind,
 } from '../../lib/managerRequestHelpers';
 import { SLA_OVERDUE_HINT, SLA_OVERDUE_SHORT } from '../../lib/requestSla';
+import { HintTooltip } from '../../components/manager/help/HintLabel';
 import { formatMinutesUntil } from '../../lib/timeFormat';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { ServiceRequest } from '../../types/serviceRequest';
@@ -33,11 +34,11 @@ const paths = managerZonePaths(false);
 
 type QueueFilter = 'all' | 'requests' | 'site' | 'ai';
 
-const QUEUE_FILTERS: { id: QueueFilter; label: string; kinds: AttentionKind[] }[] = [
-  { id: 'all', label: 'Все', kinds: ['sla', 'request', 'stale', 'feedback', 'contact'] },
-  { id: 'requests', label: 'Заявки', kinds: ['sla', 'request', 'stale'] },
-  { id: 'site', label: 'Сообщения с сайта', kinds: ['contact'] },
-  { id: 'ai', label: 'ИИ', kinds: ['feedback'] },
+const QUEUE_FILTERS: { id: QueueFilter; label: string; hint: string; kinds: AttentionKind[] }[] = [
+  { id: 'all', label: 'Все', hint: 'Заявки, форма с сайта и оценки ИИ', kinds: ['sla', 'request', 'stale', 'feedback', 'contact'] },
+  { id: 'requests', label: 'Заявки', hint: 'Клиенты без ответа и новые без менеджера', kinds: ['sla', 'request', 'stale'] },
+  { id: 'site', label: 'Сообщения с сайта', hint: 'Форма на сайте, не очередь заявок', kinds: ['contact'] },
+  { id: 'ai', label: 'ИИ', hint: 'Диагнозы, которые нужно оценить после ремонта', kinds: ['feedback'] },
 ];
 
 function isToday(dateIso: string) {
@@ -276,7 +277,13 @@ export function ManagerWorkDeskPage() {
             tone={metrics.pendingFeedback > 0 ? 'warn' : 'quiet'}
           />
           {crmFailures > 0 ? (
-            <Signal to={paths.requests} value={crmFailures} label="CRM" hint="сбой выгрузки" tone="hot" />
+            <Signal
+              to={paths.requests}
+              value={crmFailures}
+              label="Учёт"
+              hint="не ушло в систему"
+              tone="hot"
+            />
           ) : null}
         </div>
         <div className="workdesk-signals-row is-shift" aria-label="Снимок смены">
@@ -317,7 +324,7 @@ export function ManagerWorkDeskPage() {
                 to={paths.requests}
                 value={managerKpi.funnel.conversionCompleted}
                 suffix="%"
-                label="Доля закрытых"
+                label="Закрыто из заявок"
                 hint="заявка → готово"
               />
             </>
@@ -334,16 +341,17 @@ export function ManagerWorkDeskPage() {
             </h2>
             <div className="workdesk-filters" role="toolbar" aria-label="Фильтр очереди">
               {QUEUE_FILTERS.map((filter) => (
-                <button
-                  key={filter.id}
-                  type="button"
-                  className="workdesk-filter"
-                  aria-pressed={queueFilter === filter.id}
-                  onClick={() => setQueueFilter(filter.id)}
-                >
-                  {filter.label}
-                  <span>{filterCounts[filter.id]}</span>
-                </button>
+                <HintTooltip key={filter.id} hint={filter.hint}>
+                  <button
+                    type="button"
+                    className="workdesk-filter"
+                    aria-pressed={queueFilter === filter.id}
+                    onClick={() => setQueueFilter(filter.id)}
+                  >
+                    {filter.label}
+                    <span>{filterCounts[filter.id]}</span>
+                  </button>
+                </HintTooltip>
               ))}
             </div>
             <Link className="workdesk-queue-all" to={paths.requests}>

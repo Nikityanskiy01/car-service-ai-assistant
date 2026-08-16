@@ -433,6 +433,12 @@
   text-align: center;
 }
 
+.booking-detail-note.is-agree {
+  margin: 0 1.1rem;
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface));
+}
+
 .booking-detail-inline-link {
   color: color-mix(in srgb, var(--booking-tone) 72%, white);
   font-weight: 650;

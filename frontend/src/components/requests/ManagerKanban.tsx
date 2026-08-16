@@ -4,10 +4,12 @@ import type { RequestBoardColumn } from '../../api/dashboard';
 import { Badge } from '../console/ui/badge';
 import { Button } from '../console/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../console/ui/select';
-import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
+import { formatRequestNumber, formatUrgencyLabel, SERVICE_REQUEST_STATUS_LABELS, urgencyHint } from '../../lib/labels';
 import { formatRelativeTime, getRequestUrgency } from '../../lib/managerRequestHelpers';
 import { QUEUE_STATUSES } from '../../lib/queueStatuses';
 import { slaLabel } from '../../lib/requestSla';
+import { QUEUE_STATUS_HINTS } from '../../lib/managerGuide';
+import { HintTooltip } from '../manager/help/HintLabel';
 import type { ServiceRequest, ServiceRequestStatus } from '../../types/serviceRequest';
 
 const WIP_LIMIT_NEW = 10;
@@ -24,13 +26,6 @@ function urgencyVariant(urgency: string | null): 'secondary' | 'warning' | 'dest
   if (urgency === 'critical' || urgency === 'high') return 'destructive';
   if (urgency === 'medium') return 'warning';
   return 'secondary';
-}
-
-function urgencyLabel(urgency: string) {
-  if (urgency === 'critical') return 'Критическая';
-  if (urgency === 'high') return 'Высокая';
-  if (urgency === 'medium') return 'Средняя';
-  return 'Низкая';
 }
 
 export function ManagerKanban({
@@ -67,7 +62,7 @@ export function ManagerKanban({
   return (
     <section
       className="kanban-board"
-      aria-label="Канбан заявок"
+      aria-label="Доска заявок по статусам"
       style={{ '--kanban-cols': String(visible.length) } as CSSProperties}
     >
       {visible.map((status) => {
@@ -98,10 +93,22 @@ export function ManagerKanban({
             }}
           >
             <header>
-              <h3>{COLUMN_TITLES[status]}</h3>
-              <Badge variant={overWip ? 'destructive' : 'secondary'} className="tabular-nums">
-                {status === 'NEW' ? `${column.total} / ${WIP_LIMIT_NEW}` : column.total}
-              </Badge>
+              <HintTooltip hint={QUEUE_STATUS_HINTS[status]}>
+                <h3>{COLUMN_TITLES[status]}</h3>
+              </HintTooltip>
+              <HintTooltip
+                hint={
+                  status === 'NEW'
+                    ? overWip
+                      ? `Больше ${WIP_LIMIT_NEW} новых: разберите, чтобы не копить без ответа`
+                      : `Перетащите карточку в другую колонку. Лимит внимания в «Новых»: ${WIP_LIMIT_NEW}`
+                    : QUEUE_STATUS_HINTS[status]
+                }
+              >
+                <Badge variant={overWip ? 'destructive' : 'secondary'} className="tabular-nums">
+                  {status === 'NEW' ? `${column.total} / ${WIP_LIMIT_NEW}` : column.total}
+                </Badge>
+              </HintTooltip>
               {status === 'CANCELLED' ? (
                 <button
                   type="button"
@@ -145,7 +152,9 @@ export function ManagerKanban({
                       </span>
                       <span className="kanban-card-meta">
                         {urgency ? (
-                          <Badge variant={urgencyVariant(urgency)}>{urgencyLabel(urgency)}</Badge>
+                          <HintTooltip hint={urgencyHint(urgency)}>
+                            <Badge variant={urgencyVariant(urgency)}>{formatUrgencyLabel(urgency)}</Badge>
+                          </HintTooltip>
                         ) : null}
                         <span className="kanban-card-time">{formatRelativeTime(item.createdAt)}</span>
                       </span>

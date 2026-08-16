@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { upsertConsultationFeedback } from '../../api/dashboard';
+import { toFeedbackPayload } from '../../lib/consultationFeedbackPayload';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
 import type { ConsultationFeedback, ConsultationFeedbackVerdict } from '../../types/serviceRequest';
@@ -34,11 +35,15 @@ export function QuickFeedbackButtons({ requestId, initial, onSaved, compact = fa
     setSaving(true);
     setError(null);
     try {
-      const saved = await upsertConsultationFeedback(requestId, {
+      const payload = toFeedbackPayload(initial, {
         verdict: nextVerdict,
-        actualCause: cause?.trim() || undefined,
-        worksDone: initial?.worksDone || undefined,
+        actualCause: cause?.trim() || '',
       });
+      if (!payload) {
+        setError('Не удалось сохранить');
+        return;
+      }
+      const saved = await upsertConsultationFeedback(requestId, payload);
       setVerdict(saved.verdict);
       onSaved?.(saved);
     } catch (e) {

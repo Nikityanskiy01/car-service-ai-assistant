@@ -104,6 +104,33 @@ function requestSchemaFor(method, openPath) {
     'POST /users/me/sessions/revoke-others': 'SessionRevokeConfirm',
     'DELETE /users/me/sessions/{sessionId}': 'SessionRevokeConfirm',
     'POST /users/me/login-methods': 'LoginMethodsPatch',
+    'POST /auth/otp/start': 'AuthOtpStart',
+    'POST /auth/otp/verify': 'AuthOtpVerify',
+    'POST /admin/ai/memory/search': 'AdminMemorySearch',
+    'POST /admin/ai/memory/backfill': 'AdminMemoryBackfill',
+    'PATCH /admin/site-settings': 'AdminSiteSettingsPatch',
+    'PATCH /admin/users/{userId}/role': 'AdminRolePatch',
+    'POST /admin/site-content': 'AdminContentBlockCreate',
+    'PATCH /admin/site-content/{blockId}': 'AdminContentBlockPatch',
+    'POST /admin/site-content/{blockId}/rollback': 'AdminRollback',
+    'POST /admin/site-items': 'AdminCmsItem',
+    'PATCH /admin/site-items/{itemId}': 'AdminCmsItem',
+    'POST /admin/site-items/reorder': 'AdminCmsReorder',
+    'POST /admin/reference/service-categories': 'AdminCategory',
+    'PATCH /admin/reference/service-categories/{categoryId}': 'AdminCategoryPatch',
+    'POST /admin/reference/scenarios': 'AdminScenario',
+    'PATCH /admin/reference/scenarios/{scenarioId}': 'AdminScenarioPatch',
+    'POST /admin/reference/scenarios/{scenarioId}/questions': 'AdminQuestion',
+    'PATCH /admin/reference/questions/{questionId}': 'AdminQuestionPatch',
+    'POST /admin/reference/scenarios/{scenarioId}/hints': 'AdminHint',
+    'PATCH /admin/reference/hints/{hintId}': 'AdminHintPatch',
+    'POST /admin/reference/reference-materials': 'AdminMaterial',
+    'PATCH /admin/reference/reference-materials/{materialId}': 'AdminMaterialPatch',
+    'POST /admin/integrations': 'IntegrationConnectionCreate',
+    'PATCH /admin/integrations/{id}': 'IntegrationConnectionPatch',
+    'POST /admin/integration-conflicts/{id}/resolve': 'IntegrationConflictResolve',
+    'POST /manager/requests/{requestId}/export': 'IntegrationExport',
+    'POST /webhooks/integrations/{connectionId}': 'IntegrationWebhook',
   };
   return map[key] || null;
 }
@@ -154,7 +181,14 @@ function responseSchemaFor(method, openPath) {
     'POST /auth/login': 'AuthSession',
     'POST /auth/register': 'AuthPending',
     'POST /auth/refresh': 'AuthSession',
+    'POST /auth/otp/verify': 'AuthSession',
     'POST /users/me/2fa/setup/cancel': 'Ok',
+    'GET /admin/integrations': 'IntegrationConnectionList',
+    'GET /manager/integrations': 'IntegrationConnectionList',
+    'POST /admin/integrations': 'IntegrationConnection',
+    'PATCH /admin/integrations/{id}': 'IntegrationConnection',
+    'GET /admin/integrations/{id}': 'IntegrationConnection',
+    'POST /webhooks/integrations/{connectionId}': 'IntegrationWebhookAccepted',
   };
   return map[key] || null;
 }
@@ -593,6 +627,160 @@ PasswordResetConfirm:
   properties:
     token: { type: string }
     password: { type: string }
+AuthOtpStart:
+  type: object
+  required: [channel]
+  properties:
+    channel: { type: string, enum: [email, sms, telegram] }
+    email: { type: string }
+    phone: { type: string }
+AuthOtpVerify:
+  type: object
+  required: [challengeToken, code]
+  properties:
+    challengeToken: { type: string }
+    code: { type: string }
+AdminMemorySearch:
+  type: object
+  required: [symptoms]
+  properties:
+    symptoms: { type: string }
+    make: { type: string }
+    model: { type: string }
+    conditions: { type: string }
+    limit: { type: integer }
+AdminMemoryBackfill:
+  type: object
+  properties:
+    limit: { type: integer }
+    dryRun: { type: boolean }
+AdminSiteSettingsPatch:
+  type: object
+  additionalProperties: true
+AdminRolePatch:
+  type: object
+  required: [role]
+  properties:
+    role: { type: string, enum: [CLIENT, MANAGER, ADMINISTRATOR] }
+AdminContentBlockCreate:
+  type: object
+  required: [key, title, content]
+  properties:
+    key: { type: string }
+    title: { type: string }
+    section: { type: string }
+    content: { type: string }
+AdminContentBlockPatch:
+  type: object
+  additionalProperties: true
+AdminRollback:
+  type: object
+  required: [versionId]
+  properties:
+    versionId: { type: string, format: uuid }
+AdminCmsItem:
+  type: object
+  required: [kind, title]
+  properties:
+    kind: { type: string, enum: [service, work, gallery] }
+    title: { type: string }
+    description: { type: string }
+    published: { type: boolean }
+AdminCmsReorder:
+  type: object
+  required: [kind, ids]
+  properties:
+    kind: { type: string, enum: [service, work, gallery] }
+    ids: { type: array, items: { type: string, format: uuid } }
+AdminCategory:
+  type: object
+  required: [name]
+  properties:
+    name: { type: string }
+    description: { type: string }
+AdminCategoryPatch:
+  type: object
+  additionalProperties: true
+AdminScenario:
+  type: object
+  required: [title]
+  properties:
+    title: { type: string }
+    description: { type: string }
+AdminScenarioPatch:
+  type: object
+  additionalProperties: true
+AdminQuestion:
+  type: object
+  required: [text]
+  properties:
+    text: { type: string }
+    order: { type: integer }
+AdminQuestionPatch:
+  type: object
+  additionalProperties: true
+AdminHint:
+  type: object
+  required: [text]
+  properties:
+    text: { type: string }
+    order: { type: integer }
+AdminHintPatch:
+  type: object
+  additionalProperties: true
+AdminMaterial:
+  type: object
+  required: [title, body]
+  properties:
+    title: { type: string }
+    body: { type: string }
+    categoryId: { type: string, format: uuid, nullable: true }
+AdminMaterialPatch:
+  type: object
+  additionalProperties: true
+IntegrationConnection:
+  type: object
+  properties:
+    id: { type: string, format: uuid }
+    name: { type: string }
+    provider: { type: string }
+    status: { type: string }
+    enabled: { type: boolean }
+IntegrationConnectionList:
+  type: array
+  items: { $ref: '#/components/schemas/IntegrationConnection' }
+IntegrationConnectionCreate:
+  type: object
+  required: [name, provider]
+  properties:
+    name: { type: string }
+    provider: { type: string }
+    versionLabel: { type: string }
+    mode: { type: string }
+    config: { type: object }
+    credentials: { type: object }
+IntegrationConnectionPatch:
+  type: object
+  additionalProperties: true
+IntegrationConflictResolve:
+  type: object
+  required: [resolution]
+  properties:
+    resolution: { type: string, enum: [KEEP_LOCAL, ACCEPT_EXTERNAL, MERGE, POSTPONE] }
+    note: { type: string }
+IntegrationExport:
+  type: object
+  properties:
+    connectionId: { type: string, format: uuid }
+IntegrationWebhook:
+  type: object
+  additionalProperties: true
+IntegrationWebhookAccepted:
+  type: object
+  properties:
+    id: { type: string }
+    status: { type: string }
+    message: { type: string }
 `.trim();
 
 function yamlQuote(value) {
@@ -627,8 +815,7 @@ function buildYaml(routes) {
     '  version: 0.5.0',
     '  description: >',
     '    Полный операционный контракт, сгенерированный из runtime Express',
-    '    (`docs/api-route-inventory.json`). Живые маршруты кабинета (запись, заявки,',
-    '    консультации, профиль/гараж) ссылаются на именованные схемы; хвост ops — object stub.',
+    '    (`docs/api-route-inventory.json`). Кабинет, admin CMS и integrations — именованные схемы.',
     '    Источник истины по наличию path+method — инвентарь + `npm run openapi:check`.',
     'servers:',
     '  - url: http://localhost:3000/api',

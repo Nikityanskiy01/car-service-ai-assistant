@@ -270,16 +270,20 @@
 
 .otp-input {
   position: relative;
-  display: inline-flex;
-  width: fit-content;
+  display: block;
+  width: max-content;
   max-width: 100%;
   cursor: text;
+  touch-action: manipulation;
 }
 
 .otp-input-slots {
   display: grid;
-  grid-template-columns: repeat(6, minmax(2.15rem, 2.6rem));
+  grid-template-columns: repeat(6, minmax(0, 2.6rem));
   gap: 0.4rem;
+  width: max-content;
+  max-width: 100%;
+  pointer-events: none;
 }
 
 .otp-input-slots > .otp-input-slot:nth-child(3) {
@@ -334,12 +338,18 @@
   height: 100%;
   margin: 0;
   padding: 0;
-  opacity: 0.01;
   border: 0;
+  opacity: 1;
   background: transparent;
   color: transparent;
+  -webkit-text-fill-color: transparent;
   caret-color: transparent;
   font-size: 16px;
+  letter-spacing: 0;
+  line-height: inherit;
+  min-height: 100%;
+  appearance: none;
+  -webkit-appearance: none;
   z-index: 1;
 }
 

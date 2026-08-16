@@ -7,7 +7,9 @@ import { createPublicWriteLimiter } from '../../middleware/publicWriteLimiter.js
 import { idempotency } from '../../middleware/idempotency.js';
 import { validateBody } from '../../middleware/validate.js';
 import { recordConsentEvent } from '../privacy/consent.service.js';
+import { sendProblem } from '../../lib/problem.js';
 import * as bookingsService from './bookings.service.js';
+import { createStaffBooking } from './staffBooking.service.js';
 
 const createSchema = z.object({
   preferredAt: z.string().min(4),
@@ -76,10 +78,14 @@ bookingsRouter.use(authJwt);
 
 bookingsRouter.post(
   '/',
-  requireRole('CLIENT'),
+  requireRole('CLIENT', 'MANAGER', 'ADMINISTRATOR'),
   validateBody(createSchema),
   idempotency(),
   asyncHandler(async (req, res) => {
+    if (req.user.role === 'MANAGER' || req.user.role === 'ADMINISTRATOR') {
+      const b = await createStaffBooking(req.user, req.validatedBody);
+      return res.status(201).json(serialize(b));
+    }
     const b = await bookingsService.createBooking(req.user, req.validatedBody);
     res.status(201).json(serialize(b));
   }),
@@ -131,8 +137,9 @@ bookingsRouter.patch(
       const parsed = clientPatchSchema.safeParse(req.body);
       if (!parsed.success) {
         const first = parsed.error.issues[0];
-        return res.status(400).json({
-          error: first?.message || 'Проверьте введённые данные.',
+        return sendProblem(res, {
+          status: 400,
+          detail: first?.message || 'Проверьте введённые данные.',
           code: 'VALIDATION_ERROR',
         });
       }
@@ -143,15 +150,16 @@ bookingsRouter.patch(
       const parsed = patchSchema.safeParse(req.body);
       if (!parsed.success) {
         const first = parsed.error.issues[0];
-        return res.status(400).json({
-          error: first?.message || 'Проверьте введённые данные.',
+        return sendProblem(res, {
+          status: 400,
+          detail: first?.message || 'Проверьте введённые данные.',
           code: 'VALIDATION_ERROR',
         });
       }
       const b = await bookingsService.patchBooking(req.params.bookingId, req.user, parsed.data);
       return res.json(serialize(b));
     }
-    return res.status(403).json({ error: 'Недостаточно прав для выполнения действия.', code: 'FORBIDDEN' });
+    return sendProblem(res, { status: 403, detail: 'Недостаточно прав для выполнения действия.', code: 'FORBIDDEN' });
   }),
 );
 

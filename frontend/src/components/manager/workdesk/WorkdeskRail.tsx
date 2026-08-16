@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { ActivityItem, ManagerKpi } from '../../../api/dashboard';
 import { ActivityFeed } from '../ActivityFeed';
 import { ManagerKpiFunnel } from '../ManagerKpiFunnel';
+import { HintLabel } from '../help/HintLabel';
 import { StatusBadge } from '../../ui/StatusBadge';
 import { formatMinutesUntil } from '../../../lib/timeFormat';
 import type { ServiceBooking } from '../../../types/dashboard';
@@ -101,7 +102,7 @@ export function WorkdeskRail({
         <div className="workdesk-panel-head">
           <h2>События</h2>
           {crmFailures > 0 ? (
-            <span className="workdesk-count is-danger">{crmFailures} CRM</span>
+            <span className="workdesk-count is-danger">{crmFailures} в учёт</span>
           ) : (
             <Link to={requestsPath}>История</Link>
           )}
@@ -124,7 +125,9 @@ export function WorkdeskRail({
               <dd>{managerKpi.personal.messagesSent}</dd>
             </div>
             <div>
-              <dt>Оформили</dt>
+              <dt>
+                <HintLabel hint="Сообщения с формы сайта, из которых сделали заявку">Из сообщений</HintLabel>
+              </dt>
               <dd>{managerKpi.personal.contactsConverted}</dd>
             </div>
           </dl>

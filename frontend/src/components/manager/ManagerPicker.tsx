@@ -5,6 +5,7 @@ import { Select } from '../ui/Select';
 type ManagerOption = { id: string; fullName: string };
 
 type Props = {
+  id?: string;
   value?: string;
   onChange: (managerId: string) => void;
   placeholder?: string;
@@ -12,7 +13,14 @@ type Props = {
   allowEmpty?: boolean;
 };
 
-export function ManagerPicker({ value, onChange, placeholder = 'Выберите менеджера', disabled, allowEmpty }: Props) {
+export function ManagerPicker({
+  id,
+  value,
+  onChange,
+  placeholder = 'Выберите менеджера',
+  disabled,
+  allowEmpty,
+}: Props) {
   const [options, setOptions] = useState<ManagerOption[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,11 +33,12 @@ export function ManagerPicker({ value, onChange, placeholder = 'Выберите
 
   return (
     <Select
+      id={id}
       className="manager-picker"
       value={value || ''}
       disabled={disabled || loading}
       onChange={(e) => onChange(e.target.value)}
-      aria-label="Менеджер"
+      aria-label={id ? undefined : 'Менеджер'}
     >
       {allowEmpty ? <option value="">{placeholder}</option> : null}
       {options.map((m) => (

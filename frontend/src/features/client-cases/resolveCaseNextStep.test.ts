@@ -28,8 +28,8 @@ describe('resolveCaseNextStep', () => {
       bookingPreferredAt: '2026-07-31T01:14:00.000Z',
       bookingStatus: 'PENDING',
     });
-    expect(step.nowLabel).toMatch(/Запись запрошена/);
-    expect(step.yourStepLabel).toMatch(/подтвержд/);
+    expect(step.nowLabel).toMatch(/Нужно согласовать/);
+    expect(step.yourStepLabel).toMatch(/соглас/);
     expect(step.tone).toBe('waiting');
     expect(step.primary.action).toBe('open_visit');
   });

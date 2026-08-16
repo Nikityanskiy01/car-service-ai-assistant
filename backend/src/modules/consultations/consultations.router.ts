@@ -13,6 +13,7 @@ import { abuseChallengeFromRequest, createAbuseChallenge, verifyAbuseChallenge }
 import { recordConsentEvent } from '../privacy/consent.service.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import { isAppError } from '../../lib/errors.js';
+import { sendProblem } from '../../lib/problem.js';
 import * as consultationsService from './consultations.service.js';
 import { getDiagnosisJobForSession } from '../../services/diagnosisJob.service.js';
 import * as serviceRequestsService from '../serviceRequests/serviceRequests.service.js';
@@ -46,7 +47,7 @@ async function requireAbuseChallenge(req, res, next) {
   try {
     const ok = await verifyAbuseChallenge(abuseChallengeFromRequest(req));
     if (!ok) {
-      return res.status(403).json({ error: 'Требуется проверка антибота', code: 'ABUSE_CHALLENGE' });
+      return sendProblem(res, { status: 403, detail: 'Требуется проверка антибота', code: 'ABUSE_CHALLENGE' });
     }
     next();
   } catch (err) {
@@ -75,7 +76,11 @@ consultationsRouter.post(
       res.status(201).json({ ...serializeSession(session, { isGuest: true }), guestToken });
       return;
     }
-    res.status(403).json({ error: 'Консультацию может начать только клиент или гость без входа' });
+    sendProblem(res, {
+      status: 403,
+      detail: 'Консультацию может начать только клиент или гость без входа',
+      code: 'FORBIDDEN',
+    });
   }),
 );
 

@@ -7,15 +7,18 @@ export function RequestStatusSelector({
   value,
   onChange,
   disabled,
+  id,
 }: {
   value: ServiceRequestStatus;
   onChange: (value: ServiceRequestStatus) => void;
   disabled?: boolean;
+  id?: string;
 }) {
   return (
     <select
+      id={id}
       className={`select status-select status-select-${value.toLowerCase().replace(/_/g, '-')}`}
-      aria-label="Изменить статус заявки"
+      aria-label={id ? undefined : 'Изменить статус заявки'}
       value={value}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value as ServiceRequestStatus)}

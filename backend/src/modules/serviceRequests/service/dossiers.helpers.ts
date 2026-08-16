@@ -1,7 +1,8 @@
 import { AppError } from '../../../lib/errors.js';
+import type { BookingStatus, ServiceRequestStatus } from '@prisma/client';
 
-export const ACTIVE_STATUSES = ['NEW', 'IN_PROGRESS', 'SCHEDULED'];
-export const UPCOMING_BOOKING = ['PENDING', 'CONFIRMED'];
+export const ACTIVE_STATUSES: ServiceRequestStatus[] = ['NEW', 'IN_PROGRESS', 'SCHEDULED'];
+export const UPCOMING_BOOKING: BookingStatus[] = ['PENDING', 'CONFIRMED'];
 
 export function assertStaff(user) {
   if (user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {

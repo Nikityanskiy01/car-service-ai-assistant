@@ -132,7 +132,7 @@ export function DiagnosticSummary({
           Пока недостаточно симптомов для уверенного разбора. Менеджер уточнит детали в переписке или на
           записи. Предварительные причины появятся здесь.
         </p>
-        <p className="diagnostic-summary__meta">Это не диагноз. Точный вывод возможен после очной проверки на посту.</p>
+        <p className="diagnostic-summary__meta">Это не диагноз. Точный вывод возможен после очной проверки в сервисе.</p>
         {onCreateRequest ? (
           <div className="diagnosis-actions">
             <button type="button" className="btn btn-primary diagnosis-request-btn" onClick={onCreateRequest}>
@@ -204,12 +204,12 @@ export function DiagnosticSummary({
       />
       <MasterChecksChecklist
         checks={allChecks}
-        title={isStaff ? 'На пост' : undefined}
+        title={isStaff ? 'В сервис' : undefined}
         hint={isStaff ? null : undefined}
       />
       {isStaff ? null : <DiagnosisActions detail={detail ?? null} onCreateRequest={onCreateRequest} />}
       {isStaff ? (
-        <p className="analysis-disclaimer">Не заменяет диагностику на посту.</p>
+        <p className="analysis-disclaimer">Не заменяет диагностику в сервисе.</p>
       ) : (
         <p className="analysis-disclaimer">
           {diagnosis?.execution_meta?.provider ? `Источник: ${diagnosis.execution_meta.provider}. ` : ''}

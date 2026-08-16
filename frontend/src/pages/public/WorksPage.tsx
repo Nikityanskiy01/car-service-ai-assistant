@@ -364,7 +364,7 @@ export function WorksPage() {
         <div className="fm-works-hero__copy">
           <p className="fm-pill">
             <Wrench size={14} aria-hidden="true" />
-            Кейсы с поста
+            Кейсы из сервиса
           </p>
           <h1>Выполненные работы</h1>
           <p>
@@ -480,7 +480,7 @@ export function WorksPage() {
           </article>
           <article className="fm-card fm-card-accent">
             <h3>Готовы к записи?</h3>
-            <p>Запишитесь на пост — мастер получит контекст из чата или выберите услугу из каталога.</p>
+            <p>Запишитесь в сервис — мастер получит контекст из чата или выберите услугу из каталога.</p>
             <Link className="fm-btn fm-btn-outline" to="/booking">
               Записаться в сервис
             </Link>

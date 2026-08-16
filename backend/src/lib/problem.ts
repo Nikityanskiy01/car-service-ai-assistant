@@ -1,28 +1,36 @@
+import type { Response } from 'express';
+
 const PROBLEM_BASE = 'https://autoservice.local/problems';
 
+export type ProblemOptions = {
+  status: number;
+  title?: string;
+  detail: string;
+  code?: string;
+  instance?: string;
+  extras?: Record<string, unknown>;
+};
+
 /**
- * RFC 9457 Problem Details + обратная совместимость `{ error, code }`.
- * @param res
- * @param opts
+ * RFC 9457 Problem Details. Поля `error`/`code` остаются для клиентов,
+ * которые ещё читают старый конверт.
  */
-export function sendProblem(res, { status, title, detail, code, instance, extras }: any) {
-  const body = {
+export function sendProblem(res: Response, { status, title, detail, code, instance, extras }: ProblemOptions) {
+  const body: Record<string, unknown> = {
     type: code ? `${PROBLEM_BASE}/${encodeURIComponent(code)}` : 'about:blank',
     title: title || statusTitle(status),
     status,
     detail,
-    instance: instance || undefined,
     error: detail,
-    code: code || undefined,
     ...extras,
   };
-  if (!body.instance) delete body.instance;
-  if (!body.code) delete body.code;
+  if (instance) body.instance = instance;
+  if (code) body.code = code;
   res.setHeader('Content-Type', 'application/problem+json; charset=utf-8');
   return res.status(status).json(body);
 }
 
-function statusTitle(status) {
+function statusTitle(status: number) {
   if (status === 400) return 'Некорректный запрос';
   if (status === 401) return 'Требуется авторизация';
   if (status === 403) return 'Доступ запрещён';

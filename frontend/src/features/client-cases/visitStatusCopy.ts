@@ -35,7 +35,7 @@ export function visitStatusHeadline(
     case 'arrived':
       return when ? `Запись подтверждена · ${when}` : 'Запись подтверждена';
     case 'requested':
-      return when ? `Запись запрошена · ${when}` : 'Запись запрошена';
+      return when ? `Нужно согласовать · ${when}` : 'Нужно согласовать';
     case 'missed':
       return 'Запись пропущена';
     case 'cancelled':
@@ -57,7 +57,9 @@ export function visitTimelineDetail(
     case 'arrived':
       return when ? `Подтверждён на ${when}` : 'Подтверждён сервисом';
     case 'requested':
-      return when ? `Запрошен на ${when} — ждём подтверждения` : 'Запрошен — ждём подтверждения';
+      return when
+        ? `Предложен на ${when} — сначала согласуйте, потом подтвердим`
+        : 'Предложен — сначала согласуйте, потом подтвердим';
     case 'missed':
       return 'Не приехали';
     case 'cancelled':

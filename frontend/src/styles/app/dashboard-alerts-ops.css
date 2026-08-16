@@ -11,7 +11,7 @@
 }
 
 .booking-drawer {
-  --booking-tone: var(--status-tone-confirmed, var(--brand-accent));
+  --booking-tone: var(--status-tone-confirmed);
   width: min(26.5rem, 100%);
   height: 100%;
   height: 100dvh;
@@ -27,23 +27,23 @@
 }
 
 .booking-drawer[data-status-tone='waiting'] {
-  --booking-tone: var(--status-tone-waiting, #60a5fa);
+  --booking-tone: var(--status-tone-waiting);
 }
 
 .booking-drawer[data-status-tone='confirmed'] {
-  --booking-tone: var(--status-tone-confirmed, #2dd4bf);
+  --booking-tone: var(--status-tone-confirmed);
 }
 
 .booking-drawer[data-status-tone='arrived'] {
-  --booking-tone: var(--status-tone-arrived, #4ade80);
+  --booking-tone: var(--status-tone-arrived);
 }
 
 .booking-drawer[data-status-tone='missed'] {
-  --booking-tone: var(--status-tone-missed, #fbbf24);
+  --booking-tone: var(--status-tone-missed);
 }
 
 .booking-drawer[data-status-tone='cancelled'] {
-  --booking-tone: var(--status-tone-cancelled, #f87171);
+  --booking-tone: var(--status-tone-cancelled);
 }
 
 @keyframes booking-drawer-backdrop-in {
@@ -259,6 +259,15 @@
   text-wrap: pretty;
 }
 
+.booking-drawer-notes.is-warn {
+  border-color: color-mix(in oklab, var(--color-warning) 42%, var(--color-border));
+  background: color-mix(in oklab, var(--color-warning) 10%, var(--color-surface-secondary));
+}
+
+.booking-drawer-assign-form {
+  display: contents;
+}
+
 .booking-drawer-request {
   display: flex;
   align-items: center;
@@ -321,7 +330,8 @@
   align-items: stretch;
 }
 
-.booking-reschedule input {
+.booking-reschedule input,
+.booking-reschedule textarea {
   width: 100%;
   min-height: 42px;
   padding: 0.45rem 0.65rem;

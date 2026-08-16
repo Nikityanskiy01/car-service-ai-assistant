@@ -112,8 +112,8 @@ export function resolveCaseNextStep(input: ResolveInput): CaseNextStepModel {
     return {
       tone: 'waiting',
       icon: 'calendar',
-      nowLabel: when ? `Запись запрошена на ${when}` : 'Запись запрошена',
-      yourStepLabel: 'Ждём подтверждения времени менеджером',
+      nowLabel: when ? `Нужно согласовать · ${when}` : 'Нужно согласовать',
+      yourStepLabel: 'Сначала согласуйте время — до подтверждения запись не окончательная',
       primary: { label: 'Открыть запись', action: 'open_visit', variant: 'primary' },
       secondary: { label: 'Написать', action: 'write_message', variant: 'secondary' },
     };

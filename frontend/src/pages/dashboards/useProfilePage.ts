@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthProvider';
 import { patchProfile } from '../../api/dashboard';
 import {
@@ -81,30 +82,25 @@ export function useProfilePage() {
     setLoading(false);
   }, [user]);
 
+  const prefsQuery = useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: getNotificationPreferences,
+    enabled: isClient,
+  });
+
   useEffect(() => {
-    if (!isClient) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const prefs = await getNotificationPreferences();
-        if (cancelled) return;
-        setNotificationPrefs({
-          bookingReminders: prefs.bookingReminders,
-          messageAlerts: prefs.messageAlerts,
-          marketing: prefs.marketing,
-          channelEmail: prefs.channelEmail,
-          channelTelegram: prefs.channelTelegram,
-          channelSms: prefs.channelSms,
-        });
-        setNotificationMeta(prefs.channels);
-      } catch {
-        /* оставляем значения по умолчанию */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isClient]);
+    const prefs = prefsQuery.data;
+    if (!prefs) return;
+    setNotificationPrefs({
+      bookingReminders: prefs.bookingReminders,
+      messageAlerts: prefs.messageAlerts,
+      marketing: prefs.marketing,
+      channelEmail: prefs.channelEmail,
+      channelTelegram: prefs.channelTelegram,
+      channelSms: prefs.channelSms,
+    });
+    setNotificationMeta(prefs.channels);
+  }, [prefsQuery.data]);
 
   useEffect(() => {
     if (!success) return;

@@ -1,11 +1,5 @@
 /* Client cases page */
 .client-cases-page {
-  --status-tone-new: #60a5fa;
-  --status-tone-active: #38bdf8;
-  --status-tone-scheduled: #a78bfa;
-  --status-tone-done: #4ade80;
-  --status-tone-muted: #94a3b8;
-  --status-tone-cancelled: #f87171;
   gap: 1rem;
 }
 

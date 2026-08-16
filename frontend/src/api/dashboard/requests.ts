@@ -17,6 +17,7 @@ export type RequestListParams = {
   source?: 'guest' | 'registered' | 'contact';
   period?: 'today' | '7d' | 'all';
   hasDiagnosis?: boolean | string;
+  cursor?: string;
 };
 
 export function listServiceRequests(params: RequestListParams = {}) {
@@ -37,8 +38,9 @@ export function listServiceRequests(params: RequestListParams = {}) {
   if (params.hasDiagnosis != null && params.hasDiagnosis !== '') {
     search.set('hasDiagnosis', String(params.hasDiagnosis));
   }
+  if (params.cursor) search.set('cursor', params.cursor);
   const qs = search.toString() ? `?${search}` : '';
-  return api<{ items: ServiceRequest[]; total: number; page: number; pageSize: number }>(
+  return api<{ items: ServiceRequest[]; total: number; page: number; pageSize: number; nextCursor: string | null }>(
     `/service-requests${qs}`,
   );
 }

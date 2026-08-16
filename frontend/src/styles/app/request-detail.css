@@ -89,10 +89,10 @@
 .request-chrome-dock {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
-  gap: 0.4rem;
-  padding: 0.28rem;
+  gap: 0.5rem;
+  padding: 0.38rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: color-mix(in oklab, var(--color-surface) 78%, var(--color-background));
@@ -103,23 +103,65 @@
 .request-chrome-actions {
   display: flex;
   flex-wrap: nowrap;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.28rem;
+  align-items: flex-end;
+  gap: 0.55rem;
+  padding: 0.42rem 0.5rem 0.4rem;
   border-radius: calc(var(--radius-lg) - 0.22rem);
   background: var(--color-surface);
 }
 
+.request-chrome-field {
+  display: grid;
+  gap: 0.32rem;
+  min-width: 0;
+}
+
+.request-chrome-field label {
+  padding-inline: 2px 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  color: var(--color-text-secondary);
+}
+
 .request-chrome-ops .manager-picker,
 .request-chrome-ops .status-select {
-  min-height: 2.15rem;
-  width: auto;
+  min-height: 2.2rem;
+  width: 10.75rem;
   max-width: 12.5rem;
   margin: 0;
 }
 
+.request-chrome-ops .status-select {
+  border: 1px solid var(--color-border);
+  padding-inline-start: 0.7rem;
+  box-shadow: inset 3px 0 0 var(--chrome-status, var(--color-border));
+}
+
+.request-chrome-ops .status-select-new {
+  --chrome-status: var(--brand-accent);
+}
+
+.request-chrome-ops .status-select-in-progress {
+  --chrome-status: var(--color-primary);
+}
+
+.request-chrome-ops .status-select-scheduled {
+  --chrome-status: #38bdf8;
+}
+
+.request-chrome-ops .status-select-completed {
+  --chrome-status: var(--color-success);
+}
+
+.request-chrome-ops .status-select-cancelled {
+  --chrome-status: var(--color-text-secondary);
+}
+
 .request-chrome-ops .btn {
   flex-shrink: 0;
+  margin-inline-start: 0.1rem;
   white-space: nowrap;
 }
 
@@ -299,18 +341,18 @@
   color: var(--color-danger);
 }
 
-.request-summary-layout .master-checks {
+.request-page .master-checks {
   margin: 0;
 }
 
-.request-summary-layout .master-checks h4 {
+.request-page .master-checks h4 {
   margin: 0 0 0.4rem;
   font-size: 0.78rem;
   font-weight: 650;
   color: var(--color-text-secondary);
 }
 
-.request-summary-layout .master-checks ul {
+.request-page .master-checks ul {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -321,18 +363,18 @@
   background: var(--color-surface);
 }
 
-.request-summary-layout .master-checks li {
+.request-page .master-checks li {
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
 }
 
-.request-summary-layout .master-checks li + li {
+.request-page .master-checks li + li {
   border-top: 1px solid var(--color-border);
 }
 
-.request-summary-layout .master-checks label {
+.request-page .master-checks label {
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
@@ -341,7 +383,7 @@
   cursor: pointer;
 }
 
-.request-summary-layout .master-checks input {
+.request-page .master-checks input {
   appearance: none;
   width: 1.1rem;
   height: 1.1rem;
@@ -352,7 +394,7 @@
   background: var(--color-surface-secondary);
 }
 
-.request-summary-layout .master-checks input:checked {
+.request-page .master-checks input:checked {
   border-color: var(--brand-primary);
   background-color: var(--brand-primary);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M3.5 8.5 6.5 11.5 12.5 4.5'/></svg>");
@@ -531,6 +573,13 @@
   line-height: 1.3;
 }
 
+.request-booking-warn {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: color-mix(in oklab, var(--color-warning) 42%, var(--color-text-primary));
+}
+
 .request-booking-tile.is-empty .request-booking-when {
   font-size: 0.88rem;
   font-weight: 500;
@@ -591,6 +640,10 @@
   overflow-wrap: anywhere;
 }
 
+.request-side-facts dd.is-warn {
+  color: color-mix(in oklab, var(--color-danger) 28%, var(--color-text-primary));
+}
+
 .request-call:active,
 .request-icon-btn:active,
 .request-tab:active,
@@ -606,7 +659,7 @@
 
   .request-next a:hover,
   .request-next button:hover,
-  .request-summary-layout .master-checks label:hover {
+  .request-page .master-checks label:hover {
     background: color-mix(in oklab, var(--color-text-primary) 4%, transparent);
   }
 }

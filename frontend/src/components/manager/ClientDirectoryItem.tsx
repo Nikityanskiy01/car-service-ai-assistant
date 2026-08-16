@@ -12,6 +12,7 @@ import { formatRelativeTime } from '../../lib/managerRequestHelpers';
 import { formatPhoneDisplay } from '../../lib/phone';
 import type { ManagerClientRow } from '../../api/dashboard';
 import { Button } from '../console/ui/button';
+import { HintTooltip } from './help/HintLabel';
 
 type ClientDirectoryItemProps = {
   client: ManagerClientRow;
@@ -57,7 +58,11 @@ export function ClientDirectoryItem({ client, open, onOpen }: ClientDirectoryIte
         <span className="manager-clients-row-body">
           <span className="manager-clients-row-name">
             <strong>{name}</strong>
-            {client.isGuest ? <span className="manager-clients-guest">гость</span> : null}
+            {client.isGuest ? (
+              <HintTooltip hint="Оставил заявку без регистрации">
+                <span className="manager-clients-guest">без кабинета</span>
+              </HintTooltip>
+            ) : null}
           </span>
           <span className="manager-clients-row-meta">
             <span className="manager-clients-row-phone">{formatPhoneDisplay(client.phone)}</span>
@@ -67,7 +72,11 @@ export function ClientDirectoryItem({ client, open, onOpen }: ClientDirectoryIte
             {activity ? (
               <span className={`manager-clients-chip${client.activeRequests ? ' is-hot' : ''}`}>{activity}</span>
             ) : null}
-            {ltv ? <span className="manager-clients-chip is-money">{ltv}</span> : null}
+            {ltv ? (
+              <HintTooltip hint="Сумма закрытых работ">
+                <span className="manager-clients-chip is-money">{ltv}</span>
+              </HintTooltip>
+            ) : null}
             {when ? (
               <time className="manager-clients-row-when" dateTime={client.lastActivityAt || undefined}>
                 {when}

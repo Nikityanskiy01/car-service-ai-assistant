@@ -78,10 +78,15 @@ export function statusVariant(status: string): 'default' | 'secondary' | 'destru
   if (status === 'CANCELLED' || status === 'NO_SHOW' || status === 'ABANDONED' || status === 'AI_ERROR') {
     return 'destructive';
   }
-  if (ACTIVE_REQUEST_STATUSES.includes(status) || status === 'PENDING' || status === 'IN_PROGRESS') {
-    return 'warning';
-  }
+  if (status === 'NEW') return 'default';
+  if (status === 'IN_PROGRESS') return 'warning';
+  if (ACTIVE_REQUEST_STATUSES.includes(status) || status === 'PENDING') return 'secondary';
   return 'secondary';
+}
+
+export function firstNameOf(name: string) {
+  const parts = name.replace(/^Гость\s+/i, '').trim().split(/\s+/).filter(Boolean);
+  return parts[0] || name;
 }
 
 export function telHref(phone: string) {
@@ -104,6 +109,17 @@ export function formatDayTime(iso: string) {
   const day = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
   const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   return `${day}, ${time}`;
+}
+
+export function visitParts(iso: string | null | undefined) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return {
+    day: date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }),
+    weekday: date.toLocaleDateString('ru-RU', { weekday: 'short' }),
+    time: date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+  };
 }
 
 export function vehicleTitle(vehicle: {

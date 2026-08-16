@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getClientDossier,
   getGuestDossier,
   listClients,
-  type ManagerClientCounts,
   type ManagerClientFilter,
   type ManagerClientRow,
   type ManagerClientSort,
@@ -14,6 +14,7 @@ import {
 import { ClientDirectoryItem } from '../../components/manager/ClientDirectoryItem';
 import { ClientDossierPanel, type ClientDossierTab } from '../../components/manager/ClientDossierPanel';
 import { managerZonePaths } from '../../config/managerPaths';
+import { HintTooltip } from '../../components/manager/help/HintLabel';
 import { prefillBookingFromConsultation } from '../../features/services/prefill';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { usePageMeta } from '../../hooks/usePageMeta';
@@ -26,10 +27,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { ClientDossier, GuestDossier } from '../../types/dashboard';
 
 const PAGE_SIZE = 20;
-const FILTERS: { id: ManagerClientFilter; label: string }[] = [
-  { id: 'all', label: 'Все' },
-  { id: 'active', label: 'Активные' },
-  { id: 'guests', label: 'Гости' },
+const FILTERS: { id: ManagerClientFilter; label: string; hint: string }[] = [
+  { id: 'all', label: 'Все', hint: 'Вся база: с кабинетом и без' },
+  { id: 'active', label: 'Активные', hint: 'Есть заявка или визит в работе' },
+  { id: 'guests', label: 'Без кабинета', hint: 'Оставили заявку, не регистрируясь на сайте' },
 ];
 
 function emptyCopy(search: string) {
@@ -54,12 +55,6 @@ export function ManagerClientsPage({ adminZone = false }: { adminZone?: boolean 
   const navigate = useNavigate();
   const dossierSeq = useRef(0);
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [clients, setClients] = useState<ManagerClientRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [counts, setCounts] = useState<ManagerClientCounts>({ all: 0, active: 0, guests: 0 });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ManagerClientFilter>('all');
@@ -73,38 +68,31 @@ export function ManagerClientsPage({ adminZone = false }: { adminZone?: boolean 
 
   const debouncedSearch = useDebouncedValue(search, 200);
 
+  const listQuery = useQuery({
+    queryKey: ['manager-clients', { q: debouncedSearch, filter, sort, page }],
+    queryFn: () =>
+      listClients({
+        q: debouncedSearch,
+        filter,
+        sort,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+  });
+  const clients = listQuery.data?.items ?? [];
+  const total = listQuery.data?.total ?? 0;
+  const counts = listQuery.data?.counts || { all: total, active: 0, guests: 0 };
+  const loading = listQuery.isPending && !listQuery.data;
+  const refreshing = listQuery.isFetching && !listQuery.isPending;
+  const error = listQuery.error instanceof Error ? listQuery.error.message : null;
+
   const load = useCallback(
     async (silent = false) => {
-      if (silent) setRefreshing(true);
-      else {
-        setLoading(true);
-        setError(null);
-      }
-      try {
-        const data = await listClients({
-          q: debouncedSearch,
-          filter,
-          sort,
-          page,
-          pageSize: PAGE_SIZE,
-        });
-        setClients(data.items);
-        setTotal(data.total);
-        setCounts(data.counts || { all: data.total, active: 0, guests: 0 });
-        if (silent) setError(null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Не удалось загрузить клиентов');
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
+      await listQuery.refetch();
+      void silent;
     },
-    [debouncedSearch, filter, sort, page],
+    [listQuery],
   );
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   useEffect(() => {
     setPage(1);
@@ -175,25 +163,26 @@ export function ManagerClientsPage({ adminZone = false }: { adminZone?: boolean 
             <span className="manager-clients-pulse-unit">в работе</span>
           </h1>
           <p className="manager-clients-note">
-            {counts.all} в базе{search.trim() ? ' по поиску' : ''}. Звонок из строки, досье — по клику.
+            {counts.all} в базе{search.trim() ? ' по поиску' : ''}. Звонок из строки, досье - по клику.
           </p>
         </div>
         <div className="manager-clients-dock">
           <div className="manager-clients-filters" role="tablist" aria-label="Фильтр клиентов">
             {FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={filter === item.id}
-                className="manager-clients-filter"
-                onClick={() => setFilter(item.id)}
-              >
-                {item.label}
-                <span className={`tnum${item.id === 'active' && counts[item.id] > 0 ? ' is-hot' : ''}`}>
-                  {counts[item.id]}
-                </span>
-              </button>
+              <HintTooltip key={item.id} hint={item.hint}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === item.id}
+                  className="manager-clients-filter"
+                  onClick={() => setFilter(item.id)}
+                >
+                  {item.label}
+                  <span className={`tnum${item.id === 'active' && counts[item.id] > 0 ? ' is-hot' : ''}`}>
+                    {counts[item.id]}
+                  </span>
+                </button>
+              </HintTooltip>
             ))}
           </div>
           <Button
@@ -229,7 +218,7 @@ export function ManagerClientsPage({ adminZone = false }: { adminZone?: boolean 
             <SelectItem value="activity">Сначала активные</SelectItem>
             <SelectItem value="recent">Сначала новые</SelectItem>
             <SelectItem value="name">По имени</SelectItem>
-            <SelectItem value="ltv">По LTV</SelectItem>
+            <SelectItem value="ltv">По выручке</SelectItem>
           </SelectContent>
         </Select>
       </div>

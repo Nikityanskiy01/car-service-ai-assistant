@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   BrainCircuit,
   CalendarDays,
+  CircleHelp,
   ClipboardList,
   Home,
   LayoutDashboard,
@@ -41,9 +42,11 @@ function formatBadge(value?: number) {
 export function ManagerBottomNav({
   badges = {},
   onCommandPalette,
+  onHelp,
 }: {
   badges?: NavBadges;
   onCommandPalette?: () => void;
+  onHelp?: () => void;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -162,6 +165,19 @@ export function ManagerBottomNav({
                 </NavLink>
               );
             })}
+            {onHelp ? (
+              <button
+                type="button"
+                className="flex min-h-11 items-center gap-3 rounded-lg border-0 bg-transparent px-3 text-left text-sm text-foreground transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-accent active:scale-[0.98]"
+                onClick={() => {
+                  setMoreOpen(false);
+                  onHelp();
+                }}
+              >
+                <CircleHelp size={18} className="shrink-0 text-muted-foreground" aria-hidden />
+                Справка
+              </button>
+            ) : null}
             {onCommandPalette ? (
               <button
                 type="button"

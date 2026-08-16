@@ -145,6 +145,6 @@ describe('ai-adapter — текст диагноза в чате', () => {
     expect(text).toContain('передняя подвеска');
     expect(text).toContain('Наиболее вероятные причины');
     expect(text).toContain('1. Износ стойки амортизатора');
-    expect(text).toContain('Что проверим на посту');
+    expect(text).toContain('Что проверим в сервисе');
   });
 });

@@ -1,8 +1,9 @@
-import type { Request, RequestHandler } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { apiMessages } from '../config/apiMessages.js';
 import { getEnv } from '../config/env.js';
 import { getRedis } from '../lib/redis.js';
+import { sendProblem } from '../lib/problem.js';
 
 let RedisStoreCtor: any = null;
 try {
@@ -52,6 +53,23 @@ export function authAttemptKey(req: Request) {
   return identifier ? `${ip}:${identifier}` : ip;
 }
 
+function problemRateLimitHandler(req: Request, res: Response, _next: unknown, options: { message?: unknown }) {
+  const msg = options.message;
+  let detail = apiMessages.common.rateLimitedRequests;
+  let code = 'RATE_LIMITED';
+  if (msg && typeof msg === 'object' && 'error' in msg) {
+    const payload = msg as { error?: unknown; code?: unknown };
+    if (payload.error) detail = String(payload.error);
+    if (payload.code) code = String(payload.code);
+  }
+  sendProblem(res, {
+    status: 429,
+    detail,
+    code,
+    instance: req.id ? `/requests/${req.id}` : req.path,
+  });
+}
+
 export function createRateLimiter({
   windowMs,
   max,
@@ -80,6 +98,7 @@ export function createRateLimiter({
         skipSuccessfulRequests,
         skip,
         message: message || { error: apiMessages.common.rateLimitedRequests, code: 'RATE_LIMITED' },
+        handler: problemRateLimitHandler,
         keyGenerator,
       },
       prefix || 'rl:',

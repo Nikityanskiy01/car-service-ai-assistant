@@ -8,5 +8,6 @@ export const STORAGE_KEYS = {
   consultPrefill: 'car_service_consult_prefill',
   sidebarCollapsed: 'car_service_sidebar_collapsed',
   clientOnboardingDone: 'car_service_client_onboarding_done',
+  managerOnboardingDone: 'car_service_manager_onboarding_done',
   clientNotificationPrefs: 'car_service_client_notification_prefs',
 } as const;

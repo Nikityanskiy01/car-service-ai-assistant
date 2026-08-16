@@ -25,8 +25,13 @@
 }
 
 @media (max-width: 640px) {
+  .otp-input,
   .otp-input-slots {
-    grid-template-columns: repeat(6, minmax(1.85rem, 2.2rem));
+    width: 100%;
+  }
+
+  .otp-input-slots {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.3rem;
   }
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { e2eUsers } from './credentials.js';
+import { e2eUsers, skipManagerOnboarding } from './credentials.js';
 
 const unique = Date.now();
 const clientEmail = `client.${unique}@example.local`;
@@ -63,6 +63,7 @@ test('5. Гость создает заявку через форму запис
 });
 
 test('6. Менеджер видит кабинет и может менять статус заявки', async ({ page }) => {
+  await skipManagerOnboarding(page);
   const ok = await loginAny(page, [e2eUsers.manager]);
   expect(ok).toBeTruthy();
   await page.goto('/dashboard/manager');

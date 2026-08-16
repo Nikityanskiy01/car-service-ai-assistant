@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { e2eUsers } from './credentials.js';
+import { e2eUsers, skipManagerOnboarding } from './credentials.js';
 
 async function expectNoBlockingA11y(page) {
   const results = await new AxeBuilder({ page })
@@ -58,6 +58,7 @@ test.describe('a11y critical pages', () => {
   });
 
   test('manager queue', async ({ page }) => {
+    await skipManagerOnboarding(page);
     await login(page, e2eUsers.manager.email, e2eUsers.manager.password);
     await page.goto('/dashboard/manager/requests');
     await expect(page.locator('h1, h2, .dashboard-topbar-title').first()).toBeVisible();

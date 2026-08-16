@@ -90,6 +90,13 @@ function buildManagerItems(): CommandItem[] {
 
   items.push(
     {
+      id: 'cmd-help',
+      label: 'Справка кабинета',
+      group: 'Разделы',
+      to: '/dashboard/manager/help',
+      keywords: 'справка гайд помощь help подсказки как работать',
+    },
+    {
       id: 'cmd-new-requests',
       label: 'Новые заявки',
       group: 'Очередь',
@@ -112,10 +119,10 @@ function buildManagerItems(): CommandItem[] {
     },
     {
       id: 'cmd-kanban',
-      label: 'Канбан-доска',
+      label: 'Доска по статусам',
       group: 'Очередь',
       to: '/dashboard/manager/requests?view=kanban',
-      keywords: 'kanban канбан доска',
+      keywords: 'kanban канбан доска колонки статусы',
     },
     {
       id: 'cmd-feedback',

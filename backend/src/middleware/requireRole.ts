@@ -1,13 +1,14 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { apiMessages } from '../config/apiMessages.js';
+import { sendProblem } from '../lib/problem.js';
 
 export function requireRole(...roles: string[]): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ error: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
+      return sendProblem(res, { status: 401, detail: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
     }
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: apiMessages.common.forbidden, code: 'FORBIDDEN' });
+      return sendProblem(res, { status: 403, detail: apiMessages.common.forbidden, code: 'FORBIDDEN' });
     }
     next();
   };

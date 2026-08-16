@@ -7,6 +7,7 @@ import { formatRequestNumber } from '../../lib/labels';
 import { copyText } from '../../lib/clipboard';
 import { formatDateTime } from '../../lib/clientMeta';
 import { formatMileageKm } from '../../lib/managerRequestHelpers';
+import { HintTooltip } from '../../components/manager/help/HintLabel';
 import { toast } from '../../lib/toast';
 import type { LoadedManagerRequest } from './useManagerRequestDetail';
 
@@ -48,14 +49,25 @@ export function ManagerRequestChrome({ d }: { d: LoadedManagerRequest }) {
 
       <div className="request-chrome-dock">
         <div className="request-chrome-ops">
-          <RequestStatusSelector value={request.status} onChange={(next) => void d.changeStatus(next)} />
-          <ManagerPicker
-            value={d.assignManagerId || request.assignedManagerId || ''}
-            onChange={d.setAssignManagerId}
-            allowEmpty
-            placeholder="Не назначен"
-            disabled={d.assigning}
-          />
+          <div className="request-chrome-field">
+            <label htmlFor="request-status">Статус</label>
+            <RequestStatusSelector
+              id="request-status"
+              value={request.status}
+              onChange={(next) => void d.changeStatus(next)}
+            />
+          </div>
+          <div className="request-chrome-field">
+            <label htmlFor="request-manager">Менеджер</label>
+            <ManagerPicker
+              id="request-manager"
+              value={d.assignManagerId || request.assignedManagerId || ''}
+              onChange={d.setAssignManagerId}
+              allowEmpty
+              placeholder="Не назначен"
+              disabled={d.assigning}
+            />
+          </div>
           {d.assignManagerId && d.assignManagerId !== request.assignedManagerId ? (
             <Button type="button" variant="secondary" size="sm" disabled={d.assigning} onClick={() => void d.handleAssignManager()}>
               Назначить
@@ -96,20 +108,22 @@ export function ManagerRequestChrome({ d }: { d: LoadedManagerRequest }) {
             {request.bookings?.length ? 'Ещё запись' : 'Назначить запись'}
           </Button>
           {d.exportableConnections.length ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                d.setExportConnectionId(
-                  d.exportableConnections.length === 1 ? d.exportableConnections[0].id : '',
-                );
-                d.setExportOpen(true);
-              }}
-            >
-              <Send />
-              В учёт
-            </Button>
+            <HintTooltip hint="Отправить в подключённую систему: 1С или CRM">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  d.setExportConnectionId(
+                    d.exportableConnections.length === 1 ? d.exportableConnections[0].id : '',
+                  );
+                  d.setExportOpen(true);
+                }}
+              >
+                <Send />
+                В учёт
+              </Button>
+            </HintTooltip>
           ) : null}
           <Button
             type="button"

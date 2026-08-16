@@ -1,5 +1,6 @@
+import type { User } from '@prisma/client';
 import prisma from '../../lib/prisma.js';
-import { AppError } from '../../lib/errors.js';
+import { AppError, isAppError } from '../../lib/errors.js';
 import { getEnv } from '../../config/env.js';
 import { isSmtpConfigured, sendLoginOtpEmail } from '../../lib/mail/mail.service.js';
 import { isSmsConfigured, sendSms } from '../../lib/sms/sms.service.js';
@@ -22,8 +23,16 @@ import {
   isTelegramConfigured,
   sendTelegramMessage,
 } from '../notifications/telegramAuth.bot.js';
+import type {
+  LoginResult,
+  OtpChannel,
+  OtpStartPayload,
+  SessionMeta,
+  StartLoginOtpInput,
+  VerifyLoginOtpInput,
+} from './auth.types.js';
 
-function genericStartPayload(channel, destinationHint = '') {
+function genericStartPayload(channel: OtpChannel, destinationHint = ''): OtpStartPayload {
   const env = getEnv();
   return {
     challengeToken: dummyOtpToken(),
@@ -46,7 +55,7 @@ export async function getLoginOptions() {
   };
 }
 
-export async function startLoginOtp({ channel, email, phone }: any) {
+export async function startLoginOtp({ channel, email, phone }: StartLoginOtpInput): Promise<OtpStartPayload> {
   const env = getEnv();
   if (!['email', 'sms', 'telegram'].includes(channel)) {
     throw new AppError(400, 'Неизвестный канал подтверждения', 'BAD_REQUEST');
@@ -66,7 +75,7 @@ export async function startLoginOtp({ channel, email, phone }: any) {
     throw new AppError(503, 'Telegram-бот ещё не настроен', 'TELEGRAM_NOT_CONFIGURED');
   }
 
-  let user = null;
+  let user: User | null = null;
   let destination = '';
   let destinationHint = genericStartPayload(channel).destinationHint;
   let methodEnabled = false;
@@ -101,7 +110,7 @@ export async function startLoginOtp({ channel, email, phone }: any) {
 
   try {
     await assertOtpCooldown(user.id, 'login', channel);
-  } catch (err) {
+  } catch {
     return genericStartPayload(channel, destinationHint);
   }
 
@@ -147,7 +156,10 @@ export async function startLoginOtp({ channel, email, phone }: any) {
   };
 }
 
-export async function verifyLoginOtp({ challengeToken, code }, meta: any = {}) {
+export async function verifyLoginOtp(
+  { challengeToken, code }: VerifyLoginOtpInput,
+  meta: SessionMeta = {},
+): Promise<LoginResult> {
   const challenge = await consumeOtpChallenge(challengeToken, code, { purpose: 'login' });
 
   if (!challenge.userId) {
@@ -168,7 +180,7 @@ export async function verifyLoginOtp({ challengeToken, code }, meta: any = {}) {
       userId: user.id,
       success: false,
       method,
-      reason: err?.code || 'login_failed',
+      reason: isAppError(err) ? err.code || 'login_failed' : 'login_failed',
       ...meta,
     });
     throw err;

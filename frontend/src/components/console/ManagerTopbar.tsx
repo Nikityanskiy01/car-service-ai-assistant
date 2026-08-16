@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Home, LogOut, Menu, Search, User } from 'lucide-react';
+import { CircleHelp, Home, LogOut, Menu, Search, User } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { ThemeToggle } from '../layout/ThemeToggle';
 import { InboxBell } from '../notifications/InboxBell';
+import { HintTooltip } from '../manager/help/HintLabel';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import {
@@ -29,6 +30,7 @@ export function ManagerTopbar({
   profilePath,
   onMenuClick,
   onCommandPalette,
+  onHelp,
   totpLock = false,
 }: {
   title: string;
@@ -36,6 +38,7 @@ export function ManagerTopbar({
   profilePath: string;
   onMenuClick: () => void;
   onCommandPalette?: () => void;
+  onHelp?: () => void;
   totpLock?: boolean;
 }) {
   const { user, logout } = useAuth();
@@ -57,19 +60,33 @@ export function ManagerTopbar({
 
       <div className="flex items-center gap-1.5">
         {onCommandPalette ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCommandPalette}
-            aria-label="Командная палитра"
-            title="Командная палитра (Ctrl+K)"
-            className="hidden text-muted-foreground md:inline-flex"
-          >
-            <Search />
-            Поиск
-            <kbd className="rounded border border-border bg-muted px-1.5 text-[10px] font-medium">Ctrl+K</kbd>
-          </Button>
+          <HintTooltip hint="Поиск разделов и фильтров очереди">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCommandPalette}
+              aria-label="Командная палитра"
+              className="hidden text-muted-foreground md:inline-flex"
+            >
+              <Search />
+              Поиск
+              <kbd className="rounded border border-border bg-muted px-1.5 text-[10px] font-medium">Ctrl+K</kbd>
+            </Button>
+          </HintTooltip>
+        ) : null}
+        {onHelp ? (
+          <HintTooltip hint="Как устроена смена и этот экран">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onHelp}
+              aria-label="Справка кабинета"
+            >
+              <CircleHelp />
+            </Button>
+          </HintTooltip>
         ) : null}
         <ThemeToggle />
         {totpLock ? null : <InboxBell />}
@@ -95,6 +112,12 @@ export function ManagerTopbar({
                   Профиль
                 </Link>
               </DropdownMenuItem>
+              {onHelp ? (
+                <DropdownMenuItem onSelect={onHelp}>
+                  <CircleHelp />
+                  Справка
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem asChild>
                 <Link to="/">
                   <Home />

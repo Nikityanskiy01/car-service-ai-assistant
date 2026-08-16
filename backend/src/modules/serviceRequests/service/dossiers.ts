@@ -24,21 +24,24 @@ export async function listClients(
   const pageNum = Math.max(1, Number(page) || 1);
   const query = String(q || '').trim().toLowerCase();
 
-  const [users, clientTotals, clientActive, guestRows, garageRows, feedbackRows, upcomingRows] = await Promise.all([
+  const groupByRequests = (prisma as { serviceRequest: { groupBy: (args: Record<string, unknown>) => Promise<unknown> } })
+    .serviceRequest.groupBy;
+  const clientTotals = (await groupByRequests({
+    by: ['clientId'],
+    where: { clientId: { not: null } },
+    _count: { id: true },
+    _max: { createdAt: true },
+  })) as Array<{ clientId: string | null; _count: { id: number }; _max: { createdAt: Date | null } }>;
+  const clientActive = (await groupByRequests({
+    by: ['clientId'],
+    where: { clientId: { not: null }, status: { in: ACTIVE_STATUSES } },
+    _count: { id: true },
+  })) as Array<{ clientId: string | null; _count: { id: number } }>;
+
+  const [users, guestRows, garageRows, feedbackRows, upcomingRows] = await Promise.all([
     prisma.user.findMany({
       where: { role: 'CLIENT' },
       select: { id: true, fullName: true, phone: true, email: true, telegram: true, city: true },
-    }),
-    prisma.serviceRequest.groupBy({
-      by: ['clientId'],
-      where: { clientId: { not: null } },
-      _count: { id: true },
-      _max: { createdAt: true },
-    }),
-    prisma.serviceRequest.groupBy({
-      by: ['clientId'],
-      where: { clientId: { not: null }, status: { in: ACTIVE_STATUSES } },
-      _count: { id: true },
     }),
     prisma.serviceRequest.findMany({
       where: { clientId: null, guestPhone: { not: null } },

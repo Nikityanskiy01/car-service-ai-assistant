@@ -2,6 +2,7 @@ import prisma from '../../../lib/prisma.js';
 import { AppError } from '../../../lib/errors.js';
 import { getUrgencyFromRequest } from '../../../lib/requestDiagnosis.js';
 import { SLA_MS } from '../../../lib/requestSla.js';
+import { decodeCursor, nextCursorFromPage } from '../../../lib/cursorPage.js';
 
 function periodSince(period) {
   if (!period || period === 'all') return null;
@@ -40,6 +41,7 @@ export async function listRequests(
     source,
     period,
     hasDiagnosis,
+    cursor,
   }: any = {},
 ) {
   if (user.role !== 'CLIENT' && user.role !== 'MANAGER' && user.role !== 'ADMINISTRATOR') {
@@ -84,12 +86,12 @@ export async function listRequests(
     const current = where.status;
     if (typeof current === 'string') {
       if (!slaStatuses.includes(current)) {
-        return { items: [], total: 0, page: pageNum, pageSize: take };
+        return { items: [], total: 0, page: pageNum, pageSize: take, nextCursor: null };
       }
     } else if (current?.in) {
       const next = current.in.filter((s) => slaStatuses.includes(s));
       if (!next.length) {
-        return { items: [], total: 0, page: pageNum, pageSize: take };
+        return { items: [], total: 0, page: pageNum, pageSize: take, nextCursor: null };
       }
       where.status = { in: next };
     } else {
@@ -112,8 +114,24 @@ export async function listRequests(
       { client: { fullName: { contains: s, mode: 'insensitive' } } },
     ];
   }
-  const skip = (pageNum - 1) * take;
+  const searchActive = Boolean(q && String(q).trim());
   const orderDir = dir === 'asc' ? 'asc' : 'desc';
+  const useCreatedAtCursor = !searchActive && (sort === 'createdAt' || !sort);
+  const decodedCursor = useCreatedAtCursor ? decodeCursor(cursor) : null;
+  if (decodedCursor) {
+    const createdOp = orderDir === 'asc' ? 'gt' : 'lt';
+    const idOp = orderDir === 'asc' ? 'gt' : 'lt';
+    where.AND = [
+      ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+      {
+        OR: [
+          { createdAt: { [createdOp]: new Date(decodedCursor.t) } },
+          { createdAt: new Date(decodedCursor.t), id: { [idOp]: decodedCursor.id } },
+        ],
+      },
+    ];
+  }
+  const skip = decodedCursor ? 0 : (pageNum - 1) * take;
   let orderBy;
   switch (sort) {
     case 'status':
@@ -180,11 +198,17 @@ export async function listRequests(
   if (needsPostFilter) {
     const totalFiltered = items.length;
     items = items.slice(skip, skip + take);
-    return { items, total: totalFiltered, page: pageNum, pageSize: take };
+    return { items, total: totalFiltered, page: pageNum, pageSize: take, nextCursor: null };
   }
 
   const total = await prisma.serviceRequest.count({ where });
-  return { items, total, page: pageNum, pageSize: take };
+  const nextCursor = useCreatedAtCursor
+    ? nextCursorFromPage(items, {
+        limit: take,
+        getCursor: (row) => ({ id: row.id, t: row.createdAt.toISOString() }),
+      })
+    : null;
+  return { items, total, page: pageNum, pageSize: take, nextCursor };
 }
 
 const BOARD_STATUSES = ['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED'];

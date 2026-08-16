@@ -229,23 +229,28 @@ function bookingHref(id) {
   return `/dashboard/client/bookings/${id}`;
 }
 
-export async function notifyBookingCreated(booking) {
+export async function notifyBookingCreated(booking, { proposedByStaff = false } = {}) {
+  const when = formatWhenMsk(booking.preferredAt);
+  const staffTitle = 'Предложено время визита';
+  const staffBody = `Сервис предложил запись ${when}. Сначала согласуйте время — до подтверждения она не окончательная.`;
   if (!booking?.clientId) {
     if (booking?.guestEmail) {
-      const when = formatWhenMsk(booking.preferredAt);
       await notifyGuestEmail({
         to: booking.guestEmail,
-        title: 'Заявка на запись принята',
-        body: `Мы получили заявку на визит ${when}. Менеджер подтвердит время.`,
+        title: proposedByStaff ? staffTitle : 'Заявка на запись принята',
+        body: proposedByStaff
+          ? staffBody
+          : `Мы получили заявку на визит ${when}. Менеджер подтвердит время.`,
       });
     }
     return;
   }
-  const when = formatWhenMsk(booking.preferredAt);
   await notifyClientSafe(booking.clientId, {
     kind: 'BOOKING_CREATED',
-    title: 'Запись отправлена',
-    body: `Заявка на визит ${when} принята. Менеджер подтвердит время.`,
+    title: proposedByStaff ? staffTitle : 'Запись отправлена',
+    body: proposedByStaff
+      ? staffBody
+      : `Заявка на визит ${when} принята. Менеджер подтвердит время.`,
     href: bookingHref(booking.id),
     dedupeKey: `booking-created:${booking.id}`,
   });

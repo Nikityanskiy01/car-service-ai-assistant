@@ -76,8 +76,8 @@ export async function seedManagerInbox(prisma, { userId, requestId, bookingId })
       {
         key: 'arrived',
         kind: 'BOOKING_CONFIRMED',
-        title: 'Клиент на посту',
-        body: 'Kia Rio — проверка подвески. Клиент уже на территории, пост 2.',
+        title: 'Клиент в сервисе',
+        body: 'Kia Rio — проверка подвески. Клиент уже на территории.',
         href: bookingHref,
         hoursAgo: 1.5,
         read: false,

@@ -74,19 +74,22 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
+  display: grid;
+  gap: 0.7rem;
   margin-inline: 0;
-  padding: 0.85rem 1rem 0.8rem;
+  padding: 0.85rem 1rem 0.85rem;
   border-bottom: 1px solid var(--color-border);
   background: color-mix(in oklab, var(--color-surface) 92%, var(--color-background));
 }
 
+.manager-dossier-head-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.85rem 1.25rem;
+}
+
 .manager-dossier-mast {
-  flex: 1 1 12rem;
   min-width: 0;
 }
 
@@ -98,24 +101,14 @@
   line-height: 1.15;
 }
 
-.manager-dossier-facts {
+.manager-dossier-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 1rem;
+  gap: 0.15rem 0.75rem;
   margin: 0.4rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.manager-dossier-facts li {
-  display: grid;
-  gap: 0.05rem;
-}
-
-.manager-dossier-facts span {
-  font-size: 0.68rem;
-  font-weight: 650;
   color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .manager-dossier-copy {
@@ -127,46 +120,114 @@
   cursor: pointer;
 }
 
-.manager-dossier-dock {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.35rem;
-  padding: 0.28rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: color-mix(in oklab, var(--color-surface) 78%, var(--color-background));
-  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 8%, transparent);
-}
-
-.manager-dossier-kpis {
+.manager-dossier-visit {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(5.8rem, 1fr));
-  gap: 0.55rem 0.8rem;
-  margin: 0;
+  justify-items: start;
+  gap: 0.08rem;
+  min-width: 8.2rem;
+  padding-left: 0.95rem;
+  border-left: 1px solid var(--color-border);
 }
 
-.manager-dossier-kpis div {
-  min-width: 0;
-}
-
-.manager-dossier-kpis dt {
-  color: var(--color-text-secondary);
-  font-size: 0.7rem;
+.manager-dossier-visit > span {
+  font-size: 0.68rem;
   font-weight: 650;
+  color: var(--color-text-secondary);
 }
 
-.manager-dossier-kpis dd {
-  margin: 0.12rem 0 0;
-  font-size: 1.2rem;
+.manager-dossier-visit strong {
+  font-size: 1.15rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
-.manager-dossier-kpis dd.is-hot {
+.manager-dossier-visit small {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.manager-dossier-visit.is-empty strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.manager-dossier-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.manager-dossier-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  padding: 0.22rem 0.28rem 0.22rem 0.8rem;
+  appearance: none;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.manager-dossier-action:hover,
+.manager-dossier-action:visited,
+.manager-dossier-action:focus {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.manager-dossier-action.is-primary,
+.manager-dossier-action.is-primary:hover,
+.manager-dossier-action.is-primary:visited,
+.manager-dossier-action.is-primary:focus {
+  border-color: transparent;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-primary) 26%, transparent);
+}
+
+.manager-dossier-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 35%, transparent);
+}
+
+.manager-dossier-action:active {
+  transform: scale(0.97);
+}
+
+.manager-dossier-action:not(.is-primary) .request-call-mark {
+  background: color-mix(in oklab, var(--color-text-primary) 10%, transparent);
+}
+
+.manager-dossier-pulse {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.manager-dossier-pulse strong {
+  color: var(--color-text-primary);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.manager-dossier-pulse .is-hot strong {
   color: var(--brand-primary);
 }
 
@@ -200,7 +261,7 @@
 }
 
 .manager-dossier-car {
-  padding: 0.6rem 0.7rem;
+  padding: 0.65rem 0.75rem 0.7rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-secondary);
@@ -211,34 +272,35 @@
   font-size: 0.95rem;
   font-weight: 650;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.manager-dossier-car-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0.45rem 0 0;
-  padding: 0;
-  list-style: none;
+.manager-dossier-car > p {
+  margin: 0.22rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.manager-dossier-car-chips li {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.28rem;
-  max-width: 100%;
-  padding: 0.18rem 0.45rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--color-surface) 70%, transparent);
-  font-size: 0.76rem;
+.manager-dossier-car-vin {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
   overflow-wrap: anywhere;
 }
 
-.manager-dossier-car-chips span {
+.manager-dossier-car-notes {
+  margin: 0.5rem 0 0;
+  padding: 0.4rem 0 0;
+  border-top: 1px solid var(--color-border);
+  list-style: none;
   color: var(--color-text-secondary);
-  font-size: 0.66rem;
-  font-weight: 650;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.manager-dossier-car-notes li + li {
+  margin-top: 0.18rem;
 }
 
 .manager-dossier-feed {
@@ -248,38 +310,95 @@
 
 .manager-dossier-feed-item {
   display: grid;
-  grid-template-columns: 6.6rem minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.45rem 0.7rem;
-  padding: 0.42rem 0.1rem;
+  grid-template-columns: 5.4rem minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.28rem 0.75rem;
+  padding: 0.48rem 0.15rem 0.48rem 0.2rem;
   border-bottom: 1px solid var(--color-border);
   color: inherit;
   text-decoration: none;
   font-size: 0.84rem;
+  transition: background-color var(--motion-fast) var(--ease-out);
 }
 
 .manager-dossier-feed-item:last-child {
   border-bottom: none;
 }
 
-.manager-dossier-feed-item time {
-  color: var(--color-text-secondary);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
+.manager-dossier-gutter {
+  display: grid;
+  gap: 0.12rem;
+  padding-top: 0.1rem;
 }
 
-.manager-dossier-feed-item span {
+.manager-dossier-gutter time {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+}
+
+.manager-dossier-state {
+  display: block;
+  max-width: 100%;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.manager-dossier-state.is-default {
+  color: var(--brand-primary);
+}
+
+.manager-dossier-state.is-warning {
+  color: var(--color-warning);
+}
+
+.manager-dossier-state.is-success {
+  color: var(--color-success);
+}
+
+.manager-dossier-state.is-destructive {
+  color: var(--color-danger);
+}
+
+.manager-dossier-feed-copy {
+  display: grid;
+  gap: 0.08rem;
   min-width: 0;
+}
+
+.manager-dossier-feed-copy strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 550;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
 }
 
-.manager-dossier-feed-item em {
-  font-style: normal;
+.manager-dossier-feed-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--color-text-secondary);
+  font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.3;
+}
+
+.manager-dossier-owner {
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  margin-top: 0.05rem;
+  border-radius: 0.42rem;
+  background: color-mix(in oklab, var(--color-primary) 14%, var(--color-surface));
+  color: var(--color-text-primary);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 a.manager-dossier-feed-item:hover {
@@ -304,11 +423,21 @@ a.manager-dossier-feed-item:hover {
 
 @media (max-width: 1023px) {
   .manager-dossier-feed-item {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 5.2rem minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 540px) {
+  .manager-dossier-head-top {
+    grid-template-columns: 1fr;
   }
 
-  .manager-dossier-feed-item time {
-    grid-column: 1 / -1;
+  .manager-dossier-visit {
+    min-width: 0;
+    padding-left: 0;
+    padding-top: 0.55rem;
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
   }
 }
 
@@ -317,10 +446,19 @@ a.manager-dossier-feed-item:hover {
   .manager-dossier-back:hover {
     color: var(--color-text-primary);
   }
+
+  .manager-dossier-action.is-primary:hover .request-call-mark {
+    transform: translateX(1px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .manager-dossier-feed-item {
+  .manager-dossier-feed-item,
+  .manager-dossier-action {
     transition: none;
+  }
+
+  .manager-dossier-action:active {
+    transform: none;
   }
 }

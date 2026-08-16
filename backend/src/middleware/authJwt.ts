@@ -6,6 +6,7 @@ import { verifyAppJwt } from '../lib/jwtTokens.js';
 import { createTtlCache } from '../lib/ttlCache.js';
 import prisma from '../lib/prisma.js';
 import { isPathAllowedDuringTotpSetup } from '../lib/totpSetupPaths.js';
+import { sendProblem } from '../lib/problem.js';
 import type { AuthUser } from '../types/auth.js';
 
 const AUTH_USER_SELECT = {
@@ -94,18 +95,19 @@ export async function authJwt(req: Request, res: Response, next: NextFunction) {
   try {
     const user = await userFromToken(req);
     if (!user) {
-      return res.status(401).json({ error: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
+      return sendProblem(res, { status: 401, detail: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
     }
     if (user.totpSetupPending && !pathAllowedDuringTotpSetup(req)) {
-      return res.status(403).json({
-        error: 'Включите двухфакторную защиту, чтобы продолжить',
+      return sendProblem(res, {
+        status: 403,
+        detail: 'Включите двухфакторную защиту, чтобы продолжить',
         code: 'TOTP_SETUP_REQUIRED',
       });
     }
     req.user = user;
     next();
   } catch {
-    return res.status(401).json({ error: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
+    return sendProblem(res, { status: 401, detail: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
   }
 }
 

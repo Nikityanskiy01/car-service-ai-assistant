@@ -20,3 +20,10 @@ export const e2eUsers = {
     password: requiredEnv('DEMO_ADMIN_PASSWORD'),
   },
 };
+
+/** Скрыть первый тур кабинета, чтобы e2e видели рабочий стол, а не оверлей. */
+export async function skipManagerOnboarding(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('car_service_manager_onboarding_done', '1');
+  });
+}

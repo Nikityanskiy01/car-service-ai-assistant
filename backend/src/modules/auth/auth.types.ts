@@ -45,6 +45,38 @@ export type TotpLoginInput = {
   code: string;
 };
 
+export type TotpChallenge = {
+  requires2fa: true;
+  challengeToken: string;
+};
+
+export type LoginResult = IssuedSession | TotpChallenge;
+
+export function isTotpChallenge(out: LoginResult): out is TotpChallenge {
+  return 'requires2fa' in out && out.requires2fa === true;
+}
+
+export type OtpChannel = 'email' | 'sms' | 'telegram';
+
+export type StartLoginOtpInput = {
+  channel: OtpChannel;
+  email?: string;
+  phone?: string;
+};
+
+export type VerifyLoginOtpInput = {
+  challengeToken: string;
+  code: string;
+};
+
+export type OtpStartPayload = {
+  challengeToken: string;
+  channel: OtpChannel;
+  destinationHint: string;
+  expiresInSec: number;
+  resendAfterSec: number;
+};
+
 export type RegisterInput = {
   email: string;
   password: string;

@@ -305,7 +305,7 @@ export function BookingDrawer({
           ) : null}
           {showConfirm ? (
             <Button type="button" variant="ghost" disabled={busy} onClick={() => void updateStatus('CONFIRMED')}>
-              Подтвердить
+              {booking.status === 'PENDING' ? 'Подтвердить после согласования' : 'Подтвердить'}
             </Button>
           ) : null}
           {showCancel ? (

@@ -7,19 +7,19 @@ type ClientDossierGarageProps = {
   isGuest: boolean;
 };
 
-function chipsOf(vehicle: DossierVehicle) {
-  const mileage = vehicle.currentMileageKm != null ? formatMileageKm(vehicle.currentMileageKm) : null;
-  const lastService = vehicle.lastServiceTitle
+function carView(vehicle: DossierVehicle) {
+  const title = vehicleTitle(vehicle) || vehicle.licensePlate || 'Авто';
+  const facts = [
+    vehicle.licensePlate,
+    vehicle.color,
+    vehicle.currentMileageKm != null ? formatMileageKm(vehicle.currentMileageKm) : null,
+  ].filter(Boolean) as string[];
+  const vin = vehicle.vin?.trim() || null;
+  const service = vehicle.lastServiceTitle
     ? `${vehicle.lastServiceTitle}${vehicle.lastServiceAt ? ` · ${formatDay(vehicle.lastServiceAt)}` : ''}`
     : null;
-  return [
-    vehicle.licensePlate ? { label: 'Номер', value: vehicle.licensePlate } : null,
-    vehicle.vin ? { label: 'VIN', value: vehicle.vin } : null,
-    vehicle.color ? { label: 'Цвет', value: vehicle.color } : null,
-    mileage ? { label: 'Пробег', value: mileage } : null,
-    lastService ? { label: 'ТО', value: lastService } : null,
-    vehicle.notes ? { label: 'Заметка', value: vehicle.notes } : null,
-  ].filter(Boolean) as Array<{ label: string; value: string }>;
+  const notes = [service, vehicle.notes?.trim()].filter(Boolean) as string[];
+  return { title, facts, vin, notes };
 }
 
 export function ClientDossierGarage({ vehicles, isGuest }: ClientDossierGarageProps) {
@@ -41,18 +41,16 @@ export function ClientDossierGarage({ vehicles, isGuest }: ClientDossierGaragePr
       <h3 id="manager-dossier-garage">Гараж</h3>
       <ul className="manager-dossier-garage">
         {vehicles.map((vehicle, index) => {
-          const title = vehicleTitle(vehicle) || vehicle.licensePlate || 'Авто';
-          const chips = chipsOf(vehicle);
+          const car = carView(vehicle);
           return (
-            <li key={vehicle.id || `${title}-${index}`} className="manager-dossier-car">
-              <strong>{title}</strong>
-              {chips.length ? (
-                <ul className="manager-dossier-car-chips">
-                  {chips.map((chip) => (
-                    <li key={`${chip.label}-${chip.value}`}>
-                      <span>{chip.label}</span>
-                      {chip.value}
-                    </li>
+            <li key={vehicle.id || `${car.title}-${index}`} className="manager-dossier-car">
+              <strong>{car.title}</strong>
+              {car.facts.length ? <p>{car.facts.join(', ')}</p> : null}
+              {car.vin ? <p className="manager-dossier-car-vin">{car.vin}</p> : null}
+              {car.notes.length ? (
+                <ul className="manager-dossier-car-notes">
+                  {car.notes.map((note) => (
+                    <li key={note}>{note}</li>
                   ))}
                 </ul>
               ) : null}

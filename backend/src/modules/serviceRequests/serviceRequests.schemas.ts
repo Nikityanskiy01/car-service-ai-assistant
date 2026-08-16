@@ -15,6 +15,7 @@ const listQuerySchema = z.object({
   source: z.enum(['guest', 'registered', 'contact']).optional(),
   period: z.enum(['today', '7d', 'all']).optional(),
   hasDiagnosis: z.enum(['true', 'false', '1', '0']).optional(),
+  cursor: z.string().min(1).max(500).optional(),
 });
 
 const patchSchema = z.object({

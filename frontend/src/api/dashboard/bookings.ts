@@ -23,6 +23,15 @@ export function rescheduleBooking(bookingId: string, preferredAt: string) {
   });
 }
 
+export function createStaffBooking(body: {
+  preferredAt: string;
+  serviceRequestId: string;
+  notes?: string | null;
+  vehicleId?: string | null;
+}) {
+  return api<ServiceBooking>('/bookings', { method: 'POST', body });
+}
+
 export function patchBooking(
   bookingId: string,
   body: {

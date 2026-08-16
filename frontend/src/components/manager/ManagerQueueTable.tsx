@@ -4,9 +4,11 @@ import { Badge } from '../console/ui/badge';
 import { Button } from '../console/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../console/ui/table';
 import type { RequestListParams } from '../../api/dashboard';
-import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS, URGENCY_LABELS } from '../../lib/labels';
+import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS, URGENCY_LABELS, urgencyHint } from '../../lib/labels';
 import { formatRelativeTime, getRequestConfidence, getRequestUrgency } from '../../lib/managerRequestHelpers';
 import { slaLabel } from '../../lib/requestSla';
+import { QUEUE_STATUS_HINTS } from '../../lib/managerGuide';
+import { HintLabel, HintTooltip } from './help/HintLabel';
 import type { ServiceRequest, ServiceRequestStatus } from '../../types/serviceRequest';
 
 type SortKey = NonNullable<RequestListParams['sort']>;
@@ -82,7 +84,9 @@ export function ManagerQueueTable({
               </TableHead>
               <TableHead>{sortableHeader(sort, dir, 'client', 'Клиент', onToggleSort)}</TableHead>
               <TableHead>{sortableHeader(sort, dir, 'car', 'Обращение', onToggleSort)}</TableHead>
-              <TableHead>Срочность</TableHead>
+              <TableHead>
+                <HintLabel hint="Оценка ИИ по симптомам, не приоритет сервиса">Срочность</HintLabel>
+              </TableHead>
               <TableHead>{sortableHeader(sort, dir, 'status', 'Статус', onToggleSort)}</TableHead>
               <TableHead>Менеджер</TableHead>
               <TableHead>{sortableHeader(sort, dir, 'createdAt', 'Когда', onToggleSort)}</TableHead>
@@ -160,10 +164,12 @@ export function ManagerQueueTable({
                         <span className="queue-signal-cell">
                           {sla ? <Badge variant="destructive">{sla}</Badge> : null}
                           {urgency && urgency !== 'low' ? (
-                            <Badge variant={urgencyVariant(urgency)}>
-                              {URGENCY_LABELS[urgency] || urgency}
-                              {confidence != null ? ` ${confidence}%` : ''}
-                            </Badge>
+                            <HintTooltip hint={urgencyHint(urgency)}>
+                              <Badge variant={urgencyVariant(urgency)}>
+                                {URGENCY_LABELS[urgency] || urgency}
+                                {confidence != null ? ` ${confidence}%` : ''}
+                              </Badge>
+                            </HintTooltip>
                           ) : null}
                           {!sla && (!urgency || urgency === 'low') && confidence != null ? (
                             <span className="queue-ai-meta">ИИ {confidence}%</span>
@@ -172,7 +178,9 @@ export function ManagerQueueTable({
                         </span>
                       </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(item.status)}>{SERVICE_REQUEST_STATUS_LABELS[item.status]}</Badge>
+                    <HintTooltip hint={QUEUE_STATUS_HINTS[item.status]}>
+                      <Badge variant={statusVariant(item.status)}>{SERVICE_REQUEST_STATUS_LABELS[item.status]}</Badge>
+                    </HintTooltip>
                   </TableCell>
                   <TableCell>
                     {item.assignedManager?.fullName || <span className="text-muted-foreground">не назначен</span>}

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { upsertConsultationFeedback } from '../../api/dashboard';
+import { toFeedbackPayload } from '../../lib/consultationFeedbackPayload';
 import { Button } from '../ui/Button';
 import { Textarea } from '../ui/Textarea';
+import { HintTooltip } from '../manager/help/HintLabel';
 import type { ConsultationFeedback, ConsultationFeedbackVerdict } from '../../types/serviceRequest';
 
 const VERDICT_OPTIONS: Array<{ id: ConsultationFeedbackVerdict; label: string; hint: string }> = [
@@ -19,13 +21,27 @@ const CATEGORY_OPTIONS = [
   { id: 'other', label: 'Прочее' },
 ] as const;
 
+const VERDICT_LABEL: Record<ConsultationFeedbackVerdict, string> = {
+  CORRECT: 'верный',
+  PARTIAL: 'частично верный',
+  INCORRECT: 'неверный',
+};
+
 type Props = {
   requestId: string;
   initial?: ConsultationFeedback | null;
   onSaved?: (feedback: ConsultationFeedback) => void;
+  variant: 'evaluation' | 'works';
+  onNeedEvaluation?: () => void;
 };
 
-export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props) {
+export function ConsultationFeedbackPanel({
+  requestId,
+  initial,
+  onSaved,
+  variant,
+  onNeedEvaluation,
+}: Props) {
   const [verdict, setVerdict] = useState<ConsultationFeedbackVerdict | null>(initial?.verdict ?? null);
   const [actualCause, setActualCause] = useState(initial?.actualCause ?? '');
   const [worksDone, setWorksDone] = useState(initial?.worksDone ?? '');
@@ -59,75 +75,133 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
   }, [initial]);
 
   const needsCause = verdict === 'PARTIAL' || verdict === 'INCORRECT';
+  const hasVerdict = Boolean(verdict || initial?.verdict);
+  const isEvaluation = variant === 'evaluation';
 
   async function handleSave() {
-    if (!verdict) {
+    if (isEvaluation && !verdict) {
       setError('Выберите оценку диагноза');
       return;
     }
-    if (needsCause && !actualCause.trim()) {
+    if (isEvaluation && needsCause && !actualCause.trim()) {
       setError('Укажите реальную причину');
+      return;
+    }
+    const payload = toFeedbackPayload(
+      initial,
+      isEvaluation
+        ? { verdict, actualCause }
+        : {
+            worksDone,
+            repairAmountRub,
+            workOrderNumber,
+            repairCompletedAt,
+            repairMileageKm,
+            workCategory,
+          },
+    );
+    if (!payload) {
+      setError('Сначала оцените диагноз ИИ на вкладке «Диалог ИИ»');
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      const saved = await upsertConsultationFeedback(requestId, {
-        verdict,
-        actualCause: actualCause.trim() || undefined,
-        worksDone: worksDone.trim() || undefined,
-        repairAmountMinor: repairAmountRub.trim()
-          ? Math.round(Number(repairAmountRub) * 100)
-          : null,
-        workOrderNumber: workOrderNumber.trim() || null,
-        repairCompletedAt: repairCompletedAt ? new Date(repairCompletedAt).toISOString() : null,
-        repairMileageKm: repairMileageKm.trim() ? Number(repairMileageKm) : null,
-        workCategory: workCategory || 'other',
-      });
+      const saved = await upsertConsultationFeedback(requestId, payload);
       setSavedAt(saved.updatedAt);
       onSaved?.(saved);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось сохранить оценку');
+      setError(e instanceof Error ? e.message : isEvaluation ? 'Не удалось сохранить оценку' : 'Не удалось сохранить работы');
     } finally {
       setSaving(false);
     }
   }
 
+  if (isEvaluation) {
+    return (
+      <section className="consultation-feedback-panel stack">
+        <header>
+          <h3>Оценка диагноза ИИ</h3>
+          <p className="muted">
+            Насколько предварительный диагноз совпал с тем, что подтвердилось в сервисе.
+          </p>
+        </header>
+
+        <div className="feedback-verdict-row" role="group" aria-label="Оценка диагноза">
+          {VERDICT_OPTIONS.map((option) => (
+            <HintTooltip key={option.id} hint={option.hint}>
+              <Button
+                type="button"
+                variant={verdict === option.id ? 'primary' : 'secondary'}
+                className="feedback-verdict-btn"
+                aria-pressed={verdict === option.id}
+                onClick={() => setVerdict(option.id)}
+              >
+                {option.label}
+              </Button>
+            </HintTooltip>
+          ))}
+        </div>
+
+        <label className="stack gap-xs">
+          <span>Реальная причина{needsCause ? ' *' : ''}</span>
+          <Textarea
+            value={actualCause}
+            onChange={(e) => setActualCause(e.target.value)}
+            placeholder="Например: износ тормозных дисков спереди"
+            rows={3}
+          />
+        </label>
+
+        {error ? <p className="form-error">{error}</p> : null}
+        {savedAt && initial?.verdict ? (
+          <p className="muted">
+            Сохранено: {new Date(savedAt).toLocaleString('ru-RU')}
+            {initial?.manager?.fullName ? ` · ${initial.manager.fullName}` : ''}
+          </p>
+        ) : null}
+
+        <div>
+          <Button type="button" disabled={saving || !verdict} onClick={() => void handleSave()}>
+            {saving ? 'Сохранение…' : 'Сохранить оценку'}
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="consultation-feedback-panel stack">
       <header>
-        <h3>Оценка диагноза ИИ</h3>
-        <p className="muted">
-          Помогите улучшить рекомендации: отметьте, насколько предварительный диагноз совпал с реальностью.
-          Итог ремонта попадёт в сервисную книжку клиента.
-        </p>
+        <h3>Выполненные работы</h3>
+        <p className="muted">Что сделали по факту. Итог попадёт в сервисную книжку клиента.</p>
       </header>
 
-      <div className="feedback-verdict-row" role="group" aria-label="Оценка диагноза">
-        {VERDICT_OPTIONS.map((option) => (
-          <Button
-            key={option.id}
-            type="button"
-            variant={verdict === option.id ? 'primary' : 'secondary'}
-            className="feedback-verdict-btn"
-            title={option.hint}
-            aria-pressed={verdict === option.id}
-            onClick={() => setVerdict(option.id)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-
-      <label className="stack gap-xs">
-        <span>Реальная причина{needsCause ? ' *' : ''}</span>
-        <Textarea
-          value={actualCause}
-          onChange={(e) => setActualCause(e.target.value)}
-          placeholder="Например: износ тормозных дисков спереди"
-          rows={2}
-        />
-      </label>
+      {!hasVerdict ? (
+        <p className="request-works-eval-hint">
+          Оценку диагноза ИИ ставят на вкладке «Диалог ИИ», рядом с перепиской ассистента.
+          {onNeedEvaluation ? (
+            <>
+              {' '}
+              <button type="button" className="request-inline-link" onClick={onNeedEvaluation}>
+                Открыть диалог
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : initial?.verdict ? (
+        <p className="muted">
+          Диагноз ИИ отмечен как {VERDICT_LABEL[initial.verdict]}.
+          {onNeedEvaluation ? (
+            <>
+              {' '}
+              <button type="button" className="request-inline-link" onClick={onNeedEvaluation}>
+                Изменить оценку
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : null}
 
       <label className="stack gap-xs">
         <span>Выполненные работы</span>
@@ -135,7 +209,7 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
           value={worksDone}
           onChange={(e) => setWorksDone(e.target.value)}
           placeholder="Замена дисков и колодок, балансировка"
-          rows={2}
+          rows={3}
         />
       </label>
 
@@ -197,16 +271,13 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
       </section>
 
       {error ? <p className="form-error">{error}</p> : null}
-      {savedAt ? (
-        <p className="muted">
-          Сохранено: {new Date(savedAt).toLocaleString('ru-RU')}
-          {initial?.manager?.fullName ? ` · ${initial.manager.fullName}` : ''}
-        </p>
+      {savedAt && initial?.worksDone ? (
+        <p className="muted">Сохранено: {new Date(savedAt).toLocaleString('ru-RU')}</p>
       ) : null}
 
       <div>
-        <Button type="button" disabled={saving || !verdict} onClick={() => void handleSave()}>
-          {saving ? 'Сохранение…' : 'Сохранить оценку'}
+        <Button type="button" disabled={saving || !hasVerdict} onClick={() => void handleSave()}>
+          {saving ? 'Сохранение…' : 'Сохранить работы'}
         </Button>
       </div>
     </section>

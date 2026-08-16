@@ -120,7 +120,10 @@ export function ManagerAiQualityPage() {
 
   return (
     <div className="ai-quality-page">
-      <p className="ai-quality-lead">Сверьте предварительный разбор ИИ с тем, что подтвердили в сервисе.</p>
+      <p className="ai-quality-lead">
+        Сверьте предварительный разбор ИИ с тем, что подтвердили в сервисе. Цифры считаются по отметкам мастеров, не
+        по пустому периоду.
+      </p>
 
       <div className="ai-quality-toolbar">
         <div className="ai-quality-periods" role="tablist" aria-label="Период оценок">
@@ -138,9 +141,16 @@ export function ManagerAiQualityPage() {
             </button>
           ))}
         </div>
-        <Button type="button" variant="ghost" size="sm" disabled={exporting || !report} onClick={exportCsv}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={exporting || !report}
+          title="Таблица оценок за выбранный период"
+          onClick={exportCsv}
+        >
           <Download />
-          {exporting ? 'Готовим' : 'CSV'}
+          {exporting ? 'Готовим' : 'Скачать таблицу'}
         </Button>
       </div>
 
@@ -189,7 +199,7 @@ export function ManagerAiQualityPage() {
             <article className="ai-quality-stat">
               <span>Полезен в сервисе</span>
               <strong>{report.totalFeedback ? `${report.usefulPercent}%` : '—'}</strong>
-              <p>Верный плюс частично.</p>
+              <p>Верный плюс частично: направление было полезным.</p>
             </article>
             <Link
               to={`${paths.requests}?feedback=none`}

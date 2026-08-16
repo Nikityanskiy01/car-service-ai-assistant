@@ -139,32 +139,32 @@
 
 .calendar-legend-card[data-status='pending'],
 .booking-event[data-status='pending'] {
-  --event-tone: var(--color-warning);
+  --event-tone: var(--status-tone-waiting);
 }
 
 .calendar-legend-card[data-status='confirmed'],
 .booking-event[data-status='confirmed'] {
-  --event-tone: var(--color-primary);
+  --event-tone: var(--status-tone-confirmed);
 }
 
 .calendar-legend-card[data-status='arrived'],
 .booking-event[data-status='arrived'] {
-  --event-tone: var(--color-success);
+  --event-tone: var(--status-tone-arrived);
 }
 
 .calendar-legend-card[data-status='completed'],
 .booking-event[data-status='completed'] {
-  --event-tone: color-mix(in oklab, var(--color-success) 42%, var(--color-text-secondary));
+  --event-tone: var(--status-tone-done);
 }
 
 .calendar-legend-card[data-status='no-show'],
 .booking-event[data-status='no-show'] {
-  --event-tone: color-mix(in oklab, var(--color-warning) 55%, var(--color-danger));
+  --event-tone: var(--status-tone-missed);
 }
 
 .calendar-legend-card[data-status='cancelled'],
 .booking-event[data-status='cancelled'] {
-  --event-tone: var(--color-danger);
+  --event-tone: var(--status-tone-cancelled);
 }
 
 .calendar-capacity {

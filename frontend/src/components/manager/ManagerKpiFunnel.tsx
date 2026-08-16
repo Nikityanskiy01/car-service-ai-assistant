@@ -12,6 +12,9 @@ export function ManagerKpiFunnel({ kpi }: Props) {
     <section className="manager-funnel" aria-label="Воронка за период">
       <header className="funnel-header">
         <h2>Воронка за {kpi.periodDays} дн.</h2>
+        <p className="muted funnel-drop-hint">
+          Сколько консультаций дошло до заявки, записи и закрытия. Процент справа - доля от предыдущей ступени.
+        </p>
         {funnel.biggestDropOff ? (
           <p className="muted funnel-drop-hint">
             Наибольший отток: {funnel.biggestDropOff.from} → {funnel.biggestDropOff.to} (

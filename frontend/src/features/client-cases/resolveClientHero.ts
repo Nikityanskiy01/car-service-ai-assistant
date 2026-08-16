@@ -101,7 +101,7 @@ export function resolveClientHero(summary: ClientDashboardSummary): ClientHeroSt
       description:
         summary.nextBooking.status === 'CONFIRMED'
           ? 'Запись подтверждена — ждём вас в сервисе.'
-          : 'Запись ожидает подтверждения менеджером.',
+          : 'Сначала согласуйте время — до подтверждения запись не окончательная.',
       ctaLabel: 'Детали записи',
       ctaTo: `/dashboard/client/bookings/${summary.nextBooking.id}`,
       secondaryLabel: 'Мои обращения',

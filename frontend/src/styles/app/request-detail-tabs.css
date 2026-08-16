@@ -50,7 +50,24 @@
   align-items: start;
 }
 
-.request-works-eval,
+.request-works-stack,
+.request-consultation-main {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.request-consultation {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.9fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.request-works-main,
+.request-works-checks,
+.request-ai-eval,
+.request-ai-brief,
 .request-works-side > * {
   padding: 0.95rem 1rem;
   border: 1px solid var(--color-border);
@@ -59,29 +76,94 @@
   box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
 }
 
+.request-ai-eval {
+  position: sticky;
+  top: 4.75rem;
+}
+
 .request-works-side {
   display: grid;
   gap: 0.75rem;
 }
 
+.request-diag-teaser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.45rem 1rem;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.request-diag-teaser strong {
+  font-weight: 700;
+  color: var(--brand-accent);
+}
+
+.request-ai-brief .request-cause-rank {
+  margin: 0;
+}
+
+.request-ai-brief .request-ai-note {
+  margin-top: 0.65rem;
+}
+
+.request-thread-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.request-thread-head h2 {
+  margin: 0;
+  font-size: 0.92rem;
+  letter-spacing: -0.02em;
+}
+
+.request-works-checks .master-checks ul {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.request-works-checks .master-checks li:first-child {
+  border-top: 1px solid var(--color-border);
+}
+
 .request-works .consultation-feedback-panel h3,
+.request-ai-eval .consultation-feedback-panel h3,
+.request-ai-brief h2,
+.request-works-checks .master-checks h4,
 .request-works .completion-documents-panel h3,
 .request-works .similar-cases-panel h3 {
   margin: 0 0 0.25rem;
   font-size: 1rem;
   letter-spacing: -0.02em;
+  color: var(--color-text-primary);
 }
 
 .request-works .consultation-feedback-panel > header p,
+.request-ai-eval .consultation-feedback-panel > header p,
+.request-ai-brief > header p,
+.request-works-checks .master-checks-hint,
 .request-works .completion-documents-panel > header p,
 .request-works .similar-cases-panel > header p {
   margin: 0 0 0.75rem;
   max-width: 62ch;
   font-size: 0.84rem;
   line-height: 1.4;
+  color: var(--color-text-secondary);
 }
 
-.request-works .feedback-verdict-row {
+.request-works .feedback-verdict-row,
+.request-ai-eval .feedback-verdict-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.18rem;
@@ -91,9 +173,42 @@
   background: color-mix(in oklab, var(--color-surface-secondary) 70%, var(--color-background));
 }
 
-.request-works .feedback-verdict-btn {
+.request-works .feedback-verdict-btn,
+.request-ai-eval .feedback-verdict-btn {
   min-width: 0;
   width: 100%;
+}
+
+.request-works-eval-hint {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--color-surface-secondary) 80%, var(--color-background));
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.request-inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand-accent);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+  transition: color 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.request-inline-link:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
+}
+
+.request-inline-link:active {
+  transform: scale(0.98);
 }
 
 .request-works .repair-outcome-grid {
@@ -143,29 +258,38 @@
 
 .request-history-desk {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.95fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.9fr);
   gap: 0.75rem;
   align-items: start;
 }
 
 .request-history-col {
-  padding: 0.95rem 1rem 1.05rem;
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  padding: 0.9rem 0.95rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
 }
 
+.request-history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .request-history-col h2 {
-  margin: 0 0 0.7rem;
+  margin: 0;
   font-size: 1rem;
   letter-spacing: -0.02em;
 }
 
-.request-history-note {
-  margin: 0 0 0.7rem;
-  font-size: 0.88rem;
-  line-height: 1.4;
+.request-history-count {
+  font-size: 0.78rem;
+  font-weight: 650;
   color: var(--color-text-secondary);
 }
 
@@ -174,62 +298,88 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--color-surface-secondary) 55%, transparent);
 }
 
-.request-timeline li {
-  position: relative;
-  padding: 0 0 0.85rem 1.15rem;
+.request-timeline-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: start;
+  padding: 0.72rem 0.8rem;
 }
 
-.request-timeline li:last-child {
-  padding-bottom: 0;
+.request-timeline-item + .request-timeline-item {
+  border-top: 1px solid var(--color-border);
 }
 
-.request-timeline li::before {
-  content: '';
-  position: absolute;
-  left: 0.18rem;
-  top: 0.45rem;
-  width: 0.45rem;
-  height: 0.45rem;
+.request-timeline-mark {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  margin-top: 0.05rem;
   border-radius: 999px;
-  background: var(--brand-accent);
+  background: color-mix(in oklab, var(--brand-accent) 16%, transparent);
+  color: var(--brand-accent);
 }
 
-.request-timeline li::after {
-  content: '';
-  position: absolute;
-  left: 0.36rem;
-  top: 1rem;
-  bottom: 0;
-  width: 1px;
-  background: var(--color-border);
+.request-timeline-item.is-status .request-timeline-mark {
+  background: color-mix(in oklab, var(--color-primary) 16%, transparent);
+  color: var(--color-primary);
 }
 
-.request-timeline li:last-child::after {
-  content: none;
-}
-
-.request-timeline time {
-  display: block;
-  font-size: 0.75rem;
+.request-timeline-item.is-message .request-timeline-mark {
+  background: color-mix(in oklab, var(--color-text-primary) 8%, transparent);
   color: var(--color-text-secondary);
 }
 
-.request-timeline p {
-  margin: 0.15rem 0 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
+.request-timeline-item.is-feedback .request-timeline-mark,
+.request-timeline-item.is-crm .request-timeline-mark {
+  background: color-mix(in oklab, var(--color-success) 16%, transparent);
+  color: var(--color-success);
 }
 
-.request-jobs h3 {
-  margin: 0 0 0.45rem;
+.request-timeline-body {
+  min-width: 0;
+}
+
+.request-timeline-body p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.request-timeline-body small {
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.request-timeline-item time {
+  display: grid;
+  justify-items: end;
+  gap: 0.1rem;
   font-size: 0.78rem;
   font-weight: 650;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.request-timeline-item time span {
+  font-size: 0.7rem;
+  font-weight: 500;
   color: var(--color-text-secondary);
 }
 
-.request-jobs ul {
+.request-crm-links {
   display: grid;
   gap: 0.5rem;
   margin: 0;
@@ -237,36 +387,185 @@
   list-style: none;
 }
 
-.request-job {
+.request-crm-status {
   display: grid;
-  gap: 0.35rem;
-  padding: 0.7rem 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.7rem 0.75rem;
+  align-items: center;
+  padding: 0.85rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface-secondary);
+  background: color-mix(in oklab, var(--color-surface-secondary) 70%, transparent);
+}
+
+.request-crm-status-mark {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-text-primary) 8%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.request-crm-status > div {
+  min-width: 0;
+}
+
+.request-crm-status strong {
+  display: block;
+  font-size: 0.92rem;
+  letter-spacing: -0.02em;
+}
+
+.request-crm-status p {
+  margin: 0.18rem 0 0;
+  max-width: 46ch;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.request-crm-status small {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.request-crm-status-actions {
+  display: grid;
+  justify-items: end;
+  gap: 0.28rem;
+}
+
+.request-crm-status.is-error {
+  border-color: color-mix(in oklab, var(--color-danger) 42%, var(--color-border));
+  background: color-mix(in oklab, var(--color-danger) 10%, var(--color-surface));
+}
+
+.request-crm-status.is-error .request-crm-status-mark {
+  background: color-mix(in oklab, var(--color-danger) 16%, transparent);
+  color: color-mix(in oklab, var(--color-danger) 28%, var(--color-text-primary));
+}
+
+.request-crm-status.is-error p {
+  color: color-mix(in oklab, var(--color-danger) 32%, var(--color-text-primary));
+}
+
+.request-crm-status.is-ok {
+  border-color: color-mix(in oklab, var(--color-success) 38%, var(--color-border));
+  background: color-mix(in oklab, var(--color-success) 9%, var(--color-surface));
+}
+
+.request-crm-status.is-ok .request-crm-status-mark {
+  background: color-mix(in oklab, var(--color-success) 16%, transparent);
+  color: var(--color-success);
+}
+
+.request-crm-status.is-wait .request-crm-status-mark {
+  background: color-mix(in oklab, var(--brand-accent) 16%, transparent);
+  color: var(--brand-accent);
+}
+
+.request-jobs {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.request-jobs h3 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+}
+
+.request-jobs ul {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-job {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--color-surface-secondary) 60%, transparent);
 }
 
 .request-job-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.4rem 0.55rem;
+}
+
+.request-job-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.request-job-head time {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
 }
 
 .request-job-error {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   line-height: 1.4;
-  color: var(--color-danger);
+  color: color-mix(in oklab, var(--color-danger) 32%, var(--color-text-primary));
+}
+
+.request-job-meta {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.request-history-col .integration-status-badge.status-failed,
+.request-history-col .integration-status-badge.status-dead_letter {
+  border-color: color-mix(in oklab, var(--color-danger) 40%, var(--color-border));
+  background: color-mix(in oklab, var(--color-danger) 16%, transparent);
+  color: color-mix(in oklab, var(--color-danger) 28%, var(--color-text-primary));
+}
+
+.request-history-col .integration-status-badge.status-succeeded {
+  border-color: color-mix(in oklab, var(--color-success) 40%, var(--color-border));
+  background: color-mix(in oklab, var(--color-success) 16%, transparent);
+  color: var(--color-success);
+}
+
+.request-history-col .integration-status-badge.status-retrying,
+.request-history-col .integration-status-badge.status-processing {
+  border-color: color-mix(in oklab, var(--brand-accent) 40%, var(--color-border));
+  background: color-mix(in oklab, var(--brand-accent) 14%, transparent);
+  color: var(--brand-accent);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .request-works .feedback-verdict-btn:hover {
+  .request-works .feedback-verdict-btn:hover,
+  .request-ai-eval .feedback-verdict-btn:hover {
     transform: none;
+  }
+
+  .request-inline-link:hover {
+    color: var(--color-text-primary);
+  }
+
+  .request-ai-brief .request-cause-rank li:hover {
+    background: color-mix(in oklab, var(--color-text-primary) 4%, var(--color-surface));
   }
 }
 
-.request-works .feedback-verdict-btn:active {
+.request-works .feedback-verdict-btn:active,
+.request-ai-eval .feedback-verdict-btn:active {
   transform: scale(0.97);
 }
 
@@ -278,13 +577,41 @@
 
 @media (max-width: 960px) {
   .request-works,
+  .request-consultation,
   .request-history-desk {
     grid-template-columns: 1fr;
+  }
+
+  .request-ai-eval {
+    position: static;
+  }
+
+  .request-crm-status {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .request-crm-status > button,
+  .request-crm-status-actions {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .request-timeline-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .request-timeline-item time {
+    grid-column: 2;
+    justify-items: start;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .request-works .feedback-verdict-btn:active {
+  .request-works .feedback-verdict-btn:active,
+  .request-ai-eval .feedback-verdict-btn:active,
+  .request-inline-link:active {
     transform: none;
   }
 }

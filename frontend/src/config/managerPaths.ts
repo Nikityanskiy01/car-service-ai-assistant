@@ -10,6 +10,7 @@ export type ManagerZonePaths = {
   clients: string;
   contacts: string;
   aiQuality: string;
+  help: string;
   rootLabel: string;
 };
 
@@ -20,6 +21,7 @@ const MANAGER_ZONE: ManagerZonePaths = {
   clients: '/dashboard/manager/clients',
   contacts: '/dashboard/manager/contacts',
   aiQuality: '/dashboard/manager/ai-quality',
+  help: '/dashboard/manager/help',
   rootLabel: 'Рабочий стол',
 };
 
@@ -30,6 +32,7 @@ const ADMIN_ZONE: ManagerZonePaths = {
   clients: '/dashboard/admin/operations/clients',
   contacts: '/dashboard/admin/operations/contacts',
   aiQuality: '/dashboard/admin/ai/feedback',
+  help: '/dashboard/admin',
   rootLabel: 'Пульт',
 };
 
@@ -43,6 +46,7 @@ const MANAGER_TO_ADMIN: Array<[string, string]> = [
   ['/dashboard/manager/clients', ADMIN_ZONE.clients],
   ['/dashboard/manager/contacts', ADMIN_ZONE.contacts],
   ['/dashboard/manager/ai-quality', ADMIN_ZONE.aiQuality],
+  ['/dashboard/manager/help', ADMIN_ZONE.root],
   ['/dashboard/manager/profile', '/dashboard/admin/profile'],
   ['/dashboard/manager', ADMIN_ZONE.root],
 ];

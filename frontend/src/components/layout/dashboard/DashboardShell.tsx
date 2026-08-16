@@ -12,6 +12,8 @@ import { AdminBreadcrumbs } from '../../admin/AdminBreadcrumbs';
 import { CommandPalette } from '../../dashboard/CommandPalette';
 import { ClientBottomNav } from '../../client/ClientBottomNav';
 import { ClientOnboarding } from '../../client/ClientOnboarding';
+import { ManagerHelpDrawer } from '../../manager/help/ManagerHelpDrawer';
+import { ManagerOnboarding } from '../../manager/help/ManagerOnboarding';
 import { STORAGE_KEYS } from '../../../lib/storageKeys';
 import { bindDashboardChrome, DashboardContext, type DashboardContextValue } from './dashboardContext';
 import { DashboardSidebar } from './DashboardSidebar';
@@ -38,6 +40,7 @@ const routeTitles: Record<string, string> = {
   '/dashboard/manager/clients': 'Клиенты',
   '/dashboard/manager/contacts': 'Сообщения с сайта',
   '/dashboard/manager/ai-quality': 'Качество ИИ',
+  '/dashboard/manager/help': 'Справка',
   '/dashboard/admin/profile': 'Профиль',
 };
 
@@ -58,6 +61,8 @@ export function DashboardShell() {
   const [pageTitle, setPageTitle] = useState('');
   const [badges, setBadges] = useState<Record<string, number>>({});
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [managerOnboardingOpen, setManagerOnboardingOpen] = useState(false);
+  const [managerHelpOpen, setManagerHelpOpen] = useState(false);
   const [clientUnread, setClientUnread] = useState(0);
 
   const isAdmin = location.pathname.startsWith('/dashboard/admin');
@@ -100,6 +105,16 @@ export function DashboardShell() {
     // Refresh badge once per client-shell mount, not on every client sub-route.
   }, [isClient, isClientUser]);
 
+  const isManagerUser = user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR';
+  const totpLock = Boolean(user?.totpSetupPending);
+
+  useEffect(() => {
+    if (!isManager || totpLock || !isManagerUser) return;
+    if (!localStorage.getItem(STORAGE_KEYS.managerOnboardingDone)) {
+      setManagerOnboardingOpen(true);
+    }
+  }, [isManager, isManagerUser, totpLock]);
+
   const defaultTitle = useMemo(() => {
     if (isAdmin) return resolveAdminRouteTitle(location.pathname);
     const exact = routeTitles[location.pathname];
@@ -113,14 +128,17 @@ export function DashboardShell() {
   }, [location.pathname, isAdmin, isManager]);
 
   const title = pageTitle || defaultTitle;
-  const dashboardContext = useMemo<DashboardContextValue>(() => ({ setPageTitle, setBadges }), []);
+  const openManagerHelp = () => setManagerHelpOpen(true);
+  const dashboardContext = useMemo<DashboardContextValue>(
+    () => ({ setPageTitle, setBadges, openManagerHelp }),
+    [],
+  );
   // Bind during render so lazy pages can call setBadges on the first paint
   // even if they received a different context copy than this shell.
   bindDashboardChrome(dashboardContext);
   useLayoutEffect(() => bindDashboardChrome(dashboardContext), [dashboardContext]);
-  const totpLock = Boolean(user?.totpSetupPending);
   useManagerNavBadges(
-    !totpLock && isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR'),
+    !totpLock && isManager && isManagerUser,
     setBadges,
   );
   const roleLabel =
@@ -145,7 +163,7 @@ export function DashboardShell() {
           allowCollapse={false}
         />
       ) : null}
-      {isManager && !totpLock && !compactManagerNav && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
+      {isManager && !totpLock && !compactManagerNav && isManagerUser ? (
         <ManagerSidebar
           items={managerNavItems}
           badges={badges}
@@ -172,6 +190,7 @@ export function DashboardShell() {
             profilePath={profilePath}
             onMenuClick={() => setMobileOpen(true)}
             onCommandPalette={totpLock ? undefined : () => commandPalette.setOpen(true)}
+            onHelp={totpLock ? undefined : () => setManagerHelpOpen(true)}
             totpLock={totpLock}
           />
         ) : (
@@ -209,11 +228,22 @@ export function DashboardShell() {
           <ClientOnboarding open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
         </>
       ) : null}
-      {isManager && !totpLock && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
+      {isManager && !totpLock && isManagerUser ? (
         <ManagerBottomNav
           badges={badges}
           onCommandPalette={() => commandPalette.setOpen(true)}
+          onHelp={() => setManagerHelpOpen(true)}
         />
+      ) : null}
+      {isManager && !totpLock && isManagerUser ? (
+        <>
+          <ManagerHelpDrawer open={managerHelpOpen} onOpenChange={setManagerHelpOpen} />
+          <ManagerOnboarding
+            open={managerOnboardingOpen}
+            onClose={() => setManagerOnboardingOpen(false)}
+            onOpenHelp={() => setManagerHelpOpen(true)}
+          />
+        </>
       ) : null}
       {isManager ? <Toaster /> : null}
     </div>
