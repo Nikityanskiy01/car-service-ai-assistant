@@ -1,4 +1,4 @@
-/* Manager console — calendar, inbox, clients, request card, breakpoints (desk/queue in sibling files) */
+/* Manager console — calendar leftover, command palette, request card (clients/inbox/calendar in sibling files) */
 /* —— Календарь —— */
 .calendar-stat-row {
   display: grid;
@@ -74,6 +74,12 @@
 .booking-click-list .booking-list-btn > span,
 .booking-day .booking-list-static > span {
   min-width: 0;
+  overflow: hidden;
+}
+
+.booking-click-list .booking-list-btn,
+.booking-day .booking-list-static {
+  overflow: hidden;
 }
 
 .booking-click-list .status-badge {
@@ -95,7 +101,10 @@
 
 .booking-day-car {
   display: block;
+  overflow: hidden;
   font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .booking-day-header {
@@ -112,224 +121,6 @@
 
 .booking-day.is-today {
   border-color: color-mix(in oklab, var(--brand-accent) 45%, var(--color-border));
-}
-
-.booking-reschedule {
-  display: grid;
-  gap: 0.35rem;
-  margin-top: 1rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--color-border);
-  font-size: 0.85rem;
-}
-
-.booking-reschedule-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.booking-reschedule input {
-  flex: 1 1 12rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-secondary);
-  color: inherit;
-  font: inherit;
-  font-size: 0.88rem;
-}
-
-.booking-drawer-phone {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-/* —— Входящие —— */
-.contact-workflow-item.is-busy {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.contact-workflow-body {
-  display: grid;
-  gap: 0.3rem;
-  min-width: 0;
-}
-
-.contact-workflow-body p {
-  margin: 0;
-  font-size: 0.88rem;
-}
-
-.contact-phone-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.88rem;
-}
-
-.contact-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-}
-
-.contact-status-in_progress {
-  color: var(--brand-accent);
-}
-
-.contact-status-closed {
-  color: var(--color-text-secondary);
-}
-
-/* —— Клиенты —— */
-.skeleton-line {
-  height: 1rem;
-  border-radius: var(--radius-sm);
-  margin-bottom: 0.5rem;
-}
-
-.skeleton-line-lg {
-  height: 1.6rem;
-  width: 45%;
-}
-
-.manager-clients-grid {
-  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-  align-items: start;
-}
-
-.client-list {
-  max-height: 60vh;
-  overflow-y: auto;
-}
-
-.client-list button {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.15rem 0.5rem;
-  width: 100%;
-  text-align: left;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  transition:
-    background var(--motion-fast) var(--ease-out),
-    border-color var(--motion-fast) var(--ease-out);
-}
-
-.client-list button:hover {
-  background: var(--color-surface-secondary);
-}
-
-.client-list button.active {
-  border-color: var(--color-primary);
-  background: color-mix(in oklab, var(--color-primary) 10%, transparent);
-}
-
-.client-list button > span {
-  font-size: 0.82rem;
-  color: var(--color-text-secondary);
-}
-
-.client-active-tag {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  font-style: normal;
-  font-size: 0.72rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--brand-accent) 18%, transparent);
-  color: var(--brand-accent);
-  white-space: nowrap;
-}
-
-.client-identity {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.client-identity-name {
-  font-size: 1.1rem;
-}
-
-.client-identity-contacts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.85rem;
-}
-
-.client-contact-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.client-record-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.3rem;
-}
-
-.client-record-list li > a,
-.client-record-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.86rem;
-}
-
-.client-record-list li > a {
-  padding: 0.35rem 0.4rem;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  color: inherit;
-}
-
-.client-record-list li > a:hover {
-  background: var(--color-surface-secondary);
-}
-
-.client-vehicle-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.client-vehicle-list li {
-  padding: 0.2rem 0.55rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  font-size: 0.82rem;
-}
-
-@media (max-width: 960px) {
-  .manager-clients-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .client-list {
-    max-height: 42vh;
-  }
 }
 
 /* —— Командная палитра —— */
@@ -398,18 +189,11 @@
     flex-basis: 100%;
   }
 
+  .queue-segment-btn,
   .queue-status-pill,
   .queue-preset > button,
   .queue-preset-add {
     min-height: 2.35rem;
-  }
-
-  .contact-workflow-item {
-    flex-direction: column;
-  }
-
-  .contact-workflow-actions .btn {
-    min-height: 2.6rem;
   }
 
   .toast-viewport {
@@ -427,10 +211,11 @@
 
   .desk-alert,
   .queue-status-pill,
+  .queue-segment-btn,
+  .queue-card,
   .booking-click-list .booking-list-btn,
-  .client-list button,
   .queue-table,
-  .queue-table .table tbody tr {
+  .queue-table table tbody tr {
     transition: none;
   }
 

@@ -10,6 +10,15 @@ export class ApiError extends Error {
   }
 }
 
+export function apiErrorCode(data: unknown): string {
+  const payload = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+  return String(payload.code || '').toUpperCase();
+}
+
+export function isTotpSetupRequired(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403 && apiErrorCode(error.data) === 'TOTP_SETUP_REQUIRED';
+}
+
 function hasCyrillic(value: string): boolean {
   return /[А-Яа-яЁё]/.test(value);
 }

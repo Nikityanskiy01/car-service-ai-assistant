@@ -2,6 +2,8 @@
 
 Три роли с жёстким RBAC. Публичный сайт доступен без входа; консультацию и заявку может оформить гость.
 
+Полный перечень фич и технологий по категориям: [FEATURES-AND-STACK.md](./FEATURES-AND-STACK.md).
+
 ## Публичный сайт
 
 | URL | Страница |
@@ -49,7 +51,7 @@
 | Карточка заявки | `/dashboard/manager/requests/:id` |
 | Календарь | `/dashboard/manager/calendar` |
 | Клиенты | `/dashboard/manager/clients` |
-| Входящие с сайта | `/dashboard/manager/contacts` |
+| Сообщения с сайта | `/dashboard/manager/contacts` |
 | Качество ИИ | `/dashboard/manager/ai-quality` |
 | Профиль | `/dashboard/manager/profile` |
 
@@ -68,7 +70,7 @@
 | Операции → Заявки | `/dashboard/admin/operations/requests` |
 | Операции → Записи | `/dashboard/admin/operations/bookings` |
 | Операции → Клиенты | `/dashboard/admin/operations/clients` |
-| Операции → Обращения | `/dashboard/admin/operations/contacts` |
+| Операции → Сообщения с сайта | `/dashboard/admin/operations/contacts` |
 | Команда → Пользователи | `/dashboard/admin/team/users` |
 | Команда → Активность | `/dashboard/admin/team/activity` |
 | ИИ → Статус | `/dashboard/admin/ai/status` |

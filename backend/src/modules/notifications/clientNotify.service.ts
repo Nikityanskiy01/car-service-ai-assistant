@@ -59,10 +59,19 @@ function toPrefs(row) {
 export async function getOrCreatePrefs(userId) {
   const existing = await prisma.userNotificationPreference.findUnique({ where: { userId } });
   if (existing) return toPrefs(existing);
-  const created = await prisma.userNotificationPreference.create({
-    data: { userId },
-  });
-  return toPrefs(created);
+  try {
+    const created = await prisma.userNotificationPreference.create({
+      data: { userId },
+    });
+    return toPrefs(created);
+  } catch (e) {
+    const code = e?.code || e?.cause?.code;
+    if (code === 'P2002' || String(e?.message || '').includes('Unique constraint failed')) {
+      const raced = await prisma.userNotificationPreference.findUnique({ where: { userId } });
+      if (raced) return toPrefs(raced);
+    }
+    throw e;
+  }
 }
 
 export async function updatePrefs(userId, patch) {
@@ -169,6 +178,13 @@ export async function notifyClient(userId, payload) {
 
   let notification;
   try {
+    if (payload.dedupeKey) {
+      const existing = await prisma.inboxNotification.findUnique({
+        where: { dedupeKey: payload.dedupeKey },
+        select: { id: true },
+      });
+      if (existing) return null;
+    }
     notification = await prisma.inboxNotification.create({
       data: {
         userId,
@@ -180,7 +196,8 @@ export async function notifyClient(userId, payload) {
       },
     });
   } catch (e) {
-    if (e?.code === 'P2002') {
+    const code = e?.code || e?.cause?.code;
+    if (code === 'P2002' || String(e?.message || '').includes('Unique constraint failed')) {
       return null;
     }
     throw e;

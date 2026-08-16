@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { RequestBoardColumn } from '../../api/dashboard';
 import { Badge } from '../console/ui/badge';
 import { Button } from '../console/ui/button';
-import { ScrollArea } from '../console/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../console/ui/select';
 import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
 import { formatRelativeTime, getRequestUrgency } from '../../lib/managerRequestHelpers';
@@ -66,7 +65,11 @@ export function ManagerKanban({
   }
 
   return (
-    <section className="flex gap-3 overflow-x-auto pb-2" aria-label="Канбан заявок">
+    <section
+      className="kanban-board"
+      aria-label="Канбан заявок"
+      style={{ '--kanban-cols': String(visible.length) } as CSSProperties}
+    >
       {visible.map((status) => {
         const column = columns[status]!;
         const isCollapsed = status === 'CANCELLED' && Boolean(collapsed.CANCELLED);
@@ -76,9 +79,14 @@ export function ManagerKanban({
         return (
           <article
             key={status}
-            className={`flex w-[17.5rem] shrink-0 flex-col rounded-xl border bg-card ${
-              dropTarget === status ? 'border-primary ring-2 ring-primary/30' : 'border-border'
-            } ${overWip ? 'border-destructive/50' : ''}`}
+            className={[
+              'kanban-column',
+              dropTarget === status ? 'is-drop-target' : '',
+              overWip ? 'is-wip-limit' : '',
+              isCollapsed ? 'is-collapsed' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             onDragOver={(event) => {
               event.preventDefault();
               setDropTarget(status);
@@ -89,112 +97,102 @@ export function ManagerKanban({
               handleDrop(status);
             }}
           >
-            <header className="flex items-center gap-2 px-3 py-2.5">
-              <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{COLUMN_TITLES[status]}</h3>
+            <header>
+              <h3>{COLUMN_TITLES[status]}</h3>
               <Badge variant={overWip ? 'destructive' : 'secondary'} className="tabular-nums">
                 {status === 'NEW' ? `${column.total} / ${WIP_LIMIT_NEW}` : column.total}
               </Badge>
               {status === 'CANCELLED' ? (
-                <Button
+                <button
                   type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2"
+                  className="kanban-collapse-btn"
                   onClick={() => setCollapsed((prev) => ({ ...prev, CANCELLED: !prev.CANCELLED }))}
                 >
                   {isCollapsed ? 'Показать' : 'Скрыть'}
-                </Button>
+                </button>
               ) : null}
             </header>
-            {!isCollapsed ? (
-              <ScrollArea className="h-[min(36rem,62vh)]">
-                <div className="flex flex-col gap-2 px-2 pb-3">
-                  {column.items.map((item) => {
-                    const urgency = getRequestUrgency(item.consultationSession);
-                    const sla = slaLabel(item);
-                    const car = `${item.snapshotMake || ''} ${item.snapshotModel || ''}`.trim();
-                    return (
-                      <div
-                        key={item.id}
-                        className={`rounded-lg border border-border bg-background ${draggingId === item.id ? 'opacity-50' : ''}`}
-                        draggable
-                        onDragStart={() => setDraggingId(item.id)}
-                        onDragEnd={() => {
-                          setDraggingId(null);
-                          setDropTarget(null);
-                        }}
-                      >
-                        <Link
-                          to={`${requestBasePath}/${item.id}`}
-                          className="flex flex-col gap-1.5 px-3 py-2.5 text-inherit no-underline transition-[background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-accent/60 active:scale-[0.99]"
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <strong className="text-sm tabular-nums">№{formatRequestNumber(item.id)}</strong>
-                            {sla ? (
-                              <Badge variant="destructive">{sla}</Badge>
-                            ) : null}
-                          </span>
-                          <span className="truncate text-sm">{item.client?.fullName || item.guestName || 'Гость'}</span>
-                          <span className="truncate text-xs text-muted-foreground">{car || 'Авто не указано'}</span>
-                          <span className="line-clamp-2 text-xs text-muted-foreground">
-                            {item.snapshotSymptoms?.slice(0, 90) || 'Без описания'}
-                          </span>
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            {urgency ? (
-                              <Badge variant={urgencyVariant(urgency)}>{urgencyLabel(urgency)}</Badge>
-                            ) : null}
-                            <span className="text-xs text-muted-foreground tabular-nums">
-                              {formatRelativeTime(item.createdAt)}
-                            </span>
-                          </span>
-                          {item.assignedManager?.fullName ? (
-                            <span className="truncate text-xs text-muted-foreground">{item.assignedManager.fullName}</span>
-                          ) : null}
-                        </Link>
-                        <div
-                          className="border-t border-border px-2 py-1.5"
-                          onPointerDown={(event) => event.stopPropagation()}
-                        >
-                          <Select
-                            value={item.status}
-                            onValueChange={(value) => onStatusChange(item, value as ServiceRequestStatus)}
-                          >
-                            <SelectTrigger
-                              className="h-8 text-xs"
-                              aria-label="Изменить статус заявки"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {QUEUE_STATUSES.map((nextStatus) => (
-                                <SelectItem key={nextStatus} value={nextStatus}>
-                                  {SERVICE_REQUEST_STATUS_LABELS[nextStatus]}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {!column.items.length ? (
-                    <p className="px-2 py-6 text-center text-sm text-muted-foreground">Пусто</p>
-                  ) : null}
-                  {remaining > 0 ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={loadingMore?.[status]}
-                      onClick={() => onLoadMore(status)}
+            <div className="kanban-items">
+              {column.items.map((item) => {
+                const urgency = getRequestUrgency(item.consultationSession);
+                const sla = slaLabel(item);
+                const car = `${item.snapshotMake || ''} ${item.snapshotModel || ''}`.trim();
+                return (
+                  <div
+                    key={item.id}
+                    className={`kanban-card-wrap${draggingId === item.id ? ' is-dragging' : ''}`}
+                    draggable
+                    onDragStart={() => setDraggingId(item.id)}
+                    onDragEnd={() => {
+                      setDraggingId(null);
+                      setDropTarget(null);
+                    }}
+                  >
+                    <Link
+                      to={`${requestBasePath}/${item.id}`}
+                      className="kanban-card-link"
                     >
-                      Ещё {remaining}
-                    </Button>
-                  ) : null}
-                </div>
-              </ScrollArea>
-            ) : null}
+                      <span className="kanban-card-top">
+                        <strong>№{formatRequestNumber(item.id)}</strong>
+                        {sla ? <Badge variant="destructive">{sla}</Badge> : null}
+                      </span>
+                      <span className="kanban-card-name">
+                        {item.client?.fullName || item.guestName || 'Гость'}
+                      </span>
+                      <span className="kanban-card-car">{car || 'Авто не указано'}</span>
+                      <span className="kanban-card-problem">
+                        {item.snapshotSymptoms?.slice(0, 90) || 'Без описания'}
+                      </span>
+                      <span className="kanban-card-meta">
+                        {urgency ? (
+                          <Badge variant={urgencyVariant(urgency)}>{urgencyLabel(urgency)}</Badge>
+                        ) : null}
+                        <span className="kanban-card-time">{formatRelativeTime(item.createdAt)}</span>
+                      </span>
+                      {item.assignedManager?.fullName ? (
+                        <span className="kanban-card-assignee">{item.assignedManager.fullName}</span>
+                      ) : null}
+                    </Link>
+                    <div
+                      className="kanban-card-status"
+                      onPointerDown={(event) => event.stopPropagation()}
+                    >
+                      <Select
+                        value={item.status}
+                        onValueChange={(value) => onStatusChange(item, value as ServiceRequestStatus)}
+                      >
+                        <SelectTrigger
+                          className="kanban-status-trigger"
+                          aria-label="Изменить статус заявки"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {QUEUE_STATUSES.map((nextStatus) => (
+                            <SelectItem key={nextStatus} value={nextStatus}>
+                              {SERVICE_REQUEST_STATUS_LABELS[nextStatus]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })}
+              {!column.items.length ? <p className="kanban-column-empty">Пусто</p> : null}
+              {remaining > 0 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={loadingMore?.[status]}
+                  onClick={() => onLoadMore(status)}
+                >
+                  Ещё {remaining}
+                </Button>
+              ) : null}
+            </div>
           </article>
         );
       })}

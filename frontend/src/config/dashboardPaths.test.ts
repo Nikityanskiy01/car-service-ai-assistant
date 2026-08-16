@@ -4,7 +4,9 @@ import {
   dashboardProfileFor,
   dashboardZoneFor,
   isDashboardPathAllowedFor,
+  isTotpSetupScreen,
   resolveRedirectFor,
+  totpSetupPathFor,
 } from './dashboardPaths';
 
 describe('dashboardHomeFor', () => {
@@ -87,5 +89,18 @@ describe('resolveRedirectFor', () => {
   it('falls back to the role home without a target', () => {
     expect(resolveRedirectFor(null, 'MANAGER')).toBe('/dashboard/manager');
     expect(resolveRedirectFor('', 'CLIENT')).toBe('/dashboard/client');
+  });
+});
+
+describe('totp setup screen', () => {
+  it('points staff at the protection tab of their profile', () => {
+    expect(totpSetupPathFor('MANAGER')).toBe('/dashboard/manager/profile?tab=security&section=protection');
+    expect(totpSetupPathFor('ADMINISTRATOR')).toBe('/dashboard/admin/profile?tab=security&section=protection');
+  });
+
+  it('recognizes the security profile as the setup screen', () => {
+    expect(isTotpSetupScreen('/dashboard/manager/profile', '?tab=security&section=protection')).toBe(true);
+    expect(isTotpSetupScreen('/dashboard/manager/requests', '?view=kanban')).toBe(false);
+    expect(isTotpSetupScreen('/dashboard/manager/profile', '?tab=contacts')).toBe(false);
   });
 });

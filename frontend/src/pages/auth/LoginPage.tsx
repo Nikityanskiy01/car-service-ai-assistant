@@ -1,8 +1,9 @@
 import { Briefcase, Car, KeyRound, Mail, MessageCircle, MessageSquare, ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../../api/client';
+import { ApiError } from '../../api/errors';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AuthUser } from '../../types/auth';
 import { FormField } from '../../components/forms/FormField';
@@ -12,7 +13,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useProductConfig } from '../../config/ProductConfigProvider';
-import { dashboardProfileFor, resolveRedirectFor } from '../../config/dashboardPaths';
+import { resolveRedirectFor, totpSetupPathFor } from '../../config/dashboardPaths';
 import { claimGuestConsultationSessionIfPresent } from '../../features/consultations/claimGuestSession';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { getSafeInternalPath } from '../../lib/safeRedirect';
@@ -73,7 +74,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
-  const { setUser } = useAuth();
+  const { setUser, user, isAuthenticated, isLoading } = useAuth();
   const [resetNotice, setResetNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -93,7 +94,7 @@ export function LoginPage() {
   async function finishLogin(user: AuthUser, totpSetupPending = false) {
     flushSync(() => setUser({ ...user, totpSetupPending: totpSetupPending || user.totpSetupPending }));
     if (totpSetupPending || user.totpSetupPending) {
-      navigate(`${dashboardProfileFor(user.role)}?tab=security&section=protection`, { replace: true });
+      navigate(totpSetupPathFor(user.role), { replace: true });
       return;
     }
     if (user.role === 'CLIENT') {
@@ -138,7 +139,11 @@ export function LoginPage() {
       });
       if (handleOtpSuccess(data) && 'user' in data) await finishLogin(data.user, data.totpSetupPending);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка входа');
+      if (e instanceof ApiError && e.status === 403) {
+        setError('Не удалось войти. Обновите страницу и попробуйте снова.');
+      } else {
+        setError(e instanceof Error ? e.message : 'Ошибка входа');
+      }
     } finally {
       setLoading(false);
     }
@@ -257,6 +262,14 @@ export function LoginPage() {
       : otpToken
         ? 'Войти'
         : 'Войти';
+
+  if (!isLoading && isAuthenticated && user && !challengeToken) {
+    if (user.totpSetupPending) {
+      return <Navigate to={totpSetupPathFor(user.role)} replace />;
+    }
+    const next = getSafeInternalPath(params.get('next'));
+    return <Navigate to={resolveRedirectFor(next, user.role)} replace />;
+  }
 
   return (
     <div className="fm-page fm-auth-page">

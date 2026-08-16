@@ -23,16 +23,17 @@ import type { IntegrationProvider } from '../../types/integration';
 
 const PROVIDER_CARDS: Array<{ provider: IntegrationProvider; description: string; supported: boolean }> = [
   { provider: 'ONE_C', description: 'HTTP-сервис 1С: baseUrl + bearer/basic', supported: true },
-  { provider: 'AUTODEALER_DESKTOP', description: 'Локальный модуль или согласованный файл', supported: false },
-  { provider: 'AUTODEALER_WEB', description: 'Ограниченный обмен через web-интерфейс', supported: false },
-  { provider: 'AUTODEALER_ONLINE', description: 'Требуется официальный API и тестовый аккаунт', supported: false },
+  { provider: 'AUTODEALER_DESKTOP', description: 'HTTPS drop JSON/CSV/XML на модуль обмена', supported: true },
+  { provider: 'AUTODEALER_WEB', description: 'REST АвтоДилер Web: baseUrl + token', supported: true },
+  { provider: 'AUTODEALER_ONLINE', description: 'REST АвтоДилер Онлайн: baseUrl + token', supported: true },
   { provider: 'BITRIX24', description: 'Входящий вебхук REST: crm.lead.add', supported: true },
-  { provider: 'AMOCRM', description: 'REST API amoCRM', supported: false },
-  { provider: 'YCLIENTS', description: 'API YCLIENTS', supported: false },
+  { provider: 'AMOCRM', description: 'API v4: сделки и контакты', supported: true },
+  { provider: 'YCLIENTS', description: 'Partner API: записи филиала (companyId + token)', supported: true },
   { provider: 'MOYSKLAD', description: 'JSON API remap 1.2: заказы покупателей', supported: true },
+  { provider: 'MEGAPLAN', description: 'API v3: сделки', supported: true },
   { provider: 'GENERIC_REST', description: 'Универсальный REST-коннектор с проверкой соединения', supported: true },
   { provider: 'GENERIC_WEBHOOK', description: 'Исходящий POST заявки на ваш HTTPS URL', supported: true },
-  { provider: 'FILE_EXCHANGE', description: 'CSV, XLSX, XML, JSON', supported: false },
+  { provider: 'FILE_EXCHANGE', description: 'HTTPS drop JSON, CSV или XML', supported: true },
 ];
 
 export function AdminIntegrationsPage() {

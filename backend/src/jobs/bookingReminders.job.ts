@@ -69,11 +69,10 @@ export async function runBookingReminderCheck(now = new Date()) {
 
 export function startBookingReminderJob() {
   if (timer) return;
-  void runBookingReminderCheck();
+  void runBookingReminderCheck().catch((err) => logger.warn({ err }, 'booking reminder tick failed'));
   timer = setInterval(() => {
-    void runBookingReminderCheck();
+    void runBookingReminderCheck().catch((err) => logger.warn({ err }, 'booking reminder tick failed'));
   }, CHECK_INTERVAL_MS);
-  timer.unref?.();
 }
 
 export function stopBookingReminderJob() {

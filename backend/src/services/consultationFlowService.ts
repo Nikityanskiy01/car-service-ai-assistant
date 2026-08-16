@@ -11,6 +11,7 @@ import { extractConsultationData, postProcessMerged } from './consultationFlow/e
 import { deriveConsultationStage } from './consultationFlow/progress.js';
 import { getNextQuestion, resolveQuestionAvoidingRepeat } from './consultationFlow/questions.js';
 import { getMissingFields, isFieldFilled, mergeExtractedData } from './consultationFlow/state.js';
+import { formatDiagnosisChatMessage } from '../modules/consultations/consultationAi/quality.js';
 
 export {
   EMPTY_CONSULTATION_STATE,
@@ -199,9 +200,7 @@ export async function buildConsultationState(session, userMessage, onProgress) {
 
     return {
       stage: isManual ? 'MANUAL_REVIEW_REQUIRED' : 'COMPLETED',
-      assistant_message: isManual
-        ? diagnosis.summary
-        : diagnosis.summary + '\n\nВы можете сохранить отчёт и оформить заявку в сервис.',
+      assistant_message: formatDiagnosisChatMessage(diagnosis),
       extracted_data: merged,
       diagnosis,
       missing_fields: [],

@@ -14,7 +14,7 @@ const LEGACY_STORAGE_KEY = 'manager-queue-filters-v1';
 export const PRESET_QUEUE_FILTERS: SavedQueueFilter[] = [
   {
     id: 'new-critical',
-    label: 'Новые · критичные',
+    label: 'Новые критичные',
     params: { status: 'NEW', urgency: 'critical' },
     builtIn: true,
   },

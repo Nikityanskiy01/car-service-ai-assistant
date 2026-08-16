@@ -1,9 +1,12 @@
+import type { NextFunction, Request, Response } from 'express';
 import { apiMessages } from '../config/apiMessages.js';
 import { getEnv } from '../config/env.js';
 import { readCookieValue } from '../lib/authCookies.js';
 import { verifyAppJwt } from '../lib/jwtTokens.js';
 import { createTtlCache } from '../lib/ttlCache.js';
 import prisma from '../lib/prisma.js';
+import { isPathAllowedDuringTotpSetup } from '../lib/totpSetupPaths.js';
+import type { AuthUser } from '../types/auth.js';
 
 const AUTH_USER_SELECT = {
   id: true,
@@ -13,18 +16,17 @@ const AUTH_USER_SELECT = {
   tokenVersion: true,
 };
 
-const authUserCache = createTtlCache<any>(5_000);
+type CachedAuthUser = {
+  id: string;
+  role: string;
+  email: string;
+  blocked: boolean;
+  tokenVersion: number | null;
+};
 
-const TOTP_SETUP_ALLOW = new Set([
-  '/api/users/me',
-  '/api/users/me/security',
-  '/api/users/me/2fa/setup',
-  '/api/users/me/2fa/setup/cancel',
-  '/api/users/me/2fa/confirm',
-  '/api/auth/logout',
-]);
+const authUserCache = createTtlCache<CachedAuthUser>(5_000);
 
-function getAccessTokenString(req) {
+function getAccessTokenString(req: Request) {
   const c = readCookieValue(req, 'access');
   if (c && typeof c === 'string') return c;
   if (getEnv().NODE_ENV === 'test') {
@@ -34,15 +36,25 @@ function getAccessTokenString(req) {
   return null;
 }
 
-function readTokenVersion(payload) {
+function readTokenVersion(payload: { tv?: unknown }) {
   return typeof payload.tv === 'number' && Number.isInteger(payload.tv) ? payload.tv : 0;
 }
 
-function toAuthUser(user, totpSetupPending = false) {
-  return { id: user.id, role: user.role, email: user.email, totpSetupPending };
+function readSessionId(payload: { sid?: unknown }) {
+  return typeof payload.sid === 'string' && payload.sid ? payload.sid : undefined;
 }
 
-async function userFromToken(req) {
+function toAuthUser(user: CachedAuthUser, totpSetupPending = false, sessionId?: string): AuthUser {
+  return {
+    id: user.id,
+    role: user.role,
+    email: user.email,
+    totpSetupPending: totpSetupPending && getEnv().STAFF_2FA_REQUIRED,
+    sessionId,
+  };
+}
+
+async function userFromToken(req: Request) {
   const token = getAccessTokenString(req);
   if (!token) return null;
   const payload = verifyAppJwt(token);
@@ -50,12 +62,13 @@ async function userFromToken(req) {
   if (typeof sub !== 'string') return null;
   const tokenVersion = readTokenVersion(payload);
   const totpSetupPending = payload.stp === 1;
+  const sessionId = readSessionId(payload);
 
   const cached = authUserCache.get(sub);
   if (cached) {
     if (cached.blocked) return null;
     if ((cached.tokenVersion ?? 0) !== tokenVersion) return null;
-    return toAuthUser(cached, totpSetupPending);
+    return toAuthUser(cached, totpSetupPending, sessionId);
   }
 
   const user = await prisma.user.findUnique({
@@ -66,19 +79,18 @@ async function userFromToken(req) {
   authUserCache.set(sub, user);
   if (user.blocked) return null;
   if ((user.tokenVersion ?? 0) !== tokenVersion) return null;
-  return toAuthUser(user, totpSetupPending);
+  return toAuthUser(user, totpSetupPending, sessionId);
 }
 
-export function invalidateAuthUserCache(userId) {
+export function invalidateAuthUserCache(userId?: string | null) {
   if (userId) authUserCache.del(userId);
 }
 
-function pathAllowedDuringTotpSetup(req) {
-  const path = String(req.originalUrl || req.url || '').split('?')[0];
-  return TOTP_SETUP_ALLOW.has(path);
+function pathAllowedDuringTotpSetup(req: Request) {
+  return isPathAllowedDuringTotpSetup(String(req.originalUrl || req.url || `${req.baseUrl || ''}${req.path || ''}`));
 }
 
-export async function authJwt(req, res, next) {
+export async function authJwt(req: Request, res: Response, next: NextFunction) {
   try {
     const user = await userFromToken(req);
     if (!user) {
@@ -97,7 +109,7 @@ export async function authJwt(req, res, next) {
   }
 }
 
-export async function optionalAuthJwt(req, res, next) {
+export async function optionalAuthJwt(req: Request, res: Response, next: NextFunction) {
   try {
     req.user = await userFromToken(req);
   } catch {

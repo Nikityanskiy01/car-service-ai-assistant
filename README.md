@@ -53,6 +53,7 @@ npm run seed:demo
 - [Онбординг](docs/ONBOARDING.md)
 - [Архитектура](docs/architecture.md)
 - [Продукт и роли](docs/product.md)
+- [Каталог фич и стека](docs/FEATURES-AND-STACK.md)
 - [Тестирование](docs/testing.md)
 - [Деплой](docs/deploy.md)
 - [Демо-сценарий](docs/demo.md)

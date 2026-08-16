@@ -1,0 +1,465 @@
+/* Manager calendar — week grid and event cards */
+
+.calendar-controls {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.calendar-range-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.calendar-range-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.45rem 0.75rem;
+  text-align: center;
+}
+
+.calendar-range-copy strong {
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.calendar-today-link {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.calendar-today-link:hover {
+  text-decoration: underline;
+}
+
+.calendar-today-link:focus-visible,
+.booking-event:focus-visible,
+.booking-week-head:focus-visible,
+.booking-capacity-day:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.calendar-legend {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.calendar-legend-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.45rem 1rem;
+}
+
+.calendar-legend-head h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+}
+
+.calendar-legend-head .muted {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+}
+
+.calendar-legend-today-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.calendar-legend-today {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  flex-shrink: 0;
+}
+
+.calendar-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.75rem, 1fr));
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.calendar-legend-card {
+  --event-tone: var(--color-text-secondary);
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+  padding: 0.5rem 0.65rem 0.55rem 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--event-tone) 26%, var(--color-border));
+  border-left-width: 3px;
+  border-left-color: var(--event-tone);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--event-tone) 9%, var(--color-surface-secondary));
+}
+
+.calendar-legend-card strong {
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.calendar-legend-card span {
+  font-size: 0.74rem;
+  line-height: 1.3;
+  color: var(--color-text-secondary);
+}
+
+.calendar-legend-card[data-status='pending'],
+.booking-event[data-status='pending'] {
+  --event-tone: var(--color-warning);
+}
+
+.calendar-legend-card[data-status='confirmed'],
+.booking-event[data-status='confirmed'] {
+  --event-tone: var(--color-primary);
+}
+
+.calendar-legend-card[data-status='arrived'],
+.booking-event[data-status='arrived'] {
+  --event-tone: var(--color-success);
+}
+
+.calendar-legend-card[data-status='completed'],
+.booking-event[data-status='completed'] {
+  --event-tone: color-mix(in oklab, var(--color-success) 42%, var(--color-text-secondary));
+}
+
+.calendar-legend-card[data-status='no-show'],
+.booking-event[data-status='no-show'] {
+  --event-tone: color-mix(in oklab, var(--color-warning) 55%, var(--color-danger));
+}
+
+.calendar-legend-card[data-status='cancelled'],
+.booking-event[data-status='cancelled'] {
+  --event-tone: var(--color-danger);
+}
+
+.calendar-capacity {
+  padding: 0.7rem 0.8rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.booking-capacity-day {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.booking-capacity-day.is-today .muted {
+  color: var(--color-text-primary);
+}
+
+.booking-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.booking-week.is-day {
+  grid-template-columns: minmax(0, 1fr);
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+.booking-week-day {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 18.5rem;
+  padding: 0.5rem 0.4rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  scroll-snap-align: start;
+}
+
+.booking-week.is-day .booking-week-day {
+  min-height: 0;
+  padding: 0.7rem 0.75rem 0.85rem;
+}
+
+.booking-week-day.is-today {
+  border-color: color-mix(in oklab, var(--brand-accent) 48%, var(--color-border));
+  background: color-mix(in oklab, var(--brand-accent) 7%, var(--color-surface));
+}
+
+.booking-week-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 0.35rem;
+  row-gap: 0.12rem;
+  width: 100%;
+  margin: 0 0 0.45rem;
+  padding: 0 0.1rem 0.45rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+header.booking-week-head {
+  cursor: default;
+}
+
+.booking-week-weekday {
+  grid-column: 1;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--color-text-secondary);
+}
+
+.booking-week-date {
+  grid-column: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.booking-week-num {
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.booking-week-day.is-today .booking-week-num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.92rem;
+}
+
+.booking-week-count {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.booking-week-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.booking-week-list.is-page {
+  gap: 0.4rem;
+}
+
+.booking-week-empty {
+  margin: auto 0;
+  padding: 1.4rem 0.4rem;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.booking-event {
+  --event-tone: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.16rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.45rem 0.42rem 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--event-tone) 26%, var(--color-border));
+  border-left-width: 3px;
+  border-left-color: var(--event-tone);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--event-tone) 9%, var(--color-surface-secondary));
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    background var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.booking-event[data-status='cancelled'] {
+  opacity: 0.78;
+}
+
+.booking-event-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.booking-event-time {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.booking-event.is-stack .booking-event-meta {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08rem;
+}
+
+.booking-event-status {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: color-mix(in oklab, var(--event-tone) 82%, white);
+}
+
+.booking-event-copy {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.booking-event-name,
+.booking-event-car {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-event-name {
+  font-size: 0.82rem;
+  font-weight: 560;
+  line-height: 1.25;
+}
+
+.booking-event-car {
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+}
+
+.booking-event[data-status='cancelled'] .booking-event-name {
+  text-decoration: line-through;
+}
+
+.booking-event.is-row {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, auto) minmax(0, 1fr);
+  grid-template-areas: 'meta copy';
+  align-items: center;
+  gap: 0.7rem 0.85rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.booking-event.is-row .booking-event-meta {
+  grid-area: meta;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+}
+
+.booking-event.is-row .booking-event-status {
+  max-width: 100%;
+}
+
+.booking-event.is-row .booking-event-copy {
+  grid-area: copy;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .booking-event:hover {
+    background: color-mix(in oklab, var(--event-tone) 16%, var(--color-surface-secondary));
+  }
+
+  button.booking-week-head:hover .booking-week-weekday {
+    color: var(--color-text-primary);
+  }
+}
+
+.booking-event:active {
+  transform: scale(0.985);
+}
+
+@media (max-width: 900px) {
+  .booking-week:not(.is-day) {
+    grid-template-columns: repeat(7, minmax(10.5rem, 1fr));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 0.25rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .booking-week.is-day .booking-event.is-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'meta' 'copy';
+    gap: 0.28rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-event,
+  .calendar-today-link {
+    transition: none;
+  }
+
+  .booking-event:active {
+    transform: none;
+  }
+}

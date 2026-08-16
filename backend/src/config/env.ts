@@ -63,7 +63,7 @@ const schema = z.object({
   LLM_EXTRACTION_NUM_PREDICT: z.coerce.number().default(280),
   /** Отдельная модель для финального диагноза (пусто = LLM_MODEL). */
   LLM_DIAGNOSIS_MODEL: z.string().optional(),
-  LLM_DIAGNOSIS_NUM_PREDICT: z.coerce.number().default(420),
+  LLM_DIAGNOSIS_NUM_PREDICT: z.coerce.number().default(640),
   LLM_DIAGNOSIS_TIMEOUT_MS: z.coerce.number().default(240000),
   LLM_KEEP_ALIVE: z.string().default('30m'),
   LLM_FORCE_EXTRACTION: z

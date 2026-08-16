@@ -1,10 +1,8 @@
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { apiMessages } from '../config/apiMessages.js';
 
-/**
- * @param roles
- */
-export function requireRole(...roles) {
-  return (req, res, next) => {
+export function requireRole(...roles: string[]): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: apiMessages.common.unauthorized, code: 'UNAUTHORIZED' });
     }

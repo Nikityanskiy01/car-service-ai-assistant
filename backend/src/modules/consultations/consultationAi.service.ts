@@ -11,6 +11,11 @@ export {
   normalizeDiagnosisResult,
   mergeDiagnosis,
 } from './consultationAi/merge.js';
+export {
+  buildPlaybookFallbackDiagnosis,
+  buildManualReviewDiagnosis,
+  formatDiagnosisChatMessage,
+} from './consultationAi/quality.js';
 export { generateDiagnosis, generateDiagnosisCore } from './consultationAi/generate.js';
 
 export {

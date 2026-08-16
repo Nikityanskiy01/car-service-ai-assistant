@@ -27,9 +27,21 @@ function csrfTokensMatch(cookie, header) {
 }
 
 export function requestPath(req) {
-  const fromParts = `${req.baseUrl || ''}${req.path || ''}`;
-  if (fromParts) return fromParts.split('?')[0];
+  const fromParts = `${req.baseUrl || ''}${req.path || ''}`.split('?')[0];
+  if (fromParts) return fromParts;
   return String(req.originalUrl || '').split('?')[0];
+}
+
+function withApiPrefix(path) {
+  const value = String(path || '');
+  if (!value) return value;
+  if (value === '/api' || value.startsWith('/api/')) return value;
+  return value.startsWith('/') ? `/api${value}` : `/api/${value}`;
+}
+
+function isCsrfExemptPost(req) {
+  const candidates = [requestPath(req), String(req.originalUrl || '').split('?')[0]];
+  return candidates.some((path) => CSRF_EXEMPT_POST_PATHS.has(path) || CSRF_EXEMPT_POST_PATHS.has(withApiPrefix(path)));
 }
 
 /**
@@ -45,7 +57,7 @@ export function csrfProtection(req, res, next) {
 
   const fullPath = requestPath(req);
 
-  if (method === 'POST' && CSRF_EXEMPT_POST_PATHS.has(fullPath)) return next();
+  if (method === 'POST' && isCsrfExemptPost(req)) return next();
 
   if (fullPath.startsWith('/api/webhooks/')) return next();
 

@@ -1,5 +1,5 @@
 import type { SelectHTMLAttributes } from 'react';
 
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className="select" {...props} />;
+export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={`select ${className}`.trim()} {...props} />;
 }

@@ -33,10 +33,10 @@ const routeTitles: Record<string, string> = {
   '/dashboard/client/profile': 'Профиль',
   '/dashboard/manager': 'Рабочий стол',
   '/dashboard/manager/profile': 'Профиль',
-  '/dashboard/manager/requests': 'Заявки',
+  '/dashboard/manager/requests': 'Очередь',
   '/dashboard/manager/calendar': 'Календарь',
   '/dashboard/manager/clients': 'Клиенты',
-  '/dashboard/manager/contacts': 'Обращения с сайта',
+  '/dashboard/manager/contacts': 'Сообщения с сайта',
   '/dashboard/manager/ai-quality': 'Качество ИИ',
   '/dashboard/admin/profile': 'Профиль',
 };
@@ -118,7 +118,11 @@ export function DashboardShell() {
   // even if they received a different context copy than this shell.
   bindDashboardChrome(dashboardContext);
   useLayoutEffect(() => bindDashboardChrome(dashboardContext), [dashboardContext]);
-  useManagerNavBadges(isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR'), setBadges);
+  const totpLock = Boolean(user?.totpSetupPending);
+  useManagerNavBadges(
+    !totpLock && isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR'),
+    setBadges,
+  );
   const roleLabel =
     user?.role === 'ADMINISTRATOR' ? 'Администратор' : user?.role === 'MANAGER' ? 'Менеджер' : 'Клиент';
   const profilePath = `${dashboardZoneFor(location.pathname)}/profile`;
@@ -126,7 +130,7 @@ export function DashboardShell() {
   return (
     <TooltipProvider>
     <div
-      className={`dashboard-shell${mobileOpen ? ' mobile-nav-open' : ''}${isAdmin ? ' admin-zone' : ''}${isClient && isClientUser ? ' has-client-bottom-nav' : ''}${isManager ? ' has-manager-bottom-nav' : ''}`}
+      className={`dashboard-shell${mobileOpen ? ' mobile-nav-open' : ''}${isAdmin ? ' admin-zone' : ''}${isClient && isClientUser ? ' has-client-bottom-nav' : ''}${isManager && !totpLock ? ' has-manager-bottom-nav' : ''}`}
       data-console={isManager ? 'manager' : isAdmin ? 'admin' : undefined}
     >
       <a href="#dashboard-main" className="skip-link">
@@ -141,7 +145,7 @@ export function DashboardShell() {
           allowCollapse={false}
         />
       ) : null}
-      {isManager && !compactManagerNav && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
+      {isManager && !totpLock && !compactManagerNav && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
         <ManagerSidebar
           items={managerNavItems}
           badges={badges}
@@ -163,11 +167,12 @@ export function DashboardShell() {
       <div className="dashboard-shell-main">
         {isManager ? (
           <ManagerTopbar
-            title={title}
+            title={totpLock ? 'Защита входа' : title}
             roleLabel={roleLabel}
             profilePath={profilePath}
             onMenuClick={() => setMobileOpen(true)}
-            onCommandPalette={() => commandPalette.setOpen(true)}
+            onCommandPalette={totpLock ? undefined : () => commandPalette.setOpen(true)}
+            totpLock={totpLock}
           />
         ) : (
           <DashboardTopbar
@@ -187,7 +192,7 @@ export function DashboardShell() {
           </DashboardContext.Provider>
         </main>
       </div>
-      {isAdmin || isManager ? (
+      {isAdmin || (isManager && !totpLock) ? (
         <CommandPalette
           open={commandPalette.open}
           query={commandPalette.query}
@@ -204,7 +209,7 @@ export function DashboardShell() {
           <ClientOnboarding open={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
         </>
       ) : null}
-      {isManager && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
+      {isManager && !totpLock && (user?.role === 'MANAGER' || user?.role === 'ADMINISTRATOR') ? (
         <ManagerBottomNav
           badges={badges}
           onCommandPalette={() => commandPalette.setOpen(true)}

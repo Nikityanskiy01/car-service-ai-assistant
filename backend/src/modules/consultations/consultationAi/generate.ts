@@ -15,15 +15,17 @@ import {
 } from '../../../lib/diagnosisCache.js';
 import { isFieldFilled } from '../../../services/consultationFlowService.js';
 import { chatCompletionWithMeta } from '../../../services/ollamaService.js';
-import { pickPlaybook, playbookToAiHints } from '../../../lib/diagnosticPlaybooks.js';
+import { enrichRuleBasedWithPlaybook, pickPlaybook, playbookToAiHints } from '../../../lib/diagnosticPlaybooks.js';
 import { formatObdForPrompt } from '../../../lib/obdCodeCatalog.js';
 import { parseObdCodes } from '../../../lib/obdCodes.js';
+import { estimateCostFromMinor } from '../../../lib/pricing.js';
 import { topWorksForCategory, topWorksForCategoryAndMake } from '../../../lib/workStats.js';
+import { detectConsultationIntent } from '../../../services/consultationIntent.service.js';
 import { safeJsonParse } from '../../../utils/safeJsonParse.js';
 import { logger } from '../../../lib/logger.js';
 import { mergeDiagnosis, normalizeDiagnosis, normalizeDiagnosisResult } from './merge.js';
 import { preAnalyzeSymptoms } from './preAnalyze.js';
-import { buildManualReviewDiagnosis, validateDiagnosisQuality } from './quality.js';
+import { buildPlaybookFallbackDiagnosis, validateDiagnosisQuality } from './quality.js';
 
 function cacheDiagnosisIfSuccessful(cacheKey, result) {
   if (result?.analysis_available !== false && result?.status !== 'MANUAL_REVIEW_REQUIRED') {
@@ -55,10 +57,14 @@ export async function generateDiagnosisCore(data) {
     ? data.photo_observations.map((x) => String(x)).filter(Boolean).slice(0, 8)
     : [];
 
-  const ruleBased = preAnalyzeSymptoms(payload);
+  const ruleBasedRaw = preAnalyzeSymptoms(payload);
+  const pb = pickPlaybook(payload, String(data.symptoms || ''));
+  const ruleBased = enrichRuleBasedWithPlaybook(ruleBasedRaw, pb, `${payload.symptoms || ''} ${cond || ''}`);
   const hasCriticalSafety = String(ruleBased?.urgency || '').toLowerCase() === 'critical';
-  if (!isFieldFilled('symptoms', data.symptoms) || (!isFieldFilled('conditions', cond) && !hasCriticalSafety)) {
-    return buildManualReviewDiagnosis({ reason: 'INSUFFICIENT_DATA', ruleBased });
+  const isService =
+    data.intent === 'service' || detectConsultationIntent(String(data.symptoms || '')) === 'service';
+  if (!isFieldFilled('symptoms', data.symptoms) || (!isService && !isFieldFilled('conditions', cond) && !hasCriticalSafety)) {
+    return buildPlaybookFallbackDiagnosis({ reason: 'INSUFFICIENT_DATA', ruleBased, playbook: pb, payload });
   }
 
   const cacheKey = buildDiagnosisCacheKey(payload);
@@ -68,7 +74,6 @@ export async function generateDiagnosisCore(data) {
     return cached;
   }
 
-  const pb = pickPlaybook(payload, String(data.symptoms || ''));
   const pbHints = playbookToAiHints(pb);
   const tw =
     pbHints?.categoryId && payload.car_make
@@ -114,6 +119,17 @@ export async function generateDiagnosisCore(data) {
             (extraInstructions ? `\n\nТребуется исправить JSON по замечаниям:\n${extraInstructions}` : ''),
         },
       ],
+    });
+  const structuredFallback = (reason, executionMeta) =>
+    buildPlaybookFallbackDiagnosis({
+      reason,
+      executionMeta,
+      ruleBased,
+      playbook: pb,
+      payload,
+      estimatedCost: estimateCostFromMinor(payload, {
+        recommendations: (ruleBased.probable_causes || []).map((title) => ({ title })),
+      }),
     });
   try {
     const startedAt = new Date().toISOString();
@@ -167,7 +183,7 @@ export async function generateDiagnosisCore(data) {
           );
         }
       }
-      return buildManualReviewDiagnosis({ reason: 'LLM_VALIDATION_FAILED', executionMeta, ruleBased });
+      return cacheDiagnosisIfSuccessful(cacheKey, structuredFallback('LLM_VALIDATION_FAILED', executionMeta));
     }
     return cacheDiagnosisIfSuccessful(cacheKey, normalizeDiagnosisResult({ ...merged, execution_meta: executionMeta }));
   } catch (err) {
@@ -177,12 +193,11 @@ export async function generateDiagnosisCore(data) {
         code: 'LLM_UNAVAILABLE',
         err: err instanceof Error ? err.message : String(err || ''),
       },
-      'diagnosis switched to manual review',
+      'diagnosis switched to playbook fallback',
     );
-    return buildManualReviewDiagnosis({
-      reason: 'LLM_UNAVAILABLE',
-      ruleBased,
-      executionMeta: {
+    return cacheDiagnosisIfSuccessful(
+      cacheKey,
+      structuredFallback('LLM_UNAVAILABLE', {
         provider: 'fallback',
         model: diagnosisModel || null,
         requestId: `diag-${Date.now()}`,
@@ -193,7 +208,7 @@ export async function generateDiagnosisCore(data) {
         streamed: false,
         status: 'FAILED',
         errorCode: 'LLM_UNAVAILABLE',
-      },
-    });
+      }),
+    );
   }
 }

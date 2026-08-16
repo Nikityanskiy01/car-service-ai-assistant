@@ -1,12 +1,10 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { z } from 'zod';
 import { authJwt } from '../../middleware/authJwt.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
 import { validateBody } from '../../middleware/validate.js';
 import { clearAuthCookies, readCookieValue, setAuthCookies } from '../../lib/authCookies.js';
 import { getEnv } from '../../config/env.js';
-import { registerPasswordSchema } from '../../lib/passwordPolicy.js';
 import * as authService from '../auth/auth.service.js';
 import * as consultationsService from '../consultations/consultations.service.js';
 import * as securityService from './security.service.js';
@@ -14,81 +12,21 @@ import * as contactVerifyService from './contactVerify.service.js';
 import * as usersService from './users.service.js';
 import * as inboxService from '../notifications/inbox.service.js';
 import * as privacyService from '../privacy/privacy.service.js';
-
-const patchSchema = z.object({
-  fullName: z.string().min(1).optional(),
-  phone: z.string().min(5).optional(),
-  emailProfile: z.string().email().optional().nullable(),
-  city: z.string().max(120).optional().nullable(),
-  telegram: z.string().max(64).optional().nullable(),
-  preferredContact: z.enum(['PHONE', 'EMAIL', 'TELEGRAM']).optional().nullable(),
-});
-
-const avatarSchema = z.object({
-  mimeType: z.string().min(3).max(120),
-  contentBase64: z.string().min(1).max(3_000_000),
-});
-
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: registerPasswordSchema,
-});
-
-const totpConfirmSchema = z.object({
-  code: z.string().trim().regex(/^\d{6}$/, 'Код должен содержать 6 цифр'),
-});
-
-const totpVerifySchema = z.object({
-  password: z.string().min(1),
-  code: z.string().trim().min(6).max(20),
-});
-
-const totpDisableSchema = totpVerifySchema.extend({
-  confirmPhrase: z
-    .string()
-    .trim()
-    .transform((v) => v.toUpperCase())
-    .refine((v) => v === 'УДАЛИТЬ', { message: 'Чтобы отключить защиту, введите слово УДАЛИТЬ' }),
-});
-
-const phoneVerifyConfirmSchema = z.object({
-  code: z.string().trim().regex(/^\d{6}$/, 'Код должен содержать 6 цифр'),
-});
-
-const sessionRevokeStartSchema = z.object({
-  scope: z.enum(['one', 'others']).default('others'),
-  sessionId: z.string().uuid().optional(),
-});
-
-const sessionRevokeConfirmSchema = z.object({
-  code: z.string().trim().regex(/^\d{6}$/, 'Код должен содержать 6 цифр'),
-});
-
-const loginMethodsSchema = z.object({
-  loginEmailOtpEnabled: z.boolean().optional(),
-  loginSmsEnabled: z.boolean().optional(),
-  loginTelegramEnabled: z.boolean().optional(),
-  password: z.string().min(1).optional(),
-  code: z.string().trim().max(20).optional(),
-});
-
-const notificationPrefsSchema = z.object({
-  bookingReminders: z.boolean().optional(),
-  messageAlerts: z.boolean().optional(),
-  marketing: z.boolean().optional(),
-  channelEmail: z.boolean().optional(),
-  channelTelegram: z.boolean().optional(),
-  channelSms: z.boolean().optional(),
-});
-
-const markNotificationsReadSchema = z.object({
-  ids: z.array(z.string().uuid()).max(100).optional(),
-});
-
-const sensitiveActionSchema = z.object({
-  password: z.string().min(1),
-  code: z.string().trim().max(20).optional(),
-});
+import {
+  patchSchema,
+  avatarSchema,
+  changePasswordSchema,
+  totpConfirmSchema,
+  totpVerifySchema,
+  totpDisableSchema,
+  phoneVerifyConfirmSchema,
+  sessionRevokeStartSchema,
+  sessionRevokeConfirmSchema,
+  loginMethodsSchema,
+  notificationPrefsSchema,
+  markNotificationsReadSchema,
+  sensitiveActionSchema,
+} from './users.schemas.js';
 
 const env = getEnv();
 
@@ -230,11 +168,16 @@ usersRouter.post(
 usersRouter.get(
   '/me/security',
   asyncHandler(async (req, res) => {
-    const currentRefreshToken = readCookieValue(req, 'refresh') || null;
+    const meta = requestAuthMeta(req);
     const [status, history, sessions] = await Promise.all([
       securityService.getSecurityStatus(req.user.id),
       securityService.listLoginHistory(req.user.id, 20),
-      securityService.listActiveSessions(req.user.id, currentRefreshToken),
+      securityService.listActiveSessions(req.user.id, {
+        refreshToken: readCookieValue(req, 'refresh') || null,
+        sessionId: req.user.sessionId || null,
+        requestIp: meta.ip,
+        requestUserAgent: meta.userAgent,
+      }),
     ]);
     res.json({ ...status, history, sessions });
   }),
@@ -349,8 +292,13 @@ usersRouter.get(
 usersRouter.get(
   '/me/sessions',
   asyncHandler(async (req, res) => {
-    const currentRefreshToken = readCookieValue(req, 'refresh') || null;
-    const sessions = await securityService.listActiveSessions(req.user.id, currentRefreshToken);
+    const meta = requestAuthMeta(req);
+    const sessions = await securityService.listActiveSessions(req.user.id, {
+      refreshToken: readCookieValue(req, 'refresh') || null,
+      sessionId: req.user.sessionId || null,
+      requestIp: meta.ip,
+      requestUserAgent: meta.userAgent,
+    });
     res.json({ items: sessions });
   }),
 );
@@ -370,12 +318,11 @@ usersRouter.delete(
   sensitiveActionLimiter,
   validateBody(sessionRevokeConfirmSchema),
   asyncHandler(async (req, res) => {
-    const currentRefreshToken = readCookieValue(req, 'refresh') || null;
     const out = await securityService.revokeSession(
       req.user.id,
       req.params.sessionId,
-      currentRefreshToken,
-      req.validatedBody,
+      readCookieValue(req, 'refresh') || null,
+      { ...req.validatedBody, currentSessionId: req.user.sessionId || null },
     );
     res.json(out);
   }),
@@ -386,11 +333,10 @@ usersRouter.post(
   sensitiveActionLimiter,
   validateBody(sessionRevokeConfirmSchema),
   asyncHandler(async (req, res) => {
-    const currentRefreshToken = readCookieValue(req, 'refresh') || null;
     const out = await securityService.revokeOtherSessions(
       req.user.id,
-      currentRefreshToken,
-      req.validatedBody,
+      readCookieValue(req, 'refresh') || null,
+      { ...req.validatedBody, currentSessionId: req.user.sessionId || null },
     );
     res.json(out);
   }),

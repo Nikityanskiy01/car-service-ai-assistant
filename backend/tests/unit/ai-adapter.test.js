@@ -5,7 +5,10 @@ import {
   mergeDiagnosis,
   normalizeDiagnosisResult,
   preAnalyzeSymptoms,
+  buildPlaybookFallbackDiagnosis,
+  formatDiagnosisChatMessage,
 } from '../../src/modules/consultations/consultationAi.service.js';
+import { pickPlaybook } from '../../src/lib/diagnosticPlaybooks.js';
 
 describe('ai-adapter — парсинг и нормализация ответа LLM', () => {
   it('coerceDiagnosisLine извлекает title из объекта', () => {
@@ -86,5 +89,62 @@ describe('ai-adapter — код ошибки LLM (FR-025b)', () => {
     const err = new AppError(503, 'LLM unavailable', 'LLM_ERROR');
     expect(err.statusCode).toBe(503);
     expect(err.code).toBe('LLM_ERROR');
+  });
+});
+
+describe('ai-adapter — playbook fallback', () => {
+  it('стук на кочках даёт полноценный разбор, а не «анализ недоступен»', () => {
+    const payload = {
+      car_make: 'Kia',
+      car_model: 'Rio',
+      symptoms: 'Стук спереди на кочках',
+      conditions: 'город, мелкие неровности',
+    };
+    const pb = pickPlaybook(payload, payload.symptoms);
+    expect(pb?.id).toBe('suspension-knock');
+    const ruleBased = preAnalyzeSymptoms(payload);
+    const out = buildPlaybookFallbackDiagnosis({
+      reason: 'LLM_UNAVAILABLE',
+      ruleBased,
+      playbook: pb,
+      payload,
+      estimatedCost: 3000,
+    });
+    expect(out.status).toBe('SUCCESS');
+    expect(out.analysis_available).toBe(true);
+    expect(out.probable_causes.length).toBeGreaterThanOrEqual(2);
+    expect(out.recommended_checks.length).toBeGreaterThanOrEqual(2);
+    expect(String(out.summary).toLowerCase()).toMatch(/rio|подвеск|стук/);
+  });
+
+  it('плановое ТО не требует условий проявления', () => {
+    const payload = { car_make: 'Hyundai', car_model: 'Solaris', symptoms: 'Плановое ТО 90 тыс.' };
+    const pb = pickPlaybook(payload, payload.symptoms);
+    expect(pb?.id).toBe('planned-maintenance');
+    const out = buildPlaybookFallbackDiagnosis({
+      reason: 'INSUFFICIENT_DATA',
+      ruleBased: preAnalyzeSymptoms(payload),
+      playbook: pb,
+      payload,
+    });
+    expect(out.status).toBe('SUCCESS');
+    expect(out.urgency).toBe('low');
+    expect(out.probable_causes.join(' ').toLowerCase()).toMatch(/масл/);
+  });
+});
+
+describe('ai-adapter — текст диагноза в чате', () => {
+  it('formatDiagnosisChatMessage кладёт причины в ответ ассистента', () => {
+    const text = formatDiagnosisChatMessage({
+      summary: 'По Kia Rio ориентир — передняя подвеска.',
+      probable_causes: ['Износ стойки амортизатора', 'Люфт опоры'],
+      recommended_checks: ['Проверка люфта на подъёмнике'],
+      analysis_available: true,
+      status: 'SUCCESS',
+    });
+    expect(text).toContain('передняя подвеска');
+    expect(text).toContain('Наиболее вероятные причины');
+    expect(text).toContain('1. Износ стойки амортизатора');
+    expect(text).toContain('Что проверим на посту');
   });
 });

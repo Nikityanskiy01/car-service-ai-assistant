@@ -7,9 +7,8 @@ import { RequestSummaryPanel } from '../../components/requests/RequestSummaryPan
 import { SimilarCasesPanel } from '../../components/requests/SimilarCasesPanel';
 import { UserMessage } from '../../components/consultation/UserMessage';
 import { FollowUpChatPanel } from '../../components/messages/FollowUpChatPanel';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/console/ui/card';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Button } from '../../components/console/ui/button';
-import { IntegrationStatusBadge } from '../../components/ui/IntegrationStatusBadge';
 import { MESSAGE_TEMPLATES } from '../../lib/messageTemplates';
 import {
   INTEGRATION_JOB_STATUS_LABELS,
@@ -25,60 +24,58 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
   return (
     <>
       {d.tab === 'summary' && (
-        <Card>
-          <CardContent>
-            <RequestSummaryPanel
-            request={request}
-            integrations={d.integrations}
-            calendarPath={d.paths.calendar}
-            onFeedbackSaved={(feedback) =>
-              d.setRequest((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      consultationSession: prev.consultationSession
-                        ? { ...prev.consultationSession, feedback }
-                        : prev.consultationSession,
-                    }
-                  : prev,
-              )
-            }
-          />
-          </CardContent>
-        </Card>
+        <RequestSummaryPanel
+          request={request}
+          integrations={d.integrations}
+          calendarPath={d.paths.calendar}
+          phone={d.phone}
+          onBook={() => d.openBooking()}
+          onOpenMessages={() => d.setTab('messages')}
+        />
       )}
 
-      {d.tab === 'consultation' && (
-        <Card className="consultation-thread">
-          <CardContent className="flex flex-col gap-3">
-          <ConsultationStagesTimeline
-            progressPercent={session?.progressPercent}
-            hasDiagnosis={Boolean(d.diagnosis)}
-            messageCount={session?.messages?.length ?? 0}
+      {d.tab === 'consultation' &&
+        (session?.messages?.length ? (
+          <section className="request-thread">
+            <ConsultationStagesTimeline
+              progressPercent={session?.progressPercent}
+              hasDiagnosis={Boolean(d.diagnosis)}
+              messageCount={session.messages.length}
+            />
+            <ConsultationPhotoGallery
+              photoObservations={session?.flowState?.photo_observations}
+              messageContents={session.messages.map((message) => message.content)}
+            />
+            <div className="request-thread-log">
+              {session.messages.map((message) =>
+                message.sender === 'ASSISTANT' || message.sender === 'assistant' ? (
+                  <AssistantMessage key={message.id} message={message} />
+                ) : (
+                  <UserMessage key={message.id} message={message} />
+                ),
+              )}
+            </div>
+          </section>
+        ) : (
+          <EmptyState
+            title="Консультации ИИ не было"
+            description="Клиент написал напрямую. Разбор и запись ведите со сводки и переписки."
+            action={
+              <div className="request-empty-actions">
+                <Button type="button" variant="outline" onClick={() => d.setTab('messages')}>
+                  Открыть переписку
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => d.setTab('summary')}>
+                  К сводке
+                </Button>
+              </div>
+            }
           />
-          <ConsultationPhotoGallery
-            photoObservations={session?.flowState?.photo_observations}
-            messageContents={(session?.messages || []).map((message) => message.content)}
-          />
-          {session?.messages?.length ? (
-            session.messages.map((message) =>
-              message.sender === 'ASSISTANT' || message.sender === 'assistant' ? (
-                <AssistantMessage key={message.id} message={message} />
-              ) : (
-                <UserMessage key={message.id} message={message} />
-              ),
-            )
-          ) : (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Клиент пришёл без консультации ИИ либо переписка не сохранилась.
-            </p>
-          )}
-          </CardContent>
-        </Card>
-      )}
+        ))}
 
       {d.tab === 'messages' && (
         <FollowUpChatPanel
+          title="Переписка"
           messages={d.messages}
           value={d.reply}
           onChange={d.setReply}
@@ -108,9 +105,8 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
       )}
 
       {d.tab === 'works' && (
-        <div className="flex flex-col gap-3">
-          <Card>
-            <CardContent>
+        <div className="request-works">
+          <div className="request-works-eval">
             <ConsultationFeedbackPanel
               requestId={request.id}
               initial={session?.feedback}
@@ -122,42 +118,32 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
                         consultationSession: prev.consultationSession
                           ? { ...prev.consultationSession, feedback }
                           : prev.consultationSession,
-                    }
-                  : prev,
+                      }
+                    : prev,
                 )
               }
             />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent>
+          </div>
+          <div className="request-works-side">
             <RequestCompletionDocumentsPanel requestId={request.id} requestStatus={request.status} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent>
             <SimilarCasesPanel requestId={request.id} />
-            </CardContent>
-          </Card>
+          </div>
         </div>
       )}
 
       {d.tab === 'history' && (
-        <div className="flex flex-col gap-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>История</CardTitle>
-            </CardHeader>
-            <CardContent>
-            <ul className="flex flex-col gap-2 text-sm">
-              <li className="flex gap-3">
+        <div className="request-history-desk">
+          <section className="request-history-col">
+            <h2>История</h2>
+            <ol className="request-timeline">
+              <li>
                 <time className="tnum">{new Date(request.createdAt).toLocaleString('ru-RU')}</time>
-                <span>Заявка создана</span>
+                <p>Заявка создана</p>
               </li>
               {d.statusHistory.map((row) => (
                 <li key={row.id}>
                   <time className="tnum">{new Date(row.createdAt).toLocaleString('ru-RU')}</time>
-                  <span>
+                  <p>
                     Статус:{' '}
                     {row.fromStatus
                       ? SERVICE_REQUEST_STATUS_LABELS[row.fromStatus as ServiceRequestStatus] ||
@@ -165,13 +151,13 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
                       : 'нет'}{' '}
                     → {SERVICE_REQUEST_STATUS_LABELS[row.toStatus as ServiceRequestStatus] || row.toStatus}
                     {row.actor?.fullName ? ` (${row.actor.fullName})` : ''}
-                  </span>
+                  </p>
                 </li>
               ))}
               {d.messages.map((message) => (
                 <li key={message.id}>
                   <time className="tnum">{new Date(message.createdAt).toLocaleString('ru-RU')}</time>
-                  <span>Отправлено сообщение менеджером</span>
+                  <p>Отправлено сообщение менеджером</p>
                 </li>
               ))}
               {session?.feedback ? (
@@ -179,7 +165,7 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
                   <time className="tnum">
                     {new Date(session.feedback.updatedAt).toLocaleString('ru-RU')}
                   </time>
-                  <span>Оценка диагноза ИИ сохранена</span>
+                  <p>Оценка диагноза ИИ сохранена</p>
                 </li>
               ) : null}
               {d.integrations?.jobs
@@ -187,20 +173,16 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
                 .map((job) => (
                   <li key={job.id}>
                     <time className="tnum">{new Date(job.updatedAt).toLocaleString('ru-RU')}</time>
-                    <span>Заявка передана в учётную систему</span>
+                    <p>Заявка передана в учётную систему</p>
                   </li>
                 ))}
-            </ul>
-            </CardContent>
-          </Card>
+            </ol>
+          </section>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Синхронизация с учётной системой</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
+          <section className="request-history-col">
+            <h2>Учётная система</h2>
             {!d.connections.length ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="request-history-note">
                 Администратор может подключить CRM в разделе интеграций.
               </p>
             ) : null}
@@ -223,19 +205,22 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
                 ))}
               </ul>
             ) : d.connections.length ? (
-              <p className="text-sm text-muted-foreground">Заявка ещё не передана во внешнюю систему.</p>
+              <p className="request-history-note">Заявка ещё не передана во внешнюю систему.</p>
             ) : null}
             {d.integrations?.jobs?.length ? (
-              <div className="integration-jobs">
+              <div className="request-jobs">
                 <h3>Последние попытки</h3>
                 <ul>
                   {d.integrations.jobs.map((job) => (
-                    <li key={job.id}>
-                      <IntegrationStatusBadge status={job.status} />
-                      <span>{INTEGRATION_JOB_STATUS_LABELS[job.status] || job.status}</span>
-                      {job.lastErrorMessage ? <span className="danger">{job.lastErrorMessage}</span> : null}
+                    <li key={job.id} className="request-job">
+                      <div className="request-job-head">
+                        <span className={`integration-status-badge status-${job.status.toLowerCase()}`}>
+                          {INTEGRATION_JOB_STATUS_LABELS[job.status] || job.status}
+                        </span>
+                      </div>
+                      {job.lastErrorMessage ? <p className="request-job-error">{job.lastErrorMessage}</p> : null}
                       {['FAILED', 'RETRYING', 'DEAD_LETTER'].includes(job.status) ? (
-                        <Button variant="ghost" onClick={() => void d.handleRetry(job.connectionId)}>
+                        <Button variant="ghost" size="sm" onClick={() => void d.handleRetry(job.connectionId)}>
                           Повторить
                         </Button>
                       ) : null}
@@ -244,8 +229,7 @@ export function ManagerRequestPanels({ d }: { d: LoadedManagerRequest }) {
                 </ul>
               </div>
             ) : null}
-            </CardContent>
-          </Card>
+          </section>
         </div>
       )}
     </>

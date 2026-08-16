@@ -1,7 +1,8 @@
 import { Worker } from 'bullmq';
 import { getEnv } from '../config/env.js';
 import { logger } from '../lib/logger.js';
-import { generateDiagnosisCore } from '../modules/consultations/consultationAi.service.js';
+import { generateDiagnosisCore, buildPlaybookFallbackDiagnosis, preAnalyzeSymptoms } from '../modules/consultations/consultationAi.service.js';
+import { enrichRuleBasedWithPlaybook, pickPlaybook } from '../lib/diagnosticPlaybooks.js';
 import { finalizeDiagnosisForSession } from '../modules/consultations/consultations.service.js';
 import {
   loadDiagnosisJobPayload,
@@ -23,7 +24,7 @@ async function processDiagnosisJob(bullJob) {
   }
 
   await markDiagnosisJobProcessing(jobId);
-  const payload = await loadDiagnosisJobPayload(jobId);
+  const payload = (await loadDiagnosisJobPayload(jobId)) as Record<string, unknown> | null;
   if (!payload || typeof payload !== 'object') {
     throw new Error('Diagnosis job payload not found');
   }
@@ -35,22 +36,21 @@ async function processDiagnosisJob(bullJob) {
     logger.info({ sessionId, jobId }, 'async diagnosis completed');
     return { sessionId, status: diagnosis?.status || 'SUCCESS' };
   } catch (err) {
-    const fallback = {
-      status: 'MANUAL_REVIEW_REQUIRED',
-      summary:
-        'Интеллектуальный анализ временно недоступен. Ваши данные сохранены — результат подготовит специалист сервиса.',
-      analysis_available: false,
-      probable_causes: [],
-      recommended_checks: [],
-      urgency: 'medium',
-      confidence: 0.2,
+    const symptoms = String(payload.symptoms || '');
+    const conditions = String(payload.conditions || '');
+    const pb = pickPlaybook(payload, symptoms);
+    const ruleBased = enrichRuleBasedWithPlaybook(preAnalyzeSymptoms(payload), pb, `${symptoms} ${conditions}`);
+    const fallback = buildPlaybookFallbackDiagnosis({
       reason: 'LLM_UNAVAILABLE',
-    };
+      ruleBased,
+      playbook: pb,
+      payload,
+    });
     try {
       await finalizeDiagnosisForSession(sessionId, fallback, payload);
       await markDiagnosisJobCompleted(jobId, fallback);
       logger.warn({ sessionId, jobId, err: err instanceof Error ? err.message : String(err) }, 'async diagnosis fallback');
-      return { sessionId, status: 'MANUAL_REVIEW_REQUIRED' };
+      return { sessionId, status: fallback?.status || 'SUCCESS' };
     } catch (fatal) {
       await markDiagnosisJobFailed(jobId, fatal instanceof Error ? fatal.message : String(fatal));
       throw fatal;

@@ -107,7 +107,7 @@ flowchart TB
 | `/analytics` | KPI, воронка, качество ИИ |
 | `/webhooks` | Входящие вебхуки CRM |
 
-Контракт OpenAPI 0.5.0 в `specs/…/contracts/openapi.yaml` покрывает все path+method из инвентаря (схемы тел — минимальные). Проверка дрейфа: `npm run routes:check` и `npm run openapi:check`.
+Контракт OpenAPI 0.5.0 в `specs/…/contracts/openapi.yaml` покрывает все path+method из инвентаря (60 именованных схем на живом кабинете; хвост admin/integrations — stub). Проверка дрейфа: `npm run routes:check` и `npm run openapi:check`.
 
 Публичные POST (контакт, запись, создание консультации) принимают заголовок `Idempotency-Key`. Outbox CRM дренируется фоновым poller (`outboxDrain.job.js`), не на hot path HTTP.
 

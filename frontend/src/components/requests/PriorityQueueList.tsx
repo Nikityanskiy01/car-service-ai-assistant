@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Phone } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { patchServiceRequestStatus } from '../../api/dashboard';
 import type { AttentionItem } from '../../lib/managerRequestHelpers';
 import { CopyPhoneButton } from '../ui/CopyPhoneButton';

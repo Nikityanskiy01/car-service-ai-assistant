@@ -6,6 +6,7 @@ import { buildConsultationState } from '../../../services/consultationFlowServic
 import { createAndEnqueueDiagnosisJob } from '../../../services/diagnosisJob.service.js';
 import { detectServiceType } from '../../../services/consultationIntent.service.js';
 import { answerServiceHistoryQuestion } from '../../../services/serviceHistoryLookup.service.js';
+import { formatDiagnosisChatMessage } from '../consultationAi/quality.js';
 import { assertActorCanPost } from './access.js';
 import { persistConsultationTurn } from './persist.js';
 import { getSessionDetail } from './sessions.js';
@@ -153,9 +154,7 @@ export async function finalizeDiagnosisForSession(sessionId, diagnosis, payload)
 
   const ai = {
     stage: isManual ? 'MANUAL_REVIEW_REQUIRED' : 'COMPLETED',
-    assistant_message: isManual
-      ? String(diagnosis?.summary || 'Требуется ручная обработка.')
-      : `${String(diagnosis?.summary || '')}\n\nВы можете сохранить отчёт и оформить заявку в сервис.`,
+    assistant_message: formatDiagnosisChatMessage(diagnosis),
     diagnosis,
     extracted_data: payload,
     flowState: {

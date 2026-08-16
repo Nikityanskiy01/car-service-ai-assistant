@@ -26,7 +26,6 @@ export function startOutboxDrainJob() {
   timer = setInterval(() => {
     void runOutboxDrain().catch((err) => logger.warn({ err }, 'outbox drain failed'));
   }, CHECK_INTERVAL_MS);
-  timer.unref?.();
 }
 
 export function stopOutboxDrainJob() {

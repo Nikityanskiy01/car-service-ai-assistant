@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { authJwt } from '../../middleware/authJwt.js';
 import { requireRole } from '../../middleware/requireRole.js';
 import { asyncHandler } from '../../middleware/asyncHandler.js';
@@ -8,72 +7,21 @@ import * as serviceRequestsService from './serviceRequests.service.js';
 import * as consultationFeedbackService from '../../services/consultationFeedback.service.js';
 import * as completionDocumentsService from '../completionDocuments/completionDocuments.service.js';
 import { buildServiceRequestPdfBuffer } from '../../lib/pdf/serviceRequestPdf.js';
-import { isSlaBreached } from '../../lib/requestSla.js';
 import { listUnreadThreadsForClient } from '../requestMessages/requestMessages.service.js';
 import { contentDisposition, isInlineSafeImage } from '../../lib/fileMagic.js';
-
-const listQuerySchema = z.object({
-  status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']).optional(),
-  q: z.string().max(200).optional(),
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
-  sort: z.enum(['createdAt', 'client', 'car', 'status', 'version']).optional().default('createdAt'),
-  dir: z.enum(['asc', 'desc']).optional().default('desc'),
-  mine: z.enum(['true', 'false', '1', '0']).optional(),
-  sla: z.enum(['breached']).optional(),
-  feedback: z.enum(['none', 'CORRECT', 'PARTIAL', 'INCORRECT', 'correct', 'partial', 'incorrect']).optional(),
-  urgency: z.enum(['low', 'medium', 'high', 'critical']).optional(),
-  statuses: z.string().optional(),
-  source: z.enum(['guest', 'registered', 'contact']).optional(),
-  period: z.enum(['today', '7d', 'all']).optional(),
-  hasDiagnosis: z.enum(['true', 'false', '1', '0']).optional(),
-});
-
-const patchSchema = z.object({
-  status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']),
-  expectedVersion: z.number().int(),
-});
-
-const bulkPatchSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
-  status: z.enum(['NEW', 'IN_PROGRESS', 'SCHEDULED', 'COMPLETED', 'CANCELLED']),
-});
-
-const bulkAssignSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
-  managerId: z.string().uuid().optional(),
-});
-
-const assignManagerSchema = z.object({
-  managerId: z.string().uuid(),
-});
-
-const bulkExportSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
-  connectionId: z.string().uuid().optional(),
-});
-
-const feedbackSchema = z.object({
-  verdict: z.enum(['CORRECT', 'PARTIAL', 'INCORRECT']),
-  actualCause: z.string().max(2000).optional(),
-  worksDone: z.string().max(2000).optional(),
-  repairAmountMinor: z.number().int().min(0).optional().nullable(),
-  workOrderNumber: z.string().max(120).optional().nullable(),
-  repairCompletedAt: z.string().datetime().optional().nullable(),
-  repairMileageKm: z.number().int().min(0).max(2_000_000).optional().nullable(),
-  workCategory: z
-    .enum(['oil_change', 'maintenance', 'brakes', 'filters', 'tires', 'other'])
-    .optional()
-    .nullable(),
-});
-
-const completionDocumentSchema = z.object({
-  kind: z.enum(['WORK_ORDER', 'RECEIPT', 'WARRANTY', 'ACT', 'OTHER']),
-  label: z.string().max(120).optional().nullable(),
-  fileName: z.string().min(1).max(200),
-  mimeType: z.string().min(3).max(120),
-  contentBase64: z.string().min(1).max(12_000_000),
-});
+import {
+  listQuerySchema,
+  patchSchema,
+  bulkPatchSchema,
+  bulkAssignSchema,
+  assignManagerSchema,
+  bulkExportSchema,
+  feedbackSchema,
+  completionDocumentSchema,
+  clientsQuerySchema,
+  boardQuerySchema,
+} from './serviceRequests.schemas.js';
+import { serializeListItem, serializeDetail } from './serviceRequests.serialize.js';
 
 export const serviceRequestsRouter = Router();
 serviceRequestsRouter.use(authJwt);
@@ -132,14 +80,6 @@ serviceRequestsRouter.get(
   }),
 );
 
-const clientsQuerySchema = z.object({
-  q: z.string().max(200).optional(),
-  filter: z.enum(['all', 'active', 'guests']).optional().default('all'),
-  sort: z.enum(['activity', 'recent', 'name']).optional().default('activity'),
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
-});
-
 serviceRequestsRouter.get(
   '/clients',
   requireRole('MANAGER', 'ADMINISTRATOR'),
@@ -148,10 +88,6 @@ serviceRequestsRouter.get(
     res.json(await serviceRequestsService.listClients(req.user, req.validatedQuery));
   }),
 );
-
-const boardQuerySchema = listQuerySchema.omit({ page: true, pageSize: true }).extend({
-  pageSize: z.coerce.number().int().min(1).max(50).optional().default(20),
-});
 
 serviceRequestsRouter.get(
   '/board',
@@ -401,118 +337,3 @@ serviceRequestsRouter.delete(
     );
   }),
 );
-
-function serializeListItem(r) {
-  const flowState = r.consultationSession?.flowState;
-  const flow =
-    flowState && typeof flowState === 'object' && !Array.isArray(flowState) ? flowState : {};
-  const diagnosis =
-    flow.diagnosis ?? null;
-
-  return {
-    id: r.id,
-    status: r.status,
-    version: r.version,
-    clientId: r.clientId,
-    guestName: r.guestName,
-    guestPhone: r.guestPhone,
-    createdAt: r.createdAt.toISOString(),
-    snapshotMake: r.snapshotMake,
-    snapshotModel: r.snapshotModel,
-    snapshotSymptoms: r.snapshotSymptoms,
-    vehicleId: r.vehicleId ?? null,
-    client: r.client,
-    assignedManagerId: r.assignedManagerId,
-    assignedManager: r.assignedManager,
-    firstResponseAt: r.firstResponseAt?.toISOString?.() ?? null,
-    slaBreached: isSlaBreached({ ...r, createdAt: r.createdAt.toISOString() }),
-    consultationSession: r.consultationSession
-      ? {
-          id: r.consultationSession.id,
-          status: r.consultationSession.status,
-          feedback: r.consultationSession.feedback
-            ? {
-                id: r.consultationSession.feedback.id,
-                verdict: r.consultationSession.feedback.verdict,
-              }
-            : null,
-          flowState: diagnosis ? { diagnosis } : null,
-          intent: flow.intent ?? null,
-          serviceType: flow.service_type ?? null,
-          serviceCategoryName: r.consultationSession.serviceCategory?.name ?? null,
-          confidencePercent: r.consultationSession.confidencePercent,
-          diagnosis,
-        }
-      : undefined,
-  };
-}
-
-function serializeDetail(r) {
-  const flowState = r.consultationSession?.flowState;
-  const diagnosis =
-    flowState && typeof flowState === 'object' && !Array.isArray(flowState) && flowState.diagnosis
-      ? flowState.diagnosis
-      : null;
-
-  return {
-    id: r.id,
-    status: r.status,
-    version: r.version,
-    clientId: r.clientId,
-    guestName: r.guestName,
-    guestPhone: r.guestPhone,
-    guestEmail: r.guestEmail,
-    consultationSessionId: r.consultationSessionId,
-    snapshotMake: r.snapshotMake,
-    snapshotModel: r.snapshotModel,
-    snapshotSymptoms: r.snapshotSymptoms,
-    createdAt: r.createdAt.toISOString(),
-    client: r.client,
-    assignedManagerId: r.assignedManagerId,
-    assignedManager: r.assignedManager,
-    firstResponseAt: r.firstResponseAt?.toISOString?.() ?? null,
-    slaBreached: isSlaBreached({ ...r, createdAt: r.createdAt.toISOString() }),
-    consultationSession: r.consultationSession
-      ? {
-          id: r.consultationSession.id,
-          status: r.consultationSession.status,
-          progressPercent: r.consultationSession.progressPercent,
-          flowState: flowState && typeof flowState === 'object' ? flowState : null,
-          messages: r.consultationSession.messages?.map((m) => ({
-            id: m.id,
-            sender: m.sender,
-            content: m.content,
-            createdAt: m.createdAt.toISOString(),
-          })),
-          extracted: r.consultationSession.extracted,
-          recommendations: r.consultationSession.recommendations,
-          diagnosis,
-          feedback: r.consultationSession.feedback
-            ? {
-                id: r.consultationSession.feedback.id,
-                verdict: r.consultationSession.feedback.verdict,
-                actualCause: r.consultationSession.feedback.actualCause,
-                worksDone: r.consultationSession.feedback.worksDone,
-                repairAmountMinor: r.consultationSession.feedback.repairAmountMinor,
-                workOrderNumber: r.consultationSession.feedback.workOrderNumber,
-                repairCompletedAt: r.consultationSession.feedback.repairCompletedAt?.toISOString?.() ?? null,
-                createdAt: r.consultationSession.feedback.createdAt.toISOString(),
-                updatedAt: r.consultationSession.feedback.updatedAt.toISOString(),
-                manager: r.consultationSession.feedback.manager
-                  ? {
-                      id: r.consultationSession.feedback.manager.id,
-                      fullName: r.consultationSession.feedback.manager.fullName,
-                    }
-                  : undefined,
-              }
-            : null,
-        }
-      : undefined,
-    bookings: (r.bookings || []).map((b) => ({
-      id: b.id,
-      status: b.status,
-      preferredAt: b.preferredAt.toISOString(),
-      notes: b.notes,
-    })),
-  };
-}

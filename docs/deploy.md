@@ -53,6 +53,8 @@ cp backend/.env.production.example backend/.env
 
 Обязательно задать: `POSTGRES_PASSWORD`, `JWT_SECRET` (≥32), `INTEGRATION_ENCRYPTION_KEY` (≥32), `TOTP_ENCRYPTION_KEY` (≥32), `HMAC_PEPPER` (≥32), `CORS_ORIGIN`, `APP_PUBLIC_URL`, ключ LLM.
 
+На проде включить обязательную 2FA сотрудников: `STAFF_2FA_REQUIRED=true` в `.env.proxmox` (на демо сейчас `false`).
+
 4. Стек: `sudo docker compose --env-file .env.proxmox up -d --build`.
 5. Пользователи (пароли не коммитить):
 
@@ -107,6 +109,7 @@ sudo cp deploy/ops/logrotate-car-service /etc/logrotate.d/car-service
 
 - HTTPS (или HTTP за edge) открывает SPA, `/api/health` отвечает `ok`.
 - `docker compose --env-file .env.proxmox ps` — healthy у frontend/backend/worker/db/redis.
+- `STAFF_2FA_REQUIRED=true` — менеджер и админ без TOTP не получают кабинет, только настройку 2FA.
 - Логин seed/prod-пользователем, консультация, заявка.
 - После `sudo reboot` стек поднимается (`restart: unless-stopped`).
 - Бэкап Postgres создан хотя бы раз.

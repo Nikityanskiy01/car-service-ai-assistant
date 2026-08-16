@@ -1,10 +1,10 @@
+import type { Request, RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import { apiMessages } from '../config/apiMessages.js';
 import { getEnv } from '../config/env.js';
 import { getRedis } from '../lib/redis.js';
 
-/** Пакет опционален: отсутствие в образе не должно валить процесс. */
-let RedisStoreCtor = null;
+let RedisStoreCtor: any = null;
 try {
   const mod = await import('rate-limit-redis');
   RedisStoreCtor = mod.RedisStore;
@@ -12,13 +12,13 @@ try {
   RedisStoreCtor = null;
 }
 
-function attachStore(opts, prefix = 'rl:') {
+function attachStore(opts: Record<string, unknown>, prefix = 'rl:') {
   if (process.env.NODE_ENV === 'test') return opts;
   const redis = getRedis();
   if (!redis || !RedisStoreCtor) return opts;
   try {
     opts.store = new RedisStoreCtor({
-      sendCommand: (...args) => redis.call(...args),
+      sendCommand: (...args: string[]) => redis.call(...args),
       prefix,
     });
   } catch {
@@ -27,25 +27,24 @@ function attachStore(opts, prefix = 'rl:') {
   return opts;
 }
 
-export function isOperationalApiPath(req) {
+export function isOperationalApiPath(req: { originalUrl?: string; url?: string }) {
   const url = String(req.originalUrl || req.url || '').split('?')[0];
-  return url === '/api/health' || url === '/api/live' || url === '/api/ready' || url === '/api/metrics';
+  const path = url.replace(/^\/api\/v1(?=\/|$)/, '/api');
+  return path === '/api/health' || path === '/api/live' || path === '/api/ready' || path === '/api/metrics';
 }
 
-export function isSafeHttpMethod(req) {
+export function isSafeHttpMethod(req: { method?: string }) {
   const method = String(req.method || '').toUpperCase();
   return method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
 }
 
-/** Чтение каталога/кабинета не должно упираться в общий IP-лимит за Docker NAT. */
-export function skipGlobalRateLimit(req) {
+export function skipGlobalRateLimit(req: Request) {
   return isOperationalApiPath(req) || isSafeHttpMethod(req);
 }
 
-/** Ключ лимита входа: IP + логин, чтобы NAT/Docker gateway не блокировал всех сразу. */
-export function authAttemptKey(req) {
+export function authAttemptKey(req: Request) {
   const ip = String(req.ip || req.socket?.remoteAddress || 'anon');
-  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const body = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
   const identifier = String(body.identifier || body.email || body.phone || '')
     .trim()
     .toLowerCase()
@@ -61,7 +60,15 @@ export function createRateLimiter({
   skip,
   skipSuccessfulRequests = false,
   prefix,
-}: any = {}) {
+}: {
+  windowMs?: number;
+  max?: number;
+  message?: unknown;
+  keyGenerator?: (req: Request) => string;
+  skip?: (req: Request) => boolean;
+  skipSuccessfulRequests?: boolean;
+  prefix?: string;
+} = {}): RequestHandler {
   const env = getEnv();
   return rateLimit(
     attachStore(
@@ -76,7 +83,7 @@ export function createRateLimiter({
         keyGenerator,
       },
       prefix || 'rl:',
-    ),
+    ) as any,
   );
 }
 

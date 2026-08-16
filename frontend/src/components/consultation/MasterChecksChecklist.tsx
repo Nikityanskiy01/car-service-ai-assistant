@@ -1,8 +1,20 @@
 import { useState } from 'react';
 
-export function MasterChecksChecklist({ checks }: { checks: string[] }) {
+const DEFAULT_HINT =
+  'Отметьте пункты, которые хотите обсудить при записи. Это для вас, на сервер не пишется.';
+
+export function MasterChecksChecklist({
+  checks,
+  title = 'Что проверит мастер',
+  hint,
+}: {
+  checks: string[];
+  title?: string;
+  hint?: string | null;
+}) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   if (!checks.length) return null;
+  const resolvedHint = hint === undefined ? DEFAULT_HINT : hint;
 
   const toggle = (item: string) => {
     setChecked((prev) => {
@@ -14,9 +26,9 @@ export function MasterChecksChecklist({ checks }: { checks: string[] }) {
   };
 
   return (
-    <section className="analysis-list master-checks" aria-label="Что проверит мастер">
-      <h4>Что проверит мастер</h4>
-      <p className="master-checks-hint">Отметьте пункты, которые хотите обсудить при записи — это для вас, не сохраняется на сервере.</p>
+    <section className="analysis-list master-checks" aria-label={title}>
+      <h4>{title}</h4>
+      {resolvedHint ? <p className="master-checks-hint">{resolvedHint}</p> : null}
       <ul>
         {checks.slice(0, 8).map((check) => {
           const id = `check-${check.slice(0, 40)}`;

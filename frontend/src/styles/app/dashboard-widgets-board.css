@@ -100,33 +100,157 @@
 }
 
 .kanban-board {
+  --kanban-cols: 4;
   display: grid;
-  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  grid-template-columns: repeat(var(--kanban-cols), minmax(14.5rem, 1fr));
   gap: 0.75rem;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
 }
 
 .kanban-column {
-  min-width: 220px;
+  min-width: 0;
+  max-width: 100%;
   background: var(--color-surface-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: 0.6rem;
+  padding: 0.55rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
+  overflow: hidden;
 }
 
-.kanban-column header {
+.kanban-column > header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0.15rem 0.2rem 0.05rem;
+}
+
+.kanban-column > header > h3 {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .kanban-items {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: min(36rem, calc(100dvh - 16rem));
+  padding: 0.1rem 0.15rem 0.25rem;
+}
+
+.kanban-card-wrap {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.kanban-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  min-width: 0;
+  padding: 0.7rem 0.75rem 0.45rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background-color 150ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .kanban-card-link:hover {
+    background: color-mix(in oklab, var(--color-surface-secondary) 70%, transparent);
+  }
+}
+
+.kanban-card-link:active {
+  transform: scale(0.99);
+}
+
+.kanban-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.kanban-card-top > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.kanban-card-name,
+.kanban-card-car,
+.kanban-card-problem,
+.kanban-card-assignee {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kanban-card-name {
+  font-size: 0.875rem;
+}
+
+.kanban-card-car,
+.kanban-card-problem,
+.kanban-card-assignee,
+.kanban-card-time {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.kanban-card-problem {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.kanban-card-status {
+  min-width: 0;
+  margin: 0;
+  padding: 0 0.5rem 0.5rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.45rem;
+}
+
+.kanban-status-trigger {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 2rem;
+  font-size: 0.75rem;
 }
 
 .request-card {

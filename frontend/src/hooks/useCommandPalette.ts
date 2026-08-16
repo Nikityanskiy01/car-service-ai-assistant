@@ -82,7 +82,10 @@ function buildManagerItems(): CommandItem[] {
     label: item.label,
     group: 'Разделы',
     to: item.to,
-    keywords: `${item.label} ${item.to}`.toLowerCase(),
+    keywords:
+      item.id === 'contacts'
+        ? `${item.label} ${item.to} входящие обращения форма сайт сообщения contacts`.toLowerCase()
+        : `${item.label} ${item.to}`.toLowerCase(),
   }));
 
   items.push(

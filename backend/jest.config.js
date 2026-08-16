@@ -3,7 +3,9 @@ export default {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.js'],
-  transform: {},
+  transform: {
+    '^.+\\.ts$': '<rootDir>/tests/ts-jest-transform.cjs',
+  },
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',

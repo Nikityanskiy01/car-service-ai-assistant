@@ -1,0 +1,433 @@
+/* Manager console — site form inbox, dossier language */
+
+.contacts-inbox {
+  display: grid;
+  gap: 1rem;
+}
+
+.contacts-chrome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.25rem;
+}
+
+.contacts-chrome-mast {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.contacts-chrome-kicker {
+  margin: 0 0 0.28rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+}
+
+.contacts-pulse {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.55rem;
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1.02;
+  color: var(--color-text-primary);
+}
+
+.contacts-pulse.is-hot .tnum {
+  color: var(--brand-primary);
+}
+
+.contacts-pulse-unit {
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--color-text-secondary);
+}
+
+.contacts-chrome-note {
+  margin: 0.45rem 0 0;
+  max-width: 42ch;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.contacts-chrome-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--color-surface) 78%, var(--color-background));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 8%, transparent);
+}
+
+.contacts-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.22rem;
+  border-radius: calc(var(--radius-lg) - 0.22rem);
+  background: var(--color-surface);
+}
+
+.contacts-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.15rem;
+  padding: 0.28rem 0.75rem;
+  appearance: none;
+  border: none;
+  border-radius: calc(var(--radius-md) - 0.18rem);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.contacts-tab:active {
+  transform: scale(0.97);
+}
+
+.contacts-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 35%, transparent);
+}
+
+.contacts-tab[aria-selected='true'] {
+  color: var(--color-text-primary);
+  background: var(--color-surface-secondary);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 10%, transparent);
+}
+
+.contacts-tab span {
+  min-width: 1.1rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.contacts-tab span.is-hot {
+  color: var(--brand-primary);
+}
+
+.contacts-shell {
+  padding: 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--color-surface) 55%, var(--color-background));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
+}
+
+.contacts-stack {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.contacts-item {
+  position: relative;
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.95rem 1rem 0.85rem 1.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius-lg) - 0.28rem);
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 8%, transparent);
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.contacts-item::before {
+  content: '';
+  position: absolute;
+  top: 0.9rem;
+  bottom: 0.9rem;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.contacts-item.is-new::before {
+  background: var(--brand-accent);
+}
+
+.contacts-item.is-progress::before {
+  background: var(--brand-primary);
+}
+
+.contacts-item.is-converted::before {
+  background: var(--color-success);
+}
+
+.contacts-item.is-closed::before {
+  background: var(--color-text-secondary);
+}
+
+.contacts-item.is-busy {
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.contacts-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.3rem 0.85rem;
+}
+
+.contacts-item-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.55rem;
+  min-width: 0;
+}
+
+.contacts-item-name {
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.contacts-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.contacts-item-status {
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.contacts-item-status.is-new {
+  color: var(--brand-accent);
+}
+
+.contacts-item-status.is-progress {
+  color: var(--brand-primary);
+}
+
+.contacts-item-status.is-converted {
+  color: var(--color-success);
+}
+
+.contacts-item-call {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.55rem;
+}
+
+.contacts-item-number {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+}
+
+.contacts-call {
+  border-radius: 999px;
+  min-height: 2.35rem;
+  padding-inline: 0.95rem 0.3rem;
+  gap: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+}
+
+.contacts-call-mark,
+.contacts-go-mark {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-text-primary) 10%, transparent);
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.contacts-call-mark svg,
+.contacts-go-mark svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.contacts-icon-btn {
+  width: 2.2rem;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  border-radius: var(--radius-sm);
+}
+
+.contacts-item-quote {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  max-width: 58ch;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.02rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+  text-align: left;
+  text-wrap: pretty;
+}
+
+button.contacts-item-quote {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+button.contacts-item-quote.is-open {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+button.contacts-item-quote:focus-visible {
+  outline: none;
+  border-radius: 4px;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 35%, transparent);
+}
+
+.contacts-item-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.28rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--color-surface-secondary) 70%, var(--color-background));
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 8%, transparent);
+}
+
+.contacts-item-dock .contacts-go,
+a.contacts-go {
+  border-radius: 999px;
+  min-height: 2.2rem;
+  padding-inline: 0.85rem 0.28rem;
+  gap: 0.45rem;
+  background: var(--brand-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-primary) 28%, transparent);
+}
+
+.contacts-go-mark {
+  background: rgb(255 255 255 / 0.18);
+}
+
+.contacts-item-held {
+  padding: 0 0.45rem;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.contacts-empty {
+  padding: 2.1rem 1.1rem 2.25rem;
+  text-align: left;
+}
+
+.contacts-empty strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.contacts-empty p {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.contacts-skel {
+  height: 9.5rem;
+  border-radius: calc(var(--radius-lg) - 0.28rem);
+  background: color-mix(in oklab, var(--color-surface) 70%, transparent);
+  animation: contacts-inbox-pulse 1.2s var(--ease-out) infinite;
+}
+
+@keyframes contacts-inbox-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .contacts-tab:hover {
+    color: var(--color-text-primary);
+    background: var(--color-surface-secondary);
+  }
+
+  .contacts-item:hover {
+    background: color-mix(in oklab, var(--color-surface-secondary) 55%, var(--color-surface));
+  }
+
+  .contacts-call:hover .contacts-call-mark,
+  .contacts-go:hover .contacts-go-mark {
+    transform: translate(1px, -1px);
+  }
+}
+
+@media (max-width: 900px) {
+  .contacts-item-dock {
+    width: 100%;
+  }
+
+  .contacts-go {
+    flex: 1 1 auto;
+  }
+
+  .contacts-item-dock [data-slot='button'] {
+    min-height: 2.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contacts-item,
+  .contacts-tab,
+  .contacts-call-mark,
+  .contacts-go-mark {
+    transition: none;
+  }
+
+  .contacts-tab:active,
+  .contacts-call:hover .contacts-call-mark,
+  .contacts-go:hover .contacts-go-mark {
+    transform: none;
+  }
+
+  .contacts-skel {
+    animation: none;
+  }
+}

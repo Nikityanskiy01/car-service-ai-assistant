@@ -1,8 +1,9 @@
+import { CalendarPlus, MessageSquare, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { DiagnosticSummary } from '../consultation/DiagnosticSummary';
-import { UrgencyBadge } from '../consultation/UrgencyBadge';
+import { CriticalSafetyBanner } from '../consultation/CriticalSafetyBanner';
+import { MasterChecksChecklist } from '../consultation/MasterChecksChecklist';
+import { PossibleCausesList } from '../consultation/PossibleCausesList';
 import { StatusBadge } from '../ui/StatusBadge';
-import { QuickFeedbackButtons } from './QuickFeedbackButtons';
 import {
   buildDiagnosisRecommendations,
   formatExtractedFields,
@@ -10,147 +11,206 @@ import {
   getRequestConfidence,
   getSessionDiagnosis,
 } from '../../lib/managerRequestHelpers';
+import { formatDateTime } from '../../lib/clientMeta';
 import type { RequestIntegrationStatus } from '../../types/integration';
 import type { ServiceRequestDetail } from '../../types/serviceRequest';
 
 type Props = {
   request: ServiceRequestDetail;
   integrations: RequestIntegrationStatus | null;
-  onFeedbackSaved: (feedback: NonNullable<ServiceRequestDetail['consultationSession']>['feedback']) => void;
   calendarPath?: string;
+  phone?: string;
+  onBook?: () => void;
+  onOpenMessages?: () => void;
 };
+
+const URGENCY_CHIP: Record<string, { text: string; urgent?: boolean }> = {
+  low: { text: 'Не срочно' },
+  medium: { text: 'Средняя' },
+  high: { text: 'Срочно', urgent: true },
+  critical: { text: 'Критично', urgent: true },
+};
+
+const EXTRACT_CHIP_LABEL: Record<string, string> = {
+  problemConditions: 'Когда',
+  problem_conditions: 'Когда',
+  obdCodes: 'OBD',
+  obd_codes: 'OBD',
+};
+
+type Meter = {
+  key: string;
+  kicker?: string;
+  value: string;
+  urgent?: boolean;
+  accent?: boolean;
+};
+
+function costLabel(amount?: number | null) {
+  if (typeof amount === 'number' && amount > 0) return `от ${amount.toLocaleString('ru-RU')} ₽`;
+  return null;
+}
 
 export function RequestSummaryPanel({
   request,
   integrations,
-  onFeedbackSaved,
   calendarPath = '/dashboard/manager/calendar',
+  phone,
+  onBook,
+  onOpenMessages,
 }: Props) {
   const session = request.consultationSession;
   const diagnosis = getSessionDiagnosis(session);
-  const confidence = getRequestConfidence(session);
-  const extractedFields = formatExtractedFields(session?.extracted ?? null);
+  const extractedFields = formatExtractedFields(session?.extracted ?? null, {
+    omit: ['make', 'model', 'year', 'mileage', 'symptoms'],
+  });
   const recommendations = buildDiagnosisRecommendations(request);
-  const owner = request.client?.fullName || request.guestName || 'Гость';
-  const phone = request.client?.phone || request.guestPhone || '—';
-  const email = request.client?.email || request.guestEmail || '—';
-  const car = `${request.snapshotMake || ''} ${request.snapshotModel || ''}`.trim() || 'Не указан';
+  const email = request.client?.email || request.guestEmail || '';
+  const confidence = getRequestConfidence(session);
+  const urgency = diagnosis?.urgency ? URGENCY_CHIP[diagnosis.urgency.toLowerCase()] : null;
+  const cost = costLabel(diagnosis?.estimated_cost_from);
+  const checks = Array.isArray(diagnosis?.recommended_checks) ? diagnosis.recommended_checks : [];
+  const summary = String(diagnosis?.summary || '').trim();
+  const isCritical = String(diagnosis?.urgency || '').toLowerCase() === 'critical';
+  const meters = [
+    ...extractedFields.map((field) => ({
+      key: `${field.key}-${field.value}`,
+      kicker: EXTRACT_CHIP_LABEL[field.key],
+      value: field.value,
+    })),
+    urgency ? { key: 'urgency', kicker: 'Срочность', value: urgency.text, urgent: urgency.urgent } : null,
+    confidence != null ? { key: 'ai', kicker: 'ИИ', value: `${confidence}%` } : null,
+    cost ? { key: 'cost', kicker: 'Оценка', value: cost, accent: true } : null,
+  ].filter(Boolean) as Meter[];
+  const hasPostPlan = checks.length > 0 || recommendations.length > 0;
 
   return (
     <div className="request-summary-layout">
-      <div className="request-summary-main stack">
-        <CardSection title="Проблема клиента">
-          <p>{request.snapshotSymptoms || 'Симптомы не указаны'}</p>
-        </CardSection>
+      <div className="request-summary-main">
+        {isCritical ? <CriticalSafetyBanner /> : null}
 
-        {extractedFields.length ? (
-          <CardSection title="Что понял ИИ">
-            <dl className="detail-dl extracted-fields">
-              {extractedFields.map((field) => (
-                <div key={field.key}>
-                  <dt>{field.label}</dt>
-                  <dd>{field.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </CardSection>
+        <section className="request-message">
+          <p>Сообщение клиента</p>
+          <blockquote>{request.snapshotSymptoms || 'Симптомы не указаны'}</blockquote>
+        </section>
+
+        {meters.length ? (
+          <ul className="request-meters">
+            {meters.map((meter) => (
+              <li
+                key={meter.key}
+                className={meter.urgent ? 'is-urgent' : meter.accent ? 'is-accent' : undefined}
+              >
+                {meter.kicker ? <small>{meter.kicker}</small> : null}
+                <strong className="tnum">{meter.value}</strong>
+              </li>
+            ))}
+          </ul>
         ) : null}
 
-        <CardSection title="Предварительный анализ">
-          {diagnosis || recommendations.length ? (
-            <DiagnosticSummary
-              diagnosis={diagnosis || undefined}
-              recommendations={recommendations}
-            />
-          ) : (
-            <p className="muted">ИИ-анализ ещё не готов или требует уточнений.</p>
-          )}
-        </CardSection>
+        {checks.length ? <MasterChecksChecklist checks={checks} title="На пост" hint={null} /> : null}
+
+        <PossibleCausesList
+          recommendations={recommendations}
+          overallConfidence={diagnosis?.confidence}
+          variant="staff"
+        />
+
+        {!hasPostPlan ? (
+          <section className="request-next" aria-label="Что сделать">
+            <h2>Что сделать</h2>
+            <ul>
+              {phone ? (
+                <li>
+                  <a href={`tel:${phone}`}>
+                    <Phone />
+                    Позвонить клиенту
+                  </a>
+                </li>
+              ) : null}
+              {onBook ? (
+                <li>
+                  <button type="button" onClick={onBook}>
+                    <CalendarPlus />
+                    Назначить запись
+                  </button>
+                </li>
+              ) : null}
+              {onOpenMessages ? (
+                <li>
+                  <button type="button" onClick={onOpenMessages}>
+                    <MessageSquare />
+                    Ответить в переписке
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          </section>
+        ) : null}
+
+        {summary ? (
+          <details className="request-ai-note">
+            <summary>Почему так</summary>
+            <p>{summary}</p>
+          </details>
+        ) : null}
       </div>
 
-      <aside className="request-summary-side stack">
-        <CardSection title="Контакты">
-          <dl className="detail-dl">
-            <div>
-              <dt>Клиент</dt>
-              <dd>{owner}</dd>
-            </div>
+      <aside className="request-summary-side">
+        {request.bookings?.length ? (
+          <div className="request-booking-list">
+            {request.bookings.map((booking) => (
+              <article key={booking.id} className="request-booking-tile">
+                <header>
+                  <span>Запись</span>
+                  <StatusBadge status={booking.status} />
+                </header>
+                <p className="request-booking-when tnum">{formatDateTime(booking.preferredAt)}</p>
+                <Link to={calendarPath}>Календарь</Link>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <article className="request-booking-tile is-empty">
+            <header>
+              <span>Запись</span>
+            </header>
+            <p className="request-booking-when">На пост ещё не поставили</p>
+            {onBook ? (
+              <button type="button" onClick={onBook}>
+                Назначить
+              </button>
+            ) : (
+              <Link to={calendarPath}>Календарь</Link>
+            )}
+          </article>
+        )}
+
+        <dl className="request-side-facts">
+          {phone ? (
             <div>
               <dt>Телефон</dt>
               <dd>
-                {phone !== '—' ? (
-                  <a href={`tel:${phone}`} className="contact-link">
-                    {phone}
-                  </a>
-                ) : (
-                  phone
-                )}
+                <a href={`tel:${phone}`}>{phone}</a>
               </dd>
             </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{email}</dd>
-            </div>
-            <div>
-              <dt>Тип</dt>
-              <dd>{request.clientId ? 'Зарегистрирован' : 'Гость'}</dd>
-            </div>
-          </dl>
-        </CardSection>
-
-        <CardSection title="Автомобиль">
-          <p>
-            <strong>{car}</strong>
-          </p>
-          {session?.extracted?.year ? <p className="muted">Год: {String(session.extracted.year)}</p> : null}
-          {session?.extracted?.mileage ? (
-            <p className="muted">Пробег: {String(session.extracted.mileage)} км</p>
           ) : null}
-        </CardSection>
-
-        <CardSection title="ИИ-сводка">
-          <div className="ai-mini-stats">
-            <UrgencyBadge urgency={diagnosis?.urgency} />
-            {confidence != null ? <span className="ai-confidence-pill">Уверенность: {confidence}%</span> : null}
+          {email ? (
+            <div>
+              <dt>Почта</dt>
+              <dd className="request-summary-email">{email}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt>Клиент</dt>
+            <dd>{request.clientId ? 'Зарегистрирован' : 'Гость'}</dd>
           </div>
-        </CardSection>
-
-        {request.bookings?.length ? (
-          <CardSection title="Связанная запись">
-            <ul className="simple-list">
-              {request.bookings.map((booking) => (
-                <li key={booking.id}>
-                  <StatusBadge status={booking.status} />
-                  <span>{new Date(booking.preferredAt).toLocaleString('ru-RU')}</span>
-                  <Link to={calendarPath} className="muted">
-                    Календарь →
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </CardSection>
-        ) : null}
-
-        <CardSection title="Учётная система">
-          <p>{getIntegrationSummary(integrations)}</p>
-          <p className="muted">Подробности — во вкладке «История и CRM».</p>
-        </CardSection>
-
-        <QuickFeedbackButtons
-          requestId={request.id}
-          initial={session?.feedback}
-          onSaved={(feedback) => onFeedbackSaved(feedback)}
-        />
+          <div>
+            <dt>Учёт</dt>
+            <dd>{getIntegrationSummary(integrations)}</dd>
+          </div>
+        </dl>
       </aside>
     </div>
-  );
-}
-
-function CardSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="summary-section">
-      <h2>{title}</h2>
-      {children}
-    </section>
   );
 }

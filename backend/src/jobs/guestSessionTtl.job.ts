@@ -45,7 +45,6 @@ export function startGuestSessionTtlJob() {
   timer = setInterval(() => {
     void expireGuestSessions().catch((err) => logger.warn({ err }, 'guest ttl job failed'));
   }, CHECK_INTERVAL_MS);
-  timer.unref?.();
 }
 
 export function stopGuestSessionTtlJob() {

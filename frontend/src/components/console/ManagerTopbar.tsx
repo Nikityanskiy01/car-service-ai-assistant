@@ -29,12 +29,14 @@ export function ManagerTopbar({
   profilePath,
   onMenuClick,
   onCommandPalette,
+  totpLock = false,
 }: {
   title: string;
   roleLabel?: string;
   profilePath: string;
   onMenuClick: () => void;
   onCommandPalette?: () => void;
+  totpLock?: boolean;
 }) {
   const { user, logout } = useAuth();
   const name = user?.fullName || user?.email || 'Менеджер';
@@ -42,9 +44,11 @@ export function ManagerTopbar({
   return (
     <header className="dashboard-topbar">
       <div className="flex min-w-0 items-center gap-3">
-        <button type="button" className="dashboard-topbar-menu" onClick={onMenuClick} aria-label="Открыть меню">
-          <Menu size={18} />
-        </button>
+        {totpLock ? null : (
+          <button type="button" className="dashboard-topbar-menu" onClick={onMenuClick} aria-label="Открыть меню">
+            <Menu size={18} />
+          </button>
+        )}
         <div className="flex min-w-0 items-center gap-2">
           <h2 className="dashboard-topbar-title truncate">{title}</h2>
           {roleLabel ? <span className="dashboard-role-chip">{roleLabel}</span> : null}
@@ -68,7 +72,7 @@ export function ManagerTopbar({
           </Button>
         ) : null}
         <ThemeToggle />
-        <InboxBell />
+        {totpLock ? null : <InboxBell />}
         {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

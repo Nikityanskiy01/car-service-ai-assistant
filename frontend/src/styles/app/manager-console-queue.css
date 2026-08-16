@@ -1,9 +1,60 @@
 /* Manager console — queue filters, table, kanban (desk/pages in sibling files) */
+.queue-page {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.queue-page-lead {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.queue-skeleton {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.queue-card-list {
+  display: none;
+  gap: 0.5rem;
+}
+
+.queue-empty {
+  padding: 2.25rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.queue-empty-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.queue-empty-text {
+  margin: 0.35rem auto 0;
+  max-width: 42ch;
+  font-size: 0.86rem;
+  color: var(--color-text-secondary);
+}
+
+.queue-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.86rem;
+}
+
 /* —— Фильтры очереди —— */
 .queue-filters {
   display: grid;
-  gap: 0.65rem;
-  padding: 0.75rem;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -16,23 +67,34 @@
   gap: 0.5rem;
 }
 
-.queue-filters-spacer {
-  flex: 1 1 auto;
+.queue-toolbar-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
 }
 
 .queue-search {
   position: relative;
   display: flex;
   align-items: center;
-  flex: 1 1 260px;
+  flex: 1 1 280px;
   min-width: 200px;
+}
+
+.queue-search-icon {
+  position: absolute;
+  left: 0.7rem;
+  color: var(--color-text-secondary);
+  pointer-events: none;
 }
 
 .queue-search input {
   width: 100%;
-  padding: 0.5rem 2.2rem 0.5rem 0.7rem;
+  padding: 0.52rem 2.2rem 0.52rem 2.2rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   background: var(--color-surface-secondary);
   color: inherit;
   font: inherit;
@@ -53,6 +115,43 @@
   border-radius: 4px;
   padding: 0 0.3rem;
   pointer-events: none;
+}
+
+.queue-segment {
+  display: inline-flex;
+  padding: 0.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-secondary);
+}
+
+.queue-segment-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: 8px;
+  padding: 0.32rem 0.72rem;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+
+.queue-segment-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.queue-segment-btn:active {
+  transform: scale(0.97);
+}
+
+.queue-segment-btn.is-active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.04);
 }
 
 .queue-filter-count {
@@ -149,14 +248,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 .queue-preset {
   display: inline-flex;
   align-items: center;
-  border: 1px dashed var(--color-border);
   border-radius: 999px;
+  background: var(--color-surface-secondary);
   overflow: hidden;
 }
 
@@ -164,8 +263,8 @@
   border: none;
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+  padding: 0.22rem 0.6rem;
   cursor: pointer;
 }
 
@@ -176,7 +275,7 @@
 .queue-preset-remove {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.4rem 0.25rem 0;
+  padding: 0.22rem 0.4rem 0.22rem 0;
   color: var(--color-text-secondary);
 }
 
@@ -188,13 +287,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  border: 1px dashed var(--color-border);
-  border-radius: 999px;
+  border: 0;
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  padding: 0.25rem 0.65rem;
+  font-size: 0.78rem;
+  padding: 0.22rem 0.4rem;
   cursor: pointer;
+}
+
+.queue-preset-add:hover:not(:disabled) {
+  color: var(--color-text-primary);
 }
 
 .queue-preset-add:disabled {
@@ -293,37 +395,61 @@
 
 /* —— Таблица очереди —— */
 .queue-table {
-  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
   transition: opacity var(--motion-fast) var(--ease-out);
 }
 
 .queue-table.is-refreshing {
-  opacity: 0.65;
+  opacity: 0.72;
 }
 
-.queue-table .table th {
+.queue-table table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
+  height: 2.4rem;
   background: var(--color-surface);
-  font-size: 0.8rem;
-  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 600;
   letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
-.queue-table .table td {
+.queue-table table td {
   vertical-align: middle;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
   font-size: 0.9rem;
 }
 
-.queue-table .table tbody tr {
+.queue-row {
+  cursor: pointer;
+}
+
+.queue-row[data-tone='hot'] {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+  background: color-mix(in oklab, var(--color-danger) 8%, transparent);
+}
+
+.queue-row[data-tone='warn'] {
+  box-shadow: inset 3px 0 0 var(--brand-accent);
+}
+
+.queue-row[data-tone='fresh'] {
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+
+.queue-table table tbody tr {
   transition: background var(--motion-fast) var(--ease-out);
 }
 
-.queue-table .table tbody tr:hover {
-  background: color-mix(in oklab, var(--color-surface-secondary) 60%, transparent);
+.queue-table table tbody tr:hover {
+  background: color-mix(in oklab, var(--color-surface-secondary) 72%, transparent);
 }
 
 .queue-table input[type='checkbox'] {
@@ -346,54 +472,131 @@
   cursor: pointer;
 }
 
-.queue-sort-btn:hover {
-  color: var(--color-primary);
-}
-
+.queue-sort-btn:hover,
 .queue-sort-btn.is-active {
+  color: var(--color-text-primary);
+}
+
+.queue-client-cell,
+.queue-case-cell,
+.queue-signal-cell,
+.queue-date-cell {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.queue-client-name {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.queue-client-name:hover {
   color: var(--color-primary);
 }
 
-.queue-client-cell {
-  display: grid;
-  gap: 0.1rem;
+.queue-request-id,
+.queue-ai-meta,
+.queue-date-cell .block,
+.queue-card-phone {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
 }
 
 .queue-phone-row {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.15rem;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.queue-phone-row a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.queue-phone-row a:hover {
+  color: var(--color-text-primary);
+}
+
+.queue-car-line {
+  font-weight: 600;
 }
 
 .queue-problem-cell {
-  display: inline-block;
-  max-width: 22ch;
+  max-width: 36ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  vertical-align: bottom;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
 }
 
 .queue-date-cell {
-  display: grid;
-  gap: 0.05rem;
   font-size: 0.85rem;
-}
-
-.queue-date-cell .block {
-  display: block;
-  font-size: 0.75rem;
 }
 
 .queue-actions-cell {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: flex-end;
+  gap: 0.1rem;
   white-space: nowrap;
 }
 
-.queue-actions-cell .btn {
-  padding-inline: 0.55rem;
+.queue-card {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    background var(--motion-fast) var(--ease-out);
+}
+
+.queue-card[data-tone='hot'] {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.queue-card[data-tone='warn'] {
+  box-shadow: inset 3px 0 0 var(--brand-accent);
+}
+
+.queue-card[data-tone='fresh'] {
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+
+.queue-card:hover {
+  background: color-mix(in oklab, var(--color-surface-secondary) 55%, var(--color-surface));
+}
+
+.queue-card:active {
+  transform: scale(0.99);
+}
+
+.queue-card-top,
+.queue-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.queue-card-meta,
+.queue-card-problem {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.queue-card-problem {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* —— Селектор статуса —— */
@@ -422,22 +625,27 @@
 }
 
 /* —— Канбан —— */
-.kanban-card-status {
-  margin-top: 0.35rem;
+.queue-page {
+  min-width: 0;
 }
 
-.kanban-card-status select {
+.kanban-card-status select,
+.kanban-card-status [data-slot='select-trigger'] {
   width: 100%;
-  font-size: 0.8rem;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.75rem;
 }
 
 .kanban-collapse-btn {
+  flex-shrink: 0;
   border: none;
   background: transparent;
   color: var(--color-text-secondary);
   font-size: 0.78rem;
   cursor: pointer;
-  padding: 0;
+  padding: 0.2rem 0.15rem;
+  white-space: nowrap;
 }
 
 .kanban-collapse-btn:hover {
@@ -445,10 +653,39 @@
 }
 
 .kanban-column-empty {
+  margin: 0;
   padding: 0.75rem;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   font-size: 0.82rem;
   text-align: center;
+}
+
+@media (max-width: 1023px) {
+  .queue-table {
+    display: none;
+  }
+
+  .queue-card-list {
+    display: grid;
+  }
+}
+
+@media (max-width: 720px) {
+  .queue-toolbar-end {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .queue-refresh-label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queue-segment-btn:active,
+  .queue-card:active {
+    transform: none;
+  }
 }

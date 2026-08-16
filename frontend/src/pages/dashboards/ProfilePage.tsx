@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Bell,
   Calendar,
@@ -26,7 +26,6 @@ import { Input } from '../../components/ui/Input';
 import { Loader } from '../../components/ui/Loader';
 import { PhoneInput } from '../../components/forms/PhoneInput';
 import { Tabs } from '../../components/ui/Tabs';
-import { ManagerProfileView } from '../manager/ManagerProfilePage';
 import { type ProfileTab } from '../../lib/profileTabs';
 import { SECURITY_SECTION_ITEMS, type SecuritySection } from '../../lib/profileSecurityTabs';
 import type { PreferredContact } from '../../types/auth';
@@ -48,8 +47,12 @@ const TAB_ITEMS_CLIENT = [
   { id: 'security', label: 'Безопасность' },
 ];
 
+const TAB_ITEMS_STAFF = [
+  { id: 'contacts', label: 'Личные данные' },
+  { id: 'security', label: 'Безопасность' },
+];
+
 export function ProfilePage() {
-  const location = useLocation();
   const model = useProfilePage();
   const {
     user,
@@ -84,19 +87,10 @@ export function ProfilePage() {
     updateNotificationPref,
   } = model;
 
-  if (location.pathname.startsWith('/dashboard/manager')) {
-    return <ManagerProfileView {...model} />;
-  }
-
   if (loading) return <Loader label="Загрузка профиля…" />;
   if (!user) return <ErrorState message="Пользователь не найден" />;
 
-  const tabItems = isClient
-    ? TAB_ITEMS_CLIENT
-    : [
-        { id: 'contacts', label: 'Контакты' },
-        { id: 'security', label: 'Безопасность' },
-      ];
+  const tabItems = isClient ? TAB_ITEMS_CLIENT : TAB_ITEMS_STAFF;
 
   return (
     <div className="stack dashboard-page profile-page">
@@ -125,32 +119,32 @@ export function ProfilePage() {
           </div>
         </div>
 
-        {isClient ? (
-          <div className="profile-hero-footer">
-            <div className="profile-hero-chips">
+        <div className="profile-hero-footer">
+          <div className="profile-hero-chips">
+            <span className="profile-hero-chip">
+              <Phone size={14} aria-hidden />
+              {user.phone ? formatPhoneDisplay(user.phone) : 'Телефон не указан'}
+            </span>
+            {isClient && city ? (
               <span className="profile-hero-chip">
-                <Phone size={14} aria-hidden />
-                {user.phone ? formatPhoneDisplay(user.phone) : 'Телефон не указан'}
+                <MapPin size={14} aria-hidden />
+                {city}
               </span>
-              {city ? (
-                <span className="profile-hero-chip">
-                  <MapPin size={14} aria-hidden />
-                  {city}
-                </span>
-              ) : null}
-              {telegram ? (
-                <span className="profile-hero-chip">
-                  <Send size={14} aria-hidden />
-                  @{telegram}
-                </span>
-              ) : null}
-            </div>
+            ) : null}
+            {isClient && telegram ? (
+              <span className="profile-hero-chip">
+                <Send size={14} aria-hidden />
+                @{telegram}
+              </span>
+            ) : null}
+          </div>
+          {isClient ? (
             <Link className="profile-hero-link" to="/dashboard/client/vehicles">
               <Car size={15} aria-hidden />
               Гараж
             </Link>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </section>
 
       <div className="profile-shell">

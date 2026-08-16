@@ -11,6 +11,12 @@ import { ObdCodesSummary } from './ObdCodesSummary';
 import { PossibleCausesList } from './PossibleCausesList';
 import { UrgencyBadge } from './UrgencyBadge';
 
+function sameText(a?: string | null, b?: string | null) {
+  return String(a || '')
+    .trim()
+    .toLowerCase() === String(b || '').trim().toLowerCase();
+}
+
 export function DiagnosticSummary({
   detail,
   recommendations,
@@ -18,6 +24,7 @@ export function DiagnosticSummary({
   fallbackCost,
   fallbackConfidence,
   onCreateRequest,
+  variant = 'default',
 }: {
   detail?: ConsultationDetail | null;
   recommendations: ConsultationRecommendation[];
@@ -25,7 +32,9 @@ export function DiagnosticSummary({
   fallbackCost?: number | null;
   fallbackConfidence?: number | null;
   onCreateRequest?: () => void;
+  variant?: 'default' | 'staff';
 }) {
+  const isStaff = variant === 'staff';
   const isServiceHistory =
     detail?.flowState?.stage === 'SERVICE_HISTORY' || Boolean(detail?.flowState?.maintenance_cta);
 
@@ -121,7 +130,7 @@ export function DiagnosticSummary({
         </header>
         <p className="diagnostic-summary__lead">
           Пока недостаточно симптомов для уверенного разбора. Менеджер уточнит детали в переписке или на
-          записье — предварительные причины появятся здесь.
+          записи. Предварительные причины появятся здесь.
         </p>
         <p className="diagnostic-summary__meta">Это не диагноз. Точный вывод возможен после очной проверки на посту.</p>
         {onCreateRequest ? (
@@ -146,32 +155,71 @@ export function DiagnosticSummary({
     const title = String(item.title || item.summary || '').trim();
     return title.length > 0 && !/^неопредел/i.test(title);
   });
+  const distinctCauses = usableRecommendations.filter(
+    (item) => !sameText(item.title || item.summary, summaryText),
+  );
+  const costFrom = diagnosis?.estimated_cost_from ?? top?.costFromMinor ?? fallbackCost ?? null;
+  const costLabel =
+    typeof costFrom === 'number' && costFrom > 0
+      ? `от ${costFrom.toLocaleString('ru-RU')} ₽`
+      : 'нужны уточнения';
 
   return (
-    <section className="diagnostic-summary" aria-label="Предварительный результат анализа">
-      <header className="diagnostic-summary__header">
-        <h3>Предварительный результат анализа</h3>
-        <UrgencyBadge urgency={diagnosis?.urgency || top?.urgency} />
-      </header>
+    <section
+      className={`diagnostic-summary${isStaff ? ' diagnostic-summary--staff' : ''}`}
+      aria-label={isStaff ? 'Разбор ИИ' : 'Предварительный результат анализа'}
+    >
+      {isStaff ? null : (
+        <header className="diagnostic-summary__header">
+          <h3>Предварительный результат анализа</h3>
+          <UrgencyBadge urgency={diagnosis?.urgency || top?.urgency} />
+        </header>
+      )}
       {isCritical ? <CriticalSafetyBanner /> : null}
-      <p>{summaryText || 'Краткий разбор по описанным симптомам.'}</p>
-      <div className="analysis-grid">
-        <ConfidenceIndicator value={confidence} />
-        <EstimatedPriceCard amount={diagnosis?.estimated_cost_from ?? top?.costFromMinor ?? fallbackCost} />
-      </div>
+      <p className={isStaff ? 'request-analysis-body' : undefined}>
+        {summaryText || 'Краткий разбор по описанным симптомам.'}
+      </p>
+      {isStaff ? (
+        <dl className="request-analysis-metrics">
+          <div>
+            <dt>Уверенность</dt>
+            <dd className="tnum">{confidence}%</dd>
+          </div>
+          <div>
+            <dt>Оценка</dt>
+            <dd className="tnum">{costLabel}</dd>
+          </div>
+        </dl>
+      ) : (
+        <div className="analysis-grid">
+          <ConfidenceIndicator value={confidence} />
+          <EstimatedPriceCard amount={costFrom} />
+        </div>
+      )}
       <ObdCodesSummary items={obdItems} />
       <PossibleCausesList
-        recommendations={usableRecommendations}
+        recommendations={distinctCauses}
         overallConfidence={diagnosis?.confidence}
+        variant={isStaff ? 'staff' : 'default'}
       />
-      <MasterChecksChecklist checks={allChecks} />
-      <DiagnosisActions detail={detail ?? null} onCreateRequest={onCreateRequest} />
-      <p className="analysis-disclaimer">
-        {diagnosis?.execution_meta?.provider ? `Источник: ${diagnosis.execution_meta.provider}. ` : ''}
-        {detail?.flowState?.photo_observations?.disclaimer ? `${detail.flowState.photo_observations.disclaimer} ` : ''}
-        {diagnosis?.disclaimer ||
-          'Результат сформирован на основе предоставленных данных и не заменяет техническую диагностику автомобиля специалистом.'}
-      </p>
+      <MasterChecksChecklist
+        checks={allChecks}
+        title={isStaff ? 'На пост' : undefined}
+        hint={isStaff ? null : undefined}
+      />
+      {isStaff ? null : <DiagnosisActions detail={detail ?? null} onCreateRequest={onCreateRequest} />}
+      {isStaff ? (
+        <p className="analysis-disclaimer">Не заменяет диагностику на посту.</p>
+      ) : (
+        <p className="analysis-disclaimer">
+          {diagnosis?.execution_meta?.provider ? `Источник: ${diagnosis.execution_meta.provider}. ` : ''}
+          {detail?.flowState?.photo_observations?.disclaimer
+            ? `${detail.flowState.photo_observations.disclaimer} `
+            : ''}
+          {diagnosis?.disclaimer ||
+            'Результат сформирован на основе предоставленных данных и не заменяет техническую диагностику автомобиля специалистом.'}
+        </p>
+      )}
     </section>
   );
 }

@@ -65,6 +65,104 @@ export function validateDiagnosisQuality(result) {
   return { valid: issues.length === 0, issues };
 }
 
+function dedupeLines(items) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of items || []) {
+    const s = String(raw || '').trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+/**
+ * Если LLM недоступна, отдаём плейбук + правила как полноценный предварительный разбор,
+ * а не экран «анализ недоступен».
+ */
+export function formatDiagnosisChatMessage(diagnosis) {
+  if (!diagnosis || typeof diagnosis !== 'object') {
+    return 'Предварительный разбор готов. Можно сохранить отчёт и оформить заявку в сервис.';
+  }
+  const summary = String(diagnosis.summary || '').trim();
+  if (diagnosis.analysis_available === false || isManualStatus(diagnosis.status)) {
+    return summary || 'Автоматический анализ сейчас недоступен. Можно передать обращение менеджеру.';
+  }
+  const causes = Array.isArray(diagnosis.probable_causes)
+    ? diagnosis.probable_causes.map((x) => String(x).trim()).filter(Boolean).slice(0, 5)
+    : [];
+  const checks = Array.isArray(diagnosis.recommended_checks)
+    ? diagnosis.recommended_checks.map((x) => String(x).trim()).filter(Boolean).slice(0, 5)
+    : [];
+  const lines = [];
+  if (summary) lines.push(summary);
+  if (causes.length) {
+    lines.push('', 'Наиболее вероятные причины:');
+    causes.forEach((cause, i) => lines.push(`${i + 1}. ${cause}`));
+  }
+  if (checks.length) {
+    lines.push('', 'Что проверим на посту:');
+    checks.forEach((check) => lines.push(`• ${check}`));
+  }
+  lines.push('', 'Это предварительный ориентир, не окончательный диагноз. Можно сохранить отчёт и оформить заявку.');
+  return lines.join('\n').trim();
+}
+
+export function buildPlaybookFallbackDiagnosis({ reason, executionMeta, ruleBased, playbook, payload, estimatedCost }: any) {
+  const rb = ruleBased || {};
+  const causes = dedupeLines([...(rb.probable_causes || []), ...(playbook?.hypotheses || [])]).slice(0, 5);
+  const checks = dedupeLines([...(rb.recommended_checks || []), ...(playbook?.checks || [])]).slice(0, 5);
+  if (causes.length < 2 || checks.length < 2) {
+    return buildManualReviewDiagnosis({ reason, executionMeta, ruleBased });
+  }
+
+  const text = `${payload?.symptoms || ''} ${payload?.conditions || payload?.problemConditions || ''}`;
+  let urgency = ['low', 'medium', 'high', 'critical'].includes(String(rb.urgency || ''))
+    ? String(rb.urgency)
+    : 'medium';
+  const low = text.toLowerCase();
+  if (playbook?.urgency?.now?.some((k) => low.includes(String(k).toLowerCase()))) urgency = maxUrgency(urgency, 'critical');
+  else if (playbook?.urgency?.soon?.some((k) => low.includes(String(k).toLowerCase()))) {
+    urgency = maxUrgency(urgency, 'high');
+  }
+
+  const vehicle = [payload?.car_make, payload?.car_model].filter(Boolean).join(' ');
+  const topic = playbook?.title || 'предварительный разбор по симптомам';
+  let summary = vehicle
+    ? `По ${vehicle} предварительный ориентир — ${topic.toLowerCase()}. Наиболее вероятны: ${causes.slice(0, 3).join('; ')}. На посту начнём с указанных проверок, затем подтвердим объём работ.`
+    : `Предварительный ориентир — ${topic.toLowerCase()}. Наиболее вероятны: ${causes.slice(0, 3).join('; ')}. На посту начнём с указанных проверок, затем подтвердим объём работ.`;
+  if (urgency === 'critical') {
+    summary =
+      'Возможна критическая неисправность. Рекомендуется прекратить эксплуатацию автомобиля и организовать доставку в сервис эвакуатором. ' +
+      summary;
+  }
+
+  const confidence = Math.max(0.45, Math.min(0.78, 0.5 + Number(rb.confidenceBoost || 0)));
+  const cost =
+    estimatedCost != null && Number.isFinite(Number(estimatedCost))
+      ? Math.max(0, Math.round(Number(estimatedCost)))
+      : 3500;
+
+  return {
+    probable_causes: causes,
+    recommended_checks: checks.slice(0, 5),
+    urgency,
+    confidence,
+    estimated_cost_from: cost,
+    summary,
+    status: 'SUCCESS',
+    analysis_available: true,
+    reason: null,
+    disclaimer: 'Результат предварительный и не заменяет техническую диагностику автомобиля специалистом.',
+    execution_meta: executionMeta
+      ? { ...executionMeta, status: executionMeta.status || 'FALLBACK', errorCode: reason || 'LLM_UNAVAILABLE' }
+      : null,
+  };
+}
+
 export function buildManualReviewDiagnosis({ reason, executionMeta, ruleBased }: any) {
   const rb = ruleBased || {};
   const urgency = ['low', 'medium', 'high', 'critical'].includes(String(rb.urgency || ''))

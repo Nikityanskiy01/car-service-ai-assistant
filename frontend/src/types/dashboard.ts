@@ -98,24 +98,89 @@ export type ServiceBooking = {
   comment?: string | null;
 };
 
+export type DossierVehicle = {
+  id?: string;
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+  vin?: string | null;
+  notes?: string | null;
+  licensePlate?: string | null;
+  color?: string | null;
+  currentMileageKm?: number | null;
+  photoUrl?: string | null;
+  lastServiceAt?: string | null;
+  lastServiceTitle?: string | null;
+  lastServiceCategory?: string | null;
+};
+
+export type DossierRequestRow = {
+  id: string;
+  status: string;
+  createdAt: string;
+  snapshotMake?: string | null;
+  snapshotModel?: string | null;
+  snapshotSymptoms?: string | null;
+  guestName?: string | null;
+  assignedManager?: { fullName: string } | null;
+};
+
+export type DossierBookingRow = {
+  id: string;
+  status: string;
+  preferredAt: string;
+  notes?: string | null;
+  guestName?: string | null;
+  vehicle?: {
+    make?: string | null;
+    model?: string | null;
+    year?: number | null;
+    licensePlate?: string | null;
+  } | null;
+};
+
+export type DossierConsultationRow = {
+  id: string;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+  progressPercent?: number;
+  serviceCategory?: { name: string } | null;
+};
+
+export type DossierServiceRecord = {
+  id: string;
+  vehicleId?: string;
+  performedAt: string;
+  mileageKm?: number | null;
+  title: string;
+  category: string;
+  worksDone?: string | null;
+  workOrderNumber?: string | null;
+  amountMinor?: number | null;
+  vehicle?: {
+    make?: string | null;
+    model?: string | null;
+    year?: number | null;
+    licensePlate?: string | null;
+  } | null;
+};
+
+export type DossierMetrics = {
+  requestsTotal: number;
+  completedRequests: number;
+  ltvMinor: number;
+  repairsWithAmount: number;
+  vehiclesCount?: number;
+  nextBookingAt?: string | null;
+};
+
 export type GuestDossier = {
   profile: { phone: string; fullName: string; isGuest: true };
-  requests: Array<{
-    id: string;
-    status: string;
-    createdAt: string;
-    snapshotMake?: string | null;
-    snapshotModel?: string | null;
-    guestName?: string | null;
-    snapshotSymptoms?: string | null;
-  }>;
-  bookings: Array<{
-    id: string;
-    status: string;
-    preferredAt: string;
-    notes?: string | null;
-    guestName?: string | null;
-  }>;
+  vehicles?: DossierVehicle[];
+  requests: DossierRequestRow[];
+  bookings: DossierBookingRow[];
+  consultations?: DossierConsultationRow[];
   contacts: Array<{
     id: string;
     fullName: string;
@@ -123,12 +188,8 @@ export type GuestDossier = {
     status: string;
     createdAt: string;
   }>;
-  metrics?: {
-    requestsTotal: number;
-    completedRequests: number;
-    ltvMinor: number;
-    repairsWithAmount: number;
-  };
+  serviceRecords?: DossierServiceRecord[];
+  metrics?: DossierMetrics;
 };
 
 export type ClientDossier = {
@@ -138,22 +199,14 @@ export type ClientDossier = {
     email: string;
     phone: string | null;
     telegram?: string | null;
+    city?: string | null;
+    preferredContact?: string | null;
     createdAt: string;
   };
-  vehicles: Array<{ make?: string; model?: string; year?: number }>;
-  requests: Array<{
-    id: string;
-    status: string;
-    createdAt: string;
-    snapshotMake?: string | null;
-    snapshotModel?: string | null;
-  }>;
-  consultations: Array<{ id: string; status: string; createdAt: string }>;
-  bookings: Array<{ id: string; status: string; preferredAt: string }>;
-  metrics?: {
-    requestsTotal: number;
-    completedRequests: number;
-    ltvMinor: number;
-    repairsWithAmount: number;
-  };
+  vehicles: DossierVehicle[];
+  requests: DossierRequestRow[];
+  consultations: DossierConsultationRow[];
+  bookings: DossierBookingRow[];
+  serviceRecords?: DossierServiceRecord[];
+  metrics?: DossierMetrics;
 };

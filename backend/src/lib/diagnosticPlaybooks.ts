@@ -1,5 +1,21 @@
+import { maxUrgency } from '../modules/consultations/consultationAi/quality.js';
+
 function norm(s) {
   return String(s || '').toLowerCase();
+}
+
+function dedupeLines(items) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of items || []) {
+    const s = String(raw || '').trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
 }
 
 /**
@@ -150,6 +166,101 @@ const PLAYBOOKS = [
     ],
     recommendedService: 'Диагностика трансмиссии (АКПП)',
   },
+  {
+    id: 'battery-drain',
+    title: 'АКБ разряжается / не держит заряд',
+    keywords: ['акб', 'аккумулятор', 'садится', 'разряж', 'не крутит стартер'],
+    urgency: { now: ['запах серы', 'вздул'] },
+    hypotheses: [
+      'Износ аккумулятора (ёмкость ниже нормы, возраст 3+ лет)',
+      'Паразитная утечка тока (нештатная магнитола, регистратор, сигнализация)',
+      'Недостаточный заряд от генератора',
+      'Окисление клемм / плохой контакт массы',
+    ],
+    checks: [
+      'Замер напряжения АКБ на холодную и под нагрузкой, тест ёмкости',
+      'Замер тока утечки при выключенном зажигании (норма обычно <50 мА без доп. потребителей)',
+      'Проверка зарядки генератора на холостых и 2000 об/мин',
+      'Осмотр клемм, массы кузова и силовых соединений',
+    ],
+    recommendedService: 'Диагностика электросистемы и АКБ',
+  },
+  {
+    id: 'ac-weak',
+    title: 'Кондиционер слабо холодит',
+    keywords: ['кондиционер', 'кондёр', 'фреон', 'не холодит', 'слабо холодит', 'климат'],
+    urgency: { soon: ['запах гари', 'посторонний шум компрессора'] },
+    hypotheses: [
+      'Недостаток фреона из-за микроутечки контура',
+      'Загрязнение конденсатора (радиатора кондиционера)',
+      'Слабая работа вентилятора конденсатора',
+      'Износ компрессора или забит салонный фильтр',
+    ],
+    checks: [
+      'Замер давления фреона на стороне высокого и низкого давления',
+      'Поиск утечки ультрафиолетом / электронным течеискателем, осмотр трубок и соединений',
+      'Промывка/продувка конденсатора, проверка вентиляторов',
+      'Осмотр салонного фильтра и испарителя, тест температуры воздуха на дефлекторе',
+    ],
+    recommendedService: 'Диагностика системы кондиционирования',
+  },
+  {
+    id: 'oil-leak',
+    title: 'Течь масла двигателя',
+    keywords: ['течь масла', 'масляное пятно', 'жрёт масло', 'расход масла', 'масло под'],
+    urgency: { now: ['давление масла', 'красный индикатор'] },
+    hypotheses: [
+      'Прокладка клапанной крышки',
+      'Передний или задний сальник коленвала',
+      'Прокладка поддона / пробка слива',
+      'Течь теплообменника / масляного фильтра (реже — прокладка ГБЦ)',
+    ],
+    checks: [
+      'Осмотр на подъёмнике: откуда именно капает (крышка, поддон, колокол КПП)',
+      'Проверка уровня масла, состояния пробки и фильтра',
+      'Мойка агрегата и контрольный пробег для локализации течи',
+      'При подозрении на сальник — осмотр стыка двигателя и коробки',
+    ],
+    recommendedService: 'Диагностика течи масла',
+  },
+  {
+    id: 'hub-bearing',
+    title: 'Гул ступичного подшипника',
+    keywords: ['ступиц', 'гул на скорости', 'гул справа', 'гул слева', 'вой на скорости'],
+    urgency: { soon: ['люфт колеса', 'греется ступица'] },
+    hypotheses: [
+      'Износ ступичного подшипника (гул растёт со скоростью, меняется в поворотах)',
+      'Неравномерный износ шин / неверная балансировка (реже даёт направленный гул)',
+      'Проблема дифференциала/МКПП (гул не зависит от поворота)',
+    ],
+    checks: [
+      'Тест-драйв: как меняется гул при смещении веса влево/вправо',
+      'На подъёмнике проверить люфт колеса в вертикальной и горизонтальной плоскости',
+      'Сравнение температуры ступиц после пробега',
+      'Осмотр шин и исключение гула трансмиссии',
+    ],
+    recommendedService: 'Диагностика ступичного узла',
+  },
+  {
+    id: 'planned-maintenance',
+    title: 'Плановое ТО / регламентные работы',
+    keywords: ['плановое то', 'техобслуживание', 'регламент', 'замена масла', 'то 90', 'то-90', 'то 60'],
+    urgency: {},
+    hypotheses: [
+      'Замена масла ДВС и масляного фильтра',
+      'Замена воздушного и салонного фильтров',
+      'Проверка/замена свечей по регламенту пробега',
+      'Контроль тормозных колодок, дисков и уровней жидкостей',
+      'Осмотр ходовой и ремней навесного оборудования',
+    ],
+    checks: [
+      'Сверить регламент производителя по пробегу и сроку',
+      'Оценить состояние фильтров, свечей и тормозных элементов',
+      'Проверить уровни масел и техжидкостей, наличие течей',
+      'Сделать чек-лист сопутствующих работ до выдачи автомобиля',
+    ],
+    recommendedService: 'Плановое техническое обслуживание',
+  },
 ];
 
 /**
@@ -168,22 +279,55 @@ export function pickPlaybook(ext, lastUserText = '') {
   return best.pb;
 }
 
+export function playbookUrgencyLevel(pb, text = '') {
+  if (!pb) return 'low';
+  const t = norm(text);
+  if (Array.isArray(pb.urgency?.now) && pb.urgency.now.some((k) => t.includes(norm(k)))) return 'critical';
+  if (Array.isArray(pb.urgency?.soon) && pb.urgency.soon.some((k) => t.includes(norm(k)))) return 'high';
+  if (!pb.urgency?.now?.length && !pb.urgency?.soon?.length) return 'low';
+  return 'medium';
+}
+
+/**
+ * Добавляет гипотезы и проверки плейбука к rule-based слою, чтобы LLM не «забывала» типовой разбор.
+ */
+export function enrichRuleBasedWithPlaybook(ruleBased, pb, text = '') {
+  const rb = ruleBased || {
+    probable_causes: [],
+    recommended_checks: [],
+    urgency: 'low',
+    confidenceBoost: 0,
+  };
+  if (!pb) return rb;
+  return {
+    probable_causes: dedupeLines([...(rb.probable_causes || []), ...(pb.hypotheses || [])]).slice(0, 5),
+    recommended_checks: dedupeLines([...(rb.recommended_checks || []), ...(pb.checks || [])]).slice(0, 5),
+    urgency: maxUrgency(rb.urgency || 'low', playbookUrgencyLevel(pb, text)),
+    confidenceBoost: Math.max(Number(rb.confidenceBoost || 0), 0.1),
+  };
+}
+
 export function playbookToAiHints(pb) {
   if (!pb) return null;
   return {
     playbookId: pb.id,
     categoryId:
-      pb.id === 'engine-misfire' || pb.id === 'engine-no-start' || pb.id === 'engine-check-engine'
+      pb.id === 'engine-misfire' ||
+      pb.id === 'engine-no-start' ||
+      pb.id === 'engine-check-engine' ||
+      pb.id === 'oil-leak'
         ? 'engine'
         : pb.id === 'cooling-overheat'
           ? 'cooling'
           : pb.id === 'brakes-vibration'
             ? 'brakes'
-            : pb.id === 'suspension-knock'
+            : pb.id === 'suspension-knock' || pb.id === 'hub-bearing'
               ? 'suspension'
               : pb.id === 'at-shift'
                 ? 'transmission'
-                : 'other',
+                : pb.id === 'battery-drain'
+                  ? 'electrical'
+                  : 'other',
     title: pb.title,
     recommendedService: pb.recommendedService,
     hypotheses: pb.hypotheses,

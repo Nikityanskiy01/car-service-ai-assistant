@@ -14,9 +14,10 @@ type Props = {
   requestId: string;
   initial?: ConsultationFeedback | null;
   onSaved?: (feedback: ConsultationFeedback) => void;
+  compact?: boolean;
 };
 
-export function QuickFeedbackButtons({ requestId, initial, onSaved }: Props) {
+export function QuickFeedbackButtons({ requestId, initial, onSaved, compact = false }: Props) {
   const [verdict, setVerdict] = useState<ConsultationFeedbackVerdict | null>(initial?.verdict ?? null);
   const [actualCause, setActualCause] = useState(initial?.actualCause ?? '');
   const [saving, setSaving] = useState(false);
@@ -48,11 +49,12 @@ export function QuickFeedbackButtons({ requestId, initial, onSaved }: Props) {
   }
 
   return (
-    <section className="quick-feedback" aria-label="Быстрая оценка диагноза">
-      <header>
-        <h3>Оценка диагноза ИИ</h3>
-        <p className="muted">Помогите улучшить рекомендации сервиса.</p>
-      </header>
+    <section className={`quick-feedback${compact ? ' is-compact' : ''}`} aria-label="Быстрая оценка диагноза">
+      {compact ? null : (
+        <header>
+          <h3>Оценка ИИ</h3>
+        </header>
+      )}
       <div className="feedback-verdict-row" role="group" aria-label="Оценка диагноза">
         {OPTIONS.map((option) => (
           <Button
@@ -97,8 +99,13 @@ export function QuickFeedbackButtons({ requestId, initial, onSaved }: Props) {
       ) : null}
       {initial?.updatedAt ? (
         <p className="muted">
-          Сохранено: {new Date(initial.updatedAt).toLocaleString('ru-RU')}
-          {initial.manager?.fullName ? ` · ${initial.manager.fullName}` : ''}
+          Сохранено: {new Date(initial.updatedAt).toLocaleString('ru-RU', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+          {initial.manager?.fullName ? `, ${initial.manager.fullName}` : ''}
         </p>
       ) : null}
       {error ? <p className="form-error">{error}</p> : null}

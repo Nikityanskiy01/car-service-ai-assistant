@@ -96,7 +96,15 @@ export function getGuestDossier(phone: string) {
 }
 
 export type ManagerClientFilter = 'all' | 'active' | 'guests';
-export type ManagerClientSort = 'activity' | 'recent' | 'name';
+export type ManagerClientSort = 'activity' | 'recent' | 'name' | 'ltv';
+
+export type ManagerClientVehicle = {
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+  licensePlate?: string | null;
+  vin?: string | null;
+};
 
 export type ManagerClientRow = {
   key: string;
@@ -106,10 +114,20 @@ export type ManagerClientRow = {
   phone: string;
   email?: string;
   telegram?: string;
+  city?: string;
   isGuest: boolean;
   totalRequests: number;
   activeRequests: number;
   lastActivityAt: string | null;
+  vehicles?: ManagerClientVehicle[];
+  ltvMinor?: number;
+  nextBookingAt?: string | null;
+};
+
+export type ManagerClientCounts = {
+  all: number;
+  active: number;
+  guests: number;
 };
 
 export function listClients(params: {
@@ -126,9 +144,13 @@ export function listClients(params: {
   if (params.page) search.set('page', String(params.page));
   if (params.pageSize) search.set('pageSize', String(params.pageSize));
   const qs = search.toString() ? `?${search}` : '';
-  return api<{ items: ManagerClientRow[]; total: number; page: number; pageSize: number }>(
-    `/service-requests/clients${qs}`,
-  );
+  return api<{
+    items: ManagerClientRow[];
+    total: number;
+    page: number;
+    pageSize: number;
+    counts: ManagerClientCounts;
+  }>(`/service-requests/clients${qs}`);
 }
 
 export function assignRequestToMe(requestId: string) {

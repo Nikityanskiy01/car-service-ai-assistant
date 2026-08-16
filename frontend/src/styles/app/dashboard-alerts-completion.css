@@ -49,21 +49,99 @@
   padding: 0.35rem;
 }
 
-.completion-documents-upload-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.65rem;
+.completion-documents-file-input {
+  display: none;
 }
 
-.completion-documents-file-row {
+.completion-doc-slots {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.completion-doc-slot {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem 0.7rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
+}
+
+.completion-doc-slot-head {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
+}
+
+.completion-doc-slot-head strong {
+  min-width: 0;
+  font-size: 0.88rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.completion-doc-slot-head .btn {
+  flex-shrink: 0;
+  min-height: 2.15rem;
+  padding-inline: 0.7rem;
+}
+
+.completion-doc-slot-label {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.completion-doc-slot-label span {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+}
+
+.completion-doc-slot-files {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.completion-doc-slot-file {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.35rem;
   align-items: center;
 }
 
-.completion-documents-file-input {
-  display: none;
+.completion-doc-slot-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.completion-doc-slot-name small {
+  color: var(--color-text-secondary);
+}
+
+.completion-doc-slot-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.completion-doc-slot-head .btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-doc-slot-head .btn:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .completion-documents-loading {

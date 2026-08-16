@@ -7,6 +7,7 @@
 | [ONBOARDING.md](./ONBOARDING.md) | Запуск стека, учётки, LLM, типичные проблемы |
 | [architecture.md](./architecture.md) | Стек, модули, поток консультации, auth |
 | [product.md](./product.md) | Роли, экраны, публичный сайт |
+| [FEATURES-AND-STACK.md](./FEATURES-AND-STACK.md) | Полный каталог фич и технологий по категориям |
 | [testing.md](./testing.md) | Lint, unit, integration, e2e, eval, CI |
 | [deploy.md](./deploy.md) | Docker Compose, Nginx, бэкапы, демо-хост |
 | [demo.md](./demo.md) | Золотой путь для живой демонстрации |

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Copy, Phone } from 'lucide-react';
-import { toast } from 'sonner';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from '../../lib/toast';
 import {
   bulkAssignRequests,
   bulkExportRequestsToCrm,
@@ -21,21 +20,14 @@ import {
 } from '../../lib/savedQueueFilters';
 import { BulkActionBar } from '../../components/manager/BulkActionBar';
 import { ManagerQueueFilters, type QueueFilterState } from '../../components/manager/ManagerQueueFilters';
+import { ManagerQueueTable } from '../../components/manager/ManagerQueueTable';
 import { QUEUE_STATUSES } from '../../lib/queueStatuses';
 import { ManagerKanban } from '../../components/requests/ManagerKanban';
 import { Alert, AlertDescription, AlertTitle } from '../../components/console/ui/alert';
-import { Badge } from '../../components/console/ui/badge';
 import { Button } from '../../components/console/ui/button';
 import { Skeleton } from '../../components/console/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/console/ui/table';
 import { managerZonePaths } from '../../config/managerPaths';
-import {
-  formatRelativeTime,
-  getRequestConfidence,
-  getRequestUrgency,
-} from '../../lib/managerRequestHelpers';
-import { formatRequestNumber, SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
-import { slaLabel } from '../../lib/requestSla';
+import { formatRequestNumber } from '../../lib/labels';
 import { useDashboardPolling } from '../../hooks/useDashboardPolling';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { usePageMeta } from '../../hooks/usePageMeta';
@@ -50,31 +42,10 @@ type ManagerRequestsPageProps = {
   adminZone?: boolean;
 };
 
-function statusVariant(status: ServiceRequestStatus): 'default' | 'secondary' | 'destructive' | 'success' | 'warning' {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'CANCELLED') return 'destructive';
-  if (status === 'NEW') return 'warning';
-  if (status === 'IN_PROGRESS') return 'default';
-  return 'secondary';
-}
-
-function urgencyVariant(urgency: string | null): 'secondary' | 'warning' | 'destructive' {
-  if (urgency === 'critical' || urgency === 'high') return 'destructive';
-  if (urgency === 'medium') return 'warning';
-  return 'secondary';
-}
-
-function urgencyLabel(urgency: string) {
-  if (urgency === 'critical') return 'Критическая';
-  if (urgency === 'high') return 'Высокая';
-  if (urgency === 'medium') return 'Средняя';
-  return 'Низкая';
-}
-
 export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPageProps) {
   usePageMeta({
     title: adminZone ? 'Заявки — операции' : 'Очередь',
-    description: 'Список и канбан заявок сервиса.',
+    description: 'Заявки клиентов: ответ, назначение, запись.',
   });
 
   const paths = managerZonePaths(adminZone);
@@ -349,16 +320,25 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
     hasDiagnosis: hasDiagnosisFilter,
   };
 
-  const allSelected = requests.length > 0 && selectedIds.length === requests.length;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const filtersActive = Boolean(statuses.length || q || scope === 'mine');
+  const filtersActive = Boolean(
+    statuses.length ||
+      q ||
+      scope === 'mine' ||
+      urgencyFilter ||
+      feedbackFilter ||
+      slaFilter ||
+      sourceFilter ||
+      periodFilter ||
+      hasDiagnosisFilter,
+  );
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
+    <div className="queue-page">
+      <p className="queue-page-lead">
         {adminZone
-          ? 'Административный обзор заявок: поиск, фильтры и статусы.'
-          : 'Поиск, фильтры и работа со статусами обращений.'}
+          ? 'Все заявки сервиса. Сначала клиенты без ответа, затем новые без менеджера.'
+          : 'Клиенты после диагностики и заявок с сайта. Сначала те, кто ждёт ответ.'}
       </p>
 
       <ManagerQueueFilters
@@ -426,19 +406,19 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
       ) : null}
 
       {firstLoad ? (
-        <div className="flex flex-col gap-2" aria-hidden>
-          <Skeleton className="h-14 w-full" />
-          <Skeleton className="h-14 w-full" />
-          <Skeleton className="h-14 w-full" />
+        <div className="queue-skeleton" aria-hidden>
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
         </div>
       ) : null}
 
       {!firstLoad && !error && total === 0 ? (
-        <div className="rounded-xl border border-border bg-card px-4 py-10 text-center">
-          <p className="text-sm font-medium">Заявок не найдено</p>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <div className="queue-empty">
+          <p className="queue-empty-title">{filtersActive ? 'По фильтрам пусто' : 'Очередь пуста'}</p>
+          <p className="queue-empty-text">
             {filtersActive
-              ? 'Ни одна заявка не подходит под текущие фильтры.'
+              ? 'Ни одна заявка не подходит. Сбросьте фильтры или смените срез.'
               : 'Новые обращения появятся после консультаций и заявок с сайта.'}
           </p>
           {filtersActive ? (
@@ -461,160 +441,21 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
 
       {!firstLoad && !error && requests.length > 0 && view === 'list' ? (
         <>
-          <div className={`hidden rounded-xl border border-border bg-card lg:block ${refreshing ? 'opacity-80' : ''}`}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <input
-                      type="checkbox"
-                      className="size-4 accent-[var(--brand-primary)]"
-                      aria-label="Выбрать все заявки на странице"
-                      checked={allSelected}
-                      onChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Номер</TableHead>
-                  <TableHead>{sortableHeader(sort, dir, 'client', 'Клиент', toggleSort)}</TableHead>
-                  <TableHead>{sortableHeader(sort, dir, 'car', 'Автомобиль', toggleSort)}</TableHead>
-                  <TableHead>Проблема</TableHead>
-                  <TableHead>ИИ</TableHead>
-                  <TableHead>Ответ</TableHead>
-                  <TableHead>{sortableHeader(sort, dir, 'status', 'Статус', toggleSort)}</TableHead>
-                  <TableHead>Менеджер</TableHead>
-                  <TableHead>{sortableHeader(sort, dir, 'createdAt', 'Дата', toggleSort)}</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((item) => {
-                  const urgency = getRequestUrgency(item.consultationSession);
-                  const confidence = getRequestConfidence(item.consultationSession);
-                  const phone = item.client?.phone || item.guestPhone;
-                  const detailPath = `${paths.requests}/${item.id}`;
-                  const sla = slaLabel(item);
-                  const car = `${item.snapshotMake || ''} ${item.snapshotModel || ''}`.trim();
-                  return (
-                    <TableRow key={item.id} data-state={selectedIds.includes(item.id) ? 'selected' : undefined}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-[var(--brand-primary)]"
-                          aria-label={`Выбрать заявку №${formatRequestNumber(item.id)}`}
-                          checked={selectedIds.includes(item.id)}
-                          onChange={() => toggleSelected(item.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-2">
-                          <Link to={detailPath} className="font-medium tabular-nums text-foreground">
-                            №{formatRequestNumber(item.id)}
-                          </Link>
-                          {item.status === 'NEW' ? <Badge variant="warning">Новая</Badge> : null}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="flex flex-col gap-0.5">
-                          <span>{item.client?.fullName || item.guestName || 'Гость'}</span>
-                          {phone ? (
-                            <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
-                              <a href={`tel:${phone}`} className="min-w-0 truncate">
-                                {phone}
-                              </a>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-6 shrink-0"
-                                aria-label="Скопировать номер"
-                                onClick={() => void copyPhone(phone)}
-                              >
-                                <Copy />
-                              </Button>
-                            </span>
-                          ) : null}
-                        </span>
-                      </TableCell>
-                      <TableCell>{car || 'Не указан'}</TableCell>
-                      <TableCell className="max-w-56">
-                        <span className="line-clamp-2" title={item.snapshotSymptoms || undefined}>
-                          {item.snapshotSymptoms?.slice(0, 70) || 'Без описания'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1.5">
-                          {urgency ? <Badge variant={urgencyVariant(urgency)}>{urgencyLabel(urgency)}</Badge> : (
-                            <span className="text-muted-foreground">нет</span>
-                          )}
-                          {confidence != null ? (
-                            <span className="text-xs text-muted-foreground tabular-nums">{confidence}%</span>
-                          ) : null}
-                        </span>
-                      </TableCell>
-                      <TableCell>{sla ? <Badge variant="destructive">{sla}</Badge> : null}</TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant(item.status)}>{SERVICE_REQUEST_STATUS_LABELS[item.status]}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {item.assignedManager?.fullName || <span className="text-muted-foreground">не назначен</span>}
-                      </TableCell>
-                      <TableCell>
-                        <span className="flex flex-col">
-                          <span className="tabular-nums">{formatRelativeTime(item.createdAt)}</span>
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {new Date(item.createdAt).toLocaleDateString('ru-RU')}
-                          </span>
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="flex items-center justify-end gap-1">
-                          {phone ? (
-                            <Button asChild variant="ghost" size="icon" className="size-8">
-                              <a href={`tel:${phone}`} aria-label="Позвонить">
-                                <Phone />
-                              </a>
-                            </Button>
-                          ) : null}
-                          <Button asChild variant="ghost" size="sm">
-                            <Link to={detailPath}>Открыть</Link>
-                          </Button>
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex flex-col gap-2 lg:hidden">
-            {requests.map((item) => {
-              const phone = item.client?.phone || item.guestPhone;
-              const sla = slaLabel(item);
-              return (
-                <Link
-                  key={item.id}
-                  to={`${paths.requests}/${item.id}`}
-                  className="flex flex-col gap-1 rounded-xl border border-border bg-card px-3 py-3 text-inherit no-underline transition-[transform,background-color] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-accent/40 active:scale-[0.99]"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <strong className="tabular-nums">№{formatRequestNumber(item.id)}</strong>
-                    <Badge variant={statusVariant(item.status)}>{SERVICE_REQUEST_STATUS_LABELS[item.status]}</Badge>
-                  </span>
-                  <span>{item.client?.fullName || item.guestName || 'Гость'}</span>
-                  <span className="text-sm text-muted-foreground">
-                    {`${item.snapshotMake || ''} ${item.snapshotModel || ''}`.trim() || 'Авто не указано'}
-                  </span>
-                  {phone ? <span className="text-xs text-muted-foreground tabular-nums">{phone}</span> : null}
-                  {sla ? <Badge variant="destructive" className="w-fit">{sla}</Badge> : null}
-                  <span className="text-xs text-muted-foreground tabular-nums">{formatRelativeTime(item.createdAt)}</span>
-                </Link>
-              );
-            })}
-          </div>
+          <ManagerQueueTable
+            requests={requests}
+            selectedIds={selectedIds}
+            sort={sort}
+            dir={dir}
+            refreshing={refreshing}
+            requestBasePath={paths.requests}
+            onToggleSelected={toggleSelected}
+            onToggleSelectAll={toggleSelectAll}
+            onToggleSort={toggleSort}
+            onCopyPhone={(phone) => void copyPhone(phone)}
+          />
 
           {pageCount > 1 ? (
-            <div className="flex items-center justify-between text-sm">
+            <div className="queue-pager">
               <Button
                 type="button"
                 variant="outline"
@@ -641,27 +482,6 @@ export function ManagerRequestsPage({ adminZone = false }: ManagerRequestsPagePr
         </>
       ) : null}
     </div>
-  );
-}
-
-function sortableHeader(
-  sort: SortKey,
-  dir: 'asc' | 'desc',
-  key: SortKey,
-  label: string,
-  onToggle: (key: SortKey) => void,
-) {
-  const active = sort === key;
-  return (
-    <button
-      type="button"
-      className={`inline-flex appearance-none border-0 bg-transparent p-0 font-medium cursor-pointer items-center gap-1 transition-colors duration-150 hover:text-foreground ${active ? 'text-foreground' : 'text-muted-foreground'}`}
-      onClick={() => onToggle(key)}
-      aria-label={`Сортировать по «${label}»`}
-    >
-      {label}
-      {active ? dir === 'asc' ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" /> : null}
-    </button>
   );
 }
 

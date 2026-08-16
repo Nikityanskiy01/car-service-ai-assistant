@@ -4,8 +4,8 @@ declare global {
       id?: string;
       rawBody?: Buffer;
       user?: import('./auth.js').AuthUser | null;
-      validatedBody?: unknown;
-      validatedQuery?: unknown;
+      validatedBody?: any;
+      validatedQuery?: any;
       consultationActor?: import('./auth.js').ConsultationActor;
     }
   }

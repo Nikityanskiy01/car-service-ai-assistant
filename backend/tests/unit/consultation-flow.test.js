@@ -108,6 +108,12 @@ describe('shouldSkipLlmExtraction', () => {
     expect(pre.car_model).toBe('Camry');
     expect(shouldSkipLlmExtraction('Camry', base, pre)).toBe(true);
   });
+
+  it('не пропускает LLM, если симптомов нет, но в тексте есть намёк', () => {
+    const base = { car_make: 'Kia', car_model: 'Rio' };
+    const pre = { car_make: 'Kia', car_model: 'Rio' };
+    expect(shouldSkipLlmExtraction('глухой стук спереди справа на кочках', base, pre)).toBe(false);
+  });
 });
 
 describe('preferPreExtractedServiceSymptoms', () => {

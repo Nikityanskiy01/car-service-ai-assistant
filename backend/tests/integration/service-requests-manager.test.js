@@ -74,12 +74,25 @@ describe('service requests manager', () => {
     const clientSession = await prisma.consultationSession.create({
       data: { clientId, status: 'COMPLETED', progressPercent: 100 },
     });
+    await prisma.clientVehicle.create({
+      data: {
+        clientId,
+        make: 'Kia',
+        model: 'Rio',
+        year: 2019,
+        vin: 'KNADC123456789012',
+        licensePlate: 'A123BC777',
+        currentMileageKm: 84200,
+        color: 'белый',
+      },
+    });
     await prisma.serviceRequest.create({
       data: {
         clientId,
         consultationSessionId: clientSession.id,
         snapshotMake: 'Kia',
         snapshotModel: 'Rio',
+        snapshotSymptoms: 'Стук в подвеске',
         status: 'NEW',
       },
     });
@@ -113,8 +126,29 @@ describe('service requests manager', () => {
       .get('/api/service-requests/clients?pageSize=20&sort=name')
       .set('Authorization', `Bearer ${mt}`);
     expect(list.status).toBe(200);
-    expect(list.body.items.some((row) => row.clientId === clientId && row.name === 'Анна Ковалева')).toBe(true);
+    expect(list.body.counts.all).toBeGreaterThanOrEqual(list.body.items.length);
+    expect(list.body.counts.active).toBeGreaterThanOrEqual(0);
+    expect(list.body.counts.guests).toBeGreaterThanOrEqual(1);
+    const anna = list.body.items.find((row) => row.clientId === clientId);
+    expect(anna?.name).toBe('Анна Ковалева');
+    expect(anna?.vehicles?.some((car) => car.make === 'Kia' && car.licensePlate === 'A123BC777')).toBe(true);
     expect(list.body.items.some((row) => row.isGuest && row.phone === '79992220002')).toBe(true);
+    const guest = list.body.items.find((row) => row.isGuest && row.phone === '79992220002');
+    expect(guest?.vehicles?.some((car) => car.make === 'Ford' && car.model === 'Focus')).toBe(true);
+
+    const byPlate = await request(app)
+      .get('/api/service-requests/clients?q=A123BC777')
+      .set('Authorization', `Bearer ${mt}`);
+    expect(byPlate.status).toBe(200);
+    expect(byPlate.body.items.some((row) => row.clientId === clientId)).toBe(true);
+
+    const dossier = await request(app)
+      .get(`/api/service-requests/client-dossier/${clientId}`)
+      .set('Authorization', `Bearer ${mt}`);
+    expect(dossier.status).toBe(200);
+    expect(dossier.body.vehicles.some((car) => car.vin === 'KNADC123456789012' && car.currentMileageKm === 84200)).toBe(true);
+    expect(dossier.body.requests[0].snapshotSymptoms).toBe('Стук в подвеске');
+    expect(dossier.body.metrics.vehiclesCount).toBeGreaterThanOrEqual(1);
 
     const guests = await request(app)
       .get('/api/service-requests/clients?filter=guests')

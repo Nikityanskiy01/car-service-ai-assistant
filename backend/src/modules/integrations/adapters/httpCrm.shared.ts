@@ -70,16 +70,17 @@ export async function timedGet(url, headers, timeoutMs) {
 }
 
 export async function timedPost(url, headers, body, timeoutMs) {
+  const isRaw = typeof body === 'string';
   const res = await fetchSafeOutbound(
     url,
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...(isRaw ? {} : { 'Content-Type': 'application/json' }),
         ...headers,
       },
-      body: JSON.stringify(body),
+      body: isRaw ? body : JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     },
     { allowHttp: false },

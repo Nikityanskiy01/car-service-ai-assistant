@@ -1,7 +1,20 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { seedDemoInboxNotifications } from './lib/demoInboxNotifications.js';
+import { seedAdminInbox, seedManagerInbox } from './lib/demoStaffInbox.js';
+import {
+  CRM_CLIENTS,
+  EXTRA_CMS_BLOCKS,
+  EXTRA_SCENARIOS,
+  LEGACY_DEMO_EMAILS,
+  buildExtraBookings,
+  buildExtraContacts,
+  buildFleetCases,
+  buildFleetVehicles,
+  buildOrphanConsultations,
+} from './lib/demoOpsCatalog.js';
 import { hashGuestToken } from '../src/lib/guestToken.js';
 
 dotenv.config();
@@ -39,12 +52,46 @@ function hoursAgo(h) {
   return new Date(Date.now() - h * 3600_000);
 }
 
-async function upsertUser({ email, password, fullName, phone, role }) {
+async function upsertUser({ email, password, fullName, phone, role, extra = {} }) {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return prisma.user.update({
+      where: { email },
+      data: {
+        fullName,
+        phone,
+        role,
+        blocked: extra.blocked ?? false,
+        city: extra.city ?? existing.city,
+        telegram: extra.telegram ?? existing.telegram,
+        emailVerifiedAt: existing.emailVerifiedAt || new Date(),
+      },
+    });
+  }
   const passwordHash = await bcrypt.hash(password, 12);
-  return prisma.user.upsert({
-    where: { email },
-    update: { passwordHash, fullName, phone, role, blocked: false, emailVerifiedAt: new Date() },
-    create: { email, passwordHash, fullName, phone, role, emailVerifiedAt: new Date() },
+  return prisma.user.create({
+    data: {
+      email,
+      passwordHash,
+      fullName,
+      phone,
+      role,
+      blocked: extra.blocked ?? false,
+      city: extra.city || null,
+      telegram: extra.telegram || null,
+      emailVerifiedAt: new Date(),
+    },
+  });
+}
+
+async function upsertCrmClient(spec) {
+  return upsertUser({
+    email: spec.email,
+    password: crypto.randomBytes(32).toString('hex'),
+    fullName: spec.fullName,
+    phone: spec.phone,
+    role: 'CLIENT',
+    extra: { city: spec.city, telegram: spec.telegram, blocked: Boolean(spec.blocked) },
   });
 }
 
@@ -70,6 +117,8 @@ async function resetOperationalData() {
   await prisma.serviceRequestCompletionDocument.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.requestFollowUpMessage.deleteMany();
+  await prisma.vehicleServiceRecord.deleteMany();
+  await prisma.clientVehicleExclusion.deleteMany();
   await prisma.serviceRequest.deleteMany();
   await prisma.consultationReport.deleteMany();
   await prisma.message.deleteMany();
@@ -80,6 +129,7 @@ async function resetOperationalData() {
   await prisma.adminAuditEvent.deleteMany();
   await prisma.siteContentVersion.deleteMany();
   await prisma.siteContentBlock.deleteMany();
+  await prisma.clientVehicle.deleteMany();
 }
 
 async function createCase({
@@ -102,10 +152,16 @@ async function createCase({
   booking,
   createdAt,
   guest,
+  diagnosis,
+  assignedManagerId = null,
+  firstResponseAt = null,
+  vehicleId = null,
+  feedback = null,
 }) {
   const session = await prisma.consultationSession.create({
     data: {
       clientId: clientId || null,
+      vehicleId: vehicleId || null,
       guestName: guest?.name || null,
       guestPhone: guest?.phone || null,
       guestToken: guest ? hashGuestToken(`demo-guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`) : null,
@@ -115,7 +171,27 @@ async function createCase({
       costFromMinor,
       preliminaryNote,
       createdAt: createdAt || undefined,
-      flowState: { stage: progressPercent >= 100 ? 'COMPLETED' : 'CLARIFYING' },
+      flowState: {
+        stage: progressPercent >= 100 ? 'COMPLETED' : 'CLARIFYING',
+        ...(diagnosis
+          ? {
+              diagnosis: {
+                summary: diagnosis.summary,
+                urgency: diagnosis.urgency || 'medium',
+                confidence: diagnosis.confidence ?? (confidencePercent != null ? confidencePercent / 100 : null),
+                estimated_cost_from: diagnosis.estimated_cost_from ?? costFromMinor ?? null,
+                recommended_checks: diagnosis.recommended_checks || [],
+                probable_causes: diagnosis.probable_causes || recommendations.map((r) => r.title),
+                status: 'SUCCESS',
+                analysis_available: true,
+                reason: null,
+                disclaimer:
+                  'Результат предварительный и не заменяет техническую диагностику автомобиля специалистом.',
+              },
+              recommended_checks: diagnosis.recommended_checks || [],
+            }
+          : {}),
+      },
       messages: { create: messages },
       extracted: {
         create: { make, model, year, mileage, symptoms, problemConditions: conditions },
@@ -129,9 +205,24 @@ async function createCase({
     },
   });
 
+  const respondedAt =
+    firstResponseAt ||
+    (followUps.length && createdAt ? new Date(createdAt.getTime() + 12 * 60_000) : followUps.length ? hoursAgo(0.2) : null);
+
+  const statusLogs = [{ actorId: managerId, fromStatus: null, toStatus: 'NEW', createdAt: createdAt || undefined }];
+  if (status !== 'NEW') {
+    statusLogs.push({
+      actorId: assignedManagerId || managerId,
+      fromStatus: 'NEW',
+      toStatus: status,
+      createdAt: respondedAt || createdAt || undefined,
+    });
+  }
+
   const request = await prisma.serviceRequest.create({
     data: {
       clientId: clientId || null,
+      vehicleId: vehicleId || null,
       guestName: guest?.name || null,
       guestPhone: guest?.phone || null,
       guestEmail: guest?.email || null,
@@ -140,12 +231,15 @@ async function createCase({
       snapshotMake: make,
       snapshotModel: model,
       snapshotSymptoms: symptoms,
+      assignedManagerId: assignedManagerId || null,
+      firstResponseAt: respondedAt,
       createdAt: createdAt || undefined,
       followUpMessages: followUps.length
         ? {
             create: followUps.map((body) => ({ authorId: managerId, body })),
           }
         : undefined,
+      statusLogs: { create: statusLogs },
       notifications: {
         create: {
           payload: JSON.stringify({ text: `Заявка: ${make} ${model} — ${symptoms}` }),
@@ -160,6 +254,7 @@ async function createCase({
     await prisma.serviceBooking.create({
       data: {
         clientId: clientId || null,
+        vehicleId: vehicleId || null,
         guestName: guest?.name || null,
         guestPhone: guest?.phone || null,
         guestEmail: guest?.email || null,
@@ -169,6 +264,40 @@ async function createCase({
         notes: booking.notes,
       },
     });
+  }
+
+  if (feedback) {
+    const fb = await prisma.consultationFeedback.create({
+      data: {
+        sessionId: session.id,
+        managerId: feedback.managerId || managerId,
+        verdict: feedback.verdict,
+        actualCause: feedback.actualCause || null,
+        worksDone: feedback.worksDone || null,
+        repairAmountMinor: feedback.repairAmountMinor ?? null,
+        workOrderNumber: feedback.workOrderNumber || null,
+        repairCompletedAt: feedback.repairCompletedAt || null,
+      },
+    });
+    if (vehicleId && clientId && feedback.worksDone) {
+      await prisma.vehicleServiceRecord.create({
+        data: {
+          vehicleId,
+          clientId,
+          performedAt: feedback.repairCompletedAt || hoursAgo(8),
+          mileageKm: mileage || null,
+          title: feedback.worksDone.slice(0, 120),
+          category: 'other',
+          worksDone: feedback.worksDone,
+          workOrderNumber: feedback.workOrderNumber || null,
+          amountMinor: feedback.repairAmountMinor ?? null,
+          source: 'manager_feedback',
+          serviceRequestId: request.id,
+          consultationFeedbackId: fb.id,
+          createdById: feedback.managerId || managerId,
+        },
+      });
+    }
   }
 
   return { session, request };
@@ -201,23 +330,39 @@ async function main() {
     }),
   ]);
 
-  // Keep exactly one user per role for demo.
   await prisma.refreshToken.deleteMany({
-    where: {
-      user: {
-        email: {
-          in: ['anna.client@example.local', 'sergey.client@example.local', 'manager2@example.local'],
-        },
-      },
-    },
+    where: { user: { email: { in: LEGACY_DEMO_EMAILS } } },
   });
   await prisma.user.deleteMany({
-    where: {
-      email: {
-        in: ['anna.client@example.local', 'sergey.client@example.local', 'manager2@example.local'],
-      },
-    },
+    where: { email: { in: LEGACY_DEMO_EMAILS } },
   });
+
+  const crmUsers = {};
+  for (const spec of CRM_CLIENTS) {
+    crmUsers[spec.key] = await upsertCrmClient(spec);
+  }
+
+  const people = {
+    client,
+    manager,
+    admin,
+    managerId: manager.id,
+    anna: crmUsers.anna,
+    sergey: crmUsers.sergey,
+    maria: crmUsers.maria,
+    dmitry: crmUsers.dmitry,
+    elena: crmUsers.elena,
+    oleg: crmUsers.oleg,
+  };
+
+  const vehicles = {};
+  for (const spec of buildFleetVehicles(people)) {
+    const { key, ...data } = spec;
+    vehicles[key] = await prisma.clientVehicle.create({ data });
+  }
+  const vehicleByCar = new Map(
+    Object.values(vehicles).map((row) => [`${row.make}|${row.model}`, row]),
+  );
 
   const categories = [
     { slug: 'diagnostics', name: 'Диагностика', description: 'Комплексная первичная и компьютерная диагностика' },
@@ -252,14 +397,32 @@ async function main() {
       costFromMinor: 12000,
       preliminaryNote: 'Вероятен износ тормозных дисков. Нужна очная диагностика.',
       recommendations: [
-        { title: 'Износ тормозных дисков', probabilityPercent: 78 },
-        { title: 'Неравномерный износ колодок', probabilityPercent: 55 },
+        { title: 'Деформация передних тормозных дисков — вибрация руля на 70–90 км/ч', probabilityPercent: 78 },
+        { title: 'Неравномерный износ колодок и заедание направляющих суппорта', probabilityPercent: 55 },
+        { title: 'Люфт ступичного подшипника или рулевых наконечников (реже)', probabilityPercent: 28 },
       ],
+      diagnosis: {
+        summary:
+          'По Toyota Camry 2018 предварительный ориентир — биение передних тормозных дисков: вибрация в руле на 70–90 км/ч типична после перегрева. На посту снимем колёса, промерим биение дисков и состояние колодок. Ехать можно, но без резких торможений до проверки.',
+        urgency: 'high',
+        confidence: 0.78,
+        estimated_cost_from: 2800,
+        probable_causes: [
+          'Деформация передних тормозных дисков — вибрация руля на 70–90 км/ч',
+          'Неравномерный износ колодок и заедание направляющих суппорта',
+          'Люфт ступичного подшипника или рулевых наконечников (реже)',
+        ],
+        recommended_checks: [
+          'Снять колёса, осмотреть диски на синеву, бороздки и кромку',
+          'Индикатором проверить биение диска на ступице',
+          'Оценить толщину колодок и ход направляющих суппорта',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'Toyota Camry 2018, 132000 км. При торможении вибрация в руль.' },
         { sender: 'ASSISTANT', content: 'Вибрация появляется на высокой скорости или в любом режиме?' },
         { sender: 'USER', content: 'Чаще на 70–90 км/ч.' },
-        { sender: 'ASSISTANT', content: 'Предварительно — диски/колодки. Рекомендую диагностику тормозов в 1–2 дня.' },
+        { sender: 'ASSISTANT', content: 'Предварительно — биение передних дисков. На посту снимем колёса и промерим биение. Можно сохранить отчёт и оформить заявку.' },
       ],
       followUps: ['Добрый день! Готовы записать на диагностику тормозов завтра после 12:00.'],
       booking: {
@@ -283,14 +446,32 @@ async function main() {
       costFromMinor: 18000,
       preliminaryNote: 'Возможен износ стоек/опор. Нужна проверка подвески.',
       recommendations: [
-        { title: 'Износ передних стоек', probabilityPercent: 71 },
-        { title: 'Опоры амортизаторов', probabilityPercent: 48 },
+        { title: 'Износ стойки стабилизатора справа — глухой стук на мелких неровностях', probabilityPercent: 71 },
+        { title: 'Опора переднего амортизатора', probabilityPercent: 48 },
+        { title: 'Люфт шаровой опоры или рулевого наконечника', probabilityPercent: 36 },
       ],
+      diagnosis: {
+        summary:
+          'По Kia Rio 2019 глухой стук спереди справа на кочках чаще всего даёт стойка стабилизатора или опора амортизатора на пробеге около 100 тыс. На подъёмнике проверим люфты монтажкой и состояние опор. До визита избегайте ям на скорости.',
+        urgency: 'medium',
+        confidence: 0.71,
+        estimated_cost_from: 3000,
+        probable_causes: [
+          'Износ стойки стабилизатора справа — глухой стук на мелких неровностях',
+          'Опора переднего амортизатора',
+          'Люфт шаровой опоры или рулевого наконечника',
+        ],
+        recommended_checks: [
+          'На подъёмнике проверить люфт стойки и втулки стабилизатора',
+          'Осмотреть верхнюю опору амортизатора под нагрузкой',
+          'Проверить шаровые и рулевые наконечники монтажкой',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'Kia Rio 2019, стук спереди на кочках, пробег 98000.' },
         { sender: 'ASSISTANT', content: 'Стук глухой или звонкий? С одной стороны или с обеих?' },
         { sender: 'USER', content: 'Глухой, больше справа.' },
-        { sender: 'ASSISTANT', content: 'Похоже на стойку/опору. Запишитесь на диагностику ходовой.' },
+        { sender: 'ASSISTANT', content: 'Похоже на стойку стабилизатора или опору амортизатора справа. На посту проверим люфты на подъёмнике. Можно оформить заявку.' },
       ],
       followUps: [
         'Приняли заявку в работу. Нужны фото/видео стука, если есть.',
@@ -316,12 +497,33 @@ async function main() {
       confidencePercent: 90,
       costFromMinor: 8900,
       preliminaryNote: 'Регламентное ТО: масло, фильтры, свечи по пробегу.',
-      recommendations: [{ title: 'Плановое ТО', probabilityPercent: 95 }],
+      recommendations: [
+        { title: 'Замена масла ДВС и масляного фильтра по регламенту 90 тыс.', probabilityPercent: 95 },
+        { title: 'Замена воздушного и салонного фильтров', probabilityPercent: 88 },
+        { title: 'Свечи зажигания и контроль тормозов/жидкостей', probabilityPercent: 70 },
+      ],
+      diagnosis: {
+        summary:
+          'По Hyundai Solaris 2017 на 90 тыс. км это регламентное ТО, а не неисправность: масло ДВС, масляный, воздушный и салонный фильтры, проверка свечей и тормозов. На посту сверим сервисную книжку и сразу соберём чек-лист сопутствующих работ.',
+        urgency: 'low',
+        confidence: 0.9,
+        estimated_cost_from: 5000,
+        probable_causes: [
+          'Замена масла ДВС и масляного фильтра по регламенту 90 тыс.',
+          'Замена воздушного и салонного фильтров',
+          'Свечи зажигания и контроль тормозов/жидкостей',
+        ],
+        recommended_checks: [
+          'Сверить регламент производителя по пробегу и сроку',
+          'Оценить состояние фильтров, свечей и колодок',
+          'Проверить уровни жидкостей и наличие течей',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'Hyundai Solaris 2017, нужно ТО на 90 тысяч.' },
         { sender: 'ASSISTANT', content: 'Подтвердите: масло ДВС, масляный/воздушный/салонный фильтры, свечи?' },
         { sender: 'USER', content: 'Да, полный комплект.' },
-        { sender: 'ASSISTANT', content: 'Ориентир по работам/материалам готов. Можно записаться в день обращения.' },
+        { sender: 'ASSISTANT', content: 'Регламент на 90 тыс.: масло, фильтры, проверка свечей и тормозов. Ориентир по работам готов — можно записаться в день обращения.' },
       ],
       followUps: ['Запись подтверждена на субботу 11:00. Возьмите сервисную книжку.'],
       booking: {
@@ -345,9 +547,27 @@ async function main() {
       costFromMinor: 4500,
       preliminaryNote: 'Возможна загрязнённая дроссельная заслонка.',
       recommendations: [
-        { title: 'Чистка дроссельной заслонки', probabilityPercent: 66 },
-        { title: 'Датчик ХХ / адаптация', probabilityPercent: 40 },
+        { title: 'Загрязнение дроссельной заслонки — плавают обороты без Check Engine', probabilityPercent: 66 },
+        { title: 'Подсос воздуха на впуске', probabilityPercent: 44 },
+        { title: 'Сбой адаптации ХХ / датчик положения дросселя', probabilityPercent: 40 },
       ],
+      diagnosis: {
+        summary:
+          'По VW Polo 2020 плавающие холостые без Check Engine чаще всего даёт загрязнённый дроссель или подсос воздуха. Считаем параметры ХХ сканером, проверяем впуск и при необходимости чистим дроссель с адаптацией.',
+        urgency: 'medium',
+        confidence: 0.66,
+        estimated_cost_from: 2500,
+        probable_causes: [
+          'Загрязнение дроссельной заслонки — плавают обороты без Check Engine',
+          'Подсос воздуха на впуске',
+          'Сбой адаптации ХХ / датчик положения дросселя',
+        ],
+        recommended_checks: [
+          'Считать параметры ХХ, коррекции смеси и положение дросселя',
+          'Проверить подсос на впуске (дымогенератор или аэрозоль)',
+          'Осмотреть и при необходимости промыть дроссельный узел, сделать адаптацию',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'VW Polo 2020, плавают обороты на холостых.' },
         { sender: 'ASSISTANT', content: 'Горит Check Engine? Были ошибки по дросселю?' },
@@ -361,6 +581,15 @@ async function main() {
         notes: 'Выполнено',
       },
       createdAt: hoursAgo(96),
+      feedback: {
+        managerId: manager.id,
+        verdict: 'CORRECT',
+        actualCause: 'Загрязнение дроссельной заслонки',
+        worksDone: 'Чистка дросселя, адаптация ХХ, тест-драйв',
+        repairAmountMinor: 4800,
+        workOrderNumber: 'ЗН-10210',
+        repairCompletedAt: hoursAgo(18),
+      },
     },
     {
       clientId: client.id,
@@ -376,14 +605,32 @@ async function main() {
       costFromMinor: 22000,
       preliminaryNote: 'Возможна необходимость замены масла/фильтра АКПП и адаптации.',
       recommendations: [
-        { title: 'Замена масла АКПП', probabilityPercent: 62 },
-        { title: 'Соленоиды / механика АКПП', probabilityPercent: 28 },
+        { title: 'Старое масло АКПП/DSG — рывки 2–3 после прогрева, масло не меняли', probabilityPercent: 62 },
+        { title: 'Грязный фильтр гидроблока / соленоиды', probabilityPercent: 38 },
+        { title: 'Механика сцепления DSG (если подтвердится тип коробки)', probabilityPercent: 28 },
       ],
+      diagnosis: {
+        summary:
+          'По Skoda Octavia 2016 рывки 2–3 на прогретой коробке при пробеге 154 тыс. и неизвестном интервале масла чаще всего лечатся сервисом АКПП/DSG: масло, фильтр, адаптация. На посту считаем ошибки коробки и оценим состояние ATF до разбора мехатроника.',
+        urgency: 'medium',
+        confidence: 0.62,
+        estimated_cost_from: 3500,
+        probable_causes: [
+          'Старое масло АКПП/DSG — рывки 2–3 после прогрева, масло не меняли',
+          'Грязный фильтр гидроблока / соленоиды',
+          'Механика сцепления DSG (если подтвердится тип коробки)',
+        ],
+        recommended_checks: [
+          'Считать ошибки АКПП и параметры температуры/пробуксовки',
+          'Оценить уровень и состояние ATF, наличие течей',
+          'Тест-драйв по передачам 2–3 после прогрева, затем решение по замене масла и адаптации',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'Octavia 2016 DSG/АКПП, рывки при переключении 2-3.' },
         { sender: 'ASSISTANT', content: 'Когда меняли масло в коробке в последний раз?' },
         { sender: 'USER', content: 'Не помню, возможно никогда.' },
-        { sender: 'ASSISTANT', content: 'С высокой вероятностью поможет сервис АКПП. Нужна диагностика на посту.' },
+        { sender: 'ASSISTANT', content: 'С высокой вероятностью поможет сервис АКПП: масло давно не меняли. Считаем ошибки коробки и смотрим ATF, затем решим по замене и адаптации.' },
       ],
       followUps: ['Ждём вас на диагностику АКПП. Не прогревайте агрессивно до записи.'],
       booking: {
@@ -407,9 +654,27 @@ async function main() {
       costFromMinor: 3500,
       preliminaryNote: 'Возможна паразитная утечка тока или износ АКБ.',
       recommendations: [
-        { title: 'Утечка тока в цепи', probabilityPercent: 58 },
-        { title: 'Износ аккумулятора', probabilityPercent: 45 },
+        { title: 'Паразитная утечка тока — нештатная магнитола, АКБ садится за ночь', probabilityPercent: 58 },
+        { title: 'Износ аккумулятора (возраст ~3 года, ёмкость ниже нормы)', probabilityPercent: 45 },
+        { title: 'Слабый заряд генератора или окисление клемм', probabilityPercent: 30 },
       ],
+      diagnosis: {
+        summary:
+          'По Renault Duster 2015 утренняя разрядка при АКБ ~3 лет и нештатной магнитоле — либо утечка тока, либо износ батареи. Сначала тест ёмкости АКБ и замер тока покоя, затем генератор и клеммы. Не оставляйте авто с включёнными потребителями до проверки.',
+        urgency: 'medium',
+        confidence: 0.58,
+        estimated_cost_from: 2500,
+        probable_causes: [
+          'Паразитная утечка тока — нештатная магнитола, АКБ садится за ночь',
+          'Износ аккумулятора (возраст ~3 года, ёмкость ниже нормы)',
+          'Слабый заряд генератора или окисление клемм',
+        ],
+        recommended_checks: [
+          'Тест ёмкости АКБ и напряжение под нагрузкой',
+          'Замер тока утечки при выключенном зажигании',
+          'Проверка зарядки генератора и состояния клемм/массы',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'Duster 2015, утром АКБ разряжена.' },
         { sender: 'ASSISTANT', content: 'Аккумулятору сколько лет? Есть доп. оборудование?' },
@@ -418,6 +683,7 @@ async function main() {
       followUps: [],
       booking: null,
       createdAt: hoursAgo(2),
+      assigned: false,
     },
     {
       clientId: client.id,
@@ -432,7 +698,23 @@ async function main() {
       confidencePercent: 60,
       costFromMinor: 9000,
       preliminaryNote: 'Клиент отменил запись.',
-      recommendations: [{ title: 'Ступичный подшипник', probabilityPercent: 70 }],
+      recommendations: [{ title: 'Износ ступичного подшипника справа — гул растёт со скоростью и в повороте влево', probabilityPercent: 70 }],
+      diagnosis: {
+        summary:
+          'По Lada Vesta 2021 гул справа на скорости, усиливающийся в повороте влево, типичен для правого ступичного подшипника. На подъёмнике проверим люфт колеса; до визита не разгоняйтесь на трассе, если гул уже громкий.',
+        urgency: 'medium',
+        confidence: 0.7,
+        estimated_cost_from: 3000,
+        probable_causes: [
+          'Износ ступичного подшипника справа — гул растёт со скоростью и в повороте влево',
+          'Неравномерный износ шины или дисбаланс колеса',
+        ],
+        recommended_checks: [
+          'Проверить люфт колеса на подъёмнике в двух плоскостях',
+          'Сравнить температуру ступиц после пробега',
+          'Исключить гул трансмиссии и шины',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'Vesta, гул справа на скорости.' },
         { sender: 'ASSISTANT', content: 'Гул усиливается в поворотах?' },
@@ -460,9 +742,27 @@ async function main() {
       costFromMinor: 15000,
       preliminaryNote: 'Возможны катушки/свечи/форсунки. Нужна компьютерная диагностика.',
       recommendations: [
-        { title: 'Катушка зажигания', probabilityPercent: 64 },
-        { title: 'Свечи / форсунки', probabilityPercent: 50 },
+        { title: 'Катушка зажигания — троение на холодную, Check Engine', probabilityPercent: 64 },
+        { title: 'Износ свечей на пробеге 200 тыс.', probabilityPercent: 50 },
+        { title: 'Форсунка / подсос воздуха (если катушки чистые)', probabilityPercent: 32 },
       ],
+      diagnosis: {
+        summary:
+          'По BMW 320i 2014 троение на холодную с Check Engine на 201 тыс. км чаще всего даёт катушка или свеча конкретного цилиндра. На посту считаем ошибки и misfire-счётчики, затем перестановкой катушек подтвердим цилиндр. До визита лучше не крутить мотор в отсечку.',
+        urgency: 'medium',
+        confidence: 0.64,
+        estimated_cost_from: 2500,
+        probable_causes: [
+          'Катушка зажигания — троение на холодную, Check Engine',
+          'Износ свечей на пробеге 200 тыс.',
+          'Форсунка / подсос воздуха (если катушки чистые)',
+        ],
+        recommended_checks: [
+          'Считать ошибки ЭБУ и счётчики пропусков по цилиндрам',
+          'Осмотреть свечи, переставить катушки между цилиндрами',
+          'При необходимости проверить подсос и работу форсунок',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'BMW 320i 2014, троит на холодную, check горит.' },
         { sender: 'ASSISTANT', content: 'Считывали ошибки? Какой код?' },
@@ -476,6 +776,7 @@ async function main() {
         notes: 'Гостевая запись на компьютерную диагностику',
       },
       createdAt: hoursAgo(1),
+      assigned: false,
     },
     {
       guest: { name: 'Гость Елена', phone: '+79994445566' },
@@ -490,7 +791,28 @@ async function main() {
       confidencePercent: 55,
       costFromMinor: 7000,
       preliminaryNote: 'Возможна нехватка фреона или загрязнение радиатора кондиционера.',
-      recommendations: [{ title: 'Заправка / проверка герметичности СК', probabilityPercent: 55 }],
+      recommendations: [
+        { title: 'Недостаток фреона из-за микроутечки контура', probabilityPercent: 55 },
+        { title: 'Загрязнение конденсатора (радиатора кондиционера)', probabilityPercent: 38 },
+        { title: 'Слабая работа вентилятора или забит салонный фильтр', probabilityPercent: 28 },
+      ],
+      diagnosis: {
+        summary:
+          'По Mazda CX-5 2018 слабый холод при жаре и заправке год назад почти всегда означает утечку фреона или грязный конденсатор, а не «просто дозаправить и забыть». На посту замерим давления, поищем утечку и проверим конденсатор с вентиляторами.',
+        urgency: 'low',
+        confidence: 0.55,
+        estimated_cost_from: 3500,
+        probable_causes: [
+          'Недостаток фреона из-за микроутечки контура',
+          'Загрязнение конденсатора (радиатора кондиционера)',
+          'Слабая работа вентилятора или забит салонный фильтр',
+        ],
+        recommended_checks: [
+          'Замер давления фреона на высокой и низкой стороне',
+          'Поиск утечки течеискателем, осмотр трубок и соединений',
+          'Продувка конденсатора и проверка вентиляторов, салонный фильтр',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'CX-5, кондиционер дует еле холодным.' },
         { sender: 'ASSISTANT', content: 'Были утечки раньше? Когда заправляли?' },
@@ -518,9 +840,27 @@ async function main() {
       costFromMinor: 11000,
       preliminaryNote: 'Вероятна течь клапанной крышки или сальника.',
       recommendations: [
-        { title: 'Прокладка клапанной крышки', probabilityPercent: 72 },
-        { title: 'Сальник коленвала', probabilityPercent: 35 },
+        { title: 'Прокладка клапанной крышки — пятно после ночной стоянки, уровень чуть падает', probabilityPercent: 72 },
+        { title: 'Сальник коленвала / стык с коробкой', probabilityPercent: 35 },
+        { title: 'Пробка поддона или корпус масляного фильтра', probabilityPercent: 22 },
       ],
+      diagnosis: {
+        summary:
+          'По Nissan Qashqai 2013 утреннее масляное пятно без запаха гари чаще всего даёт прокладка клапанной крышки. На подъёмнике локализуем течь, помоем агрегат при необходимости. Уровень контролировать до визита, не доливать «на глаз» сверх метки.',
+        urgency: 'medium',
+        confidence: 0.72,
+        estimated_cost_from: 3200,
+        probable_causes: [
+          'Прокладка клапанной крышки — пятно после ночной стоянки, уровень чуть падает',
+          'Сальник коленвала / стык с коробкой',
+          'Пробка поддона или корпус масляного фильтра',
+        ],
+        recommended_checks: [
+          'Осмотр на подъёмнике: откуда именно капает',
+          'Проверка уровня масла, пробки и фильтра',
+          'При необходимости мойка агрегата и контрольный пробег',
+        ],
+      },
       messages: [
         { sender: 'USER', content: 'Qashqai, утром масляное пятно под мотором.' },
         { sender: 'ASSISTANT', content: 'Уровень масла падает заметно? Запах гари?' },
@@ -534,13 +874,43 @@ async function main() {
         notes: 'Выполнено',
       },
       createdAt: hoursAgo(120),
+      feedback: {
+        managerId: manager.id,
+        verdict: 'PARTIAL',
+        actualCause: 'Прокладка клапанной крышки, плюс запотевание сальника распредвала',
+        worksDone: 'Замена прокладки клапанной крышки, контроль сальника',
+        repairAmountMinor: 13200,
+        workOrderNumber: 'ЗН-10188',
+        repairCompletedAt: hoursAgo(68),
+      },
     },
   ];
 
   let createdRequests = 0;
-  for (const item of cases) {
-    await createCase({ ...item, managerId: manager.id });
+  const createdRequestRows = [];
+
+  async function seedCase(item) {
+    const assignedManagerId =
+      item.assigned === false ? null : (item.assignedManagerId ?? manager.id);
+    const car = vehicleByCar.get(`${item.make}|${item.model}`);
+    const vehicleId = item.vehicleId || car?.id || null;
+    const row = await createCase({
+      ...item,
+      managerId: manager.id,
+      assignedManagerId,
+      vehicleId,
+    });
+    createdRequestRows.push(row.request);
     createdRequests += 1;
+    return row;
+  }
+
+  for (const item of cases) {
+    await seedCase(item);
+  }
+
+  for (const item of buildFleetCases({ hoursAgo, hoursFromNow, people, vehicles })) {
+    await seedCase(item);
   }
 
   // Extra standalone bookings (without request) for calendar density
@@ -574,6 +944,9 @@ async function main() {
   for (const b of extraBookings) {
     await prisma.serviceBooking.create({ data: b });
   }
+  for (const b of buildExtraBookings({ hoursAgo, hoursFromNow, people, vehicles })) {
+    await prisma.serviceBooking.create({ data: b });
+  }
 
   // In-progress consultation without request (client cabinet)
   await prisma.consultationSession.create({
@@ -593,6 +966,42 @@ async function main() {
       },
     },
   });
+
+  for (const session of buildOrphanConsultations({ hoursAgo, clientId: client.id })) {
+    const { messages, extracted, ...rest } = session;
+    await prisma.consultationSession.create({
+      data: {
+        ...rest,
+        guestToken: rest.guestPhone
+          ? hashGuestToken(`demo-orphan-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
+          : null,
+        messages: { create: messages },
+        extracted: extracted ? { create: extracted } : undefined,
+      },
+    });
+  }
+
+  for (const sc of EXTRA_SCENARIOS) {
+    let row = await prisma.consultationScenario.findFirst({ where: { title: sc.title } });
+    if (!row) {
+      row = await prisma.consultationScenario.create({
+        data: { title: sc.title, description: sc.description, active: true },
+      });
+    } else {
+      await prisma.consultationQuestion.deleteMany({ where: { scenarioId: row.id } });
+      await prisma.hint.deleteMany({ where: { scenarioId: row.id } });
+      await prisma.consultationScenario.update({
+        where: { id: row.id },
+        data: { description: sc.description, active: true },
+      });
+    }
+    await prisma.consultationQuestion.createMany({
+      data: sc.questions.map((text, order) => ({ scenarioId: row.id, text, order })),
+    });
+    await prisma.hint.createMany({
+      data: sc.hints.map((text, order) => ({ scenarioId: row.id, text, order })),
+    });
+  }
 
   const contacts = [
     {
@@ -629,6 +1038,10 @@ async function main() {
   for (const c of contacts) {
     await prisma.contactSubmission.create({ data: c });
   }
+  const convertedRequest = createdRequestRows.find((row) => String(row.snapshotModel || '').includes('Tiggo'));
+  for (const c of buildExtraContacts({ hoursAgo, convertedRequestId: convertedRequest?.id || null })) {
+    await prisma.contactSubmission.create({ data: c });
+  }
 
   // Site content blocks for admin CMS variants
   const blocks = [
@@ -654,13 +1067,13 @@ async function main() {
       isPublished: true,
     },
   ];
-  for (const block of blocks) {
+  for (const block of [...blocks, ...EXTRA_CMS_BLOCKS]) {
     const row = await prisma.siteContentBlock.create({ data: block });
     await prisma.siteContentVersion.create({
       data: {
         blockId: row.id,
         content: block.content,
-        note: 'Демо-версия',
+        note: block.isPublished ? 'Демо-версия' : 'Черновик, не публиковать',
         createdBy: admin.id,
       },
     });
@@ -702,6 +1115,34 @@ async function main() {
         entityType: 'integration_connection',
         entityId: 'demo',
         payloadJson: { provider: 'BITRIX24' },
+      },
+      {
+        actorId: admin.id,
+        action: 'USER_BLOCK',
+        entityType: 'user',
+        entityId: people.oleg.id,
+        payloadJson: { email: people.oleg.email, reason: 'Демо: профиль заблокирован' },
+      },
+      {
+        actorId: admin.id,
+        action: 'CMS_SITE_ITEM_UPDATE',
+        entityType: 'site_content_block',
+        entityId: 'home.promo.brakes',
+        payloadJson: { published: false },
+      },
+      {
+        actorId: manager.id,
+        action: 'REQUEST_ASSIGN',
+        entityType: 'service_request',
+        entityId: createdRequestRows.find((row) => row.snapshotModel === 'A6')?.id || 'demo',
+        payloadJson: { assignedTo: manager.fullName },
+      },
+      {
+        actorId: admin.id,
+        action: 'SETTINGS_UPDATE',
+        entityType: 'site_settings',
+        entityId: 'default',
+        payloadJson: { note: 'Проверены часы работы и эвакуатор' },
       },
     ],
   });
@@ -775,6 +1216,21 @@ async function main() {
     },
   });
 
+  const moysklad = await prisma.integrationConnection.create({
+    data: {
+      name: '[DEMO] МойСклад',
+      provider: 'MOYSKLAD',
+      versionLabel: 'remap1.2',
+      mode: 'api',
+      status: 'UNAVAILABLE',
+      enabled: true,
+      lastErrorCode: 'UPSTREAM_DOWN',
+      lastErrorMessage: 'Таймаут склада, 3 задания в dead-letter',
+      capabilitiesJson: { stock: true, invoices: true },
+      configJson: { account: 'demo-autoservice' },
+    },
+  });
+
   await prisma.integrationJob.createMany({
     data: [
       {
@@ -821,6 +1277,40 @@ async function main() {
         lastErrorMessage: 'Temporary timeout',
         payloadJson: { action: 'pull_contact' },
       },
+      {
+        connectionId: moysklad.id,
+        eventType: 'SYNC_OUTBOUND',
+        entityType: 'service_request',
+        entityId: 'demo-req-stock-1',
+        idempotencyKey: `demo-job-dead-${Date.now()}`,
+        status: 'DEAD_LETTER',
+        attemptCount: 8,
+        lastErrorCode: 'UPSTREAM_DOWN',
+        lastErrorMessage: 'Connection timed out',
+        payloadJson: { action: 'reserve_parts' },
+      },
+      {
+        connectionId: moysklad.id,
+        eventType: 'SYNC_OUTBOUND',
+        entityType: 'service_request',
+        entityId: 'demo-req-stock-2',
+        idempotencyKey: `demo-job-dead-2-${Date.now()}`,
+        status: 'DEAD_LETTER',
+        attemptCount: 8,
+        lastErrorCode: 'UPSTREAM_DOWN',
+        lastErrorMessage: 'Connection timed out',
+        payloadJson: { action: 'reserve_parts' },
+      },
+      {
+        connectionId: bitrix.id,
+        eventType: 'SYNC_OUTBOUND',
+        entityType: 'service_request',
+        entityId: createdRequestRows[0]?.id || 'demo-req-live',
+        idempotencyKey: `demo-job-ok-2-${Date.now()}`,
+        status: 'SUCCEEDED',
+        attemptCount: 1,
+        payloadJson: { action: 'upsert_deal' },
+      },
     ],
   });
 
@@ -833,6 +1323,19 @@ async function main() {
       field: 'status',
       localValue: 'IN_PROGRESS',
       externalValue: 'NEW',
+      status: 'OPEN',
+      resolutionNote: null,
+    },
+  });
+  await prisma.integrationConflict.create({
+    data: {
+      connectionId: amocrm.id,
+      entityType: 'contact',
+      internalEntityId: people.anna.id,
+      externalEntityId: 'AMO-C-4412',
+      field: 'phone',
+      localValue: people.anna.phone,
+      externalValue: '+79990000000',
       status: 'OPEN',
       resolutionNote: null,
     },
@@ -1156,11 +1659,29 @@ async function main() {
     requests: clientRequests,
   });
 
+  const managerRequest = createdRequestRows.find((row) => row.assignedManagerId === manager.id);
+  const managerBooking = await prisma.serviceBooking.findFirst({
+    where: { status: 'ARRIVED' },
+    select: { id: true },
+  });
+  const managerInbox = await seedManagerInbox(prisma, {
+    userId: manager.id,
+    requestId: managerRequest?.id,
+    bookingId: managerBooking?.id,
+  });
+  const adminInbox = await seedAdminInbox(prisma, { userId: admin.id });
+
+  const assignedToManager = createdRequestRows.filter((row) => row.assignedManagerId === manager.id).length;
+  const unassigned = createdRequestRows.filter((row) => !row.assignedManagerId).length;
+  const crmClients = CRM_CLIENTS.length;
+
   console.log(`Demo seed OK:
   client:  ${defaults.client.email}
   manager: ${defaults.manager.email}
   admin:   ${defaults.admin.email}
-  data: ${createdRequests} requests, ${bookingsCount} bookings, ${contactsCount} contacts, ${jobsCount} integration jobs, ${inboxCount} inbox notifications
+  data: ${createdRequests} requests (${assignedToManager} у менеджера, ${unassigned} без ответственного), ${bookingsCount} bookings, ${contactsCount} contacts, ${jobsCount} integration jobs
+  inbox: client ${inboxCount}, manager ${managerInbox}, admin ${adminInbox}
+  crm clients: ${crmClients} доп. (логины демо-аккаунтов не менялись)
 `);
 }
 

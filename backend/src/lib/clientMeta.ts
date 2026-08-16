@@ -4,14 +4,19 @@ export function hashRefreshToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
-/** @param ip */
-export function formatClientIp(ip) {
-  if (!ip) return { display: null, kind: 'unknown', raw: null };
+export function normalizeClientIp(ip) {
+  if (!ip) return null;
   let value = String(ip).trim();
   if (value.startsWith('::ffff:')) value = value.slice(7);
+  return value || null;
+}
+
+export function formatClientIp(ip) {
+  const value = normalizeClientIp(ip);
+  if (!value) return { display: null, kind: 'unknown', raw: null };
 
   if (value === '127.0.0.1' || value === '::1') {
-    return { display: 'Это устройство', kind: 'local', raw: value };
+    return { display: 'Локальный адрес', kind: 'local', raw: value };
   }
   if (
     /^10\./.test(value) ||
@@ -24,20 +29,45 @@ export function formatClientIp(ip) {
   return { display: value, kind: 'public', raw: value };
 }
 
-function detectBot(text) {
-  if (/curl\//i.test(text)) {
-    const match = text.match(/curl\/([\d.]+)/i);
-    return match ? `curl ${match[1]}` : 'curl';
-  }
-  if (/PostmanRuntime/i.test(text)) return 'Postman';
-  if (/python-requests/i.test(text)) return 'Python';
-  if (/axios/i.test(text)) return 'Axios';
-  if (/node-fetch/i.test(text)) return 'Node.js';
-  if (/wget/i.test(text)) return 'wget';
-  return text.slice(0, 32);
+export function deviceSessionKey(ip, userAgent) {
+  return `${normalizeClientIp(ip) || ''}|${String(userAgent || '').slice(0, 500)}`;
 }
 
-/** @param ua */
+const SCRIPT_MATCHERS = [
+  {
+    test: (text) =>
+      /^node$/i.test(text.trim()) ||
+      /^node\//i.test(text) ||
+      /\bnode-fetch\b/i.test(text) ||
+      /\bundici\b/i.test(text),
+    label: () => 'Node.js',
+  },
+  {
+    test: (text) => /curl\//i.test(text),
+    label: (text) => {
+      const match = text.match(/curl\/([\d.]+)/i);
+      return match ? `curl ${match[1]}` : 'curl';
+    },
+  },
+  { test: (text) => /PostmanRuntime/i.test(text), label: () => 'Postman' },
+  { test: (text) => /python-requests/i.test(text), label: () => 'Python' },
+  { test: (text) => /^axios\//i.test(text) || /axios\/\d/i.test(text), label: () => 'Axios' },
+  { test: (text) => /^wget\//i.test(text) || /\bwget\//i.test(text), label: () => 'wget' },
+  { test: (text) => /^Go-http-client/i.test(text), label: () => 'Go' },
+  { test: (text) => /^HTTPie\//i.test(text), label: () => 'HTTPie' },
+];
+
+export function scriptClientName(userAgent) {
+  if (!userAgent) return null;
+  const text = String(userAgent);
+  const match = SCRIPT_MATCHERS.find((item) => item.test(text));
+  return match ? match.label(text) : null;
+}
+
+export function isScriptUserAgent(userAgent) {
+  return Boolean(scriptClientName(userAgent));
+}
+
 export function parseUserAgent(ua) {
   if (!ua) {
     return {
@@ -50,13 +80,13 @@ export function parseUserAgent(ua) {
   }
 
   const text = String(ua);
-  if (/curl|wget|python-requests|axios|node-fetch|PostmanRuntime/i.test(text)) {
-    const bot = detectBot(text);
+  const scriptName = scriptClientName(text);
+  if (scriptName) {
     return {
       deviceType: 'desktop',
       os: null,
-      browser: bot,
-      label: bot,
+      browser: scriptName,
+      label: `Скрипт · ${scriptName}`,
       isBot: true,
     };
   }
@@ -122,7 +152,7 @@ export function loginMethodLabel(method) {
   }
 }
 
-export function enrichClientMeta({ ip, userAgent }: any) {
+export function enrichClientMeta({ ip, userAgent }) {
   const device = parseUserAgent(userAgent);
   const ipInfo = formatClientIp(ip);
   return {

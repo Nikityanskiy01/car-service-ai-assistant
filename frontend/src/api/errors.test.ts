@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { localizeApiError } from './errors';
+import { ApiError, isTotpSetupRequired, localizeApiError } from './errors';
 
 describe('localizeApiError', () => {
   it('не маскирует обычный 403 под ошибку консультации', () => {
@@ -36,5 +36,15 @@ describe('localizeApiError', () => {
     expect(localizeApiError(400, { error: 'Укажите корректный номер телефона', code: 'BAD_REQUEST' }, '')).toBe(
       'Укажите корректный номер телефона',
     );
+  });
+
+  it('отличает обязательную 2FA от обычного 403', () => {
+    expect(
+      isTotpSetupRequired(
+        new ApiError('Включите двухфакторную защиту, чтобы продолжить', 403, { code: 'TOTP_SETUP_REQUIRED' }),
+      ),
+    ).toBe(true);
+    expect(isTotpSetupRequired(new ApiError('Недостаточно прав', 403, { code: 'FORBIDDEN' }))).toBe(false);
+    expect(isTotpSetupRequired(new ApiError('Требуется авторизация', 401, { code: 'UNAUTHORIZED' }))).toBe(false);
   });
 });

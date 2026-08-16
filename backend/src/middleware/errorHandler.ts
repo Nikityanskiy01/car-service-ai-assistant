@@ -1,9 +1,10 @@
+import type { NextFunction, Request, Response } from 'express';
 import { apiMessages } from '../config/apiMessages.js';
 import { isAppError } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
 import { sendProblem } from '../lib/problem.js';
 
-export function errorHandler(err, req, res, _next) {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   const instance = req.id ? `/requests/${req.id}` : req.path;
   if (isAppError(err)) {
     return sendProblem(res, {
@@ -14,12 +15,13 @@ export function errorHandler(err, req, res, _next) {
     });
   }
   logger.error({ err, path: req.path }, 'unhandled error');
-  const status = err.statusCode || err.status || 500;
+  const failure = err && typeof err === 'object' ? (err as { statusCode?: number; status?: number; message?: string }) : {};
+  const status = failure.statusCode || failure.status || 500;
   const safeStatus = status >= 400 && status < 600 ? status : 500;
   const message =
     process.env.NODE_ENV === 'production' && safeStatus === 500
       ? apiMessages.common.internal
-      : err.message || apiMessages.common.internal;
+      : failure.message || apiMessages.common.internal;
   return sendProblem(res, {
     status: safeStatus,
     detail: message,

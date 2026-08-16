@@ -23,6 +23,22 @@ export function dashboardProfileFor(role: UserRole | null | undefined): string {
   return role ? DASHBOARD_PROFILE[role] : DASHBOARD_PROFILE.CLIENT;
 }
 
+/** Куда отправить сотрудника, пока не включена обязательная 2FA. */
+export function totpSetupPathFor(role: UserRole | null | undefined): string {
+  return `${dashboardProfileFor(role)}?tab=security&section=protection`;
+}
+
+export function isTotpSetupScreen(pathname: string, search = ''): boolean {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  const isProfile =
+    path === DASHBOARD_PROFILE.MANAGER ||
+    path === DASHBOARD_PROFILE.ADMINISTRATOR ||
+    path === DASHBOARD_PROFILE.CLIENT;
+  if (!isProfile) return false;
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  return params.get('tab') === 'security';
+}
+
 /** Зона кабинета, которой принадлежит текущий путь. */
 export function dashboardZoneFor(pathname: string): string {
   if (pathname.startsWith('/dashboard/admin')) return DASHBOARD_HOME.ADMINISTRATOR;

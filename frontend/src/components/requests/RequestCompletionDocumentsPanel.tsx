@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FileText, LoaderCircle, Paperclip, Trash2, Upload } from 'lucide-react';
+import { LoaderCircle, Paperclip, Trash2 } from 'lucide-react';
 import { openApiFileInNewTab } from '../../api/client';
 import {
   deleteCompletionDocument,
@@ -48,12 +48,10 @@ function readFileAsBase64(file: File): Promise<{ fileName: string; mimeType: str
 export function RequestCompletionDocumentsPanel({ requestId, requestStatus }: Props) {
   const [documents, setDocuments] = useState<CompletionDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [kind, setKind] = useState<CompletionDocumentKind>('WORK_ORDER');
   const [customLabel, setCustomLabel] = useState('');
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingKind, setUploadingKind] = useState<CompletionDocumentKind | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRefs = useRef<Partial<Record<CompletionDocumentKind, HTMLInputElement | null>>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,10 +69,11 @@ export function RequestCompletionDocumentsPanel({ requestId, requestStatus }: Pr
     void load();
   }, [load]);
 
-  async function onPick(fileList: FileList | null) {
+  async function handlePick(kind: CompletionDocumentKind, fileList: FileList | null) {
+    const input = inputRefs.current[kind];
+    if (input) input.value = '';
     if (!fileList?.length) return;
     const file = fileList[0];
-    setError(null);
     if (!ALLOWED.has(file.type)) {
       setError('Допустимы JPG, PNG, WEBP, GIF и PDF');
       return;
@@ -83,35 +82,26 @@ export function RequestCompletionDocumentsPanel({ requestId, requestStatus }: Pr
       setError('Файл не больше 8 МБ');
       return;
     }
-    setPendingFile(file);
-    if (inputRef.current) inputRef.current.value = '';
-  }
-
-  async function handleUpload() {
-    if (!pendingFile) {
-      setError('Выберите файл');
-      return;
-    }
     if (kind === 'OTHER' && !customLabel.trim()) {
       setError('Укажите название документа');
       return;
     }
-    setUploading(true);
+
+    setUploadingKind(kind);
     setError(null);
     try {
-      const fileData = await readFileAsBase64(pendingFile);
+      const fileData = await readFileAsBase64(file);
       const doc = await uploadCompletionDocument(requestId, {
         kind,
         label: kind === 'OTHER' ? customLabel.trim() : null,
         ...fileData,
       });
       setDocuments((prev) => [doc, ...prev]);
-      setPendingFile(null);
-      setCustomLabel('');
+      if (kind === 'OTHER') setCustomLabel('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось загрузить документ');
     } finally {
-      setUploading(false);
+      setUploadingKind(null);
     }
   }
 
@@ -140,82 +130,85 @@ export function RequestCompletionDocumentsPanel({ requestId, requestStatus }: Pr
           <LoaderCircle size={16} className="spin" aria-hidden />
           Загрузка списка…
         </p>
-      ) : documents.length ? (
-        <ul className="completion-documents-list" aria-label="Загруженные документы">
-          {documents.map((doc) => (
-            <li key={doc.id} className="completion-document-row">
-              <FileText size={18} aria-hidden className="completion-document-icon" />
-              <div className="completion-document-copy">
-                <strong>{doc.kindLabel}</strong>
-                <span className="muted">
-                  {doc.fileName} · {formatSize(doc.sizeBytes)}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="completion-document-link"
-                onClick={() => void openApiFileInNewTab(doc.url)}
-              >
-                Открыть
-              </button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="completion-document-delete"
-                aria-label={`Удалить ${doc.kindLabel}`}
-                onClick={() => void handleDelete(doc.id)}
-              >
-                <Trash2 size={16} aria-hidden />
-              </Button>
-            </li>
-          ))}
-        </ul>
       ) : (
-        <p className="muted">Документы ещё не загружены.</p>
+        <ul className="completion-doc-slots">
+          {KIND_OPTIONS.map((option) => {
+            const files = documents.filter((doc) => doc.kind === option.id);
+            const busy = uploadingKind === option.id;
+            return (
+              <li key={option.id} className="completion-doc-slot">
+                <div className="completion-doc-slot-head">
+                  <strong>{option.label}</strong>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => inputRefs.current[option.id]?.click()}
+                  >
+                    <Paperclip size={16} aria-hidden />
+                    {busy ? 'Загрузка…' : files.length ? 'Ещё файл' : 'Выбрать файл'}
+                  </Button>
+                  <input
+                    ref={(node) => {
+                      inputRefs.current[option.id] = node;
+                    }}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                    className="completion-documents-file-input"
+                    onChange={(e) => void handlePick(option.id, e.target.files)}
+                  />
+                </div>
+
+                {option.id === 'OTHER' ? (
+                  <label className="completion-doc-slot-label">
+                    <span>Название</span>
+                    <input
+                      className="input"
+                      type="text"
+                      value={customLabel}
+                      onChange={(e) => setCustomLabel(e.target.value)}
+                      placeholder="Например: протокол диагностики"
+                      maxLength={120}
+                    />
+                  </label>
+                ) : null}
+
+                {files.length ? (
+                  <ul className="completion-doc-slot-files">
+                    {files.map((doc) => (
+                      <li key={doc.id} className="completion-doc-slot-file">
+                        <span className="completion-doc-slot-name">
+                          {doc.label && doc.kind === 'OTHER' ? `${doc.label} · ` : ''}
+                          {doc.fileName}
+                          <small> · {formatSize(doc.sizeBytes)}</small>
+                        </span>
+                        <button
+                          type="button"
+                          className="completion-document-link"
+                          onClick={() => void openApiFileInNewTab(doc.url)}
+                        >
+                          Открыть
+                        </button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="completion-document-delete"
+                          aria-label={`Удалить ${doc.kindLabel}`}
+                          onClick={() => void handleDelete(doc.id)}
+                        >
+                          <Trash2 size={16} aria-hidden />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="completion-doc-slot-empty">Файл не прикреплён</p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
-
-      <div className="completion-documents-upload stack">
-        <div className="completion-documents-upload-row">
-          <label className="stack gap-xs">
-            <span>Тип документа</span>
-            <select value={kind} onChange={(e) => setKind(e.target.value as CompletionDocumentKind)}>
-              {KIND_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
-          {kind === 'OTHER' ? (
-            <label className="stack gap-xs">
-              <span>Название</span>
-              <input
-                type="text"
-                value={customLabel}
-                onChange={(e) => setCustomLabel(e.target.value)}
-                placeholder="Например: протокол диагностики"
-                maxLength={120}
-              />
-            </label>
-          ) : null}
-        </div>
-
-        <div className="completion-documents-file-row">
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-            className="completion-documents-file-input"
-            onChange={(e) => void onPick(e.target.files)}
-          />
-          <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()}>
-            <Paperclip size={16} aria-hidden />
-            {pendingFile ? pendingFile.name : 'Выбрать файл'}
-          </Button>
-          <Button type="button" disabled={uploading || !pendingFile} onClick={() => void handleUpload()}>
-            <Upload size={16} aria-hidden />
-            {uploading ? 'Загрузка…' : 'Загрузить'}
-          </Button>
-        </div>
-      </div>
 
       {error ? <p className="form-error">{error}</p> : null}
     </section>

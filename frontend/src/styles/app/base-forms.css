@@ -529,9 +529,14 @@
   background: color-mix(in oklab, var(--color-primary) 22%, transparent);
 }
 
+.status-arrived,
 .status-completed,
 .status-high {
   background: color-mix(in oklab, var(--color-success) 24%, transparent);
+}
+
+.status-no-show {
+  background: color-mix(in oklab, var(--color-warning) 24%, transparent);
 }
 
 .status-cancelled {

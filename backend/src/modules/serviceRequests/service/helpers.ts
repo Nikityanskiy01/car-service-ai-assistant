@@ -12,6 +12,27 @@ export async function logStatusChange({ requestId, actorId, fromStatus, toStatus
   });
 }
 
+export function serializeExtracted(extracted: {
+  make?: string | null;
+  model?: string | null;
+  year?: number | null;
+  mileage?: number | null;
+  symptoms?: string | null;
+  problemConditions?: string | null;
+  obdCodes?: string | null;
+} | null) {
+  if (!extracted) return null;
+  return {
+    make: extracted.make ?? null,
+    model: extracted.model ?? null,
+    year: extracted.year ?? null,
+    mileage: extracted.mileage ?? null,
+    symptoms: extracted.symptoms ?? null,
+    problemConditions: extracted.problemConditions ?? null,
+    obdCodes: extracted.obdCodes ?? null,
+  };
+}
+
 export function findFullServiceRequest(id) {
   return prisma.serviceRequest.findUnique({
     where: { id },

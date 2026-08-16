@@ -7,5 +7,6 @@ node_modules
 playwright-report
 test-results
 coverage
+storybook-static
 README.md
 .specify

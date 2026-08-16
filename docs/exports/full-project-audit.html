@@ -106,17 +106,17 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>Полный аудит проекта — пересъёмка 16.08</h1>
-    <p class="muted">Все составляющие кроме информационной безопасности. Независимая съёмка диска после S30 и hotfix «без ответа 15 мин». Эталон: ISO 25010, OpenAPI 3.x, OpenTelemetry, WCAG 2.2, Testing Trophy, LLMOps 2026.</p>
+    <h1>Полный аудит проекта — пересъёмка 16.08 + S34</h1>
+    <p class="muted">Все составляющие кроме информационной безопасности. Съёмка диска после S34: 60 именованных схем кабинета. Эталон: ISO 25010, OpenAPI 3.x, OpenTelemetry, WCAG 2.2, Testing Trophy, LLMOps 2026.</p>
     <div class="pills">
-      <span class="pill ok">Итог 8.0 / 10</span>
+      <span class="pill ok">Итог 8.3 / 10</span>
       <span class="pill warn">S30 заявлял 9.4</span>
       <span class="pill ok">P0 закрыты</span>
       <span class="pill">Без security-трека</span>
     </div>
 
     <div class="stats">
-      <div class="stat ok"><b>8.0</b><span>Зрелость / 10 (было 5.9)</span></div>
+      <div class="stat ok"><b>8.3</b><span>Зрелость / 10 (было 5.9)</span></div>
       <div class="stat ok"><b>0</b><span>Открытых P0</span></div>
       <div class="stat ok"><b>0</b><span>P1 полностью открыты</span></div>
       <div class="stat ok"><b>188</b><span>Маршрутов = OpenAPI ops</span></div>
@@ -124,7 +124,7 @@
 
     <div class="callout">
       <strong>Как читать оценку</strong>
-      6 — пилот с долгом. 8+ — рост команды без переписывания платформы. Итог 8.0 — не среднее доменов (7.1) и не арифметика спринтов (9.4). Демо и пилот — да. Стандарт 2026 без оговорок — нет: 8 богатых схем из 188 ops, noImplicitAny выключен, i18n только шапка.
+      6 — пилот с долгом. 8+ — рост команды без переписывания платформы. Итог 8.3 — не среднее доменов (7.2) и не арифметика спринтов (9.4). Демо и пилот — да. Стандарт 2026 без оговорок — нет: хвост OpenAPI admin/integrations, noImplicitAny выключен, i18n только шапка.
     </div>
 
     <h2>Траектория зрелости</h2>
@@ -186,12 +186,12 @@
     </svg>
     <script>
       const domains = [
-        ["Надёжность", 8.0], ["Архитектура", 8.6], ["UI / UX", 8.4], ["Сопровождаемость", 8.3],
-        ["Frontend-код", 7.8], ["ИИ / LLM", 7.7], ["Данные / Prisma", 7.5], ["DevOps", 7.5],
-        ["CI/CD", 7.4], ["Тестирование", 7.2], ["Документация", 7.1], ["Интеграции", 7.1],
-        ["Юридическая полнота", 7.0], ["A11y WCAG 2.2", 7.0], ["Качество backend", 7.0],
-        ["REST API", 6.9], ["Наблюдаемость", 6.7], ["Производительность", 6.5],
-        ["SEO / PWA", 6.4], ["DX", 6.1], ["Продуктовая аналитика", 5.9], ["i18n", 4.4]
+        ["Надёжность", 8.0], ["Архитектура", 8.6], ["UI / UX", 8.4], ["Сопровождаемость", 8.5],
+        ["Frontend-код", 7.8], ["Интеграции", 7.8], ["ИИ / LLM", 7.7], ["Данные / Prisma", 7.5], ["DevOps", 7.5],
+        ["CI/CD", 7.4], ["REST API", 7.6], ["Тестирование", 7.2], ["Качество backend", 7.3], ["Документация", 7.1],
+        ["Юридическая полнота", 7.0], ["A11y WCAG 2.2", 7.0],
+        ["Наблюдаемость", 6.7], ["Производительность", 6.5],
+        ["SEO / PWA", 6.4], ["DX", 6.4], ["Продуктовая аналитика", 5.9], ["i18n", 4.4]
       ];
       const svg = document.querySelectorAll(".chart")[1];
       const ns = "http://www.w3.org/2000/svg";
@@ -217,10 +217,10 @@
     </script>
     <p class="dim">Источник: карта зрелости §2 · 16.08.2026 вечером</p>
 
-    <div class="bar-meta"><span>22 домена</span><span>15 сильных · 6 средних · 1 слабый</span></div>
+    <div class="bar-meta"><span>22 домена</span><span>16 сильных · 5 средних · 1 слабый</span></div>
     <div class="bar-track">
-      <span class="seg-ok" style="width:68.2%"></span>
-      <span class="seg-warn" style="width:27.3%"></span>
+      <span class="seg-ok" style="width:72.7%"></span>
+      <span class="seg-warn" style="width:22.7%"></span>
       <span class="seg-bad" style="width:4.5%"></span>
     </div>
     <p class="dim">Сильные ≥ 7.0 · средние 5.5–6.9 · слабые &lt; 5.5.</p>
@@ -243,15 +243,15 @@
         "Тестирование": "388 кейсов бэк+фронт; 6 e2e; порог 50/40",
         "Документация": "LICENSE, ADR, CONTRIBUTING, OpenAPI YAML",
         "CI/CD": "k6 + Lighthouse + coverage artifacts",
-        "REST API": "188=188; 8 богатых схем из 188 ops",
+        "REST API": "188=188; 60 именованных схем на кабинете",
         "Наблюдаемость": "Prom + OTel SDK; collector не по умолчанию",
         "Производительность": "k6 1 VU / 15 с в CI; LH warn",
-        "Интеграции": "5 из 12 enum; SMS smsru/http/log",
-        "Сопровождаемость": "S7–S30 закрыты; роутеры 400–590 строк",
+        "Интеграции": "12/12 enum; AUTODEALER_WEB/ONLINE = GenericRest",
+        "Сопровождаемость": "S32: backend src все <400",
         "SEO / PWA": "JSON-LD + sitemap; иконки 192/512; SW нет",
-        "Качество backend": "183 TS; тесты JS; noImplicitAny off",
+        "Качество backend": "206 TS; Express-обёртки типизированы; noImplicitAny off",
         "Продуктовая аналитика": "воронка + rum_web_vital; дашборда нет",
-        "DX": "Prettier + Lefthook; нет workspaces",
+        "DX": "Prettier + Lefthook + Storybook 9.1 CLI",
         "i18n": "22 ключа шапки ru/en; кабинеты RU"
       };
       document.getElementById("domain-table").innerHTML = domains.map(([d, s]) => {
@@ -267,22 +267,22 @@
         <p>Prisma: 41 миграция, connection_limit=15, pgvector HNSW.</p>
         <p>Compose tonight: frontend/backend/worker healthy; Redis AOF; mem_limit.</p>
         <p>Гейты: lint и openapi:check зелёные, YAML 188 ops.</p>
-        <p>CSS 73 файла, максимум 641 строк. Backend src — 183 TS, 0 JS. «Без ответа» 15 мин.</p>
+        <p>CSS 76 файлов, максимум 686 строк. Backend src — 196 TS, 0 JS. CRM 12/12. «Без ответа» 15 мин.</p>
       </div>
       <div class="card">
         <h3>Главный разрыв сейчас</h3>
-        <p>OpenAPI: 8 именованных схем; остальные ops — object stub. /api/v1 — rewrite alias.</p>
-        <p>Backend: noImplicitAny и strictNullChecks выключены; тесты JS; роутеры 500–590 строк.</p>
-        <p>QueryClient только на админ-интеграциях. i18n — 22 ключа шапки. Storybook CLI, PgBouncer, SW — нет.</p>
+        <p>OpenAPI: 60 именованных схем на кабинете; хвост admin/integrations — object stub. /api/v1 — rewrite alias.</p>
+        <p>Backend: noImplicitAny и strictNullChecks выключены; тесты JS.</p>
+        <p>QueryClient только на админ-интеграциях. i18n — 22 ключа шапки. PgBouncer и SW — нет. Storybook CLI есть.</p>
       </div>
     </div>
 
     <h2>Реестр находок</h2>
     <p class="dim">51 пункт: P0–P3. Закрыто — подтверждено артефактами. Частично — остаток долга после спринта.</p>
-    <div class="bar-meta"><span>51 находка</span><span>35 закрыто · 11 частично · 5 открыто</span></div>
+    <div class="bar-meta"><span>51 находка</span><span>37 закрыто · 9 частично · 5 открыто</span></div>
     <div class="bar-track">
-      <span class="seg-ok" style="width:68.6%"></span>
-      <span class="seg-warn" style="width:21.6%"></span>
+      <span class="seg-ok" style="width:72.5%"></span>
+      <span class="seg-warn" style="width:17.6%"></span>
       <span class="seg-bad" style="width:9.8%"></span>
     </div>
     <p class="dim">Источник: §20 реестр · 16.08.2026. P0: 4/4 закрыты. P1 полностью открытых: 0. Открыты P3: noUncheckedIndexedAccess, feature flags, analytics DB, SSE-этапы, runtime-схемы клиента.</p>
@@ -298,8 +298,8 @@
         <script>
           const cats = ["P0","P1","P2","P3"];
           const series = [
-            { d:[4,9,17,5], c:"#3d9a5f" },
-            { d:[0,5,6,0], c:"#c9a227" },
+            { d:[4,11,17,5], c:"#3d9a5f" },
+            { d:[0,3,6,0], c:"#c9a227" },
             { d:[0,0,0,5], c:"#c45454" }
           ];
           const g = document.getElementById("prio-chart");
@@ -351,11 +351,11 @@
         <tr class="ok"><td>P1-1</td><td>OTel / метрики</td><td>Закрыто: traces + Prom; collector — profile</td></tr>
         <tr class="ok"><td>P1-2</td><td>Один /health вместо live/ready</td><td>Закрыто</td></tr>
         <tr class="ok"><td>P1-3</td><td>Nginx буферизует SSE</td><td>Закрыто S1</td></tr>
-        <tr class="warn"><td>P1-4</td><td>God-файлы JS/TSX и CSS</td><td>Частично: CSS >700 закрыт; роутеры 500+</td></tr>
-        <tr class="warn"><td>P1-5</td><td>Backend JS, слабый ESLint</td><td>Частично: src TS; тесты JS; any off</td></tr>
+        <tr class="ok"><td>P1-4</td><td>God-файлы JS/TSX и CSS</td><td>Закрыто S32: backend src &lt;400; CSS &gt;700 нет</td></tr>
+        <tr class="warn"><td>P1-5</td><td>Backend JS, слабый ESLint</td><td>Частично: src TS; Express-обёртки; any off</td></tr>
         <tr class="ok"><td>P1-6</td><td>Нет React Error Boundary</td><td>Закрыто</td></tr>
         <tr class="ok"><td>P1-7</td><td>Eval без живой LLM; k6-заглушка</td><td>Закрыто: nightly + k6 в CI</td></tr>
-        <tr class="warn"><td>P1-8</td><td>Один CRM-адаптер при enum из 12</td><td>Частично: 5 из 12</td></tr>
+        <tr class="ok"><td>P1-8</td><td>Один CRM-адаптер при enum из 12</td><td>Закрыто S31: 12/12</td></tr>
         <tr class="ok"><td>P1-9</td><td>Нет jsx-a11y и axe</td><td>Закрыто: axe e2e; contrast off</td></tr>
         <tr class="ok"><td>P1-10</td><td>Embeddings JSON, без pgvector</td><td>Закрыто S8</td></tr>
         <tr class="ok"><td>P1-11</td><td>MASTER navy vs orange</td><td>Закрыто S6</td></tr>
@@ -373,7 +373,7 @@
         <tr class="warn"><td>P2-4</td><td>TanStack Query / SSR meta</td><td>Частично: 1 страница Query</td></tr>
         <tr class="warn"><td>P2-5</td><td>i18n кабинетов</td><td>Частично: шапка ru/en</td></tr>
         <tr class="warn"><td>P2-6</td><td>SEO / PWA SW</td><td>Частично: иконки есть, SW нет</td></tr>
-        <tr class="warn"><td>P2-12</td><td>Storybook CLI</td><td>Частично: CSF без CLI</td></tr>
+        <tr class="warn"><td>P2-12</td><td>Storybook CLI</td><td>CLI 9.1 есть; нет Chromatic в CI</td></tr>
         <tr class="warn"><td>P2-13</td><td>PgBouncer</td><td>Открыто как долг</td></tr>
         <tr><td>P3-4</td><td>noUncheckedIndexedAccess</td><td>P3</td></tr>
         <tr><td>P3-5</td><td>Feature flags только env</td><td>P3</td></tr>
@@ -438,21 +438,20 @@
       </div>
       <div class="card">
         <h3>Дни 8–45 <span class="pill ok">S7–S30</span></h3>
-        <p>Фасады, pgvector, CSS-слои, TypeScript backend, CRM×5, k6/LH в CI. Остались богатые схемы на хвосте ops и coverage 70%.</p>
+        <p>Фасады, pgvector, CSS-слои, TypeScript backend, CRM×12, k6/LH в CI. S34: 60 схем кабинета. Остались admin/integrations stubs и coverage 70%.</p>
       </div>
       <div class="card">
         <h3>Дни 45–90 <span class="pill warn">остаток</span></h3>
-        <p>noImplicitAny, i18n кабинетов, Storybook CLI, PgBouncer, service worker, остальные 7 CRM из enum.</p>
+        <p>noImplicitAny, i18n кабинетов, PgBouncer, service worker.</p>
       </div>
     </div>
 
     <h3 style="margin-top:24px">Бэклог после пересъёмки</h3>
     <ul class="todo">
-      <li><i style="background:#3d9a5f;border-color:#3d9a5f"></i> S30 — CRM×5, SMS, v1/cursor, k6/LH, Prettier</li>
+      <li><i style="background:#3d9a5f;border-color:#3d9a5f"></i> S34 — OpenAPI кабинета, 60 именованных схем</li>
       <li><i></i> P1 — noImplicitAny / strictNullChecks на backend</li>
-      <li><i></i> P2 — богатые схемы на остальных OpenAPI ops</li>
-      <li><i></i> P2 — i18n кабинетов; Storybook CLI; PgBouncer; SW</li>
-      <li><i></i> P1 — остальные 7 провайдеров enum CRM</li>
+      <li><i></i> P2 — OpenAPI admin/integrations stubs</li>
+      <li><i></i> P2 — i18n кабинетов; PgBouncer; SW; Chromatic</li>
     </ul>
 
     <div class="callout neutral">

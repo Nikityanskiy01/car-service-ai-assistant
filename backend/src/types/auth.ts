@@ -3,6 +3,7 @@ export type AuthUser = {
   role: string;
   email: string;
   totpSetupPending?: boolean;
+  sessionId?: string;
 };
 
 export type ConsultationActor =

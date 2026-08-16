@@ -42,11 +42,10 @@ export async function runSlaEscalationCheck() {
 
 export function startSlaEscalationJob() {
   if (timer) return;
-  void runSlaEscalationCheck();
+  void runSlaEscalationCheck().catch((err) => logger.warn({ err }, 'SLA escalation tick failed'));
   timer = setInterval(() => {
-    void runSlaEscalationCheck();
+    void runSlaEscalationCheck().catch((err) => logger.warn({ err }, 'SLA escalation tick failed'));
   }, CHECK_INTERVAL_MS);
-  timer.unref?.();
 }
 
 export function stopSlaEscalationJob() {

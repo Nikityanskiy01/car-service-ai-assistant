@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Globe, History, Laptop, Monitor, Smartphone, Tablet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Globe, History, Laptop, Monitor, Smartphone, Tablet, Terminal } from 'lucide-react';
 import type { LoginHistoryItem } from '../../api/dashboard';
 import {
   deviceTitle,
@@ -21,7 +21,7 @@ export function LoginHistoryPanel({ history }: Props) {
         </span>
         <div>
           <h2>История входов</h2>
-          <p>Последние попытки входа с указанием способа, устройства и адреса</p>
+          <p>Последние попытки входа: способ, устройство или скрипт, адрес</p>
         </div>
       </header>
 
@@ -49,9 +49,10 @@ export function LoginHistoryPanel({ history }: Props) {
 
                 <div className="profile-login-history-meta">
                   <span className="profile-login-history-device">
-                    <DeviceIcon deviceType={item.device?.deviceType} />
+                    <DeviceIcon deviceType={item.device?.deviceType} isBot={item.device?.isBot} />
                     {deviceTitle(item.device)}
                   </span>
+                  {item.device?.isBot ? <span className="profile-script-badge">Скрипт API</span> : null}
                   <span>
                     <Globe size={12} aria-hidden />
                     {ipDescription(item.ipLabel, item.ipKind)}
@@ -76,7 +77,8 @@ export function LoginHistoryPanel({ history }: Props) {
   );
 }
 
-function DeviceIcon({ deviceType }: { deviceType?: string }) {
+function DeviceIcon({ deviceType, isBot }: { deviceType?: string; isBot?: boolean }) {
+  if (isBot) return <Terminal size={12} />;
   if (deviceType === 'mobile') return <Smartphone size={12} />;
   if (deviceType === 'tablet') return <Tablet size={12} />;
   if (deviceType === 'desktop') return <Laptop size={12} />;

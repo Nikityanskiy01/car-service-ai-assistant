@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
+import { Download } from 'lucide-react';
+import { toast } from '../../lib/toast';
 import { getAiFeedbackReport, listServiceRequests, type AiFeedbackReport } from '../../api/dashboard';
 import { downloadApiFile } from '../../api/downloads';
-import { AnalyticsBulletChart } from '../../components/analytics/AnalyticsBulletChart';
 import { CategoryBarChart } from '../../components/analytics/CategoryBarChart';
 import { InlineFeedbackQueue } from '../../components/manager/InlineFeedbackQueue';
 import { Alert, AlertDescription, AlertTitle } from '../../components/console/ui/alert';
-import { Badge } from '../../components/console/ui/badge';
 import { Button } from '../../components/console/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/console/ui/card';
-import { Skeleton } from '../../components/console/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '../../components/console/ui/tabs';
 import { managerZonePaths } from '../../config/managerPaths';
 import { requestNeedsFeedback } from '../../lib/managerRequestHelpers';
 import { usePageMeta } from '../../hooks/usePageMeta';
 
 const paths = managerZonePaths(false);
+
+const PERIODS = [
+  { id: 'today', label: 'Сегодня' },
+  { id: '7', label: '7 дней' },
+  { id: '30', label: '30 дней' },
+] as const;
 
 const VERDICT_LABELS: Record<string, string> = {
   CORRECT: 'Верный',
@@ -24,11 +26,39 @@ const VERDICT_LABELS: Record<string, string> = {
   INCORRECT: 'Неверный',
 };
 
-function verdictVariant(verdict: string): 'success' | 'warning' | 'destructive' | 'secondary' {
-  if (verdict === 'CORRECT') return 'success';
-  if (verdict === 'PARTIAL') return 'warning';
-  if (verdict === 'INCORRECT') return 'destructive';
-  return 'secondary';
+function formatWhen(iso: string) {
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function VerdictSplit({
+  correct,
+  partial,
+  incorrect,
+}: {
+  correct: number;
+  partial: number;
+  incorrect: number;
+}) {
+  const total = correct + partial + incorrect;
+  if (!total) {
+    return <div className="ai-quality-split is-empty" aria-hidden />;
+  }
+  return (
+    <div
+      className="ai-quality-split"
+      role="img"
+      aria-label={`Верных ${correct}, частично ${partial}, неверных ${incorrect}`}
+    >
+      {correct ? <span className="is-correct" style={{ flexGrow: correct, flexBasis: 0 }} /> : null}
+      {partial ? <span className="is-partial" style={{ flexGrow: partial, flexBasis: 0 }} /> : null}
+      {incorrect ? <span className="is-incorrect" style={{ flexGrow: incorrect, flexBasis: 0 }} /> : null}
+    </div>
+  );
 }
 
 export function ManagerAiQualityPage() {
@@ -76,19 +106,43 @@ export function ManagerAiQualityPage() {
     [report],
   );
 
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Насколько предварительные диагнозы совпадают с реальностью в сервисе.
-      </p>
+  function exportCsv() {
+    setExporting(true);
+    void downloadApiFile(`/analytics/ai-feedback.csv?days=${days}`)
+      .then(() => toast.success('Отчёт выгружен'))
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Не удалось выгрузить отчёт'))
+      .finally(() => setExporting(false));
+  }
 
-      <Tabs value={period} onValueChange={setPeriod} className="gap-0">
-        <TabsList>
-          <TabsTrigger value="today">Сегодня</TabsTrigger>
-          <TabsTrigger value="7">7 дней</TabsTrigger>
-          <TabsTrigger value="30">30 дней</TabsTrigger>
-        </TabsList>
-      </Tabs>
+  const accuracyLabel = report?.totalFeedback
+    ? `${report.byVerdict.CORRECT} из ${report.totalFeedback}`
+    : 'Пока нет отметок';
+
+  return (
+    <div className="ai-quality-page">
+      <p className="ai-quality-lead">Сверьте предварительный разбор ИИ с тем, что подтвердили в сервисе.</p>
+
+      <div className="ai-quality-toolbar">
+        <div className="ai-quality-periods" role="tablist" aria-label="Период оценок">
+          {PERIODS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={period === item.id}
+              className="ai-quality-period"
+              onClick={() => setPeriod(item.id)}
+            >
+              {item.label}
+              {period === item.id && report ? <span>{report.totalFeedback}</span> : null}
+            </button>
+          ))}
+        </div>
+        <Button type="button" variant="ghost" size="sm" disabled={exporting || !report} onClick={exportCsv}>
+          <Download />
+          {exporting ? 'Готовим' : 'CSV'}
+        </Button>
+      </div>
 
       {error ? (
         <Alert variant="destructive">
@@ -103,100 +157,57 @@ export function ManagerAiQualityPage() {
       ) : null}
 
       {loading && !report ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <Skeleton className="h-20 flex-1" />
-            <Skeleton className="h-20 flex-1" />
-            <Skeleton className="h-20 flex-1" />
-            <Skeleton className="h-20 flex-1" />
+        <div className="ai-quality-skel" aria-hidden>
+          <div className="ai-quality-skel-score" />
+          <div className="ai-quality-skel-desk">
+            <div />
+            <div />
           </div>
-          <Skeleton className="h-40 w-full" />
         </div>
       ) : null}
 
       {report ? (
         <>
-          <div className={`flex flex-wrap gap-3 ${loading ? 'opacity-70' : ''}`}>
-            <Metric label="Оценок за период" value={report.totalFeedback} />
-            <div className="min-w-[12rem] flex-1 rounded-xl border border-border bg-card px-4 py-3">
-              <AnalyticsBulletChart
-                label="Точность (верный)"
-                value={report.accuracyPercent}
-                max={100}
-                suffix="%"
-                hint={`${report.byVerdict.CORRECT} из ${report.totalFeedback || 1} оценок`}
-              />
-            </div>
-            <div className="min-w-[12rem] flex-1 rounded-xl border border-border bg-card px-4 py-3">
-              <AnalyticsBulletChart label="Полезен (верный + частично)" value={report.usefulPercent} max={100} suffix="%" />
-            </div>
-            <Link to={`${paths.requests}?feedback=none`} className="min-w-[10rem] flex-1 text-inherit no-underline">
-              <Metric label="Ждут оценки (>24ч)" value={pendingCount} />
-            </Link>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Отчёт за период</CardTitle>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={exporting}
-                onClick={() => {
-                  setExporting(true);
-                  void downloadApiFile(`/analytics/ai-feedback.csv?days=${days}`)
-                    .then(() => toast.success('Отчёт выгружен'))
-                    .catch((e) => toast.error(e instanceof Error ? e.message : 'Не удалось выгрузить отчёт'))
-                    .finally(() => setExporting(false));
-                }}
-              >
-                {exporting ? 'Готовим…' : 'Скачать CSV'}
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-3">
-                <Metric label="Верных" value={report.byVerdict.CORRECT} />
-                <Metric label="Частично" value={report.byVerdict.PARTIAL} />
-                <Metric label="Неверных" value={report.byVerdict.INCORRECT} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {report.topMisdiagnoses.length ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Частые расхождения</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CategoryBarChart
-                  rows={report.topMisdiagnoses.map((row) => ({
-                    label: row.actualCause,
-                    value: row.count,
-                  }))}
+          <section className={`ai-quality-score ${loading ? 'is-dim' : ''}`} aria-label="Сводка за период">
+            <article className="ai-quality-hero">
+              <span className="ai-quality-kicker">Совпало с сервисом</span>
+              <strong className="ai-quality-hero-value">
+                {report.totalFeedback ? `${report.accuracyPercent}%` : '—'}
+              </strong>
+              <div className="ai-quality-hero-track" aria-hidden>
+                <div
+                  className="ai-quality-hero-fill"
+                  style={{ width: report.totalFeedback ? `${Math.min(100, report.accuracyPercent)}%` : '0%' }}
                 />
-              </CardContent>
-            </Card>
-          ) : null}
+              </div>
+              <p className="ai-quality-hero-hint">
+                {report.totalFeedback
+                  ? `${accuracyLabel} отметок верный.`
+                  : 'Точность считается по отметкам мастеров, не по пустому периоду.'}
+              </p>
+            </article>
+            <article className="ai-quality-stat">
+              <span>Полезен в сервисе</span>
+              <strong>{report.totalFeedback ? `${report.usefulPercent}%` : '—'}</strong>
+              <p>Верный плюс частично.</p>
+            </article>
+            <Link
+              to={`${paths.requests}?feedback=none`}
+              className={`ai-quality-stat is-pending ${pendingCount ? 'is-hot' : ''}`}
+            >
+              <span>Ждут оценки</span>
+              <strong>{pendingCount}</strong>
+              <p>{pendingCount ? 'Старше суток, без отметки.' : 'Очередь закрыта.'}</p>
+            </Link>
+          </section>
 
-          {categoryRows.length ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Ошибки по категориям</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CategoryBarChart rows={categoryRows} />
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {pendingItems.length ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Быстрая оценка</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2">
-                <p className="text-sm text-muted-foreground">Заявки старше 24 часов без оценки диагноза ИИ.</p>
+          <div className="ai-quality-desk">
+            <section className="ai-quality-board" aria-labelledby="ai-quality-board-title">
+              <header className="ai-quality-board-head">
+                <h2 id="ai-quality-board-title">Оценить</h2>
+                {pendingCount ? <span>{pendingCount}</span> : null}
+              </header>
+              {pendingItems.length ? (
                 <InlineFeedbackQueue
                   items={pendingItems.slice(0, 8)}
                   requestBasePath={paths.requests}
@@ -206,67 +217,94 @@ export function ManagerAiQualityPage() {
                     });
                   }}
                 />
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Последние оценки</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentRows.length ? (
-                <ul className="flex list-none flex-col">
-                  {recentRows.map((row) => (
-                    <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border py-2 last:border-b-0">
-                      <span className="flex items-center gap-2">
-                        <Badge variant={verdictVariant(row.verdict)}>{VERDICT_LABELS[row.verdict] || row.verdict}</Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {row.vehicle || row.category}
-                          {row.actualCause ? ` · ${row.actualCause}` : ''}
-                        </span>
-                      </span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {new Date(row.createdAt).toLocaleString('ru-RU')}
-                        {row.managerName ? ` · ${row.managerName}` : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
               ) : (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                  Отмечайте точность диагноза в карточке заявки на вкладке «Сводка».
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {pendingCount > 0 ? (
-            <Card>
-              <CardContent className="flex flex-wrap items-center justify-between gap-3 py-1">
-                <div>
-                  <p className="text-sm font-medium">Нужна ваша оценка: {pendingCount}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Откройте завершённые или активные заявки и отметьте, насколько диагноз ИИ совпал с реальностью.
-                  </p>
+                <div className="ai-quality-empty" role="status">
+                  <strong>Очередь пуста</strong>
+                  <p>Когда заявка старше суток останется без оценки, она появится здесь вместе с причинами ИИ.</p>
                 </div>
-                <Button asChild variant="secondary" size="sm">
-                  <Link to={`${paths.requests}?feedback=none`}>Перейти в очередь</Link>
-                </Button>
-              </CardContent>
-            </Card>
+              )}
+            </section>
+
+            <aside className="ai-quality-rail">
+              <section className="ai-quality-panel" aria-label="Разбивка оценок">
+                <header>
+                  <h2>Разбивка</h2>
+                </header>
+                <VerdictSplit
+                  correct={report.byVerdict.CORRECT}
+                  partial={report.byVerdict.PARTIAL}
+                  incorrect={report.byVerdict.INCORRECT}
+                />
+                <ul className="ai-quality-legend">
+                  <li>
+                    <i className="is-correct" />
+                    Верных
+                    <b>{report.byVerdict.CORRECT}</b>
+                  </li>
+                  <li>
+                    <i className="is-partial" />
+                    Частично
+                    <b>{report.byVerdict.PARTIAL}</b>
+                  </li>
+                  <li>
+                    <i className="is-incorrect" />
+                    Неверных
+                    <b>{report.byVerdict.INCORRECT}</b>
+                  </li>
+                </ul>
+              </section>
+
+              <section className="ai-quality-panel" aria-label="Последние оценки">
+                <header>
+                  <h2>Последние</h2>
+                </header>
+                {recentRows.length ? (
+                  <ul className="ai-quality-log">
+                    {recentRows.map((row) => (
+                      <li key={row.id} className={`is-${row.verdict.toLowerCase()}`}>
+                        <span className="ai-quality-log-verdict">{VERDICT_LABELS[row.verdict] || row.verdict}</span>
+                        <span className="ai-quality-log-copy">
+                          {row.vehicle || row.category}
+                          {row.actualCause ? ` (${row.actualCause})` : ''}
+                        </span>
+                        <time dateTime={row.createdAt}>{formatWhen(row.createdAt)}</time>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="ai-quality-empty-inline">Отметки появятся после оценки в очереди слева.</p>
+                )}
+              </section>
+            </aside>
+          </div>
+
+          {report.topMisdiagnoses.length || categoryRows.length ? (
+            <section className="ai-quality-gaps" aria-label="Где чаще расходится">
+              {report.topMisdiagnoses.length ? (
+                <div className="ai-quality-panel">
+                  <header>
+                    <h2>Частые причины в сервисе</h2>
+                  </header>
+                  <CategoryBarChart
+                    rows={report.topMisdiagnoses.map((row) => ({
+                      label: row.actualCause,
+                      value: row.count,
+                    }))}
+                  />
+                </div>
+              ) : null}
+              {categoryRows.length ? (
+                <div className="ai-quality-panel">
+                  <header>
+                    <h2>Категории с ошибками</h2>
+                  </header>
+                  <CategoryBarChart rows={categoryRows} />
+                </div>
+              ) : null}
+            </section>
           ) : null}
         </>
       ) : null}
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="min-w-[9rem] flex-1 rounded-xl border border-border bg-card px-4 py-3">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <strong className="mt-1 block text-2xl font-semibold tabular-nums">{value}</strong>
     </div>
   );
 }

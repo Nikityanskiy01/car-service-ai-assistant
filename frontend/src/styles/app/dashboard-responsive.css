@@ -37,6 +37,8 @@
 
   .kanban-board {
     display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
     gap: 0.75rem;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
@@ -47,14 +49,18 @@
 
   .kanban-column {
     flex: 0 0 min(82vw, 280px);
+    width: min(82vw, 280px);
+    max-width: 100%;
     scroll-snap-align: start;
-    min-width: 0;
+    min-width: min(82vw, 280px);
   }
 }
 
 @media (max-width: 920px) {
   .kanban-board {
     display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
     gap: 0.75rem;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
@@ -64,6 +70,9 @@
 
   .kanban-column {
     flex: 0 0 min(78vw, 260px);
+    width: min(78vw, 260px);
+    min-width: min(78vw, 260px);
+    max-width: 100%;
     scroll-snap-align: start;
   }
 

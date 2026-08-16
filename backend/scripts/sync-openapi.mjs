@@ -57,14 +57,53 @@ const HINTS = {
   'POST /product-events': 'Продуктовое событие воронки',
   'POST /consultations': 'Создать консультацию (клиент или гость)',
   'POST /consultations/{sessionId}/messages': 'Сообщение в консультацию',
+  'GET /consultations/{sessionId}': 'Карточка консультации с сообщениями',
+  'PATCH /bookings/{bookingId}': 'Перенос, отмена или статус записи',
+  'GET /users/me': 'Профиль текущего пользователя',
 };
 
 function requestSchemaFor(method, openPath) {
   const key = `${method} ${openPath}`;
   const map = {
     'POST /consultations': 'ConsultationCreate',
+    'POST /consultations/{sessionId}/messages': 'ConsultationMessage',
+    'POST /consultations/{sessionId}/messages/stream': 'ConsultationMessage',
+    'POST /consultations/{sessionId}/claim': 'ConsultationClaim',
+    'POST /consultations/{sessionId}/report': 'ConsultationReportCreate',
+    'POST /consultations/{sessionId}/analyze-photo': 'ConsultationPhoto',
+    'POST /consultations/{sessionId}/service-request-guest': 'GuestServiceRequestCreate',
     'POST /bookings': 'BookingCreate',
-    'POST /bookings/guest': 'BookingCreate',
+    'POST /bookings/guest': 'BookingGuestCreate',
+    'PATCH /bookings/{bookingId}': 'BookingPatch',
+    'POST /auth/login': 'AuthLogin',
+    'POST /auth/register': 'AuthRegister',
+    'POST /auth/refresh': 'AuthRefresh',
+    'POST /auth/forgot-password': 'PasswordResetRequest',
+    'POST /auth/reset-password': 'PasswordResetConfirm',
+    'POST /contact': 'ContactCreate',
+    'POST /service-requests': 'ServiceRequestCreate',
+    'PATCH /service-requests/{requestId}': 'ServiceRequestPatch',
+    'PATCH /service-requests/{requestId}/assign-manager': 'AssignManager',
+    'PUT /service-requests/{requestId}/consultation-feedback': 'ConsultationFeedbackCreate',
+    'POST /service-requests/{requestId}/completion-documents': 'CompletionDocumentCreate',
+    'POST /service-requests/bulk/status': 'BulkStatusPatch',
+    'POST /service-requests/bulk/assign': 'BulkAssign',
+    'POST /service-requests/bulk/export-crm': 'BulkExportCrm',
+    'POST /vehicles': 'VehicleCreate',
+    'PATCH /vehicles/{vehicleId}': 'VehiclePatch',
+    'POST /vehicles/{vehicleId}/photo': 'VehiclePhoto',
+    'PATCH /users/me': 'UserPatch',
+    'POST /users/me/password': 'ChangePassword',
+    'POST /users/me/2fa/confirm': 'TotpConfirm',
+    'POST /users/me/2fa/disable': 'TotpDisable',
+    'POST /users/me/2fa/backup-codes': 'TotpVerify',
+    'POST /users/me/avatar': 'AvatarUpload',
+    'PATCH /users/me/notification-preferences': 'NotificationPrefs',
+    'POST /users/me/notifications/read': 'MarkNotificationsRead',
+    'POST /users/me/sessions/revoke/start': 'SessionRevokeStart',
+    'POST /users/me/sessions/revoke-others': 'SessionRevokeConfirm',
+    'DELETE /users/me/sessions/{sessionId}': 'SessionRevokeConfirm',
+    'POST /users/me/login-methods': 'LoginMethodsPatch',
   };
   return map[key] || null;
 }
@@ -73,15 +112,488 @@ function responseSchemaFor(method, openPath) {
   const key = `${method} ${openPath}`;
   const map = {
     'POST /consultations': 'Consultation',
-    'GET /consultations': 'Consultation',
+    'GET /consultations': 'ConsultationList',
+    'GET /consultations/{sessionId}': 'ConsultationDetail',
+    'POST /consultations/{sessionId}/messages': 'ConsultationDetail',
+    'POST /consultations/{sessionId}/claim': 'ConsultationDetail',
+    'GET /consultations/{sessionId}/diagnosis-job': 'DiagnosisJob',
     'GET /consultations/staff': 'CursorPage',
     'GET /bookings': 'BookingList',
+    'GET /bookings/{bookingId}': 'Booking',
     'POST /bookings': 'Booking',
     'POST /bookings/guest': 'Booking',
+    'PATCH /bookings/{bookingId}': 'Booking',
+    'GET /bookings/{bookingId}/audit': 'BookingAuditList',
     'GET /service-requests': 'CursorPage',
+    'GET /service-requests/{requestId}': 'ServiceRequest',
+    'GET /service-requests/{id}': 'ServiceRequest',
+    'POST /service-requests': 'ServiceRequest',
+    'PATCH /service-requests/{requestId}': 'ServiceRequest',
+    'POST /service-requests/{requestId}/assign-to-me': 'ServiceRequest',
+    'PATCH /service-requests/{requestId}/assign-manager': 'ServiceRequest',
+    'POST /consultations/{sessionId}/service-request': 'ServiceRequest',
+    'POST /consultations/{sessionId}/service-request-guest': 'ServiceRequest',
+    'GET /users/me': 'User',
+    'PATCH /users/me': 'User',
+    'GET /users/me/security': 'SecurityStatus',
+    'GET /users/me/sessions': 'SessionList',
+    'GET /users/me/notifications': 'InboxNotificationList',
+    'GET /users/me/notifications/unread-count': 'InboxUnreadCount',
+    'GET /users/me/notification-preferences': 'NotificationPrefs',
+    'PATCH /users/me/notification-preferences': 'NotificationPrefs',
+    'POST /users/me/notifications/read': 'InboxUnreadCount',
+    'GET /vehicles': 'VehicleList',
+    'GET /vehicles/{vehicleId}': 'Vehicle',
+    'POST /vehicles': 'Vehicle',
+    'PATCH /vehicles/{vehicleId}': 'Vehicle',
+    'POST /vehicles/{vehicleId}/photo': 'Vehicle',
+    'DELETE /vehicles/{vehicleId}/photo': 'Vehicle',
+    'GET /live': 'LiveStatus',
+    'GET /ready': 'LiveStatus',
+    'GET /health': 'LiveStatus',
+    'POST /auth/login': 'AuthSession',
+    'POST /auth/register': 'AuthPending',
+    'POST /auth/refresh': 'AuthSession',
+    'POST /users/me/2fa/setup/cancel': 'Ok',
   };
   return map[key] || null;
 }
+
+const SCHEMA_YAML = `
+Problem:
+  type: object
+  properties:
+    type: { type: string }
+    title: { type: string }
+    status: { type: integer }
+    detail: { type: string }
+    instance: { type: string }
+    error: { type: string }
+    code: { type: string }
+Ok:
+  type: object
+  properties:
+    ok: { type: boolean }
+ConsultationCreate:
+  type: object
+  additionalProperties: true
+  properties:
+    serviceCategoryId: { type: string, format: uuid }
+Consultation:
+  type: object
+  properties:
+    id: { type: string, format: uuid }
+    status: { type: string }
+    guestToken: { type: string, nullable: true }
+    vehicleId: { type: string, format: uuid, nullable: true }
+    progressPercent: { type: integer, nullable: true }
+    confidencePercent: { type: integer, nullable: true }
+    isGuest: { type: boolean }
+    createdAt: { type: string, format: date-time }
+ConsultationDetail:
+  allOf:
+    - $ref: '#/components/schemas/Consultation'
+    - type: object
+      additionalProperties: true
+      properties:
+        flowState: { type: object, nullable: true }
+        messages:
+          type: array
+          items: { $ref: '#/components/schemas/ConsultationChatMessage' }
+ConsultationChatMessage:
+  type: object
+  properties:
+    id: { type: string, format: uuid }
+    sender: { type: string }
+    content: { type: string }
+    createdAt: { type: string, format: date-time }
+ConsultationList:
+  type: array
+  items: { $ref: '#/components/schemas/Consultation' }
+ConsultationMessage:
+  type: object
+  required: [content]
+  properties:
+    content: { type: string }
+ConsultationClaim:
+  type: object
+  required: [guestToken]
+  properties:
+    guestToken: { type: string }
+ConsultationReportCreate:
+  type: object
+  properties:
+    label: { type: string }
+ConsultationPhoto:
+  type: object
+  required: [mimeType, imageBase64]
+  properties:
+    mimeType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+    imageBase64: { type: string }
+GuestServiceRequestCreate:
+  type: object
+  required: [fullName, phone, consentPersonalData]
+  properties:
+    fullName: { type: string }
+    phone: { type: string }
+    email: { type: string, nullable: true }
+    consentPersonalData: { type: boolean }
+DiagnosisJob:
+  type: object
+  properties:
+    id: { type: string, format: uuid }
+    sessionId: { type: string, format: uuid }
+    status: { type: string }
+    errorMessage: { type: string, nullable: true }
+BookingCreate:
+  type: object
+  required: [preferredAt]
+  properties:
+    preferredAt: { type: string, format: date-time }
+    notes: { type: string, nullable: true }
+    serviceRequestId: { type: string, format: uuid, nullable: true }
+    vehicleId: { type: string, format: uuid, nullable: true }
+BookingGuestCreate:
+  type: object
+  required: [preferredAt, fullName, phone, consentPersonalData]
+  properties:
+    preferredAt: { type: string, format: date-time }
+    fullName: { type: string }
+    phone: { type: string }
+    email: { type: string, nullable: true }
+    notes: { type: string, nullable: true }
+    serviceTitle: { type: string, nullable: true }
+    categoryLabel: { type: string, nullable: true }
+    consentPersonalData: { type: boolean }
+BookingPatch:
+  type: object
+  properties:
+    status: { type: string, enum: [PENDING, CONFIRMED, ARRIVED, NO_SHOW, CANCELLED] }
+    preferredAt: { type: string, format: date-time }
+    notes: { type: string, nullable: true }
+Booking:
+  type: object
+  properties:
+    id: { type: string, format: uuid }
+    status: { type: string }
+    preferredAt: { type: string, format: date-time }
+    clientId: { type: string, format: uuid, nullable: true }
+    vehicleId: { type: string, format: uuid, nullable: true }
+    serviceRequestId: { type: string, format: uuid, nullable: true }
+    notes: { type: string, nullable: true }
+    createdAt: { type: string, format: date-time }
+BookingList:
+  oneOf:
+    - type: array
+      items: { $ref: '#/components/schemas/Booking' }
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Booking' }
+        nextCursor: { type: string, nullable: true }
+BookingAuditList:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+ServiceRequest:
+  type: object
+  additionalProperties: true
+  properties:
+    id: { type: string, format: uuid }
+    status: { type: string }
+    version: { type: integer }
+    clientId: { type: string, format: uuid, nullable: true }
+    snapshotMake: { type: string, nullable: true }
+    snapshotModel: { type: string, nullable: true }
+    snapshotSymptoms: { type: string, nullable: true }
+    createdAt: { type: string, format: date-time }
+    slaBreached: { type: boolean }
+ServiceRequestCreate:
+  type: object
+  additionalProperties: true
+  properties:
+    sessionId: { type: string, format: uuid }
+ServiceRequestPatch:
+  type: object
+  required: [status, expectedVersion]
+  properties:
+    status: { type: string, enum: [NEW, IN_PROGRESS, SCHEDULED, COMPLETED, CANCELLED] }
+    expectedVersion: { type: integer }
+AssignManager:
+  type: object
+  required: [managerId]
+  properties:
+    managerId: { type: string, format: uuid }
+ConsultationFeedbackCreate:
+  type: object
+  required: [verdict]
+  properties:
+    verdict: { type: string, enum: [CORRECT, PARTIAL, INCORRECT] }
+    actualCause: { type: string }
+    worksDone: { type: string }
+    repairAmountMinor: { type: integer, nullable: true }
+CompletionDocumentCreate:
+  type: object
+  required: [kind, fileName, mimeType, contentBase64]
+  properties:
+    kind: { type: string, enum: [WORK_ORDER, RECEIPT, WARRANTY, ACT, OTHER] }
+    label: { type: string, nullable: true }
+    fileName: { type: string }
+    mimeType: { type: string }
+    contentBase64: { type: string }
+BulkStatusPatch:
+  type: object
+  required: [ids, status]
+  properties:
+    ids:
+      type: array
+      items: { type: string, format: uuid }
+    status: { type: string, enum: [NEW, IN_PROGRESS, SCHEDULED, COMPLETED, CANCELLED] }
+BulkAssign:
+  type: object
+  required: [ids]
+  properties:
+    ids:
+      type: array
+      items: { type: string, format: uuid }
+    managerId: { type: string, format: uuid }
+BulkExportCrm:
+  type: object
+  required: [ids]
+  properties:
+    ids:
+      type: array
+      items: { type: string, format: uuid }
+    connectionId: { type: string, format: uuid }
+CursorPage:
+  type: object
+  properties:
+    items: { type: array, items: { type: object } }
+    nextCursor: { type: string, nullable: true }
+    total: { type: integer }
+    limit: { type: integer }
+    offset: { type: integer }
+AuthLogin:
+  type: object
+  required: [identifier, password]
+  properties:
+    identifier: { type: string }
+    password: { type: string }
+User:
+  type: object
+  properties:
+    id: { type: string, format: uuid }
+    email: { type: string }
+    fullName: { type: string }
+    phone: { type: string }
+    role: { type: string }
+    city: { type: string, nullable: true }
+    totpEnabled: { type: boolean }
+    emailVerified: { type: boolean }
+    phoneVerified: { type: boolean }
+    telegramLinked: { type: boolean }
+UserPatch:
+  type: object
+  properties:
+    fullName: { type: string }
+    phone: { type: string }
+    emailProfile: { type: string, nullable: true }
+    city: { type: string, nullable: true }
+    telegram: { type: string, nullable: true }
+    preferredContact: { type: string, enum: [PHONE, EMAIL, TELEGRAM], nullable: true }
+ChangePassword:
+  type: object
+  required: [currentPassword, newPassword]
+  properties:
+    currentPassword: { type: string }
+    newPassword: { type: string }
+TotpConfirm:
+  type: object
+  required: [code]
+  properties:
+    code: { type: string }
+TotpVerify:
+  type: object
+  required: [password, code]
+  properties:
+    password: { type: string }
+    code: { type: string }
+TotpDisable:
+  type: object
+  required: [password, code, confirmPhrase]
+  properties:
+    password: { type: string }
+    code: { type: string }
+    confirmPhrase: { type: string }
+AvatarUpload:
+  type: object
+  required: [mimeType, contentBase64]
+  properties:
+    mimeType: { type: string }
+    contentBase64: { type: string }
+NotificationPrefs:
+  type: object
+  properties:
+    bookingReminders: { type: boolean }
+    messageAlerts: { type: boolean }
+    marketing: { type: boolean }
+    channelEmail: { type: boolean }
+    channelTelegram: { type: boolean }
+    channelSms: { type: boolean }
+MarkNotificationsRead:
+  type: object
+  properties:
+    ids:
+      type: array
+      items: { type: string, format: uuid }
+SessionRevokeStart:
+  type: object
+  properties:
+    scope: { type: string, enum: [one, others] }
+    sessionId: { type: string, format: uuid }
+SessionRevokeConfirm:
+  type: object
+  required: [code]
+  properties:
+    code: { type: string }
+LoginMethodsPatch:
+  type: object
+  properties:
+    loginEmailOtpEnabled: { type: boolean }
+    loginSmsEnabled: { type: boolean }
+    loginTelegramEnabled: { type: boolean }
+SecurityStatus:
+  type: object
+  additionalProperties: true
+  properties:
+    totpEnabled: { type: boolean }
+    emailVerified: { type: boolean }
+    phoneVerified: { type: boolean }
+    telegramLinked: { type: boolean }
+SessionList:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+InboxNotificationList:
+  type: object
+  properties:
+    items:
+      type: array
+      items: { $ref: '#/components/schemas/InboxNotification' }
+    unreadCount: { type: integer }
+InboxNotification:
+  type: object
+  properties:
+    id: { type: string, format: uuid }
+    kind: { type: string }
+    title: { type: string }
+    body: { type: string }
+    href: { type: string, nullable: true }
+    readAt: { type: string, format: date-time, nullable: true }
+    createdAt: { type: string, format: date-time }
+InboxUnreadCount:
+  type: object
+  properties:
+    unreadCount: { type: integer }
+    updated: { type: integer }
+Vehicle:
+  type: object
+  additionalProperties: true
+  properties:
+    id: { type: string, format: uuid }
+    make: { type: string }
+    model: { type: string }
+    year: { type: integer, nullable: true }
+    vin: { type: string, nullable: true }
+    licensePlate: { type: string, nullable: true }
+    color: { type: string, nullable: true }
+    currentMileageKm: { type: integer, nullable: true }
+    photoUrl: { type: string, nullable: true }
+VehicleList:
+  type: array
+  items: { $ref: '#/components/schemas/Vehicle' }
+VehicleCreate:
+  type: object
+  required: [make, model]
+  properties:
+    make: { type: string }
+    model: { type: string }
+    year: { type: integer, nullable: true }
+    vin: { type: string, nullable: true }
+    notes: { type: string, nullable: true }
+    licensePlate: { type: string, nullable: true }
+    color: { type: string, nullable: true }
+VehiclePatch:
+  type: object
+  properties:
+    currentMileageKm: { type: integer, nullable: true }
+    vin: { type: string, nullable: true }
+    notes: { type: string, nullable: true }
+    licensePlate: { type: string, nullable: true }
+    color: { type: string, nullable: true }
+VehiclePhoto:
+  type: object
+  required: [mimeType, contentBase64]
+  properties:
+    mimeType: { type: string }
+    contentBase64: { type: string }
+ContactCreate:
+  type: object
+  required: [fullName, phone]
+  properties:
+    fullName: { type: string }
+    phone: { type: string }
+    email: { type: string }
+LiveStatus:
+  type: object
+  properties:
+    status: { type: string }
+    uptimeSec: { type: number }
+AuthRegister:
+  type: object
+  required: [email, password, fullName, phone]
+  properties:
+    email: { type: string }
+    password: { type: string }
+    fullName: { type: string }
+    phone: { type: string }
+AuthRefresh:
+  type: object
+  properties:
+    refreshToken: { type: string }
+AuthSession:
+  type: object
+  properties:
+    accessToken: { type: string }
+    refreshToken: { type: string }
+    user: { $ref: '#/components/schemas/User' }
+    requires2fa: { type: boolean }
+AuthPending:
+  type: object
+  properties:
+    requiresEmailVerification: { type: boolean }
+    message: { type: string }
+PasswordResetRequest:
+  type: object
+  required: [email]
+  properties:
+    email: { type: string }
+PasswordResetConfirm:
+  type: object
+  required: [token, password]
+  properties:
+    token: { type: string }
+    password: { type: string }
+`.trim();
 
 function yamlQuote(value) {
   if (value == null) return '""';
@@ -115,8 +627,9 @@ function buildYaml(routes) {
     '  version: 0.5.0',
     '  description: >',
     '    Полный операционный контракт, сгенерированный из runtime Express',
-    '    (`docs/api-route-inventory.json`). Схемы тел запросов — минимальные;',
-    '    источник истины по наличию path+method — инвентарь + `npm run openapi:check`.',
+    '    (`docs/api-route-inventory.json`). Живые маршруты кабинета (запись, заявки,',
+    '    консультации, профиль/гараж) ссылаются на именованные схемы; хвост ops — object stub.',
+    '    Источник истины по наличию path+method — инвентарь + `npm run openapi:check`.',
     'servers:',
     '  - url: http://localhost:3000/api',
     'tags:',
@@ -167,7 +680,7 @@ function buildYaml(routes) {
           lines.push('          schema: { type: string }');
         }
       }
-      if (['post', 'patch', 'put'].includes(op.method)) {
+      if (['post', 'patch', 'put'].includes(op.method) || requestSchemaFor(op.method.toUpperCase(), openPath)) {
         const reqRef = requestSchemaFor(op.method.toUpperCase(), openPath);
         lines.push('      requestBody:');
         lines.push('        content:');
@@ -194,63 +707,7 @@ function buildYaml(routes) {
 
   lines.push('components:');
   lines.push('  schemas:');
-  lines.push('    Problem:');
-  lines.push('      type: object');
-  lines.push('      properties:');
-  lines.push('        type: { type: string }');
-  lines.push('        title: { type: string }');
-  lines.push('        status: { type: integer }');
-  lines.push('        detail: { type: string }');
-  lines.push('        instance: { type: string }');
-  lines.push('        error: { type: string }');
-  lines.push('        code: { type: string }');
-  lines.push('    ConsultationCreate:');
-  lines.push('      type: object');
-  lines.push('      additionalProperties: true');
-  lines.push('      properties:');
-  lines.push('        serviceCategoryId: { type: string, format: uuid }');
-  lines.push('    Consultation:');
-  lines.push('      type: object');
-  lines.push('      properties:');
-  lines.push('        id: { type: string, format: uuid }');
-  lines.push('        guestToken: { type: string, nullable: true }');
-  lines.push('        status: { type: string }');
-  lines.push('    BookingCreate:');
-  lines.push('      type: object');
-  lines.push('      required: [preferredAt]');
-  lines.push('      properties:');
-  lines.push('        preferredAt: { type: string, format: date-time }');
-  lines.push('        notes: { type: string }');
-  lines.push('    Booking:');
-  lines.push('      type: object');
-  lines.push('      properties:');
-  lines.push('        id: { type: string, format: uuid }');
-  lines.push('        status: { type: string }');
-  lines.push('        preferredAt: { type: string, format: date-time }');
-  lines.push('    BookingList:');
-  lines.push('      oneOf:');
-  lines.push('        - type: array');
-  lines.push('          items: { $ref: \'#/components/schemas/Booking\' }');
-  lines.push('        - type: object');
-  lines.push('          properties:');
-  lines.push('            items:');
-  lines.push('              type: array');
-  lines.push('              items: { $ref: \'#/components/schemas/Booking\' }');
-  lines.push('            nextCursor: { type: string, nullable: true }');
-  lines.push('    ServiceRequest:');
-  lines.push('      type: object');
-  lines.push('      properties:');
-  lines.push('        id: { type: string, format: uuid }');
-  lines.push('        status: { type: string }');
-  lines.push('        number: { type: string }');
-  lines.push('    CursorPage:');
-  lines.push('      type: object');
-  lines.push('      properties:');
-  lines.push('        items: { type: array, items: { type: object } }');
-  lines.push('        nextCursor: { type: string, nullable: true }');
-  lines.push('        total: { type: integer }');
-  lines.push('        limit: { type: integer }');
-  lines.push('        offset: { type: integer }');
+  lines.push(...SCHEMA_YAML.split('\n').filter((line) => line.length > 0).flatMap((line) => [`    ${line}`]));
   lines.push('');
   return `${lines.join('\n')}\n`;
 }
@@ -293,7 +750,8 @@ if (process.argv.includes('--check')) {
     console.error('Update with: npm run openapi:sync');
     process.exit(1);
   }
-  console.log(`OpenAPI OK (${b.size} operations, ${inventory.count} inventory routes)`);
+  const named = [...yaml.matchAll(/^    ([A-Z][A-Za-z0-9]+):$/gm)].length;
+  console.log(`OpenAPI OK (${b.size} operations, ${inventory.count} inventory routes, ${named} named schemas)`);
   process.exit(0);
 }
 

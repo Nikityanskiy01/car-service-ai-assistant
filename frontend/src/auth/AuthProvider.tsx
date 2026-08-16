@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ApiError } from '../api/errors';
+import { ApiError, isTotpSetupRequired } from '../api/errors';
 import { api, clearLocalAuthState, getCachedUser, getCsrfToken, setCachedUser } from '../api/client';
 import type { AuthContextValue } from './auth.types';
 import type { AuthUser, UserRole } from '../types/auth';
@@ -30,8 +30,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const me = await api<AuthUser>('/users/me');
       setUser(me);
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      if (err instanceof ApiError && err.status === 401) {
         setUser(null);
+        return;
+      }
+      if (isTotpSetupRequired(err)) {
+        const current = getCachedUser();
+        if (current) setUser({ ...current, totpSetupPending: true });
       }
     }
   }, [setUser]);

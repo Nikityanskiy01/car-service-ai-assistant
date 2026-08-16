@@ -2,7 +2,7 @@ import { mergeObdCodesString } from '../../../lib/obdCodes.js';
 import { detectConsultationIntent } from '../../consultationIntent.service.js';
 import { isValidModelText, isValidVehicleText } from '../questions.js';
 import { detectSymptomCategory, isFieldFilled, normalizeConditions, normalizeSymptoms } from '../state.js';
-import { CONDITION_HINTS, EXTRACTION_FIELD_KEYS } from './hints.js';
+import { CONDITION_HINTS, EXTRACTION_FIELD_KEYS, SYMPTOM_HINTS } from './hints.js';
 
 export function normalizeExtractedFromLlm(raw) {
   const obj = raw && typeof raw === 'object' ? raw : {};
@@ -88,6 +88,9 @@ export function shouldSkipLlmExtraction(message, base, pre) {
   const msg = String(message || '').trim();
   if (!msg) return true;
   if (isSimpleExtractionMessage(msg)) return true;
+
+  const symptomsFilled = isFieldFilled('symptoms', pre.symptoms) || isFieldFilled('symptoms', base.symptoms);
+  if (!symptomsFilled && (msg.length > 80 || SYMPTOM_HINTS.test(msg))) return false;
 
   const delta = countFieldsChangedByPre(base, pre);
   if (delta >= 2) return true;

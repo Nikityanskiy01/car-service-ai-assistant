@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarPlus, RefreshCw } from 'lucide-react';
+import { CalendarPlus, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { getCachedUser } from '../../api/client';
 import { listBookings } from '../../api/dashboard';
-import { BookingCalendar, BookingStatusBadge } from '../../components/requests/BookingCalendar';
+import {
+  BookingCalendar,
+  BookingCalendarLegend,
+  BookingEventCard,
+} from '../../components/requests/BookingCalendar';
 import { BookingDrawer } from '../../components/requests/BookingDrawer';
 import { Button } from '../../components/ui/Button';
 import { managerZonePaths } from '../../config/managerPaths';
 import { useDashboardPolling } from '../../hooks/useDashboardPolling';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import { getBookingVehicleLabel } from '../../lib/bookingDisplay';
-import { formatMinutesUntil } from '../../lib/timeFormat';
+import {
+  addDays,
+  daysInRange,
+  formatRangeLabel,
+  isoDay,
+  isSameLocalDay,
+  startOfLocalDay,
+} from '../../lib/calendarDays';
 import type { ServiceBooking } from '../../types/dashboard';
 
 type ManagerCalendarPageProps = {
@@ -49,6 +59,7 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
   const [view, setView] = useState<CalendarView>('week');
   const [selected, setSelected] = useState<ServiceBooking | null>(null);
   const [calendarFilter, setCalendarFilter] = useState<CalendarFilter>('all');
+  const [rangeStart, setRangeStart] = useState(() => startOfLocalDay(new Date()));
   const managerId = getCachedUser()?.id;
 
   const load = useCallback(async (silent = false) => {
@@ -69,12 +80,14 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
 
   useDashboardPolling(() => void load(true), 90_000);
 
-  const today = new Date().toDateString();
+  const today = startOfLocalDay(new Date());
+  const rangeDays = view === 'day' ? 1 : 7;
+  const isCurrentRange = rangeStart.getTime() === today.getTime();
 
   const filteredBookings = useMemo(() => {
     let list = bookings;
     if (calendarFilter === 'today') {
-      list = list.filter((booking) => new Date(booking.preferredAt).toDateString() === today);
+      list = list.filter((booking) => isSameLocalDay(new Date(booking.preferredAt), today));
     }
     if (calendarFilter === 'mine' && managerId) {
       list = list.filter((booking) => booking.serviceRequest?.assignedManagerId === managerId);
@@ -88,15 +101,10 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
     return [...list].sort((a, b) => a.preferredAt.localeCompare(b.preferredAt));
   }, [bookings, calendarFilter, managerId, today]);
 
-  const todayBookings = useMemo(
-    () => filteredBookings.filter((booking) => new Date(booking.preferredAt).toDateString() === today),
-    [filteredBookings, today],
-  );
-
   const stats = useMemo(() => {
     const now = Date.now();
     return {
-      today: bookings.filter((booking) => new Date(booking.preferredAt).toDateString() === today).length,
+      today: bookings.filter((booking) => isSameLocalDay(new Date(booking.preferredAt), today)).length,
       pending: bookings.filter((booking) => booking.status === 'PENDING').length,
       upcoming: bookings.filter(
         (booking) =>
@@ -105,10 +113,12 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
     };
   }, [bookings, today]);
 
+  const weekDays = useMemo(() => daysInRange(rangeStart, 7), [rangeStart]);
+
   const capacityByDay = useMemo(() => {
     const map = new Map<string, number>();
     for (const booking of filteredBookings) {
-      const key = new Date(booking.preferredAt).toDateString();
+      const key = isoDay(new Date(booking.preferredAt));
       map.set(key, (map.get(key) || 0) + 1);
     }
     return map;
@@ -119,6 +129,24 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
   function applyUpdatedBooking(updated: ServiceBooking) {
     setBookings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
     setSelected(updated);
+  }
+
+  function shiftRange(amount: number) {
+    setRangeStart((prev) => addDays(prev, amount));
+  }
+
+  function goToday() {
+    setRangeStart(startOfLocalDay(new Date()));
+  }
+
+  function openDay(date: Date) {
+    setRangeStart(startOfLocalDay(date));
+    setView('day');
+  }
+
+  function scrollToDay(date: Date) {
+    const node = document.getElementById(`cal-day-${isoDay(date)}`);
+    node?.scrollIntoView({ inline: 'start', block: 'nearest' });
   }
 
   return (
@@ -170,80 +198,119 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
             </div>
           </div>
 
-          <div className="queue-status-pills" role="toolbar" aria-label="Фильтр записей">
-            {FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`queue-status-pill${calendarFilter === item.id ? ' is-active' : ''}`}
-                aria-pressed={calendarFilter === item.id}
-                onClick={() => setCalendarFilter(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div className="queue-status-pills" role="toolbar" aria-label="Вид календаря">
-            {VIEWS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`queue-status-pill${view === item.id ? ' is-active' : ''}`}
-                aria-pressed={view === item.id}
-                onClick={() => setView(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
+          <div className="calendar-controls">
+            <div className="queue-status-pills" role="toolbar" aria-label="Фильтр записей">
+              {FILTERS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`queue-status-pill${calendarFilter === item.id ? ' is-active' : ''}`}
+                  aria-pressed={calendarFilter === item.id}
+                  onClick={() => setCalendarFilter(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="queue-status-pills" role="toolbar" aria-label="Вид календаря">
+              {VIEWS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`queue-status-pill${view === item.id ? ' is-active' : ''}`}
+                  aria-pressed={view === item.id}
+                  onClick={() => setView(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {view === 'day' ? (
-            <section>
-              <header className="booking-day-header">
-                <h4>Сегодня</h4>
-                <span className="muted tnum">{todayBookings.length} записей</span>
-              </header>
-              {todayBookings.length ? (
-                <BookingList bookings={todayBookings} onSelect={setSelected} timeOnly />
-              ) : (
-                <p className="muted">Свободный день или другой фильтр.</p>
-              )}
-            </section>
+          {view !== 'list' ? (
+            <div className="calendar-range-nav">
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label={view === 'day' ? 'Предыдущий день' : 'Предыдущие 7 дней'}
+                onClick={() => shiftRange(-rangeDays)}
+              >
+                <ChevronLeft size={18} />
+              </Button>
+              <div className="calendar-range-copy">
+                <strong>{formatRangeLabel(rangeStart, rangeDays)}</strong>
+                {isCurrentRange ? null : (
+                  <button type="button" className="calendar-today-link" onClick={goToday}>
+                    К сегодня
+                  </button>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label={view === 'day' ? 'Следующий день' : 'Следующие 7 дней'}
+                onClick={() => shiftRange(rangeDays)}
+              >
+                <ChevronRight size={18} />
+              </Button>
+            </div>
           ) : null}
+
+          <BookingCalendarLegend />
 
           {view === 'week' ? (
             <>
-              <section aria-label="Загрузка на 7 дней">
+              <section className="calendar-capacity" aria-label="Загрузка на 7 дней">
                 <header className="booking-day-header">
                   <h4>Загрузка на 7 дней</h4>
                   <span className="muted tnum">пик: {capacityMax}</span>
                 </header>
                 <div className="booking-capacity-row">
-                  {Array.from({ length: 7 }).map((_, index) => {
-                    const day = new Date();
-                    day.setDate(day.getDate() + index);
-                    const key = day.toDateString();
+                  {weekDays.map((day) => {
+                    const key = isoDay(day);
                     const count = capacityByDay.get(key) || 0;
                     const pct = Math.round((count / capacityMax) * 100);
+                    const todayBar = isSameLocalDay(day, today);
                     return (
-                      <div key={key} className="booking-capacity-day">
+                      <button
+                        key={key}
+                        type="button"
+                        className={`booking-capacity-day${todayBar ? ' is-today' : ''}`}
+                        onClick={() => scrollToDay(day)}
+                        aria-label={`${day.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric' })}: ${count} записей`}
+                      >
                         <em className="tnum">{count}</em>
                         <div className="booking-capacity-bar">
                           <div
                             className="booking-capacity-fill"
-                            style={{ height: `${Math.max(8, pct)}%`, opacity: index === 0 ? 1 : 0.55 }}
+                            style={{ height: `${Math.max(count ? 12 : 8, pct)}%`, opacity: todayBar ? 1 : 0.55 }}
                           />
                         </div>
                         <span className="muted">
                           {day.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric' })}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </section>
-              <BookingCalendar bookings={filteredBookings} onSelect={setSelected} />
+              <BookingCalendar
+                bookings={filteredBookings}
+                onSelect={setSelected}
+                startDate={rangeStart}
+                dayCount={7}
+                onOpenDay={openDay}
+              />
             </>
+          ) : null}
+
+          {view === 'day' ? (
+            <BookingCalendar
+              bookings={filteredBookings}
+              onSelect={setSelected}
+              startDate={rangeStart}
+              dayCount={1}
+            />
           ) : null}
 
           {view === 'list' ? (
@@ -253,7 +320,13 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
                 <span className="muted tnum">{filteredBookings.length}</span>
               </header>
               {filteredBookings.length ? (
-                <BookingList bookings={filteredBookings} onSelect={setSelected} />
+                <ul className="booking-week-list is-page">
+                  {filteredBookings.map((booking) => (
+                    <li key={booking.id}>
+                      <BookingEventCard booking={booking} onSelect={setSelected} layout="row" showDate />
+                    </li>
+                  ))}
+                </ul>
               ) : (
                 <p className="muted">Попробуйте другой фильтр.</p>
               )}
@@ -270,39 +343,5 @@ export function ManagerCalendarPage({ adminZone = false }: ManagerCalendarPagePr
         requestBasePath={paths.requests}
       />
     </div>
-  );
-}
-
-function BookingList({
-  bookings,
-  onSelect,
-  timeOnly,
-}: {
-  bookings: ServiceBooking[];
-  onSelect: (booking: ServiceBooking) => void;
-  timeOnly?: boolean;
-}) {
-  return (
-    <ul className="booking-click-list">
-      {bookings.map((booking) => (
-        <li key={booking.id}>
-          <button type="button" className="booking-list-btn" onClick={() => onSelect(booking)}>
-            <strong className="tnum">
-              {timeOnly
-                ? new Date(booking.preferredAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                : new Date(booking.preferredAt).toLocaleString('ru-RU')}
-            </strong>
-            <span>
-              {booking.client?.fullName || booking.guestName || 'Клиент'}
-              <span className="booking-day-car muted">
-                {getBookingVehicleLabel(booking) || 'Авто не указано'}
-                {timeOnly ? ` · ${formatMinutesUntil(booking.preferredAt)}` : ''}
-              </span>
-            </span>
-            <BookingStatusBadge status={booking.status} />
-          </button>
-        </li>
-      ))}
-    </ul>
   );
 }

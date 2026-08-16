@@ -144,7 +144,7 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
         <div className="repair-outcome-grid">
           <label className="stack gap-xs">
             <span>Тип работ</span>
-            <select value={workCategory} onChange={(e) => setWorkCategory(e.target.value)}>
+            <select className="select" value={workCategory} onChange={(e) => setWorkCategory(e.target.value)}>
               {CATEGORY_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>
                   {opt.label}
@@ -153,8 +153,9 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
             </select>
           </label>
           <label className="stack gap-xs">
-            <span>Пробег при работах, км</span>
+            <span>Пробег, км</span>
             <input
+              className="input"
               type="number"
               min={0}
               value={repairMileageKm}
@@ -165,6 +166,7 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
           <label className="stack gap-xs">
             <span>Сумма, ₽</span>
             <input
+              className="input"
               type="number"
               min={0}
               value={repairAmountRub}
@@ -173,8 +175,9 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
             />
           </label>
           <label className="stack gap-xs">
-            <span>№ заказ-наряда</span>
+            <span>Заказ-наряд</span>
             <input
+              className="input"
               type="text"
               value={workOrderNumber}
               onChange={(e) => setWorkOrderNumber(e.target.value)}
@@ -182,8 +185,9 @@ export function ConsultationFeedbackPanel({ requestId, initial, onSaved }: Props
             />
           </label>
           <label className="stack gap-xs">
-            <span>Дата завершения</span>
+            <span>Дата</span>
             <input
+              className="input"
               type="date"
               value={repairCompletedAt}
               onChange={(e) => setRepairCompletedAt(e.target.value)}

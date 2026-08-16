@@ -74,7 +74,45 @@ export function preAnalyzeSymptoms(data) {
     raiseUrgency('medium');
   }
 
-  // 3. Троение двигателя
+  // 2c. Стук на кочках / ямах, если сторона не названа
+  else if (
+    (symptoms.includes('стук') || symptoms.includes('грохот') || symptoms.includes('бряк')) &&
+    (joined.includes('кочк') || joined.includes('неровн') || joined.includes('ям') || joined.includes('лежач'))
+  ) {
+    rulesMatched++;
+    pushCause('Износ стоек или втулок стабилизатора');
+    pushCause('Люфт шаровой опоры');
+    pushCause('Износ опоры амортизатора');
+    pushCheck('На подъёмнике проверить люфты шаровых, стоек стабилизатора и опор');
+    pushCheck('Покачать кузов и послушать стук в верхней опоре стойки');
+    raiseUrgency('medium');
+  }
+
+  // 2d. Гул ступицы
+  if (
+    (symptoms.includes('гул') || symptoms.includes('вой')) &&
+    (symptoms.includes('ступиц') || symptoms.includes('скорост') || conditions.includes('скорост'))
+  ) {
+    rulesMatched++;
+    pushCause('Износ ступичного подшипника');
+    pushCause('Неравномерный износ шины или дисбаланс колеса');
+    pushCheck('Проверить люфт колеса на подъёмнике в двух плоскостях');
+    pushCheck('Сравнить гул в поворотах влево и вправо');
+    raiseUrgency('medium');
+  }
+
+  // 1c. Вибрация при торможении без слова «руль»
+  if (
+    (symptoms.includes('вибрац') || symptoms.includes('биен')) &&
+    (symptoms.includes('тормож') || conditions.includes('тормож'))
+  ) {
+    rulesMatched++;
+    pushCause('Деформация или перегрев тормозных дисков');
+    pushCause('Неравномерный износ колодок');
+    pushCheck('Промерить биение и толщину тормозных дисков');
+    pushCheck('Осмотреть колодки и направляющие суппорта');
+    raiseUrgency('high');
+  }
   if (
     symptoms.includes('двигатель троит') ||
     (symptoms.includes('троит') && !symptoms.includes('короб') && !symptoms.includes('передач'))
@@ -144,6 +182,16 @@ export function preAnalyzeSymptoms(data) {
     pushCheck('Проверить работу вентилятора и включение при прогреве (температура/диагностика)');
     pushCheck('Осмотреть патрубки, радиатор и помпу на подтёки; при необходимости — опрессовка');
     raiseUrgency('high');
+  }
+
+  if (symptoms.includes('плановое то') || symptoms.includes('техобслуживание') || /^то[\s-]?\d/.test(symptoms)) {
+    rulesMatched++;
+    pushCause('Замена масла ДВС и масляного фильтра');
+    pushCause('Замена воздушного и салонного фильтров');
+    pushCause('Проверка свечей, тормозов и уровней жидкостей по регламенту');
+    pushCheck('Сверить регламент производителя по пробегу');
+    pushCheck('Осмотреть фильтры, свечи, колодки и наличие течей');
+    raiseUrgency('low');
   }
 
   // Критические ключи безопасности

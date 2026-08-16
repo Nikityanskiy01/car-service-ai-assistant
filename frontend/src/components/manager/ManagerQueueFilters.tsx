@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bookmark, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { Bookmark, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
+import { SERVICE_REQUEST_STATUS_LABELS, URGENCY_LABELS } from '../../lib/labels';
 import { SLA_OVERDUE_LABEL } from '../../lib/requestSla';
 import { QUEUE_STATUSES } from '../../lib/queueStatuses';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import type { SavedQueueFilter } from '../../lib/savedQueueFilters';
 import type { ServiceRequestStatus } from '../../types/serviceRequest';
-
-const URGENCY_LABELS: Record<string, string> = {
-  critical: 'Критическая',
-  high: 'Высокая',
-  medium: 'Средняя',
-  low: 'Низкая',
-};
 
 const FEEDBACK_LABELS: Record<string, string> = {
   none: 'Без оценки',
@@ -198,6 +191,7 @@ export function ManagerQueueFilters({
             onPatch({ q: searchInput.trim() || undefined, page: '1' });
           }}
         >
+          <Search className="queue-search-icon" size={16} aria-hidden />
           <input
             ref={searchRef}
             className="input"
@@ -210,55 +204,66 @@ export function ManagerQueueFilters({
           <kbd>/</kbd>
         </form>
 
-        <button
-          type="button"
-          className={`queue-status-pill${state.scope === 'all' ? ' is-active' : ''}`}
-          aria-pressed={state.scope === 'all'}
-          onClick={() => onPatch({ scope: undefined, page: '1' })}
-        >
-          Все
-        </button>
-        <button
-          type="button"
-          className={`queue-status-pill${state.scope === 'mine' ? ' is-active' : ''}`}
-          aria-pressed={state.scope === 'mine'}
-          onClick={() => onPatch({ scope: 'mine', page: '1' })}
-        >
-          Мои
-        </button>
-        <button
-          type="button"
-          className={`queue-status-pill${state.view === 'list' ? ' is-active' : ''}`}
-          aria-pressed={state.view === 'list'}
-          onClick={() => onPatch({ view: undefined })}
-        >
-          Список
-        </button>
-        <button
-          type="button"
-          className={`queue-status-pill${state.view === 'kanban' ? ' is-active' : ''}`}
-          aria-pressed={state.view === 'kanban'}
-          onClick={() => onPatch({ view: 'kanban' })}
-        >
-          Канбан
-        </button>
-
-        <span className="queue-filters-spacer" />
-
-        <Button
-          type="button"
-          variant={advancedOpen || advancedCount ? 'secondary' : 'ghost'}
-          aria-expanded={advancedOpen}
-          onClick={() => setAdvancedOpen((value) => !value)}
-        >
-          <SlidersHorizontal size={16} />
-          Фильтры
-          {advancedCount ? <span className="queue-filter-count">{advancedCount}</span> : null}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onRefresh} disabled={refreshing}>
-          <RefreshCw size={16} className={refreshing ? 'is-spinning' : undefined} />
-          Обновить
-        </Button>
+        <div className="queue-toolbar-end">
+          <div className="queue-segment" role="group" aria-label="Чьи заявки">
+            <button
+              type="button"
+              className={`queue-segment-btn${state.scope === 'all' ? ' is-active' : ''}`}
+              aria-pressed={state.scope === 'all'}
+              onClick={() => onPatch({ scope: undefined, page: '1' })}
+            >
+              Все
+            </button>
+            <button
+              type="button"
+              className={`queue-segment-btn${state.scope === 'mine' ? ' is-active' : ''}`}
+              aria-pressed={state.scope === 'mine'}
+              onClick={() => onPatch({ scope: 'mine', page: '1' })}
+            >
+              Мои
+            </button>
+          </div>
+          <div className="queue-segment" role="group" aria-label="Вид">
+            <button
+              type="button"
+              className={`queue-segment-btn${state.view === 'list' ? ' is-active' : ''}`}
+              aria-pressed={state.view === 'list'}
+              onClick={() => onPatch({ view: undefined })}
+            >
+              Список
+            </button>
+            <button
+              type="button"
+              className={`queue-segment-btn${state.view === 'kanban' ? ' is-active' : ''}`}
+              aria-pressed={state.view === 'kanban'}
+              onClick={() => onPatch({ view: 'kanban' })}
+            >
+              Канбан
+            </button>
+          </div>
+          <Button
+            type="button"
+            variant={advancedOpen || advancedCount ? 'secondary' : 'ghost'}
+            aria-expanded={advancedOpen}
+            onClick={() => setAdvancedOpen((value) => !value)}
+          >
+            <SlidersHorizontal size={16} />
+            Фильтры
+            {advancedCount ? <span className="queue-filter-count">{advancedCount}</span> : null}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onRefresh}
+            disabled={refreshing}
+            aria-label="Обновить очередь"
+            title="Обновить"
+            className="queue-refresh-btn"
+          >
+            <RefreshCw size={16} className={refreshing ? 'is-spinning' : undefined} />
+            <span className="queue-refresh-label">Обновить</span>
+          </Button>
+        </div>
       </div>
 
       <div className="queue-status-pills" role="group" aria-label="Статусы заявок">
@@ -322,85 +327,85 @@ export function ManagerQueueFilters({
         </div>
       ) : null}
 
-      <div className="queue-presets">
-        {savedFilters.map((preset) => (
-          <span key={preset.id} className="queue-preset">
-            <button type="button" onClick={() => onApplyPreset(preset)}>
-              {preset.label}
-            </button>
-            {preset.builtIn ? null : (
-              <button
-                type="button"
-                className="queue-preset-remove"
-                aria-label={`Удалить пресет «${preset.label}»`}
-                onClick={() => onRemovePreset(preset.id)}
-              >
-                <X size={14} />
-              </button>
-            )}
-          </span>
-        ))}
-        {presetFormOpen ? (
-          <form
-            className="queue-preset-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onSavePreset(presetName);
-              setPresetName('');
-              setPresetFormOpen(false);
-            }}
-          >
-            <input
-              ref={presetInputRef}
-              className="input"
-              value={presetName}
-              onChange={(event) => setPresetName(event.target.value)}
-              placeholder="Название пресета"
-              aria-label="Название пресета"
-              maxLength={40}
-            />
-            <Button type="submit" variant="secondary" disabled={!presetName.trim()}>
-              Сохранить
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => setPresetFormOpen(false)}>
-              Отмена
-            </Button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            className="queue-preset-add"
-            onClick={() => setPresetFormOpen(true)}
-            disabled={!chips.length}
-            title={chips.length ? 'Сохранить текущий набор фильтров' : 'Сначала выберите фильтры'}
-          >
-            <Bookmark size={14} />
-            Сохранить фильтр
-          </button>
-        )}
-      </div>
-
       <div className="queue-filters-footer">
         <span className="muted tnum">
-          Найдено: {total}
+          {total} {pluralRequests(total)}
           {lastUpdatedAt
-            ? ` · обновлено ${lastUpdatedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
+            ? ` · ${lastUpdatedAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`
             : ''}
         </span>
-        {chips.length ? (
-          <div className="queue-filter-chips">
-            {chips.map((chip) => (
-              <button key={chip.key} type="button" className="queue-filter-chip" onClick={chip.onRemove}>
-                {chip.label}
-                <X size={12} aria-hidden />
+        <div className="queue-presets">
+          {savedFilters.map((preset) => (
+            <span key={preset.id} className="queue-preset">
+              <button type="button" onClick={() => onApplyPreset(preset)}>
+                {preset.label}
               </button>
-            ))}
-            <button type="button" className="queue-filter-chip queue-filter-reset" onClick={onReset}>
-              Сбросить всё
+              {preset.builtIn ? null : (
+                <button
+                  type="button"
+                  className="queue-preset-remove"
+                  aria-label={`Удалить пресет «${preset.label}»`}
+                  onClick={() => onRemovePreset(preset.id)}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </span>
+          ))}
+          {presetFormOpen ? (
+            <form
+              className="queue-preset-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onSavePreset(presetName);
+                setPresetName('');
+                setPresetFormOpen(false);
+              }}
+            >
+              <input
+                ref={presetInputRef}
+                className="input"
+                value={presetName}
+                onChange={(event) => setPresetName(event.target.value)}
+                placeholder="Название пресета"
+                aria-label="Название пресета"
+                maxLength={40}
+              />
+              <Button type="submit" variant="secondary" disabled={!presetName.trim()}>
+                Сохранить
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setPresetFormOpen(false)}>
+                Отмена
+              </Button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              className="queue-preset-add"
+              onClick={() => setPresetFormOpen(true)}
+              disabled={!chips.length}
+              title={chips.length ? 'Сохранить текущий набор фильтров' : 'Сначала выберите фильтры'}
+            >
+              <Bookmark size={14} />
+              Сохранить
             </button>
-          </div>
-        ) : null}
+          )}
+        </div>
       </div>
+
+      {chips.length ? (
+        <div className="queue-filter-chips">
+          {chips.map((chip) => (
+            <button key={chip.key} type="button" className="queue-filter-chip" onClick={chip.onRemove}>
+              {chip.label}
+              <X size={12} aria-hidden />
+            </button>
+          ))}
+          <button type="button" className="queue-filter-chip queue-filter-reset" onClick={onReset}>
+            Сбросить всё
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -438,4 +443,12 @@ function isTypingTarget(target: EventTarget | null) {
     target.tagName === 'SELECT' ||
     target.isContentEditable
   );
+}
+
+function pluralRequests(count: number) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'заявка';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'заявки';
+  return 'заявок';
 }

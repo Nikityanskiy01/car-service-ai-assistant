@@ -16,6 +16,8 @@
 @import './app/dashboard-chrome.css';
 @import './app/dashboard-responsive.css';
 @import './app/dashboard-alerts.css';
+@import './app/request-detail.css';
+@import './app/request-detail-tabs.css';
 @import './app/dashboard-alerts-ops.css';
 @import './app/dashboard-alerts-completion.css';
 @import './app/admin.css';
@@ -49,5 +51,10 @@
 @import './app/manager-console.css';
 @import './app/manager-console-queue.css';
 @import './app/manager-console-pages.css';
+@import './app/manager-console-clients.css';
+@import './app/manager-console-clients-dossier.css';
+@import './app/manager-calendar.css';
+@import './app/manager-console-inbox.css';
+@import './app/manager-ai-quality.css';
 @import './app/manager-workdesk.css';
 @import './app/console.css';

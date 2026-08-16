@@ -61,12 +61,12 @@ export const URGENCY_LABELS: Record<string, string> = {
 export const CONTACT_STATUS_LABELS: Record<string, string> = {
   NEW: 'Новое',
   IN_PROGRESS: 'В работе',
-  CONVERTED: 'Конвертировано',
+  CONVERTED: 'Заявка создана',
   CLOSED: 'Закрыто',
 };
 
 export const CONTACT_SOURCE_LABELS: Record<string, string> = {
-  contact_form: 'Форма контактов',
+  contact_form: 'Форма на сайте',
   about_page: 'Страница «О нас»',
   widget: 'Виджет',
 };

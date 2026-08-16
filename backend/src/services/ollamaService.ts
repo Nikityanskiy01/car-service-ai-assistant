@@ -102,6 +102,10 @@ function buildProviderRequest(provider, { env, targetModel, messages, temperatur
       temperature,
       stream: false,
     };
+    const maxTokens = Number(options?.num_predict);
+    if (Number.isFinite(maxTokens) && maxTokens > 0) {
+      body.max_tokens = Math.round(maxTokens);
+    }
     if (format) {
       body.response_format = {
         type: 'json_schema',
@@ -184,8 +188,8 @@ async function requestProviderCompletion(
     const canRetryWithoutSchema =
       provider === 'openai' &&
       Boolean(body?.response_format) &&
-      res.status === 400 &&
-      /response[_\s-]?format|json[_\s-]?schema|model id|litellm\.badrequesterror/i.test(t);
+      (res.status === 400 || res.status === 502 || res.status === 503 || res.status === 524) &&
+      (res.status !== 400 || /response[_\s-]?format|json[_\s-]?schema|model id|litellm\.badrequesterror/i.test(t));
     if (canRetryWithoutSchema) {
       const retryBody = { ...body };
       delete retryBody.response_format;

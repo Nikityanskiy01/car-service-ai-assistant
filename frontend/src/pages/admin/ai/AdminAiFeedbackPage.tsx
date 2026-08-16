@@ -69,8 +69,16 @@ export function AdminAiFeedbackPage() {
 
       <div className="metrics-grid metrics-grid-4">
         <AnalyticsMetricCard label="Оценок за период" value={report.totalFeedback} />
-        <AnalyticsMetricCard label="Точность (верный)" value={`${report.accuracyPercent}%`} tone="accent" />
-        <AnalyticsMetricCard label="Полезен (верный + частично)" value={`${report.usefulPercent}%`} />
+        <AnalyticsMetricCard
+          label="Точность (верный)"
+          value={report.totalFeedback ? `${report.accuracyPercent}%` : '—'}
+          hint={report.totalFeedback ? undefined : 'Нет оценок за период'}
+          tone="accent"
+        />
+        <AnalyticsMetricCard
+          label="Полезен (верный + частично)"
+          value={report.totalFeedback ? `${report.usefulPercent}%` : '—'}
+        />
         <Link to="/dashboard/admin/operations/requests?status=COMPLETED">
           <AnalyticsMetricCard label="Ждут оценки" value={pendingCount} />
         </Link>

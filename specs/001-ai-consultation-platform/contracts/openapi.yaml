@@ -4,8 +4,9 @@ info:
   version: 0.5.0
   description: >
     Полный операционный контракт, сгенерированный из runtime Express
-    (`docs/api-route-inventory.json`). Схемы тел запросов — минимальные;
-    источник истины по наличию path+method — инвентарь + `npm run openapi:check`.
+    (`docs/api-route-inventory.json`). Живые маршруты кабинета (запись, заявки,
+    консультации, профиль/гараж) ссылаются на именованные схемы; хвост ops — object stub.
+    Источник истины по наличию path+method — инвентарь + `npm run openapi:check`.
 servers:
   - url: http://localhost:3000/api
 tags:
@@ -1297,7 +1298,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/PasswordResetRequest' }
       responses:
         '200':
           description: OK
@@ -1315,10 +1316,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/AuthLogin' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1419,10 +1423,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/AuthRefresh' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthSession' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1437,10 +1444,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/AuthRegister' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthPending' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1473,7 +1483,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/PasswordResetConfirm' }
       responses:
         '200':
           description: OK
@@ -1546,7 +1556,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/BookingCreate' }
+            schema: { $ref: '#/components/schemas/BookingGuestCreate' }
       responses:
         '200':
           description: OK
@@ -1572,6 +1582,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1580,7 +1593,7 @@ paths:
                 $ref: '#/components/schemas/Problem'
     patch:
       tags: [Bookings]
-      summary: "Обновить {bookingId}"
+      summary: "Перенос, отмена или статус записи"
       operationId: patch_bookings_bookingId
       parameters:
         - in: path
@@ -1590,10 +1603,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/BookingPatch' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1613,6 +1629,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingAuditList' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1629,7 +1648,7 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Consultation' }
+              schema: { $ref: '#/components/schemas/ConsultationList' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1704,7 +1723,7 @@ paths:
   "/consultations/{sessionId}":
     get:
       tags: [Consultations]
-      summary: "Получить {sessionId}"
+      summary: Карточка консультации с сообщениями
       operationId: get_consultations_sessionId
       parameters:
         - in: path
@@ -1714,6 +1733,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsultationDetail' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1733,7 +1755,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ConsultationPhoto' }
       responses:
         '200':
           description: OK
@@ -1756,10 +1778,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ConsultationClaim' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsultationDetail' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1779,6 +1804,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiagnosisJob' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1817,10 +1845,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ConsultationMessage' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsultationDetail' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1840,7 +1871,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ConsultationMessage' }
       responses:
         '200':
           description: OK
@@ -1863,7 +1894,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ConsultationReportCreate' }
       responses:
         '200':
           description: OK
@@ -1890,6 +1921,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1909,10 +1943,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/GuestServiceRequestCreate' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -1940,7 +1977,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ContactCreate' }
       responses:
         '200':
           description: OK
@@ -2032,6 +2069,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveStatus' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2046,6 +2086,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveStatus' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2189,6 +2232,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LiveStatus' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2313,7 +2359,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/BulkAssign' }
       responses:
         '200':
           description: OK
@@ -2331,7 +2377,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/BulkExportCrm' }
       responses:
         '200':
           description: OK
@@ -2349,7 +2395,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/BulkStatusPatch' }
       responses:
         '200':
           description: OK
@@ -2424,6 +2470,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2442,10 +2491,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ServiceRequestPatch' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2465,10 +2517,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/AssignManager' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2492,6 +2547,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceRequest' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2529,7 +2587,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/CompletionDocumentCreate' }
       responses:
         '200':
           description: OK
@@ -2615,7 +2673,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ConsultationFeedbackCreate' }
       responses:
         '200':
           description: OK
@@ -2685,11 +2743,14 @@ paths:
   "/users/me":
     get:
       tags: [Users]
-      summary: Получить me
+      summary: Профиль текущего пользователя
       operationId: get_users_me
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2703,10 +2764,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/UserPatch' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2721,7 +2785,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/TotpVerify' }
       responses:
         '200':
           description: OK
@@ -2739,7 +2803,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/TotpConfirm' }
       responses:
         '200':
           description: OK
@@ -2757,7 +2821,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/TotpDisable' }
       responses:
         '200':
           description: OK
@@ -2797,6 +2861,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2837,7 +2904,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/AvatarUpload' }
       responses:
         '200':
           description: OK
@@ -2883,7 +2950,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/LoginMethodsPatch' }
       responses:
         '200':
           description: OK
@@ -2901,6 +2968,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPrefs' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2914,10 +2984,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/NotificationPrefs' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPrefs' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2932,6 +3005,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InboxNotificationList' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2946,10 +3022,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/MarkNotificationsRead' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InboxUnreadCount' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2964,6 +3043,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InboxUnreadCount' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -2978,7 +3060,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/ChangePassword' }
       responses:
         '200':
           description: OK
@@ -3064,6 +3146,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SecurityStatus' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3078,6 +3163,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionList' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3092,7 +3180,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/SessionRevokeConfirm' }
       responses:
         '200':
           description: OK
@@ -3110,7 +3198,7 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/SessionRevokeStart' }
       responses:
         '200':
           description: OK
@@ -3130,6 +3218,10 @@ paths:
           name: sessionId
           required: true
           schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SessionRevokeConfirm' }
       responses:
         '200':
           description: OK
@@ -3197,6 +3289,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleList' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3210,10 +3305,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/VehicleCreate' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3251,6 +3349,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3269,10 +3370,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/VehiclePatch' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3311,6 +3415,9 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3347,10 +3454,13 @@ paths:
       requestBody:
         content:
           application/json:
-            schema: { type: object }
+            schema: { $ref: '#/components/schemas/VehiclePhoto' }
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Vehicle' }
         '4XX':
           description: Problem Details (RFC 9457)
           content:
@@ -3475,6 +3585,10 @@ components:
         instance: { type: string }
         error: { type: string }
         code: { type: string }
+    Ok:
+      type: object
+      properties:
+        ok: { type: boolean }
     ConsultationCreate:
       type: object
       additionalProperties: true
@@ -3484,20 +3598,105 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
-        guestToken: { type: string, nullable: true }
         status: { type: string }
+        guestToken: { type: string, nullable: true }
+        vehicleId: { type: string, format: uuid, nullable: true }
+        progressPercent: { type: integer, nullable: true }
+        confidencePercent: { type: integer, nullable: true }
+        isGuest: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ConsultationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Consultation'
+        - type: object
+          additionalProperties: true
+          properties:
+            flowState: { type: object, nullable: true }
+            messages:
+              type: array
+              items: { $ref: '#/components/schemas/ConsultationChatMessage' }
+    ConsultationChatMessage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        sender: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+    ConsultationList:
+      type: array
+      items: { $ref: '#/components/schemas/Consultation' }
+    ConsultationMessage:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+    ConsultationClaim:
+      type: object
+      required: [guestToken]
+      properties:
+        guestToken: { type: string }
+    ConsultationReportCreate:
+      type: object
+      properties:
+        label: { type: string }
+    ConsultationPhoto:
+      type: object
+      required: [mimeType, imageBase64]
+      properties:
+        mimeType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        imageBase64: { type: string }
+    GuestServiceRequestCreate:
+      type: object
+      required: [fullName, phone, consentPersonalData]
+      properties:
+        fullName: { type: string }
+        phone: { type: string }
+        email: { type: string, nullable: true }
+        consentPersonalData: { type: boolean }
+    DiagnosisJob:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        status: { type: string }
+        errorMessage: { type: string, nullable: true }
     BookingCreate:
       type: object
       required: [preferredAt]
       properties:
         preferredAt: { type: string, format: date-time }
-        notes: { type: string }
+        notes: { type: string, nullable: true }
+        serviceRequestId: { type: string, format: uuid, nullable: true }
+        vehicleId: { type: string, format: uuid, nullable: true }
+    BookingGuestCreate:
+      type: object
+      required: [preferredAt, fullName, phone, consentPersonalData]
+      properties:
+        preferredAt: { type: string, format: date-time }
+        fullName: { type: string }
+        phone: { type: string }
+        email: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        serviceTitle: { type: string, nullable: true }
+        categoryLabel: { type: string, nullable: true }
+        consentPersonalData: { type: boolean }
+    BookingPatch:
+      type: object
+      properties:
+        status: { type: string, enum: [PENDING, CONFIRMED, ARRIVED, NO_SHOW, CANCELLED] }
+        preferredAt: { type: string, format: date-time }
+        notes: { type: string, nullable: true }
     Booking:
       type: object
       properties:
         id: { type: string, format: uuid }
         status: { type: string }
         preferredAt: { type: string, format: date-time }
+        clientId: { type: string, format: uuid, nullable: true }
+        vehicleId: { type: string, format: uuid, nullable: true }
+        serviceRequestId: { type: string, format: uuid, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
     BookingList:
       oneOf:
         - type: array
@@ -3508,12 +3707,84 @@ components:
               type: array
               items: { $ref: '#/components/schemas/Booking' }
             nextCursor: { type: string, nullable: true }
+    BookingAuditList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
     ServiceRequest:
       type: object
+      additionalProperties: true
       properties:
         id: { type: string, format: uuid }
         status: { type: string }
-        number: { type: string }
+        version: { type: integer }
+        clientId: { type: string, format: uuid, nullable: true }
+        snapshotMake: { type: string, nullable: true }
+        snapshotModel: { type: string, nullable: true }
+        snapshotSymptoms: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        slaBreached: { type: boolean }
+    ServiceRequestCreate:
+      type: object
+      additionalProperties: true
+      properties:
+        sessionId: { type: string, format: uuid }
+    ServiceRequestPatch:
+      type: object
+      required: [status, expectedVersion]
+      properties:
+        status: { type: string, enum: [NEW, IN_PROGRESS, SCHEDULED, COMPLETED, CANCELLED] }
+        expectedVersion: { type: integer }
+    AssignManager:
+      type: object
+      required: [managerId]
+      properties:
+        managerId: { type: string, format: uuid }
+    ConsultationFeedbackCreate:
+      type: object
+      required: [verdict]
+      properties:
+        verdict: { type: string, enum: [CORRECT, PARTIAL, INCORRECT] }
+        actualCause: { type: string }
+        worksDone: { type: string }
+        repairAmountMinor: { type: integer, nullable: true }
+    CompletionDocumentCreate:
+      type: object
+      required: [kind, fileName, mimeType, contentBase64]
+      properties:
+        kind: { type: string, enum: [WORK_ORDER, RECEIPT, WARRANTY, ACT, OTHER] }
+        label: { type: string, nullable: true }
+        fileName: { type: string }
+        mimeType: { type: string }
+        contentBase64: { type: string }
+    BulkStatusPatch:
+      type: object
+      required: [ids, status]
+      properties:
+        ids:
+          type: array
+          items: { type: string, format: uuid }
+        status: { type: string, enum: [NEW, IN_PROGRESS, SCHEDULED, COMPLETED, CANCELLED] }
+    BulkAssign:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: string, format: uuid }
+        managerId: { type: string, format: uuid }
+    BulkExportCrm:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: string, format: uuid }
+        connectionId: { type: string, format: uuid }
     CursorPage:
       type: object
       properties:
@@ -3522,4 +3793,219 @@ components:
         total: { type: integer }
         limit: { type: integer }
         offset: { type: integer }
+    AuthLogin:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier: { type: string }
+        password: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        fullName: { type: string }
+        phone: { type: string }
+        role: { type: string }
+        city: { type: string, nullable: true }
+        totpEnabled: { type: boolean }
+        emailVerified: { type: boolean }
+        phoneVerified: { type: boolean }
+        telegramLinked: { type: boolean }
+    UserPatch:
+      type: object
+      properties:
+        fullName: { type: string }
+        phone: { type: string }
+        emailProfile: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        telegram: { type: string, nullable: true }
+        preferredContact: { type: string, enum: [PHONE, EMAIL, TELEGRAM], nullable: true }
+    ChangePassword:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string }
+        newPassword: { type: string }
+    TotpConfirm:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string }
+    TotpVerify:
+      type: object
+      required: [password, code]
+      properties:
+        password: { type: string }
+        code: { type: string }
+    TotpDisable:
+      type: object
+      required: [password, code, confirmPhrase]
+      properties:
+        password: { type: string }
+        code: { type: string }
+        confirmPhrase: { type: string }
+    AvatarUpload:
+      type: object
+      required: [mimeType, contentBase64]
+      properties:
+        mimeType: { type: string }
+        contentBase64: { type: string }
+    NotificationPrefs:
+      type: object
+      properties:
+        bookingReminders: { type: boolean }
+        messageAlerts: { type: boolean }
+        marketing: { type: boolean }
+        channelEmail: { type: boolean }
+        channelTelegram: { type: boolean }
+        channelSms: { type: boolean }
+    MarkNotificationsRead:
+      type: object
+      properties:
+        ids:
+          type: array
+          items: { type: string, format: uuid }
+    SessionRevokeStart:
+      type: object
+      properties:
+        scope: { type: string, enum: [one, others] }
+        sessionId: { type: string, format: uuid }
+    SessionRevokeConfirm:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string }
+    LoginMethodsPatch:
+      type: object
+      properties:
+        loginEmailOtpEnabled: { type: boolean }
+        loginSmsEnabled: { type: boolean }
+        loginTelegramEnabled: { type: boolean }
+    SecurityStatus:
+      type: object
+      additionalProperties: true
+      properties:
+        totpEnabled: { type: boolean }
+        emailVerified: { type: boolean }
+        phoneVerified: { type: boolean }
+        telegramLinked: { type: boolean }
+    SessionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    InboxNotificationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/InboxNotification' }
+        unreadCount: { type: integer }
+    InboxNotification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string }
+        title: { type: string }
+        body: { type: string }
+        href: { type: string, nullable: true }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    InboxUnreadCount:
+      type: object
+      properties:
+        unreadCount: { type: integer }
+        updated: { type: integer }
+    Vehicle:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        make: { type: string }
+        model: { type: string }
+        year: { type: integer, nullable: true }
+        vin: { type: string, nullable: true }
+        licensePlate: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+        currentMileageKm: { type: integer, nullable: true }
+        photoUrl: { type: string, nullable: true }
+    VehicleList:
+      type: array
+      items: { $ref: '#/components/schemas/Vehicle' }
+    VehicleCreate:
+      type: object
+      required: [make, model]
+      properties:
+        make: { type: string }
+        model: { type: string }
+        year: { type: integer, nullable: true }
+        vin: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        licensePlate: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+    VehiclePatch:
+      type: object
+      properties:
+        currentMileageKm: { type: integer, nullable: true }
+        vin: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        licensePlate: { type: string, nullable: true }
+        color: { type: string, nullable: true }
+    VehiclePhoto:
+      type: object
+      required: [mimeType, contentBase64]
+      properties:
+        mimeType: { type: string }
+        contentBase64: { type: string }
+    ContactCreate:
+      type: object
+      required: [fullName, phone]
+      properties:
+        fullName: { type: string }
+        phone: { type: string }
+        email: { type: string }
+    LiveStatus:
+      type: object
+      properties:
+        status: { type: string }
+        uptimeSec: { type: number }
+    AuthRegister:
+      type: object
+      required: [email, password, fullName, phone]
+      properties:
+        email: { type: string }
+        password: { type: string }
+        fullName: { type: string }
+        phone: { type: string }
+    AuthRefresh:
+      type: object
+      properties:
+        refreshToken: { type: string }
+    AuthSession:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        user: { $ref: '#/components/schemas/User' }
+        requires2fa: { type: boolean }
+    AuthPending:
+      type: object
+      properties:
+        requiresEmailVerification: { type: boolean }
+        message: { type: string }
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string }
+    PasswordResetConfirm:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string }
+        password: { type: string }
 

@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma.js';
 import { AppError } from '../../lib/errors.js';
 import {
@@ -7,274 +8,25 @@ import {
   validateVehiclePhotoInput,
   vehiclePhotoMimeFromKey,
 } from '../../lib/vehiclePhotoStorage.js';
+import {
+  serializeVehicle,
+  getLatestServiceByVehicle,
+  getVehicleCaseCounts,
+  findVehicleByFingerprint,
+  excludeVehicleFingerprint,
+  clearVehicleExclusion,
+  vehicleFingerprint,
+} from './vehicles.helpers.js';
+import { syncVehiclesFromHistoryThrottled } from './vehicles.sync.js';
+import type { VehiclePhotoInput, VehicleWriteInput } from './vehicles.types.js';
 
-function norm(value) {
-  return String(value || '').trim().toLowerCase();
-}
+export {
+  findOrCreateVehicleForClient,
+  linkSessionToVehicle,
+  syncVehiclesFromHistory,
+} from './vehicles.sync.js';
 
-function vehicleFingerprint(make, model, year) {
-  return `${norm(make)}|${norm(model)}|${year ?? ''}`;
-}
-
-function publicPhotoUrl(vehicleId, photoUrl) {
-  if (!photoUrl) return null;
-  return `/api/vehicles/${vehicleId}/photo`;
-}
-
-function serializeVehicle(vehicle) {
-  return {
-    id: vehicle.id,
-    make: vehicle.make,
-    model: vehicle.model,
-    year: vehicle.year,
-    vin: vehicle.vin,
-    notes: vehicle.notes,
-    source: vehicle.source,
-    currentMileageKm: vehicle.currentMileageKm ?? null,
-    photoUrl: publicPhotoUrl(vehicle.id, vehicle.photoUrl),
-    licensePlate: vehicle.licensePlate ?? null,
-    color: vehicle.color ?? null,
-    createdAt: vehicle.createdAt.toISOString(),
-    updatedAt: vehicle.updatedAt.toISOString(),
-  };
-}
-
-async function getLatestServiceByVehicle(vehicleIds) {
-  if (!vehicleIds.length) return {};
-  const rows = await prisma.vehicleServiceRecord.findMany({
-    where: { vehicleId: { in: vehicleIds } },
-    orderBy: [{ performedAt: 'desc' }],
-    select: { vehicleId: true, performedAt: true, title: true, category: true },
-  });
-  const latest: any = {};
-  for (const row of rows) {
-    if (latest[row.vehicleId]) continue;
-    latest[row.vehicleId] = {
-      lastServiceAt: row.performedAt.toISOString(),
-      lastServiceTitle: row.title,
-      lastServiceCategory: row.category,
-    };
-  }
-  return latest;
-}
-
-async function getVehicleCaseCounts(clientId, vehicleIds) {
-  if (!vehicleIds.length) return {};
-
-  const [sessions, requests] = await Promise.all([
-    prisma.consultationSession.findMany({
-      where: { clientId, vehicleId: { in: vehicleIds }, serviceRequest: null },
-      select: { vehicleId: true },
-    }),
-    prisma.serviceRequest.findMany({
-      where: { clientId, vehicleId: { in: vehicleIds } },
-      select: { vehicleId: true, status: true },
-    }),
-  ]);
-
-  const counts = Object.fromEntries(vehicleIds.map((id) => [id, { active: 0, total: 0 }]));
-
-  for (const session of sessions) {
-    if (!session.vehicleId) continue;
-    counts[session.vehicleId].total += 1;
-    counts[session.vehicleId].active += 1;
-  }
-
-  for (const request of requests) {
-    if (!request.vehicleId) continue;
-    counts[request.vehicleId].total += 1;
-    if (request.status !== 'COMPLETED' && request.status !== 'CANCELLED') {
-      counts[request.vehicleId].active += 1;
-    }
-  }
-
-  return counts;
-}
-
-async function findVehicleByFingerprint(clientId, make, model, year) {
-  const vehicles = await prisma.clientVehicle.findMany({ where: { clientId } });
-  const fingerprint = vehicleFingerprint(make, model, year);
-  return vehicles.find((vehicle) => vehicleFingerprint(vehicle.make, vehicle.model, vehicle.year) === fingerprint) || null;
-}
-
-async function getExcludedFingerprints(clientId) {
-  const rows = await prisma.clientVehicleExclusion.findMany({
-    where: { clientId },
-    select: { fingerprint: true },
-  });
-  return new Set(rows.map((row) => row.fingerprint));
-}
-
-async function excludeVehicleFingerprint(clientId, make, model, year) {
-  const fingerprint = vehicleFingerprint(make, model, year);
-  await prisma.clientVehicleExclusion.upsert({
-    where: {
-      clientId_fingerprint: {
-        clientId,
-        fingerprint,
-      },
-    },
-    create: { clientId, fingerprint },
-    update: {},
-  });
-}
-
-async function clearVehicleExclusion(clientId, make, model, year) {
-  const fingerprint = vehicleFingerprint(make, model, year);
-  await prisma.clientVehicleExclusion.deleteMany({
-    where: { clientId, fingerprint },
-  });
-}
-
-function isFingerprintExcluded(excluded, make, model, year) {
-  return excluded.has(vehicleFingerprint(make, model, year));
-}
-
-export async function findOrCreateVehicleForClient(clientId, { make, model, year }, source = 'imported') {
-  const normalizedMake = String(make || '').trim();
-  const normalizedModel = String(model || '').trim();
-  if (!normalizedMake && !normalizedModel) return null;
-
-  const excluded = await getExcludedFingerprints(clientId);
-  if (isFingerprintExcluded(excluded, normalizedMake, normalizedModel, year ?? null)) {
-    return null;
-  }
-
-  const existing = await findVehicleByFingerprint(clientId, normalizedMake, normalizedModel, year ?? null);
-  if (existing) return existing;
-
-  return prisma.clientVehicle.create({
-    data: {
-      clientId,
-      make: normalizedMake || 'Неизвестная марка',
-      model: normalizedModel,
-      year: year ?? null,
-      source,
-    },
-  });
-}
-
-export async function linkSessionToVehicle(sessionId, clientId, { make, model, year }: any) {
-  if (!clientId) return null;
-
-  const session = await prisma.consultationSession.findUnique({
-    where: { id: sessionId },
-    select: { vehicleId: true },
-  });
-  if (!session || session.vehicleId) return session?.vehicleId ?? null;
-
-  const vehicle = await findOrCreateVehicleForClient(clientId, { make, model, year });
-  if (!vehicle) return null;
-
-  await prisma.consultationSession.update({
-    where: { id: sessionId },
-    data: { vehicleId: vehicle.id },
-  });
-
-  return vehicle.id;
-}
-
-export async function syncVehiclesFromHistory(clientId) {
-  const [sessions, orphanRequests, existing, excluded] = await Promise.all([
-    prisma.consultationSession.findMany({
-      where: { clientId },
-      include: { extracted: true, serviceRequest: { select: { id: true, vehicleId: true } } },
-    }),
-    prisma.serviceRequest.findMany({
-      where: { clientId, vehicleId: null },
-      select: {
-        id: true,
-        snapshotMake: true,
-        snapshotModel: true,
-        consultationSessionId: true,
-      },
-    }),
-    prisma.clientVehicle.findMany({ where: { clientId } }),
-    getExcludedFingerprints(clientId),
-  ]);
-
-  const byFingerprint = new Map(
-    existing.map((vehicle) => [vehicleFingerprint(vehicle.make, vehicle.model, vehicle.year), vehicle]),
-  );
-
-  for (const session of sessions) {
-    const extracted = session.extracted;
-    const make = extracted?.make?.trim();
-    const model = extracted?.model?.trim();
-    if (!make && !model) continue;
-
-    const fingerprint = vehicleFingerprint(make, model, extracted?.year ?? null);
-    if (isFingerprintExcluded(excluded, make, model, extracted?.year ?? null)) continue;
-
-    let vehicle = byFingerprint.get(fingerprint);
-    if (!vehicle) {
-      vehicle = await prisma.clientVehicle.create({
-        data: {
-          clientId,
-          make: make || 'Неизвестная марка',
-          model: model || '',
-          year: extracted?.year ?? null,
-          source: 'imported',
-        },
-      });
-      byFingerprint.set(fingerprint, vehicle);
-    }
-
-    if (!session.vehicleId) {
-      await prisma.consultationSession.update({
-        where: { id: session.id },
-        data: { vehicleId: vehicle.id },
-      });
-    }
-
-    if (session.serviceRequest && !session.serviceRequest.vehicleId) {
-      await prisma.serviceRequest.update({
-        where: { id: session.serviceRequest.id },
-        data: { vehicleId: vehicle.id },
-      });
-    }
-  }
-
-  for (const request of orphanRequests) {
-    const make = request.snapshotMake?.trim();
-    const model = request.snapshotModel?.trim();
-    if (!make && !model) continue;
-
-    const fingerprint = vehicleFingerprint(make, model, null);
-    if (isFingerprintExcluded(excluded, make, model, null)) continue;
-
-    let vehicle = byFingerprint.get(fingerprint);
-    if (!vehicle) {
-      vehicle = await prisma.clientVehicle.create({
-        data: {
-          clientId,
-          make: make || 'Неизвестная марка',
-          model: model || '',
-          source: 'imported',
-        },
-      });
-      byFingerprint.set(fingerprint, vehicle);
-    }
-
-    await prisma.serviceRequest.update({
-      where: { id: request.id },
-      data: { vehicleId: vehicle.id },
-    });
-  }
-}
-
-/** Debounce history sync so garage list stays fast on repeated opens. */
-const vehicleSyncAt = new Map();
-const VEHICLE_SYNC_TTL_MS = 5 * 60 * 1000;
-
-async function syncVehiclesFromHistoryThrottled(clientId) {
-  const last = vehicleSyncAt.get(clientId) || 0;
-  if (Date.now() - last < VEHICLE_SYNC_TTL_MS) return;
-  vehicleSyncAt.set(clientId, Date.now());
-  await syncVehiclesFromHistory(clientId);
-}
-
-export async function listVehicles(clientId) {
+export async function listVehicles(clientId: string) {
   await syncVehiclesFromHistoryThrottled(clientId);
 
   const vehicles = await prisma.clientVehicle.findMany({
@@ -297,7 +49,7 @@ export async function listVehicles(clientId) {
   }));
 }
 
-export async function getVehicle(clientId, vehicleId) {
+export async function getVehicle(clientId: string, vehicleId: string) {
   const vehicle = await prisma.clientVehicle.findFirst({
     where: { id: vehicleId, clientId },
   });
@@ -316,7 +68,7 @@ export async function getVehicle(clientId, vehicleId) {
   };
 }
 
-export async function createVehicle(clientId, data) {
+export async function createVehicle(clientId: string, data: VehicleWriteInput) {
   const make = String(data.make || '').trim();
   const model = String(data.model || '').trim();
   if (!make || !model) {
@@ -352,13 +104,13 @@ export async function createVehicle(clientId, data) {
   return serializeVehicle(vehicle);
 }
 
-export async function updateVehicle(clientId, vehicleId, data) {
+export async function updateVehicle(clientId: string, vehicleId: string, data: VehicleWriteInput) {
   const vehicle = await prisma.clientVehicle.findFirst({
     where: { id: vehicleId, clientId },
   });
   if (!vehicle) throw new AppError(404, 'Автомобиль не найден', 'NOT_FOUND');
 
-  const patch: any = {};
+  const patch: Prisma.ClientVehicleUpdateInput = {};
   if (data.currentMileageKm !== undefined) {
     if (data.currentMileageKm == null || data.currentMileageKm === '') {
       patch.currentMileageKm = null;
@@ -397,7 +149,7 @@ export async function updateVehicle(clientId, vehicleId, data) {
   return getVehicle(clientId, vehicleId);
 }
 
-export async function uploadVehiclePhoto(clientId, vehicleId, { mimeType, contentBase64 }: any) {
+export async function uploadVehiclePhoto(clientId: string, vehicleId: string, { mimeType, contentBase64 }: VehiclePhotoInput) {
   const vehicle = await prisma.clientVehicle.findFirst({
     where: { id: vehicleId, clientId },
     select: { id: true, photoUrl: true },
@@ -423,7 +175,7 @@ export async function uploadVehiclePhoto(clientId, vehicleId, { mimeType, conten
   return getVehicle(clientId, vehicleId);
 }
 
-export async function removeVehiclePhoto(clientId, vehicleId) {
+export async function removeVehiclePhoto(clientId: string, vehicleId: string) {
   const vehicle = await prisma.clientVehicle.findFirst({
     where: { id: vehicleId, clientId },
     select: { id: true, photoUrl: true },
@@ -440,7 +192,7 @@ export async function removeVehiclePhoto(clientId, vehicleId) {
   return getVehicle(clientId, vehicleId);
 }
 
-export async function getVehiclePhoto(clientId, vehicleId) {
+export async function getVehiclePhoto(clientId: string, vehicleId: string) {
   const vehicle = await prisma.clientVehicle.findFirst({
     where: { id: vehicleId, clientId },
     select: { photoUrl: true },
@@ -450,7 +202,7 @@ export async function getVehiclePhoto(clientId, vehicleId) {
   return { buffer, mimeType: vehiclePhotoMimeFromKey(vehicle.photoUrl) };
 }
 
-export async function deleteVehicle(clientId, vehicleId) {
+export async function deleteVehicle(clientId: string, vehicleId: string) {
   const vehicle = await prisma.clientVehicle.findFirst({
     where: { id: vehicleId, clientId },
   });
@@ -487,12 +239,17 @@ export async function deleteVehicle(clientId, vehicleId) {
   await Promise.all(matched.map((row) => deleteVehiclePhotoFile(row.photoUrl)));
 }
 
-export async function listVehiclesForDossier(clientId) {
+export async function listVehiclesForDossier(clientId: string) {
   await syncVehiclesFromHistoryThrottled(clientId);
   const vehicles = await prisma.clientVehicle.findMany({
     where: { clientId },
     orderBy: [{ updatedAt: 'desc' }],
-    select: { make: true, model: true, year: true },
   });
-  return vehicles;
+  const latestService = await getLatestServiceByVehicle(vehicles.map((vehicle) => vehicle.id));
+  return vehicles.map((vehicle) => ({
+    ...serializeVehicle(vehicle),
+    lastServiceAt: latestService[vehicle.id]?.lastServiceAt ?? null,
+    lastServiceTitle: latestService[vehicle.id]?.lastServiceTitle ?? null,
+    lastServiceCategory: latestService[vehicle.id]?.lastServiceCategory ?? null,
+  }));
 }

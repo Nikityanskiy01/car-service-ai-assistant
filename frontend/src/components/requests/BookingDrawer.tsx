@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, X } from 'lucide-react';
+import { CalendarClock, CarFront, ChevronRight, Phone, X } from 'lucide-react';
 import { getBookingAudit, patchBooking, type BookingAuditEntry } from '../../api/dashboard';
-import { getBookingVehicleLabel } from '../../lib/bookingDisplay';
+import {
+  formatBookingDateParts,
+  formatBookingRelative,
+  formatBookingRequestSummary,
+  getBookingVehicleLabel,
+} from '../../lib/bookingDisplay';
 import { Button } from '../ui/Button';
 import { CopyPhoneButton } from '../ui/CopyPhoneButton';
 import { Loader } from '../ui/Loader';
@@ -20,19 +25,26 @@ type Props = {
   requestBasePath?: string;
 };
 
-const STATUS_ACTIONS: Array<{ status: BookingStatus; label: string; variant: 'secondary' | 'ghost' }> = [
-  { status: 'CONFIRMED', label: 'Подтвердить', variant: 'secondary' },
-  { status: 'ARRIVED', label: 'Приехал', variant: 'ghost' },
-  { status: 'NO_SHOW', label: 'Не приехал', variant: 'ghost' },
-  { status: 'CANCELLED', label: 'Отменить', variant: 'ghost' },
-];
-
 const STATUS_TOASTS: Record<BookingStatus, string> = {
   CONFIRMED: 'Запись подтверждена',
   ARRIVED: 'Отмечен приезд клиента',
   NO_SHOW: 'Отмечена неявка',
   CANCELLED: 'Запись отменена',
 };
+
+const VISIT_ACTIONS: Array<{ status: BookingStatus; label: string; variant: 'secondary' | 'ghost' }> = [
+  { status: 'ARRIVED', label: 'Приехал', variant: 'secondary' },
+  { status: 'NO_SHOW', label: 'Не приехал', variant: 'ghost' },
+];
+
+function bookingTone(status: string) {
+  const normalized = status.toUpperCase();
+  if (normalized === 'ARRIVED') return 'arrived';
+  if (normalized === 'NO_SHOW') return 'missed';
+  if (normalized === 'CANCELLED') return 'cancelled';
+  if (normalized === 'CONFIRMED') return 'confirmed';
+  return 'waiting';
+}
 
 function toLocalInputValue(iso: string) {
   const date = new Date(iso);
@@ -90,7 +102,15 @@ export function BookingDrawer({
   const phone = booking.client?.phone || booking.guestPhone || '';
   const serviceRequest = booking.serviceRequest;
   const car = getBookingVehicleLabel(booking) || '';
+  const plate = booking.vehicle?.licensePlate?.trim() || '';
+  const year = booking.vehicle?.year ? String(booking.vehicle.year) : '';
+  const carMeta = [year, plate].filter(Boolean).join(' · ');
+  const when = formatBookingDateParts(booking.preferredAt);
+  const relative = formatBookingRelative(booking.preferredAt);
   const rescheduleChanged = rescheduleAt !== toLocalInputValue(booking.preferredAt);
+  const showConfirm = booking.status !== 'CONFIRMED';
+  const showCancel = booking.status !== 'CANCELLED';
+  const visitActions = VISIT_ACTIONS.filter((action) => action.status !== booking.status);
 
   async function updateStatus(status: BookingStatus) {
     if (!booking) return;
@@ -133,133 +153,171 @@ export function BookingDrawer({
         className="booking-drawer"
         role="dialog"
         aria-modal="true"
-        aria-label={`Запись ${new Date(booking.preferredAt).toLocaleString('ru-RU')}`}
+        aria-busy={busy}
+        data-status-tone={bookingTone(booking.status)}
+        aria-label={`Запись ${when.short}`}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="booking-drawer-header">
-          <div>
-            <h2>Запись</h2>
-            <p className="muted tnum">{new Date(booking.preferredAt).toLocaleString('ru-RU')}</p>
+          <div className="booking-drawer-heading">
+            <p className="booking-drawer-kicker">Запись</p>
+            <h2>{name}</h2>
+            <p className="booking-drawer-when">
+              <time dateTime={booking.preferredAt} className="tnum">
+                {when.day}, {when.time}
+              </time>
+              {relative ? <span className="booking-drawer-relative">{relative}</span> : null}
+            </p>
           </div>
-          <button
-            ref={closeRef}
-            type="button"
-            className="btn btn-ghost btn-icon"
-            onClick={onClose}
-            aria-label="Закрыть (Esc)"
-          >
-            <X size={18} aria-hidden />
-          </button>
+          <div className="booking-drawer-header-aside">
+            <StatusBadge status={booking.status} />
+            <button
+              ref={closeRef}
+              type="button"
+              className="btn btn-ghost btn-icon booking-drawer-close"
+              onClick={onClose}
+              aria-label="Закрыть (Esc)"
+            >
+              <X size={18} aria-hidden />
+            </button>
+          </div>
         </header>
 
-        <dl className="detail-dl">
-          <div>
-            <dt>Клиент</dt>
-            <dd>{name}</dd>
-          </div>
-          {phone ? (
-            <div>
-              <dt>Телефон</dt>
-              <dd className="booking-drawer-phone">
-                <a href={`tel:${phone}`} className="tnum">
-                  {phone}
-                </a>
-                <CopyPhoneButton phone={phone} label="" />
-              </dd>
+        <div className="booking-drawer-body">
+          {phone || car ? (
+            <div className="booking-drawer-facts">
+              {phone ? (
+                <div className="booking-drawer-fact">
+                  <span className="booking-drawer-fact-label">Телефон</span>
+                  <span className="booking-drawer-phone">
+                    <a href={`tel:${phone}`} className="tnum">
+                      {phone}
+                    </a>
+                    <CopyPhoneButton phone={phone} label="" />
+                  </span>
+                </div>
+              ) : null}
+              {car ? (
+                <div className="booking-drawer-fact">
+                  <span className="booking-drawer-fact-label">
+                    <CarFront size={12} aria-hidden />
+                    Автомобиль
+                  </span>
+                  <span className="booking-drawer-fact-value">{car}</span>
+                  {carMeta ? <span className="booking-drawer-fact-meta">{carMeta}</span> : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
-          {car ? (
-            <div>
-              <dt>Автомобиль</dt>
-              <dd>{car}</dd>
-            </div>
+
+          {booking.notes || serviceRequest?.snapshotSymptoms ? (
+            <section className="booking-drawer-notes" aria-label="Детали визита">
+              {booking.notes ? (
+                <div>
+                  <h3>Комментарий</h3>
+                  <p>{booking.notes}</p>
+                </div>
+              ) : null}
+              {serviceRequest?.snapshotSymptoms ? (
+                <div>
+                  <h3>Симптомы</h3>
+                  <p>{serviceRequest.snapshotSymptoms}</p>
+                </div>
+              ) : null}
+            </section>
           ) : null}
-          <div>
-            <dt>Статус</dt>
-            <dd>
-              <StatusBadge status={booking.status} />
-            </dd>
-          </div>
-          {booking.notes ? (
-            <div>
-              <dt>Комментарий</dt>
-              <dd>{booking.notes}</dd>
-            </div>
-          ) : null}
-          {serviceRequest?.snapshotSymptoms ? (
-            <div>
-              <dt>Симптомы</dt>
-              <dd>{serviceRequest.snapshotSymptoms}</dd>
-            </div>
-          ) : null}
+
           {serviceRequest ? (
-            <div>
-              <dt>Заявка</dt>
-              <dd>
-                <Link to={`${requestBasePath}/${serviceRequest.id}`}>Открыть заявку</Link>
-              </dd>
-            </div>
+            <Link to={`${requestBasePath}/${serviceRequest.id}`} className="booking-drawer-request">
+              <span>
+                <span className="booking-drawer-fact-label">Заявка</span>
+                <strong>{formatBookingRequestSummary(serviceRequest)}</strong>
+              </span>
+              <ChevronRight size={18} aria-hidden />
+            </Link>
           ) : null}
-        </dl>
 
-        <div className="booking-reschedule">
-          <label htmlFor="booking-reschedule-input">Перенести на</label>
-          <div className="booking-reschedule-row">
-            <input
-              id="booking-reschedule-input"
-              type="datetime-local"
-              value={rescheduleAt}
-              onChange={(event) => setRescheduleAt(event.target.value)}
-            />
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={busy || !rescheduleChanged}
-              onClick={() => void reschedule()}
-            >
-              Сохранить время
-            </Button>
+          <div className="booking-reschedule">
+            <label htmlFor="booking-reschedule-input">
+              <CalendarClock size={14} aria-hidden />
+              Перенести на
+            </label>
+            <div className="booking-reschedule-row">
+              <input
+                id="booking-reschedule-input"
+                type="datetime-local"
+                value={rescheduleAt}
+                disabled={busy}
+                onChange={(event) => setRescheduleAt(event.target.value)}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                className="booking-drawer-save"
+                disabled={busy || !rescheduleChanged}
+                onClick={() => void reschedule()}
+              >
+                Сохранить время
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {showAudit ? (
-          <section className="booking-audit-panel">
-            <h3>Журнал изменений</h3>
-            {auditLoading ? <Loader /> : null}
-            {!auditLoading && !audit.length ? <p className="muted">Изменений пока нет.</p> : null}
-            <ul className="booking-audit-list">
-              {audit.map((entry) => (
-                <li key={entry.id}>
-                  <time className="tnum">{new Date(entry.createdAt).toLocaleString('ru-RU')}</time>
-                  <span>{entry.actor?.fullName || entry.actor?.email || 'Система'}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+          {showAudit ? (
+            <section className="booking-audit-panel">
+              <h3>Журнал изменений</h3>
+              {auditLoading ? <Loader /> : null}
+              {!auditLoading && !audit.length ? <p className="muted">Изменений пока нет.</p> : null}
+              <ul className="booking-audit-list">
+                {audit.map((entry) => (
+                  <li key={entry.id}>
+                    <time className="tnum">{new Date(entry.createdAt).toLocaleString('ru-RU')}</time>
+                    <span>{entry.actor?.fullName || entry.actor?.email || 'Система'}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
 
         <div className="booking-drawer-actions">
           {phone ? (
-            <a href={`tel:${phone}`} className="btn btn-primary">
-              <Phone size={16} aria-hidden />
+            <a href={`tel:${phone}`} className="btn btn-primary booking-drawer-call">
+              <span className="booking-drawer-call-icon" aria-hidden>
+                <Phone size={16} />
+              </span>
               Позвонить
             </a>
           ) : null}
-          {STATUS_ACTIONS.filter((action) => action.status !== booking.status).map((action) => (
-            <Button
-              key={action.status}
-              type="button"
-              variant={action.variant}
-              disabled={busy}
-              onClick={() => void updateStatus(action.status)}
-            >
-              {action.label}
+          {visitActions.length ? (
+            <div className="booking-drawer-visit">
+              {visitActions.map((action) => (
+                <Button
+                  key={action.status}
+                  type="button"
+                  variant={action.variant}
+                  disabled={busy}
+                  onClick={() => void updateStatus(action.status)}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+          {showConfirm ? (
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void updateStatus('CONFIRMED')}>
+              Подтвердить
             </Button>
-          ))}
-          {serviceRequest ? (
-            <Link to={`${requestBasePath}/${serviceRequest.id}`} className="btn btn-ghost">
-              К заявке
-            </Link>
+          ) : null}
+          {showCancel ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="booking-drawer-cancel"
+              disabled={busy}
+              onClick={() => void updateStatus('CANCELLED')}
+            >
+              Отменить
+            </Button>
           ) : null}
         </div>
       </aside>

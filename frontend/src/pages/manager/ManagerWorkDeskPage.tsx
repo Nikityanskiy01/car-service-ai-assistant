@@ -36,7 +36,7 @@ type QueueFilter = 'all' | 'requests' | 'site' | 'ai';
 const QUEUE_FILTERS: { id: QueueFilter; label: string; kinds: AttentionKind[] }[] = [
   { id: 'all', label: 'Все', kinds: ['sla', 'request', 'stale', 'feedback', 'contact'] },
   { id: 'requests', label: 'Заявки', kinds: ['sla', 'request', 'stale'] },
-  { id: 'site', label: 'Сайт', kinds: ['contact'] },
+  { id: 'site', label: 'Сообщения с сайта', kinds: ['contact'] },
   { id: 'ai', label: 'ИИ', kinds: ['feedback'] },
 ];
 
@@ -264,8 +264,8 @@ export function ManagerWorkDeskPage() {
           <Signal
             to={paths.contacts}
             value={metrics.contacts}
-            label="Сайт"
-            hint="обращения"
+            label="Сообщения с сайта"
+            hint="форма на сайте"
             tone={metrics.contacts > 0 ? 'accent' : 'quiet'}
           />
           <Signal

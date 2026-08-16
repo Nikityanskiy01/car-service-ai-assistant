@@ -138,7 +138,7 @@ export function AdminOverviewPage() {
       items.push({
         id: 'new-contacts',
         priority: 'P2',
-        text: `${newContacts} новых обращений с сайта`,
+        text: `${newContacts} новых сообщений с сайта`,
         to: '/dashboard/admin/operations/contacts',
       });
     }
@@ -185,7 +185,7 @@ export function AdminOverviewPage() {
         <Link to="/dashboard/admin/operations/contacts" className="admin-bento-card">
           <Activity size={20} aria-hidden />
           <div>
-            <span className="admin-bento-label">Новые обращения</span>
+            <span className="admin-bento-label">Сообщения с сайта</span>
             <strong className="admin-bento-value tnum">{newContacts}</strong>
           </div>
         </Link>

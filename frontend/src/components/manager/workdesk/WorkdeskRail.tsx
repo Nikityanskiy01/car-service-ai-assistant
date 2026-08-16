@@ -124,7 +124,7 @@ export function WorkdeskRail({
               <dd>{managerKpi.personal.messagesSent}</dd>
             </div>
             <div>
-              <dt>Конверсии</dt>
+              <dt>Оформили</dt>
               <dd>{managerKpi.personal.contactsConverted}</dd>
             </div>
           </dl>

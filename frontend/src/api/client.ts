@@ -33,7 +33,7 @@ export function getCachedUser(): AuthUser | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEYS.user);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { id?: string; role?: string };
+    const parsed = JSON.parse(raw) as { id?: string; role?: string; totpSetupPending?: boolean };
     if (!parsed?.id || !ROLES.has(String(parsed.role || ''))) return null;
     return {
       id: parsed.id,
@@ -41,6 +41,7 @@ export function getCachedUser(): AuthUser | null {
       email: '',
       fullName: '',
       phone: '',
+      totpSetupPending: Boolean(parsed.totpSetupPending),
     };
   } catch {
     return null;
@@ -53,7 +54,14 @@ export function setCachedUser(user: AuthUser | null): void {
     sessionStorage.removeItem(STORAGE_KEYS.user);
     return;
   }
-  sessionStorage.setItem(STORAGE_KEYS.user, JSON.stringify({ id: user.id, role: user.role }));
+  sessionStorage.setItem(
+    STORAGE_KEYS.user,
+    JSON.stringify({
+      id: user.id,
+      role: user.role,
+      totpSetupPending: Boolean(user.totpSetupPending),
+    }),
+  );
 }
 
 export function clearLocalAuthState(): void {
@@ -68,12 +76,15 @@ async function refreshAccessToken(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const csrf = readCookie(CSRF_COOKIE_HOST) || readCookie(CSRF_COOKIE);
+      if (csrf) headers['X-CSRF-Token'] = csrf;
       const response = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401) {
         clearLocalAuthState();
         return false;
       }

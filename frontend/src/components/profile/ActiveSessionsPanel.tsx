@@ -1,4 +1,4 @@
-import { Globe, Laptop, LogOut, Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Globe, Laptop, LogOut, Monitor, Smartphone, Tablet, Terminal } from 'lucide-react';
 import { useState } from 'react';
 import {
   revokeOtherSessions,
@@ -72,8 +72,8 @@ export function ActiveSessionsPanel({ sessions, onReload, onError, onSuccess }: 
         <div>
           <h2>Активные сессии</h2>
           <p>
-            Устройства, где вы сейчас авторизованы. Завершение подтверждается кодом с почты — так
-            чужой доступ не отключит ваши устройства.
+            Браузеры и телефоны, где вы сейчас вошли. Повторный вход с того же устройства не плодит
+            копии. Завершение подтверждается кодом с почты.
           </p>
         </div>
         {otherSessions.length > 0 ? (
@@ -100,7 +100,7 @@ export function ActiveSessionsPanel({ sessions, onReload, onError, onSuccess }: 
               className={`profile-session-row${session.current ? ' is-current' : ''}`}
             >
               <span className="profile-session-icon" aria-hidden>
-                <DeviceIcon deviceType={session.device?.deviceType} />
+                <DeviceIcon deviceType={session.device?.deviceType} isBot={session.device?.isBot} />
               </span>
 
               <div className="profile-session-body">
@@ -170,7 +170,7 @@ function RevokeTargetSummary({ target }: { target: RevokeTarget }) {
       {visible.map((session) => (
         <li key={session.id}>
           <span className="session-revoke-device-icon" aria-hidden>
-            <DeviceIcon deviceType={session.device?.deviceType} />
+            <DeviceIcon deviceType={session.device?.deviceType} isBot={session.device?.isBot} />
           </span>
           <div>
             <strong>{deviceTitle(session.device)}</strong>
@@ -188,7 +188,8 @@ function RevokeTargetSummary({ target }: { target: RevokeTarget }) {
   );
 }
 
-function DeviceIcon({ deviceType }: { deviceType?: string }) {
+function DeviceIcon({ deviceType, isBot }: { deviceType?: string; isBot?: boolean }) {
+  if (isBot) return <Terminal size={16} />;
   if (deviceType === 'mobile') return <Smartphone size={16} />;
   if (deviceType === 'tablet') return <Tablet size={16} />;
   if (deviceType === 'desktop') return <Laptop size={16} />;

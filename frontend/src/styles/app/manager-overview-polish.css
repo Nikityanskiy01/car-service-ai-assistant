@@ -71,12 +71,33 @@
 .inline-feedback-item {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.65rem 0.75rem;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 0.65rem;
+}
+
+.inline-feedback-copy {
+  min-width: min(100%, 18rem);
+  flex: 1 1 16rem;
+}
+
+.inline-feedback-symptoms {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.inline-feedback-causes {
+  margin: 0.4rem 0 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .kanban-column.is-wip-limit {
@@ -220,9 +241,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .kanban-card-wrap,
+  .kanban-card-link,
   .booking-list-btn,
   .inline-feedback-item {
     transition: none !important;
+  }
+
+  .kanban-card-link:active {
+    transform: none;
   }
 }
 

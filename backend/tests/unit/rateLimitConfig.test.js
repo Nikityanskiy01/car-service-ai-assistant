@@ -12,8 +12,10 @@ describe('rateLimitConfig', () => {
     expect(authAttemptKey({ ip: '10.0.0.8', body: {} })).toBe('10.0.0.8');
   });
 
-  it('не считает health/live в общий лимит', () => {
+  it('не считает health/live в общий лимит, включая /api/v1', () => {
     expect(isOperationalApiPath({ originalUrl: '/api/live' })).toBe(true);
+    expect(isOperationalApiPath({ originalUrl: '/api/v1/live' })).toBe(true);
+    expect(isOperationalApiPath({ originalUrl: '/api/v1/ready?x=1' })).toBe(true);
     expect(isOperationalApiPath({ originalUrl: '/api/auth/login' })).toBe(false);
   });
 

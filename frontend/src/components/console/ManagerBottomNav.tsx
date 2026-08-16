@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell,
   BrainCircuit,
   CalendarDays,
   ClipboardList,
   Home,
   LayoutDashboard,
   LogOut,
+  MessageSquare,
   MoreHorizontal,
   Search,
   User,
@@ -28,7 +28,7 @@ const MAIN_TABS = [
 ] as const;
 
 const MORE_LINKS = [
-  { id: 'contacts', label: 'Входящие', to: '/dashboard/manager/contacts', icon: Bell },
+  { id: 'contacts', label: 'Сообщения с сайта', to: '/dashboard/manager/contacts', icon: MessageSquare },
   { id: 'ai-quality', label: 'Качество ИИ', to: '/dashboard/manager/ai-quality', icon: BrainCircuit },
   { id: 'manager-profile', label: 'Профиль', to: '/dashboard/manager/profile', icon: User },
 ] as const;
@@ -135,7 +135,7 @@ export function ManagerBottomNav({
           <div className="mx-auto mb-1 h-1 w-10 rounded-full bg-border" aria-hidden />
           <SheetHeader className="p-0 pb-1">
             <SheetTitle>Ещё</SheetTitle>
-            <SheetDescription className="sr-only">Входящие, качество ИИ, профиль и выход</SheetDescription>
+            <SheetDescription className="sr-only">Сообщения с сайта, качество ИИ, профиль и выход</SheetDescription>
           </SheetHeader>
           <div className="flex flex-col gap-0.5">
             {MORE_LINKS.map((item) => {

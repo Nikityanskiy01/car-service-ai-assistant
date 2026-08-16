@@ -78,11 +78,31 @@ describe('api client', () => {
     });
     expect(localStorage.getItem('car_service_user')).toBeNull();
     const stored = JSON.parse(String(sessionStorage.getItem('car_service_user')));
-    expect(stored).toEqual({ id: 'u1', role: 'CLIENT' });
+    expect(stored).toEqual({ id: 'u1', role: 'CLIENT', totpSetupPending: false });
     expect(JSON.stringify(stored)).not.toMatch(/secret@t.test|Иван|7999/);
     const cached = getCachedUser();
     expect(cached?.id).toBe('u1');
     expect(cached?.role).toBe('CLIENT');
     expect(cached?.email).toBe('');
+  });
+
+  it('не сбрасывает сессию, если refresh отвечает 403', async () => {
+    setCachedUser({
+      id: 'u1',
+      role: 'MANAGER',
+      email: 'manager@example.local',
+      fullName: 'M',
+      phone: '+7',
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: 'forbidden', code: 'FORBIDDEN' }), { status: 403 }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(api('/service-requests')).rejects.toMatchObject({ status: 401 });
+    expect(getCachedUser()?.id).toBe('u1');
   });
 });

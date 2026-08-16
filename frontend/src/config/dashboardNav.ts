@@ -2,7 +2,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   BarChart3,
-  Bell,
   BookOpen,
   BrainCircuit,
   CalendarDays,
@@ -49,7 +48,7 @@ export const managerNavItems: DashboardNavItem[] = [
   { id: 'requests', label: 'Очередь', to: '/dashboard/manager/requests', icon: ClipboardList, group: 'Работа' },
   { id: 'calendar', label: 'Календарь', to: '/dashboard/manager/calendar', icon: CalendarDays, group: 'Работа' },
   { id: 'clients', label: 'Клиенты', to: '/dashboard/manager/clients', icon: Users, group: 'Работа' },
-  { id: 'contacts', label: 'Входящие', to: '/dashboard/manager/contacts', icon: Bell, group: 'Работа' },
+  { id: 'contacts', label: 'Сообщения с сайта', to: '/dashboard/manager/contacts', icon: MessageSquare, group: 'Работа' },
   { id: 'ai-quality', label: 'Качество ИИ', to: '/dashboard/manager/ai-quality', icon: BrainCircuit, group: 'Работа' },
   { id: 'manager-profile', label: 'Профиль', to: '/dashboard/manager/profile', icon: User, group: 'Работа' },
 ];
@@ -68,7 +67,7 @@ export const adminNavGroups: Array<{ title: string; items: DashboardNavItem[] }>
       { id: 'ops-requests', label: 'Заявки', to: '/dashboard/admin/operations/requests', icon: ClipboardList },
       { id: 'ops-bookings', label: 'Записи', to: '/dashboard/admin/operations/bookings', icon: CalendarDays },
       { id: 'ops-clients', label: 'Клиенты', to: '/dashboard/admin/operations/clients', icon: Users },
-      { id: 'ops-contacts', label: 'Обращения', to: '/dashboard/admin/operations/contacts', icon: Bell },
+      { id: 'ops-contacts', label: 'Сообщения с сайта', to: '/dashboard/admin/operations/contacts', icon: MessageSquare },
     ],
   },
   {

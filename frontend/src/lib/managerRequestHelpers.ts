@@ -16,6 +16,42 @@ const EXTRACTED_FIELD_LABELS: Record<string, string> = {
   obd_codes: 'Коды OBD-II',
 };
 
+const HIDDEN_EXTRACTED_KEYS = new Set([
+  'sessionId',
+  'session_id',
+  'id',
+  'createdAt',
+  'updatedAt',
+  'created_at',
+  'updated_at',
+]);
+
+export function formatMileageKm(value: unknown): string {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value ?? '');
+  return `${numeric.toLocaleString('ru-RU')} км`;
+}
+
+export function formatExtractedFields(
+  extracted?: Record<string, unknown> | null,
+  options?: { omit?: string[] },
+) {
+  if (!extracted) return [];
+  const omit = new Set([...(options?.omit ?? []), ...HIDDEN_EXTRACTED_KEYS]);
+  return Object.entries(extracted)
+    .filter(([key, value]) => {
+      if (omit.has(key) || !EXTRACTED_FIELD_LABELS[key]) return false;
+      if (value == null || value === '') return false;
+      if (typeof value === 'object') return false;
+      return true;
+    })
+    .map(([key, value]) => ({
+      key,
+      label: EXTRACTED_FIELD_LABELS[key],
+      value: key === 'mileage' ? formatMileageKm(value) : String(value),
+    }));
+}
+
 type SessionLike = {
   diagnosis?: ConsultationDiagnosis | null;
   flowState?: unknown;
@@ -45,17 +81,6 @@ export function getRequestConfidence(session?: SessionLike | null): number | nul
 export function getRequestUrgency(session?: SessionLike | null): string | null {
   const diagnosis = getSessionDiagnosis(session);
   return diagnosis?.urgency ?? null;
-}
-
-export function formatExtractedFields(extracted?: Record<string, unknown> | null) {
-  if (!extracted) return [];
-  return Object.entries(extracted)
-    .filter(([, value]) => value != null && value !== '')
-    .map(([key, value]) => ({
-      key,
-      label: EXTRACTED_FIELD_LABELS[key] || key,
-      value: key === 'mileage' ? `${value} км` : String(value),
-    }));
 }
 
 export function formatRelativeTime(dateIso: string) {
@@ -194,7 +219,7 @@ export function buildAttentionItems(
     items.push({
       id: `contact-${contact.id}`,
       title: contact.fullName,
-      reason: 'Обращение с сайта',
+      reason: 'Пишет с сайта',
       meta: contact.message?.slice(0, 60) || contact.phone,
       to: paths.contacts,
       phone: contact.phone,

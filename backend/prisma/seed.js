@@ -60,18 +60,23 @@ async function main() {
   }
 
   for (const account of accounts) {
+    const existing = await prisma.user.findUnique({ where: { email: account.email } });
+    if (existing) {
+      await prisma.user.update({
+        where: { email: account.email },
+        data: {
+          fullName: account.fullName,
+          phone: account.phone,
+          role: account.role,
+          blocked: false,
+          emailVerifiedAt: existing.emailVerifiedAt || new Date(),
+        },
+      });
+      continue;
+    }
     const passwordHash = await bcrypt.hash(account.password, 12);
-    await prisma.user.upsert({
-      where: { email: account.email },
-      update: {
-        passwordHash,
-        fullName: account.fullName,
-        phone: account.phone,
-        role: account.role,
-        blocked: false,
-        emailVerifiedAt: new Date(),
-      },
-      create: {
+    await prisma.user.create({
+      data: {
         email: account.email,
         passwordHash,
         fullName: account.fullName,

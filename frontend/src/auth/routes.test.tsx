@@ -123,6 +123,66 @@ describe('route guards', () => {
     expect(await screen.findByText('manager-requests')).toBeInTheDocument();
   });
 
+  it('does not treat a 403 on /users/me as a dead session', async () => {
+    sessionStorage.setItem('car_service_user', JSON.stringify({ id: '1', role: 'MANAGER' }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: 'forbidden', code: 'FORBIDDEN' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    renderWithAuth(
+      <Routes>
+        <Route path="/login" element={<div>login-page</div>} />
+        <Route
+          path="/dashboard/manager"
+          element={
+            <ProtectedRoute>
+              <div>manager-desk</div>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>,
+      '/dashboard/manager',
+    );
+    expect(await screen.findByText('manager-desk')).toBeInTheDocument();
+  });
+
+  it('keeps the session and opens 2FA setup when /users/me requires TOTP', async () => {
+    sessionStorage.setItem('car_service_user', JSON.stringify({ id: '1', role: 'MANAGER' }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: 'Включите двухфакторную защиту, чтобы продолжить',
+            code: 'TOTP_SETUP_REQUIRED',
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+    renderWithAuth(
+      <Routes>
+        <Route path="/login" element={<div>login-page</div>} />
+        <Route
+          path="/dashboard/manager/requests"
+          element={
+            <ProtectedRoute>
+              <div>kanban</div>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/dashboard/manager/profile" element={<div>security-setup</div>} />
+      </Routes>,
+      '/dashboard/manager/requests',
+    );
+    expect(await screen.findByText('security-setup')).toBeInTheDocument();
+  });
+
   it('blocks a client from the manager section', async () => {
     stubUser('CLIENT');
     renderWithAuth(

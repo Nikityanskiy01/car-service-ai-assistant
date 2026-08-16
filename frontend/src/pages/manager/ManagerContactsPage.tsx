@@ -1,19 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Copy, MessagesSquare, Phone, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
+import { toast } from '../../lib/toast';
 import { prefillConsultationGuest } from '../../features/services/prefill';
 import { convertContactToRequest, listContacts, patchContactStatus } from '../../api/dashboard';
-import { copyText } from '../../lib/clipboard';
+import { ContactInboxItem } from '../../components/manager/ContactInboxItem';
 import { Alert, AlertDescription, AlertTitle } from '../../components/console/ui/alert';
-import { Badge } from '../../components/console/ui/badge';
 import { Button } from '../../components/console/ui/button';
-import { Card, CardContent } from '../../components/console/ui/card';
-import { Skeleton } from '../../components/console/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '../../components/console/ui/tabs';
 import { managerZonePaths } from '../../config/managerPaths';
-import { CONTACT_STATUS_LABELS, CONTACT_SOURCE_LABELS } from '../../lib/labels';
-import { formatRelativeTime } from '../../lib/managerRequestHelpers';
 import { useDashboardPolling } from '../../hooks/useDashboardPolling';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import type { ContactSubmission } from '../../types/dashboard';
@@ -22,42 +16,83 @@ type ManagerContactsPageProps = {
   adminZone?: boolean;
 };
 
-function contactStatusVariant(status: string): 'default' | 'secondary' | 'destructive' | 'success' | 'warning' {
-  if (status === 'CONVERTED') return 'success';
-  if (status === 'CLOSED') return 'secondary';
-  if (status === 'NEW') return 'warning';
-  return 'default';
+type StatusTab = 'NEW' | 'IN_PROGRESS' | 'CONVERTED' | 'CLOSED' | 'all';
+
+const STATUS_TABS: { id: StatusTab; label: string }[] = [
+  { id: 'NEW', label: 'Новые' },
+  { id: 'IN_PROGRESS', label: 'В работе' },
+  { id: 'CONVERTED', label: 'Заявки' },
+  { id: 'CLOSED', label: 'Закрыты' },
+  { id: 'all', label: 'Все' },
+];
+
+function emptyCopy(tab: StatusTab) {
+  if (tab === 'NEW') {
+    return {
+      title: 'Новых нет',
+      description: 'Как клиент отправит форму, сообщение появится здесь.',
+    };
+  }
+  if (tab === 'IN_PROGRESS') {
+    return {
+      title: 'Никто не на звонке',
+      description: 'На «Новых» нажмите «В работу», чтобы коллеги видели, что вы занялись.',
+    };
+  }
+  if (tab === 'CONVERTED') {
+    return {
+      title: 'Заявок из сообщений нет',
+      description: 'Когда клиент готов, «Создать заявку» откроет очередь.',
+    };
+  }
+  if (tab === 'CLOSED') {
+    return {
+      title: 'Закрытых нет',
+      description: 'Сюда попадают сообщения, которые закрыли без заявки.',
+    };
+  }
+  return {
+    title: 'Пока тихо',
+    description: 'С формы приходят имя, телефон и текст.',
+  };
+}
+
+function pulseUnit(count: number) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'новое';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'новых';
+  return 'новых';
 }
 
 export function ManagerContactsPage({ adminZone = false }: ManagerContactsPageProps) {
   usePageMeta({
-    title: adminZone ? 'Обращения — операции' : 'Входящие',
-    description: 'Сообщения из формы обратной связи.',
+    title: 'Сообщения с сайта',
+    description: 'Пишут с формы на сайте. Позвоните, затем создайте заявку.',
   });
 
   const paths = managerZonePaths(adminZone);
   const navigate = useNavigate();
   const [firstLoad, setFirstLoad] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contacts, setContacts] = useState<ContactSubmission[]>([]);
-  const [statusTab, setStatusTab] = useState('NEW');
+  const [statusTab, setStatusTab] = useState<StatusTab>('NEW');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const load = useCallback(
-    async (silent = false) => {
-      if (!silent) setError(null);
-      try {
-        const status = statusTab === 'all' ? undefined : statusTab;
-        setContacts(await listContacts(status));
-        if (silent) setError(null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Не удалось загрузить обращения');
-      } finally {
-        setFirstLoad(false);
-      }
-    },
-    [statusTab],
-  );
+  const load = useCallback(async (silent = false) => {
+    if (silent) setRefreshing(true);
+    else setError(null);
+    try {
+      setContacts(await listContacts());
+      if (silent) setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить сообщения с сайта');
+    } finally {
+      setFirstLoad(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     void load();
@@ -65,12 +100,26 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
 
   useDashboardPolling(() => void load(true), 60_000);
 
+  const counts = useMemo(() => {
+    const next = { NEW: 0, IN_PROGRESS: 0, CONVERTED: 0, CLOSED: 0, all: contacts.length };
+    for (const item of contacts) {
+      const status = item.status || 'NEW';
+      if (status in next) next[status as Exclude<StatusTab, 'all'>] += 1;
+    }
+    return next;
+  }, [contacts]);
+
+  const visible = useMemo(
+    () => (statusTab === 'all' ? contacts : contacts.filter((item) => (item.status || 'NEW') === statusTab)),
+    [contacts, statusTab],
+  );
+
   async function handleStatus(contact: ContactSubmission, status: 'IN_PROGRESS' | 'CLOSED') {
     setActionLoading(contact.id);
     try {
       await patchContactStatus(contact.id, { status });
       await load(true);
-      toast.success(status === 'CLOSED' ? 'Обращение закрыто' : 'Обращение взято в работу', {
+      toast.success(status === 'CLOSED' ? 'Закрыто без заявки' : 'В работе', {
         description: contact.fullName,
       });
     } catch (e) {
@@ -92,35 +141,50 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
     }
   }
 
-  async function copyPhone(phone: string) {
-    const ok = await copyText(phone);
-    if (ok) toast.success('Телефон скопирован');
-    else toast.error('Не удалось скопировать номер');
-  }
+  const empty = emptyCopy(statusTab);
+  const newCount = counts.NEW;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Контакты и вопросы с публичных страниц сайта.</p>
-        <Button type="button" variant="ghost" size="sm" onClick={() => void load()}>
-          <RefreshCw />
-          Обновить
-        </Button>
-      </div>
+    <div className="contacts-inbox">
+      <header className="contacts-chrome">
+        <div className="contacts-chrome-mast">
+          <p className="contacts-chrome-kicker">С формы на сайте</p>
+          <h1 className={`contacts-pulse${newCount > 0 ? ' is-hot' : ''}`}>
+            <span className="tnum">{firstLoad ? '—' : newCount}</span>
+            <span className="contacts-pulse-unit">{pulseUnit(newCount)}</span>
+          </h1>
+          <p className="contacts-chrome-note">Позвоните, затем создайте заявку в очередь.</p>
+        </div>
 
-      <Tabs value={statusTab} onValueChange={setStatusTab} className="gap-0">
-        <TabsList>
-          <TabsTrigger value="NEW">Новые</TabsTrigger>
-          <TabsTrigger value="IN_PROGRESS">В работе</TabsTrigger>
-          <TabsTrigger value="CONVERTED">Конвертированы</TabsTrigger>
-          <TabsTrigger value="CLOSED">Закрыты</TabsTrigger>
-          <TabsTrigger value="all">Все</TabsTrigger>
-        </TabsList>
-      </Tabs>
+        <div className="contacts-chrome-dock">
+          <div className="contacts-tabs" role="tablist" aria-label="Статус сообщений">
+            {STATUS_TABS.map((tab) => {
+              const count = counts[tab.id];
+              const selected = statusTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className="contacts-tab"
+                  onClick={() => setStatusTab(tab.id)}
+                >
+                  {tab.label}
+                  <span className={`tnum${tab.id === 'NEW' && count > 0 ? ' is-hot' : ''}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <Button type="button" variant="ghost" size="icon" onClick={() => void load()} disabled={refreshing} aria-label="Обновить">
+            <RefreshCw className={refreshing ? 'is-spinning' : undefined} />
+          </Button>
+        </div>
+      </header>
 
       {error ? (
         <Alert variant="destructive">
-          <AlertTitle>Не удалось загрузить входящие</AlertTitle>
+          <AlertTitle>Не удалось загрузить сообщения</AlertTitle>
           <AlertDescription className="flex flex-col gap-2">
             <span>Проверьте соединение и повторите попытку.</span>
             <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => void load()}>
@@ -130,118 +194,43 @@ export function ManagerContactsPage({ adminZone = false }: ManagerContactsPagePr
         </Alert>
       ) : null}
 
-      {firstLoad ? (
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      ) : null}
+      <div className="contacts-shell">
+        {firstLoad ? (
+          <div className="contacts-stack" aria-hidden>
+            <div className="contacts-skel" />
+            <div className="contacts-skel" />
+            <div className="contacts-skel" />
+          </div>
+        ) : null}
 
-      {!firstLoad && !error && !contacts.length ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {statusTab === 'NEW' ? 'Все новые сообщения разобраны.' : 'В этом статусе пока пусто.'}
-          </CardContent>
-        </Card>
-      ) : null}
+        {!firstLoad && !error && !visible.length ? (
+          <div className="contacts-empty" role="status">
+            <strong>{empty.title}</strong>
+            <p>{empty.description}</p>
+          </div>
+        ) : null}
 
-      {!firstLoad && !error && contacts.length ? (
-        <ul className="flex list-none flex-col gap-2">
-          {contacts.map((item) => {
-            const busy = actionLoading === item.id;
-            const status = item.status || 'NEW';
-            const open = status !== 'CONVERTED' && status !== 'CLOSED';
-            return (
-              <li key={item.id}>
-                <Card className={busy ? 'opacity-70' : undefined}>
-                  <CardContent className="flex flex-col gap-3 py-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <strong className="text-sm">{item.fullName}</strong>
-                      <Badge variant={contactStatusVariant(status)}>{CONTACT_STATUS_LABELS[status]}</Badge>
-                      {item.createdAt ? (
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {formatRelativeTime(item.createdAt)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex min-w-0 items-center gap-2 text-sm tabular-nums">
-                      <a href={`tel:${item.phone}`} className="min-w-0 truncate text-foreground">
-                        {item.phone}
-                      </a>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 shrink-0"
-                        aria-label="Скопировать номер"
-                        onClick={() => void copyPhone(item.phone)}
-                      >
-                        <Copy />
-                      </Button>
-                    </div>
-                    <p className="text-sm">{item.message || 'Без текста'}</p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      {item.source ? <Badge variant="outline">{CONTACT_SOURCE_LABELS[item.source] || item.source}</Badge> : null}
-                      {item.convertedRequestId ? (
-                        <Link to={`${paths.requests}/${item.convertedRequestId}`} className="text-primary">
-                          Открыть созданную заявку
-                        </Link>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button asChild variant="ghost" size="icon" className="size-8">
-                        <a href={`tel:${item.phone}`} aria-label="Позвонить">
-                          <Phone />
-                        </a>
-                      </Button>
-                      {open ? (
-                        <>
-                          {status === 'NEW' ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              disabled={busy}
-                              onClick={() => void handleStatus(item, 'IN_PROGRESS')}
-                            >
-                              В работу
-                            </Button>
-                          ) : null}
-                          <Button type="button" size="sm" disabled={busy} onClick={() => void handleConvert(item)}>
-                            Создать заявку
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => {
-                              prefillConsultationGuest({ fullName: item.fullName, phone: item.phone });
-                              void navigate('/consult');
-                            }}
-                          >
-                            <MessagesSquare />
-                            Консультация
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => void handleStatus(item, 'CLOSED')}
-                          >
-                            Закрыть
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
-                  </CardContent>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
+        {!firstLoad && !error && visible.length ? (
+          <div className="contacts-stack">
+            {visible.map((item) => (
+              <ContactInboxItem
+                key={item.id}
+                item={item}
+                busy={actionLoading === item.id}
+                showStatus={statusTab === 'all'}
+                requestHref={item.convertedRequestId ? `${paths.requests}/${item.convertedRequestId}` : null}
+                onTake={() => void handleStatus(item, 'IN_PROGRESS')}
+                onConvert={() => void handleConvert(item)}
+                onClose={() => void handleStatus(item, 'CLOSED')}
+                onConsult={() => {
+                  prefillConsultationGuest({ fullName: item.fullName, phone: item.phone });
+                  void navigate('/consult');
+                }}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

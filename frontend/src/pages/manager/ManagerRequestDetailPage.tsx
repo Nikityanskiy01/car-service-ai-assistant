@@ -20,10 +20,13 @@ export function ManagerRequestDetailPage({ adminZone = false }: ManagerRequestDe
 
   if (d.loading) {
     return (
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-48 w-full" />
+      <div className="request-page" aria-busy="true">
+        <Skeleton className="request-skel-mast" />
+        <Skeleton className="request-skel-tabs" />
+        <div className="request-summary-layout">
+          <Skeleton className="request-skel-diag" />
+          <Skeleton className="request-skel-side" />
+        </div>
       </div>
     );
   }
@@ -45,12 +48,12 @@ export function ManagerRequestDetailPage({ adminZone = false }: ManagerRequestDe
   const loaded = d as LoadedManagerRequest;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="request-page">
       <ManagerRequestChrome d={loaded} />
-      <Tabs value={d.tab} onValueChange={d.setTab} className="gap-3">
-        <TabsList>
+      <Tabs value={d.tab} onValueChange={d.setTab} className="request-page-tabs">
+        <TabsList className="request-page-tablist">
           {MANAGER_REQUEST_TABS.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id}>
+            <TabsTrigger key={tab.id} value={tab.id} className="request-tab">
               {tab.label}
             </TabsTrigger>
           ))}

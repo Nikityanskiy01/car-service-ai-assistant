@@ -1,0 +1,290 @@
+/* Вкладки заявки: диалог, работы, история. */
+
+.request-thread {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
+}
+
+.request-thread .consultation-stages-timeline {
+  margin: 0;
+}
+
+.request-page > .state-card {
+  max-width: 42rem;
+  padding: 1.05rem 1.1rem 1.15rem;
+  border-style: solid;
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
+}
+
+.request-page > .state-card h3 {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.request-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.request-thread-log {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.request-page .follow-up-chat-card {
+  border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
+}
+
+.request-works {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.85fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.request-works-eval,
+.request-works-side > * {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
+}
+
+.request-works-side {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.request-works .consultation-feedback-panel h3,
+.request-works .completion-documents-panel h3,
+.request-works .similar-cases-panel h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.request-works .consultation-feedback-panel > header p,
+.request-works .completion-documents-panel > header p,
+.request-works .similar-cases-panel > header p {
+  margin: 0 0 0.75rem;
+  max-width: 62ch;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.request-works .feedback-verdict-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.18rem;
+  padding: 0.22rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--color-surface-secondary) 70%, var(--color-background));
+}
+
+.request-works .feedback-verdict-btn {
+  min-width: 0;
+  width: 100%;
+}
+
+.request-works .repair-outcome-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.55rem 0.65rem;
+  align-items: end;
+}
+
+.request-works .repair-outcome-grid label {
+  min-width: 0;
+}
+
+.request-works .repair-outcome-grid span {
+  display: block;
+  margin-bottom: 0.28rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.request-works .repair-outcome-grid .input,
+.request-works .repair-outcome-grid .select {
+  min-height: 2.35rem;
+  width: 100%;
+}
+
+.request-works .completion-doc-slot-label .input {
+  min-height: 2.35rem;
+}
+
+.request-works .similar-cases-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-works .similar-case-card {
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
+}
+
+.request-history-desk {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.95fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.request-history-col {
+  padding: 0.95rem 1rem 1.05rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-text-primary) 7%, transparent);
+}
+
+.request-history-col h2 {
+  margin: 0 0 0.7rem;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.request-history-note {
+  margin: 0 0 0.7rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.request-timeline {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-timeline li {
+  position: relative;
+  padding: 0 0 0.85rem 1.15rem;
+}
+
+.request-timeline li:last-child {
+  padding-bottom: 0;
+}
+
+.request-timeline li::before {
+  content: '';
+  position: absolute;
+  left: 0.18rem;
+  top: 0.45rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--brand-accent);
+}
+
+.request-timeline li::after {
+  content: '';
+  position: absolute;
+  left: 0.36rem;
+  top: 1rem;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border);
+}
+
+.request-timeline li:last-child::after {
+  content: none;
+}
+
+.request-timeline time {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.request-timeline p {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.request-jobs h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+}
+
+.request-jobs ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-job {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-secondary);
+}
+
+.request-job-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.request-job-error {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--color-danger);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .request-works .feedback-verdict-btn:hover {
+    transform: none;
+  }
+}
+
+.request-works .feedback-verdict-btn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 1100px) {
+  .request-works .repair-outcome-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .request-works,
+  .request-history-desk {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-works .feedback-verdict-btn:active {
+    transform: none;
+  }
+}

@@ -55,6 +55,17 @@ describe('csrfProtection', () => {
     expect(verify.next).toBe(true);
   });
 
+  it('пропускает login по originalUrl без baseUrl', async () => {
+    process.env.NODE_ENV = 'development';
+    const out = await callCsrf({
+      method: 'POST',
+      originalUrl: '/api/auth/login',
+      cookies: { car_service_at: 'stale-access' },
+      headers: {},
+    });
+    expect(out).toEqual({ next: true });
+  });
+
   it('по-прежнему требует CSRF на обычных POST при auth-cookie', async () => {
     process.env.NODE_ENV = 'development';
     const out = await callCsrf({

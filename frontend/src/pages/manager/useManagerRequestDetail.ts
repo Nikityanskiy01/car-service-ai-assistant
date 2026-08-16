@@ -24,7 +24,7 @@ import {
   getSessionDiagnosis,
 } from '../../lib/managerRequestHelpers';
 import type { PendingAttachment } from '../../components/requests/MessageAttachmentInput';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { managerZonePaths } from '../../config/managerPaths';
 import { SERVICE_REQUEST_STATUS_LABELS } from '../../lib/labels';
 import { usePageMeta } from '../../hooks/usePageMeta';

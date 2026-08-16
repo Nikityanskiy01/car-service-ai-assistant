@@ -64,17 +64,6 @@
   color: var(--color-text-secondary);
 }
 
-.request-summary-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
-  gap: 1.25rem;
-}
-
-.request-summary-side,
-.request-summary-main {
-  min-width: 0;
-}
-
 .summary-section h2 {
   margin: 0 0 0.65rem;
   font-size: 1rem;
@@ -88,6 +77,75 @@
 
 .extracted-fields {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.request-analysis-body {
+  margin: 0;
+  max-width: 65ch;
+  font-size: 0.95rem;
+  font-weight: 450;
+  line-height: 1.5;
+}
+
+.request-analysis-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem 1.25rem;
+}
+
+.request-analysis-metrics dt {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.request-analysis-metrics dd {
+  margin: 0.12rem 0 0;
+  font-size: 1.12rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.request-brief-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.7rem 1rem;
+  margin: 0.9rem 0 0;
+}
+
+.request-brief-facts dt {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.request-brief-facts dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.request-analysis {
+  margin-top: 1.15rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.request-analysis-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.request-car-name {
+  margin: 0;
+  font-weight: 650;
+}
+
+.request-car-meta {
+  margin: 0.2rem 0 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-mini-stats,
@@ -182,10 +240,6 @@
 }
 
 @media (max-width: 960px) {
-  .request-summary-layout {
-    grid-template-columns: 1fr;
-  }
-
   .metrics-grid-4,
   .metrics-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -198,7 +252,8 @@
   }
 
   .metrics-grid-4,
-  .metrics-grid-3 {
+  .metrics-grid-3,
+  .request-analysis-metrics {
     grid-template-columns: 1fr;
   }
 }
